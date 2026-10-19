@@ -2,14 +2,14 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {load} from 'cheerio';
 import {createMarkdown,renderMarkdown} from '../src/markdown.mjs';
+import {ContentStore} from '../src/content-store.mjs';
 
-function render(source) {
-  const entries = new Map([
-    ['Target',{note:{},slug:'places/target'}],
-    ['portrait.png',{extension:'.png',target:'assets/portrait.png'}],
+function render(source, {metadata = {}, context = {id:'custom',kind:'custom',date:'1730-01-01',campaigns:[]}} = {}) {
+  const store = new ContentStore([
+    {id:'Places/Target.md',name:'Target',target:'places/target.md',note:{metadata:{aliases:['Sovereign'],...metadata}},slug:'places/target'},
+    {id:'assets/portrait.png',extension:'.png',target:'assets/portrait.png'},
   ]);
-  const env = {entry:{id:'People/Example.md',target:'people/example.md'},date:'1730-01-01',warnings:[],
-    store:{lookup:target => entries.has(target) ? {status:'found',entry:entries.get(target)} : {status:'missing'}}};
+  const env = {entry:{id:'People/Example.md',target:'people/example.md'},date:context.date,context,warnings:[],store};
   return {...renderMarkdown(createMarkdown(),source,env),warnings:env.warnings};
 }
 test('footnotes, definition lists, attrs and inline date fields',() => {
@@ -45,6 +45,58 @@ test('unknown links warn; duplicate headings get distinct anchors',() => {
   assert.equal($('h1').attr('id'),'same'); assert.equal($('h2').attr('id'),'same_1');
   assert.match($.text(),/Readable/);
   assert.deepEqual(result.warnings,['Missing wikilink target: Unknown']);
+});
+
+test('page links follow campaign exclusions and date boundaries across link formats',() => {
+  const source = [
+    '[[Target|the old king]]', '[[Target#History|his history]]', '[[Sovereign|an alias]]',
+    '[**formatted** label](../Places/Target.md#History)', '[exported](../places/target.md)',
+    '[encoded](../Places/%54arget.md)', '[site](/page/places/target?date=1800-01-01#history)',
+    '<a href="/page/places/target.md/?context=modern"><em>HTML</em> label</a>',
+    '[reference][king]\n\n[king]: ../Places/Target.md',
+  ].join('\n\n');
+  for (const [metadata,campaigns,date,visible] of [
+    [{excludePublish:'all'},[],'1800-01-01',false],
+    [{excludePublish:'DUFR, itc'},['dufr'],'1730-01-01',false],
+    [{excludePublish:['dufr']},['adma'],'1730-01-01',true],
+    [{excludePublish:['dufr']},[],'1730-01-01',true],
+    [{born:'1730-04-02'},[],'1730-04-01',false],
+    [{born:'1730-04-02'},[],'1730-04-02',true],
+    [{created:'1730-04-02'},[],'1730-04-01',false],
+    [{created:'1730-04-02'},[],'1730-04-02',true],
+    [{activeYear:1740},[],'1739-12-31',false],
+    [{activeYear:1740},[],'1740-01-01',true],
+  ]) for (const dm of [false,true]) {
+    const context = {id:'custom',kind:'custom',date,campaigns,dm};
+    const result = render(source,{metadata,context}), $ = load(result.html,{},false);
+    assert.equal($('a').length,visible ? 9 : 0,JSON.stringify({metadata,context}));
+    assert.match($.text(),/the old king/);
+    assert.match($.text(),/his history/);
+    assert.match($.text(),/an alias/);
+    assert.equal($('strong').text(),'formatted');
+    assert.equal($('em').text(),'HTML');
+    assert.deepEqual(result.warnings,[]);
+  }
+});
+
+test('unlinked contents retain escaping and images; external, asset, heading and literal links stay intact',() => {
+  const source = [
+    '[[Target|<img src=x onerror=alert(1)>]]',
+    '[![portrait](../assets/portrait.png)](../Places/Target.md)',
+    '[outside](https://example.com/page/places/target) [protocol](//example.com/page/places/target)',
+    '[mail](mailto:test@example.com) [asset](/assets/assets/portrait.png) [[#History]]',
+    '`[[Target]]`\n\n```md\n[Target](../Places/Target.md)\n```',
+  ].join('\n\n');
+  const result = render(source,{metadata:{excludePublish:'all'}}), $ = load(result.html,{},false);
+  assert.equal($('a[href^="/page/"]').length,0);
+  assert.equal($('a').length,5);
+  assert.equal($('img').length,1);
+  assert.equal($('img').parent().is('a'),false);
+  assert.equal($('img').attr('src'),'/assets/assets/portrait.png');
+  assert.match($.text(),/<img src=x onerror=alert\(1\)>/);
+  assert.equal($('code').first().text(),'[[Target]]');
+  assert.equal($('pre code').text().trim(),'[Target](../Places/Target.md)');
+  assert.deepEqual(result.warnings,[]);
 });
 test('icon shortcodes preserve earlier inline markup',() => {
   const $ = load(render('**Bold** [link](https://example.com) :octicons-info-24:{ .lg .middle } after.').html,{},false);

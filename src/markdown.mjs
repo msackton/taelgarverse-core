@@ -6,7 +6,7 @@ import deflist from 'markdown-it-deflist';
 import {full as emoji} from 'markdown-it-emoji';
 import {load} from 'cheerio';
 import {escapeHtml, pageUrl, titleCase} from './common.mjs';
-import {IMAGE_TYPES, AUDIO_TYPES} from './content-store.mjs';
+import {IMAGE_TYPES, AUDIO_TYPES, availableInContext} from './content-store.mjs';
 import {decorateDMNotes} from './dm.mjs';
 
 import {icons} from './icons.mjs';
@@ -196,6 +196,17 @@ export function renderMarkdown(md, source, env) {
     const resolution = env.store.lookup(relative);
     const entry = resolution.entry || env.store.lookup(exported).entry || env.store.lookup(decoded.replace(/^\/(?:taelgarverse\/)?/, '')).entry;
     if (entry) el.attr(attribute, entry.note ? pageUrl(entry.slug, env.date,env.context) + fragment : '/assets/' + entry.target.split('/').map(encodeURIComponent).join('/') + fragment);
+  });
+  // All resolved page links now share the website URL format, including links
+  // from generated headers and rendered HTML. Keep their contents when hidden.
+  const context = env.context || {date:env.date,campaigns:[]};
+  $('a[href^="/page/"]').each((_, element) => {
+    const el = $(element);
+    let target;
+    try { target = decodeURIComponent(el.attr('href').slice(6).split(/[?#]/,1)[0]).replace(/\/$/, ''); }
+    catch { return; }
+    const entry = env.store.bySlug?.get(target.replace(/\.md$/, '')) || env.store.lookup(target).entry;
+    if (entry?.note && !availableInContext(entry,context)) el.replaceWith(el.contents());
   });
   const used = new Set(), headings = [];
   $('h1,h2,h3,h4,h5,h6').each((_, element) => {

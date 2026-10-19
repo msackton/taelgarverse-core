@@ -67,6 +67,13 @@ availability rules. Modern and Custom have no campaign-specific exclusions, and
 See Behind the Curtain does not bypass page availability. Assets remain accessible
 independently of page exclusions.
 
+Rendered internal links use the same availability rules: when the destination
+is unavailable in the current campaign or date, its label and formatting remain
+without a clickable link. This applies to wikilinks, Markdown and HTML page links,
+generated headers, and Behind the Curtain notes. Links become clickable again
+when the selected context permits the destination. The check uses snapshot
+metadata and does not fetch the destination's note body.
+
 Deploy the updated Worker and publish a fresh snapshot to activate this change.
 Reload the updated Taelgar Dataview Materializer plugin in Obsidian before the
 first export. The publisher requires publicationPolicy: context-v1 in its report

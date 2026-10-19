@@ -2,6 +2,7 @@ import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {load} from 'cheerio';
 import {ROOT,loadSettings,isInside} from '../src/config.mjs';
 import {Engine} from '../src/engine.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
@@ -34,6 +35,13 @@ before(async()=>{
   }
   fs.writeFileSync(path.join(source,'Session.md'),'---\ntags: [session-note]\ncampaign: dufr\nDR: 1720-01-01\n---\nSession.\n');
   fs.writeFileSync(path.join(source,'AdderSession.md'),'---\ntags: [session-note]\ncampaign: adma\nDR: 1720-01-01\n---\nSession.\n');
+  fs.writeFileSync(path.join(source,'Linked.md'),[
+    '---', 'tags: [person]', 'name: Link Example', 'species: human', 'born: 1700-01-01',
+    'whereabouts:', '  - {type: home, location: CampaignHidden}', '---', '<!-- taelgar:header -->',
+    '', '## Links', '', '[[Hidden|hidden label]] [[CampaignHidden|campaign label]]',
+    '[[Unborn|birth label]] [[Unbuilt|creation label]] [[Future|active label]]', '',
+    '%%DM [[CampaignHidden|popup campaign]] and [[Unborn|popup birth]].%%',
+  ].join('\n'));
   fs.writeFileSync(path.join(source,'_ignore.txt'),'Ignored/\n');
   fs.writeFileSync(path.join(source,'_nav.md'),'- [Home](index.md)\n- People\n    - {glob: people/}\n- Places\n    - {glob: places/}\n');
   const settings={...loadSettings(),source_dir:source,ignore_file:path.join(source,'_ignore.txt'),nav_source:path.join(source,'_nav.md'),campaigns:['dufr','adma']};
@@ -103,6 +111,46 @@ test('Worker renders the same article as the VM reference and isolates request p
   const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
   const shard=index.entries.find(e=>e.id===entry.id).note.shard;
   assert.equal(bucket.calls.get('revisions/'+report.revision+'/notes/'+shard+'.json'),1);
+});
+
+test('Worker filters article, generated header and DM links from metadata without loading target bodies',async()=>{
+  const isolated=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
+    {key:'published/current.json',file:report.pointerFile}]);
+  const app=createWorker(instantiate), environment={...env,CONTENT:isolated};
+  for (const [query,campaignVisible,bornVisible,activeVisible] of [
+    ['context=dunmar-frontier',false,false,false],
+    ['context=addermarch',true,false,false],
+    ['date=1730-04-01',true,false,false],
+    ['date=1730-04-02',true,true,false],
+    ['date=1740-01-01',true,true,true],
+    ['context=modern',true,false,false],
+    ['context=dunmar-frontier',false,false,false],
+  ]) for (const dm of [false,true]) {
+    const response=await app.fetch(new Request('https://example.test/api/page?page=Linked&'+query+'&dm='+Number(dm)),environment);
+    assert.equal(response.status,200);
+    const result=await response.json(), $=load(result.html,{},false);
+    const parameters=new URLSearchParams(query);
+    assert.equal(result.html,engine.render('Linked',parameters.get('date') || undefined,parameters.get('context') || undefined,dm).html);
+    const labels=new Set($('a').map((_,el)=>$(el).text()).get());
+    assert.equal(labels.has('hidden label'),false);
+    for (const [label,visible] of [['campaign label',campaignVisible],['birth label',bornVisible],
+      ['creation label',bornVisible],['active label',activeVisible]]) {
+      assert.match($.text(),new RegExp(label));
+      assert.equal(labels.has(label),visible,label+' in '+query);
+    }
+    const header=$('.grid.cards');
+    assert.match(header.text(),/CampaignHidden/);
+    assert.equal(header.find('a[href^="/page/campaignhidden?"]').length,campaignVisible ? 1 : 0);
+    assert.equal($('.dm-note-popup').length,dm ? 1 : 0);
+    assert.equal(labels.has('popup campaign'),dm && campaignVisible);
+    assert.equal(labels.has('popup birth'),dm && bornVisible);
+    if (dm) assert.match($('.dm-note-popup').text(),/popup campaign.*popup birth/);
+    assert.deepEqual(result.warnings,[]);
+  }
+  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  const shard=index.entries.find(entry=>entry.id==='Linked.md').note.shard;
+  assert.deepEqual([...isolated.calls.keys()].filter(key=>key.includes('/notes/')),
+    ['revisions/'+report.revision+'/notes/'+shard+'.json']);
 });
 
 test('Worker serves HTML/navigation, assets with ranges/ETags, HEAD, and normal errors',async()=>{

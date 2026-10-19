@@ -10,8 +10,8 @@ function render(source, dm = true) {
   const result = renderMarkdown(createMarkdown(),body,{
     dmNotes:notes, notesMarkdown:createMarkdown({html:false}), warnings,
     entry:{id:'Example.md',target:'example.md'}, date:'1730-01-01',
-    context:{id:'dunmar-frontier',kind:'campaign',dm},
-    store:{lookup:target => target === 'Target' ? {status:'found',entry:{note:{},slug:'target'}} : {status:'missing'}},
+    context:{id:'dunmar-frontier',kind:'campaign',date:'1730-01-01',campaigns:['dufr'],dm},
+    store:{lookup:target => ['Target','target'].includes(target) ? {status:'found',entry:{note:{metadata:{}},slug:'target'}} : {status:'missing'}},
   });
   return {...result, $:load(result.html,{},false), notes};
 }
