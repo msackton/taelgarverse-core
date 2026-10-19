@@ -43,16 +43,17 @@ a directory tree. Existing article TOC behavior is retained pending discussion.
 
 ### MVP-02: Generic HTML extensions, including Taelgar II
 
-**Status:** Agreed scope; detailed behavior remains open.
+**Status:** Implemented through external page links; local navigation and GitHub Pages verified.
 
 Provide a general mechanism for incorporating generic HTML pages or sections
 into the dynamic website. Taelgar II is a required MVP use case for that
 mechanism.
 
-Taelgar II can remain a standalone website with its own presentation; it does
-not need the shared Taelgarverse header or navigation. Preserving the link in
-the source material may be sufficient as its entry point. Hosting and
-publishing integration remain to be discussed.
+Taelgar II remains on its existing GitHub Pages host with its own presentation
+and publishing workflow. The dynamic site's curated navigation accepts external
+HTTP(S) links, and the vault menu now links to Taelgar II. External destinations
+retain their URL without appended campaign/date settings. Future standalone
+HTML sites can use the same mechanism; no HTML or asset migration is needed.
 
 ### MVP-03: Basic full-text search
 
@@ -117,12 +118,18 @@ both Node and Worker handlers. No audio publication-pipeline change is needed.
 
 ### MVP-08: Note embeds
 
-**Status:** Agreed scope; detailed behavior remains open.
+**Status:** Implemented; real-vault, Node, and Worker verification complete.
 
 Render embedded notes as included content rather than ordinary links. Embedded
-content must respect the selected campaign/date context and applicable
-publication rules. Presentation and section/block embed behavior remain to be
-discussed.
+content respects the selected campaign/date context and applicable publication
+rules. Whole-note, heading/section, block, local-heading, and nested embeds render
+in bordered panels with source links. Generated headers are omitted, embedded
+headings stay out of the host TOC, and repeated anchors/footnotes/popups remain
+distinct. Cycles and unsafe or missing sections recover with a source link;
+expansion is bounded. The Worker loads visible embedded notes on demand from
+existing Markdown shards. All 12 current vault embed sources were checked in
+Modern, Dunmar Frontier, and Custom All campaigns; the materializer preserves
+their syntax. No new publication schema or embed index is required.
 
 ### MVP-09: Mermaid diagrams
 
