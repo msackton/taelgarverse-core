@@ -210,6 +210,13 @@ can still appear in search and work through a direct link without being listed
 there. **On this page** comes from the article's headings, excluding its first
 title and popup-comment headings.
 
+Main sections appear in the desktop header, with the current section's branch
+on the left. Below 1100px the full navigation moves into a hamburger drawer;
+below 800px the page contents disappear. In note or homepage frontmatter,
+`hide: [navigation]` omits the section links and left navigation, and
+`hide: [toc]` omits page contents. Both may be combined. Search, settings, and
+backlinks remain available, and unused navigation columns release their space.
+
 **Linked from** lists other articles that link to the current one. Only pages and
 passages visible in the selected view contribute links. Campaign notes contribute
 links when their campaign is selected, including Custom subsets. Modern and
@@ -218,6 +225,13 @@ also includes unrecognized campaign sources. Campaign ownership comes from the
 source note's `campaign` property or its registered campaign folder. This does
 not change whether those articles can be opened directly.
 Generated header relationships and links back to the same article are excluded.
+Backlinks appear beside long articles and below short articles; on mobile they
+appear in a collapsed **Linked from** section below the article.
+
+The header gear offers **System**, **Light**, and **Dark** appearance. System is
+the default and follows operating-system changes. Explicit selections are saved
+in that browser. On small screens the gear also contains the context/date,
+campaign, and **See Behind the Curtain** controls.
 
 | In the note | On the website |
 | --- | --- |

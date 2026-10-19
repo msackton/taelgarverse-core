@@ -58,9 +58,21 @@ flowchart LR
 | `src/worker.mjs`, `src/worker-handler.mjs`, `src/header-runtime.mjs` | Worker adapter and fresh instances of generated header classes. |
 | `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs` | Translate trusted vault classes into ordinary JavaScript modules. |
 | `public/`, `src/browser/`, `scripts/build-browser.mjs` | Application styles/scripts and the generated Mermaid browser bundle. |
+| `public/quiet-library.css`, `public/site-ui.js`, `public/appearance.js` | Quiet Library layout, responsive dialogs and scroll controls, and browser-local System/Light/Dark appearance. |
 | `src/release-footer.mjs`, `public/release.js`, `scripts/build-core-release.mjs` | Version footer, copy behavior, and core provenance captured by Wrangler's custom build. |
 
 ## Configuration
+
+The page shell uses Quiet Library typography with the Sage & stone palette.
+`src/header.mjs` owns header controls and dialog markup; `src/navigation.mjs`
+renders context-filtered section links and the lazy navigation tree. Browser
+code moves the same navigation, search, and context controls into dialogs below
+1100px. Backlinks remain accessible below the article on mobile and on pages
+without a contents list. Material CSS still provides article components; the
+Quiet Library stylesheet overrides its colors with shared light/dark tokens.
+Appearance defaults to the operating system, is applied before styles load, and
+explicit choices persist in `localStorage` under `taelgarverse-appearance`.
+This preference does not alter content context or server caching.
 
 `config.json` owns shared vault/content defaults. `loadSettings()` automatically
 applies the ignored `config.local.json` when present; local files need only changed
