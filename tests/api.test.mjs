@@ -21,6 +21,11 @@ before(async () => {
     fs.writeFileSync(filename,source);
   }
   fs.writeFileSync(path.join(directory,'tiny.png'),'fixture asset');
+  for (const relative of ['assets/audio/song.mp3','assets/session-audio/session/clip.m4a','assets/excalidraw/drawing.png']) {
+    const filename = path.join(directory,relative);
+    fs.mkdirSync(path.dirname(filename),{recursive:true});
+    fs.writeFileSync(filename,'media fixture: ' + relative);
+  }
   fs.writeFileSync(path.join(directory,'Dynamic.md'),'---\ntags: [person]\nspecies: human\nname: Dynamic Person\nborn: 1700-01-01\n---\n<!-- taelgar:header -->\n\n# Body heading\n\nPrepared biography.\n\n```html\n<!-- taelgar:header -->\n```\n');
   fs.writeFileSync(path.join(directory,'Session.md'),'---\ntags: [session-note]\ncampaign: Dunmar Frontier\nsessionNumber: 1\nDR: 1720-01-01\nDR_end: 1720-01-02\n---\n# Session\n');
   fs.writeFileSync(path.join(directory,'AdderSession.md'),'---\ntags: [session-note]\ncampaign: Addermarch\nsessionNumber: 1\nDR: 1720-01-01\nDR_end: 1720-01-02\n---\n# Session\n');
@@ -126,6 +131,37 @@ test('indexed assets and traversal restrictions',async () => {
   assert.equal((await fetch(base + $('img').attr('src'),{headers:{Range:'bytes=999-1000'}})).status,416);
   assert.equal((await fetch(base + '/assets/ignore.txt')).status,404);
   assert.equal((await fetch(base + '/assets/%2e%2e/README.md')).status,404);
+});
+
+test('audio players and exported drawings resolve to published assets with seekable media',async()=>{
+  const result = engine.render('Media','1720-01-01'), $ = load(result.html,{},false);
+  assert.deepEqual(result.warnings,[]);
+  assert.equal($('audio[controls][preload="metadata"]').length,2);
+  assert.equal($('img').first().attr('width'),'400');
+  assert.equal($('img').first().attr('src'),'/assets/assets/excalidraw/drawing.png');
+  assert.equal($('a:has(img)').attr('href'),'https://example.test/drawing');
+  assert.equal($('a').filter((_,el)=>$(el).text()==='Download song').attr('href'),'/assets/assets/audio/song.mp3');
+  assert.equal(load(engine.render('Media',undefined,'dunmar-frontier').html)('audio').length,3);
+  for (const [index,mime] of [[0,'audio/mpeg'],[1,'audio/mp4']]) {
+    const url = base + $('audio').eq(index).attr('src');
+    const full = await fetch(url), bytes = await full.text();
+    assert.equal(full.status,200);
+    assert.equal(full.headers.get('content-type'),mime);
+    assert.equal(full.headers.get('accept-ranges'),'bytes');
+    const partial = await fetch(url,{headers:{Range:'bytes=6-12'}});
+    assert.equal(partial.status,206);
+    assert.equal(partial.headers.get('content-range'),'bytes 6-12/' + bytes.length);
+    assert.equal(await partial.text(),bytes.slice(6,13));
+    const head = await fetch(url,{method:'HEAD'});
+    assert.equal(head.headers.get('content-length'),String(bytes.length));
+    assert.equal(await head.text(),'');
+  }
+  assert.equal((await fetch(base + $('img').first().attr('src'))).headers.get('content-type'),'image/png');
+  const article = load(await (await fetch(base + '/page/media')).text());
+  assert.equal(article('script[src="/theme/image-viewer.js"][defer]').length,1);
+  const script = await fetch(base + '/theme/image-viewer.js');
+  assert.equal(script.status,200);
+  assert.match(script.headers.get('content-type'),/^text\/javascript/);
 });
 for (const date of ['today','1750-02-29','1720-02-29','1750-13-01','0000-01-01','1750-04-31','']) {
   test('invalid date: ' + date,() => assert.throws(() => render('Example',date),{status:400}));

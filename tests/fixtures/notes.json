@@ -20,5 +20,6 @@
   "_dm_notes/Secret.md": "# Secret\n\nPrivate page.\n",
   "A/Same.md": "# Same A\n",
   "B/Same.md": "# Same B\n",
-  "Image.md": "# Image\n\n![[tiny.png]]\n"
+  "Image.md": "# Image\n\n![[tiny.png]]\n",
+  "Media.md": "# Media\n\n![[assets/excalidraw/drawing.png|400]]\n\n[![Linked drawing](assets/excalidraw/drawing.png)](https://example.test/drawing)\n\n![[assets/audio/song.mp3]]\n\n![[assets/session-audio/session/clip.m4a]]\n\n[[song.mp3|Download song]]\n\n%%^Campaign:dufr%%\n![[song.mp3]]\n%%^End%%\n\n%%![[clip.m4a]]%%\n"
 }

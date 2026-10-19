@@ -75,18 +75,29 @@ improvements.
 
 ### MVP-06: Click-to-enlarge images
 
-**Status:** Agreed scope; detailed behavior remains open.
+**Status:** Implemented; local browser verification complete.
 
 Let readers click page images to view them enlarged, restoring the existing
 site's basic image-viewing capability. Further image presentation improvements
 can follow later.
 
+Unlinked article images open in a modal viewer with keyboard controls, focus
+management, mobile sizing, backdrop dismissal, and a link to open the published
+image directly. Authored image links retain their destinations. Verified with
+real article images at desktop and mobile sizes; deployment remains separate.
+
 ### MVP-07: Audio embeds
 
-**Status:** Agreed scope; compatibility verification remains open.
+**Status:** Existing support verified locally for the current MP3/M4A embeds.
 
 Support in-page playback of audio embeds used in the current vault. Verify the
 existing audio support as part of MVP compatibility.
+
+Real MP3 and M4A clips play and seek in the local browser. Representative audio
+files pass unchanged through the existing export-copy, image-optimization, and
+snapshot-packaging stages. Regression checks cover player rendering, campaign
+filtering, packaged assets, MIME types, HEAD requests, and media byte ranges in
+both Node and Worker handlers. No audio publication-pipeline change is needed.
 
 ### MVP-08: Note embeds
 
@@ -106,11 +117,16 @@ vault. Detailed styling and diagram-link behavior remain to be discussed.
 
 ### MVP-10: Excalidraw through exported images
 
-**Status:** Agreed scope.
+**Status:** Implemented through exported PNGs; local compatibility verified.
 
 Display Excalidraw drawings through exported images, using the normal image
 presentation and enlargement support. Automatic export and interactive drawing
 support are deferred until after MVP.
+
+Verified the existing Voltara, Mostreve Hills, and Addermarch PNG embeds; the
+latter two remain inside their authored Behind the Curtain blocks. Exported
+drawings use the normal image viewer. Snapshot and HTTP regression checks cover
+PNG assets, and the Voltara drawing was checked in the browser.
 
 ### Explicitly outside MVP
 

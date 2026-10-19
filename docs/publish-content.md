@@ -105,6 +105,20 @@ optimized; only disposable exported copies are changed. A cache keyed by origina
 image bytes, image settings, and Sharp/libvips versions avoids recompressing the
 same image on later builds. Work is sequential to bound memory use.
 
+## Audio assets
+
+Eligible MP3, M4A, WAV, OGG, and FLAC files are already included by the existing
+export and snapshot pipeline. Audio in `assets/audio/`, `assets/session-audio/`,
+or other eligible folders is copied without changing its bytes; the image
+optimizer skips it. The same folder exclusions described above apply.
+
+No audio-specific build option, conversion, or separate upload is required.
+Obsidian `![[file.mp3]]` and `![[path/to/clip.m4a]]` embeds become native players,
+and the Node and Worker asset handlers support byte ranges for playback and
+seeking. Audio changes follow the normal content publication workflow. Updating
+the image viewer requires a Worker deployment because its script and styling
+are application assets; it does not require rebuilding an unchanged snapshot.
+
 ## Testing and overrides
 
 ```sh

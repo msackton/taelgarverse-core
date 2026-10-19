@@ -29,6 +29,10 @@ before(async()=>{
     const file=path.join(source,relative);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,text);
   }
   fs.writeFileSync(path.join(source,'tiny.png'),'fixture asset');
+  for (const relative of ['assets/audio/song.mp3','assets/session-audio/session/clip.m4a','assets/excalidraw/drawing.png']) {
+    const file=path.join(source,relative);fs.mkdirSync(path.dirname(file),{recursive:true});
+    fs.writeFileSync(file,'media fixture: ' + relative);
+  }
   for (const relative of ['assets/dm/map.png','assets/dm/nested/secret.png','asset/dm/map.png',
     'assets/dm-map.png','assets/dm-reference/map.png','assets/_portrait.png','assets/worldbuilding/hidden.png','assets/_internal/hidden.png']) {
     const file=path.join(source,relative);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,'fixture asset');
@@ -170,6 +174,35 @@ test('Worker serves HTML/navigation, assets with ranges/ETags, HEAD, and normal 
   }
   assert.equal((await request('/health',{method:'POST'})).status,405);
   assert.equal((await(await request('/health')).json()).runtime,'cloudflare-worker');
+});
+
+test('published snapshots retain audio and exported drawings and Worker serves media byte ranges',async()=>{
+  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  const response=await request('/api/page?page=Media&date=1720-01-01');
+  assert.equal(response.status,200);
+  const result=await response.json(), $=load(result.html,{},false);
+  assert.equal(result.html,engine.render('Media','1720-01-01').html);
+  assert.deepEqual(result.warnings,[]);
+  assert.equal($('audio[controls]').length,2);
+  for (const [relative,mime] of [['assets/audio/song.mp3','audio/mpeg'],['assets/session-audio/session/clip.m4a','audio/mp4'],['assets/excalidraw/drawing.png','image/png']]) {
+    const entry=index.entries.find(entry=>entry.id===relative);
+    assert.ok(entry?.objectKey,relative + ' packaged for upload');
+    assert.ok(bucket.objects.has(entry.objectKey));
+    const url='/assets/'+entry.target;
+    const full=await request(url), bytes=await full.text();
+    assert.equal(full.status,200);assert.equal(full.headers.get('content-type'),mime);
+    assert.equal(bytes,'media fixture: '+relative);
+    const partial=await request(url,{headers:{Range:'bytes=6-12'}});
+    assert.equal(partial.status,206);assert.equal(await partial.text(),bytes.slice(6,13));
+    assert.equal(partial.headers.get('content-range'),'bytes 6-12/'+bytes.length);
+    const suffix=await request(url,{headers:{Range:'bytes=-5'}});
+    assert.equal(suffix.status,206);assert.equal(await suffix.text(),bytes.slice(-5));
+    const head=await request(url,{method:'HEAD'});
+    assert.equal(head.headers.get('content-length'),String(bytes.length));assert.equal(await head.text(),'');
+  }
+  const html=await(await request('/page/media')).text();
+  assert.match(html,/<script src="\/theme\/image-viewer.js" defer>/);
+  assert.equal(await(await request('/theme/image-viewer.js')).text(),'/image-viewer.js');
 });
 
 test('snapshot load failures recover and publication can change without redeploying Worker',async()=>{

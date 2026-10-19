@@ -75,5 +75,5 @@ export function document(result,contextOptions,navigation) {
     siteHeader(result.context,contextOptions,{query:result.query}) +
     '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (toc ? '' : ' layout--no-toc') + '">' + sidebar +
     '<main id="page-content" class="md-typeset article-main">' + breadcrumbs + result.html + warning + '</main>' + toc +
-    '</div><script src="/theme/navigation.js" defer></script></body></html>';
+    '</div><script src="/theme/navigation.js" defer></script><script src="/theme/image-viewer.js" defer></script></body></html>';
 }

@@ -185,6 +185,27 @@ and titles. /docs contains a request form; /openapi.json describes the API.
 Only indexed assets are served, with byte-range support for media/PDFs.
 Responses use Cache-Control: no-store.
 
+## Images and audio
+
+Click an unlinked article image to open the image viewer, or focus it and press
+Enter or Space. The viewer fits the image to the screen; **Open image** opens
+the published image in a new tab for closer inspection. Close it with the Close
+button, Escape, or a click on the backdrop. Keyboard focus stays within the
+viewer and returns to the image when closed. Images with authored links retain
+their destinations, and ordinary inline images still render without JavaScript.
+Exported Excalidraw PNGs use this same presentation; no drawing export is run by
+the website. The viewer uses the published image, including any resizing done
+during [content publication](docs/publish-content.md#image-settings).
+
+Obsidian audio embeds such as `![[song.mp3]]` and
+`![[assets/session-audio/session/clip.m4a]]` render native audio players.
+MP3, M4A, WAV, OGG, and FLAC assets are indexed and served with their audio MIME
+types and byte-range support for seeking. Codec playback depends on the browser;
+the current vault's MP3 and M4A examples have been checked in the local browser.
+The publication pipeline already copies and packages eligible audio assets
+without transcoding or image optimization; no separate audio publication step
+is needed.
+
 ## Rendering architecture
 
 ~~~text
@@ -234,7 +255,7 @@ viewer permissions, and the chronology of ordinary prose are not interpreted.
 
 General Dataview/DataviewJS body queries and Leaflet blocks show placeholders
 and warnings. Mermaid stays a code block. Search ranking,
-backlinks, lightboxes, maps, and session zoom remain future work.
+backlinks, maps, and session zoom remain future work.
 
 The process renders synchronously. Warm single-request latency measurements do
 not establish concurrent-load throughput. No HTML response cache is enabled.
