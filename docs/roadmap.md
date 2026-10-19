@@ -132,6 +132,32 @@ or change a page's description.
 The specific collections, their contents, and how they are authored and
 generated remain to be discussed.
 
+### IA-03: Reusable views of existing relationships
+
+**Status:** Agreed direction; authoring and generation design remain open.
+
+Make existing relationship metadata useful through reusable views, including:
+
+- People based in a place, using `whereabouts`.
+- Members and leaders of an organization, using `affiliations`.
+- Related or contained places and groups, using the applicable `whereabouts`
+  and `partOf` relationships.
+
+Together with campaign indexes from `knownTo`, these are the main relationship
+views to consider. How authors request and configure them, including their role
+as replacements for common DataviewJS uses, remains open.
+
+### IA-04: Connections between NPCs
+
+**Status:** Exploratory idea; no data model or presentation selected.
+
+Explore showing clusters of related NPCs, including which NPCs know one another.
+These interpersonal connections are distinct from the campaign knowledge
+recorded by `knownTo`.
+
+How connections are recorded or derived, and how the website presents them,
+remain to be discussed.
+
 ## Presentation improvements
 
 Website-only improvements that do not change the vault. Discussion areas include
