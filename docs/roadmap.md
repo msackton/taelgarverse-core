@@ -43,17 +43,18 @@ a directory tree. Existing article TOC behavior is retained pending discussion.
 
 ### MVP-02: Generic HTML extensions, including Taelgar II
 
-**Status:** Implemented through external page links; local navigation and GitHub Pages verified.
+**Status:** Taelgar II addressed through existing authored links.
 
 Provide a general mechanism for incorporating generic HTML pages or sections
 into the dynamic website. Taelgar II is a required MVP use case for that
 mechanism.
 
-Taelgar II remains on its existing GitHub Pages host with its own presentation
-and publishing workflow. The dynamic site's curated navigation accepts external
-HTTP(S) links, and the vault menu now links to Taelgar II. External destinations
-retain their URL without appended campaign/date settings. Future standalone
-HTML sites can use the same mechanism; no HTML or asset migration is needed.
+Externally hosted HTML can be reached using ordinary absolute links in notes.
+Taelgar II remains on GitHub Pages with its own presentation and publishing
+workflow. Its existing links in Cha'mutte and Heroes of the Great War point to
+the absolute GitHub Pages URL. This requires no special renderer, navigation
+entry, or publication-pipeline change. Further HTML integration beyond authored
+links remains unspecified.
 
 ### MVP-03: Basic full-text search
 
