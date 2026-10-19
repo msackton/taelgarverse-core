@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {publishContent, parseOptions, repositoryIdentity, findObsidianCommand,
-  createStorage, CHECKPOINT_KEY, validateCheckpoint, isMissingCheckpoint, runCommand} from '../scripts/publish-content.mjs';
+  createStorage, CHECKPOINT_KEY, validateCheckpoint, isMissingCheckpoint, runCommand, buildFingerprint} from '../scripts/publish-content.mjs';
 
 const state = {repository: 'github.com/tsackton/taelgar', commit: 'a'.repeat(40), dirty: false};
 const fingerprint = 'b'.repeat(64), revision = 'c'.repeat(64);
@@ -63,6 +63,9 @@ test('changes during export or upload prevent the final R2 pointer write', async
   const {calls, deps} = harness({repositoryState: async () => ({...state, dirty: ++reads > 1})});
   await assert.rejects(publishContent({fingerprint}, deps), /changed during publishing/);
   assert.equal(calls.includes('upload'), false);
+  const inputs = harness({verifyInputs: async () => { throw new Error('settings changed'); }});
+  await assert.rejects(publishContent({fingerprint}, inputs.deps), /settings changed/);
+  assert.equal(inputs.calls.includes('upload'), false);
 });
 
 test('dirty builds require an option, are marked dirty, and never cause a later skip', async () => {
@@ -102,6 +105,24 @@ test('subprocess arguments containing spaces and shell characters remain literal
   const value = 'a path with spaces; $(literal) `literal` & unicode é';
   const result = await runCommand(process.execPath, ['-e', 'console.log(process.argv[1])', value]);
   assert.equal(result.stdout.trim(), value);
+});
+
+test('build fingerprints tolerate Windows line endings and machine paths, but notice image and publication settings', async t => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'taelgar-publish-test-'));
+  t.after(async () => {
+    assert.equal(path.dirname(path.resolve(directory)), path.resolve(os.tmpdir()));
+    assert.ok(path.basename(directory).startsWith('taelgar-publish-test-'));
+    await fs.rm(directory, {recursive: true});
+  });
+  const ignore = path.join(directory, 'windows-ignore.txt'), other = path.join(directory, 'mac-ignore.txt');
+  await fs.writeFile(ignore, 'assets/dm/\r\n');
+  await fs.writeFile(other, 'assets/dm/\n');
+  const settings = {ignore_file: ignore, nav_source: null, default_date: '1750-01-01', campaigns: ['dufr']};
+  const options = parseOptions([]);
+  const value = buildFingerprint(settings, options);
+  assert.equal(value, buildFingerprint({...settings, ignore_file: other}, options));
+  assert.notEqual(value, buildFingerprint(settings, {...options, maxSize: 4096}));
+  assert.notEqual(value, buildFingerprint(settings, {...options, noStrict: true}));
 });
 
 test('R2 storage distinguishes missing object, legacy pointer, invalid data, and authentication failure', async t => {

@@ -111,7 +111,7 @@ export function createStorage({bucket, configFile, local = false, persistTo = pa
       catch (error) { if (isMissingCheckpoint(error)) return null; throw error; }
       const value = JSON.parse(await fs.readFile(filename, 'utf8'));
       // A pointer published by the older manual command has no Git metadata.
-      if (Object.keys(value).length === 1 && /^[a-f0-9]{64}$/.test(value.revision || '')) return null;
+      if (value && Object.keys(value).length === 1 && /^[a-f0-9]{64}$/.test(value.revision || '')) return null;
       return validateCheckpoint(value);
     },
     async upload(report) {
@@ -140,12 +140,14 @@ export async function publishContent(options, deps) {
     deps.log(`Taelgar ${before.commit.slice(0, 12)} is already in R2; skipping export, images, and upload.`);
     return {skipped: true, ...previous};
   }
+  deps.log(`Building Taelgar ${before.commit.slice(0, 12)}${before.dirty ? ' (uncommitted changes)' : ''}.`);
   const build = await deps.build(before);
   const unchanged = async () => {
     const state = await deps.repositoryState();
     if (state.commit !== before.commit || state.repository !== before.repository || (!before.dirty && state.dirty)) {
       throw new Error('Taelgar changed during publishing; the R2 commit checkpoint was not updated. Run again.');
     }
+    await deps.verifyInputs?.();
   };
   await unchanged();
   const result = {schemaVersion: 1, repository: before.repository, commit: before.commit,
@@ -155,6 +157,7 @@ export async function publishContent(options, deps) {
   if (!options.buildOnly) {
     await deps.upload(build);
     await unchanged();
+    result.completedAt = new Date().toISOString();
     await deps.writeCheckpoint(result);
     if (before.dirty) deps.log('Published uncommitted content, marked dirty in R2; the next run will rebuild.');
   }
@@ -162,7 +165,7 @@ export async function publishContent(options, deps) {
   return result;
 }
 
-function buildFingerprint(settings, options) {
+export function buildFingerprint(settings, options) {
   const hash = createHash('sha256');
   hash.update(JSON.stringify({version: 1, image: {maxSize: options.maxSize, quality: options.quality, ...IMAGE_VERSION},
     strict: !options.noStrict, default_date: settings.default_date, campaigns: settings.campaigns}));
@@ -170,7 +173,9 @@ function buildFingerprint(settings, options) {
     new URL('./publish-content.mjs', import.meta.url), new URL('./optimize-images.mjs', import.meta.url),
     new URL('./prepare-cloudflare.mjs', import.meta.url), new URL('../src/store.mjs', import.meta.url),
     new URL('../src/content-store.mjs', import.meta.url), new URL('./build-runtime.mjs', import.meta.url)]) {
-    hash.update(filename ? readFileSync(filename) : '<no-navigation>');
+    // A Windows checkout may use CRLF while macOS uses LF. That alone must not
+    // invalidate the shared R2 checkpoint for an otherwise identical build.
+    hash.update(filename ? readFileSync(filename, 'utf8').replace(/\r\n/g, '\n') : '<no-navigation>');
   }
   return hash.digest('hex');
 }
@@ -199,9 +204,9 @@ export async function main(options) {
     if (error.code === 'EEXIST') throw new Error('A publish lock exists at ' + lockFile + '. If no publisher is running, remove that file and retry.');
     throw error;
   }
-  await lock.writeFile(JSON.stringify({pid: process.pid, startedAt: new Date().toISOString()}) + '\n');
   let working;
   try {
+    await lock.writeFile(JSON.stringify({pid: process.pid, startedAt: new Date().toISOString()}) + '\n');
     const destinationFile = path.join(CACHE, 'destination.json');
     await json(destinationFile, {name: config.name, account_id: config.account_id, r2_buckets: config.r2_buckets});
     const storage = createStorage({bucket: binding.bucket_name, configFile: destinationFile, local: options.local});
@@ -211,6 +216,13 @@ export async function main(options) {
       readCheckpoint: () => storage.readCheckpoint(path.join(CACHE, 'previous-checkpoint.json')),
       writeCheckpoint: value => storage.writeCheckpoint(value, path.join(CACHE, 'checkpoint.json')),
       log: console.log,
+      async verifyInputs() {
+        const current = loadCloudflareConfig();
+        if (buildFingerprint(loadSettings(options.config), options) !== fingerprint || current.name !== config.name ||
+            current.account_id !== config.account_id || current.r2_buckets?.find(item => item.binding === 'CONTENT')?.bucket_name !== binding.bucket_name) {
+          throw new Error('Publisher code, settings, or destination changed during the build; run again before publishing.');
+        }
+      },
       async build() {
         working = await fs.mkdtemp(path.join(CACHE, 'run-'));
         if (isInside(vault, working)) throw new Error('The export directory must be outside the Taelgar vault.');

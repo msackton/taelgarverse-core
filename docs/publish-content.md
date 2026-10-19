@@ -110,6 +110,17 @@ The saved local build metadata is `.cache/publish/latest.json`, with a separate
 of this command on one machine. If a killed process leaves `publish.lock`, remove
 that exact file after confirming no publisher is running.
 
+Verification commands:
+
+```sh
+npm test
+node --test tests/publish-r2.integration.mjs
+```
+
+The integration check uploads a small fixture through actual Wrangler commands
+to an isolated local R2 emulator, reads its saved commit, and verifies that the
+next run skips. It does not contact remote R2.
+
 Reference: [Sharp resize options](https://sharp.pixelplumbing.com/api-resize/),
 [Sharp output formats](https://sharp.pixelplumbing.com/api-output/), and
 [Wrangler R2 commands](https://developers.cloudflare.com/workers/wrangler/commands/r2/).

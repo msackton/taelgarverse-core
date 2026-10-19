@@ -5,6 +5,10 @@ bucket holding the content snapshot and binary assets. The initial Worker name
 is `taelgarverse-preview`; its first public URL will be on your `workers.dev`
 subdomain. The original GitHub Pages site is independent of this deployment.
 
+For a single Windows/macOS command that exports through Obsidian, optimizes web
+images, and publishes to R2 with a Taelgar commit checkpoint, see
+[content publishing](publish-content.md).
+
 ## Current state
 
 The Worker builds and runs locally against Cloudflare's Workers runtime and R2
