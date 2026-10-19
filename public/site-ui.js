@@ -62,8 +62,25 @@
   const originalBrand = brand.textContent;
   const links = [...document.querySelectorAll('.page-contents a[href^="#"]')];
   const sections = links.map(link => document.getElementById(decodeURIComponent(link.hash.slice(1))));
-  let lastY = Math.max(0,scrollY), direction = 0, distance = 0, returning = false, pending = false;
-  function update(track = false) {
+  // Clamp elastic overscroll so bouncing at the page ends is not a direction change.
+  const scrollPosition = () => Math.min(Math.max(0,scrollY),Math.max(0,root.scrollHeight-innerHeight));
+  let lastY = scrollPosition(), downwardStart = lastY, returning = false, pending = false;
+  function trackScroll() {
+    const y = scrollPosition(), delta = y-lastY;
+    lastY = y;
+    if (y <= Math.max(80,header.getBoundingClientRect().height)) {
+      back.hidden = true; returning = false;
+    } else if (delta < 0 && !returning) {
+      // Show on even a small upward movement, including on shorter pages.
+      back.hidden = false;
+    } else if (delta > 0) {
+      returning = false;
+      // Small touch/trackpad reversals should not make the control flicker away.
+      if (y-downwardStart >= 12) back.hidden = true;
+    }
+    if (delta < 0) downwardStart = y;
+  }
+  function update() {
     const bottom = header.getBoundingClientRect().bottom;
     const past = title && title.getBoundingClientRect().bottom <= bottom;
     const label = past ? title.textContent : originalBrand;
@@ -71,16 +88,6 @@
     brand.classList.toggle('is-page-title',!!past);
     brand.title = past ? label + ' — TaelgarVerse home' : originalBrand;
     brand.setAttribute('aria-label',past ? label + ' — TaelgarVerse home' : originalBrand);
-    const y = Math.max(0,scrollY), delta = y-lastY;
-    if (track && delta) {
-      const next = Math.sign(delta);
-      distance = direction === next ? distance + Math.abs(delta) : Math.abs(delta);
-      direction = next;
-      if (next > 0) returning = false;
-      if (!returning && distance >= 12) back.hidden = next > 0 || y <= 500;
-    }
-    if (y <= 500) { back.hidden = true; returning = false; }
-    lastY = y;
     let active = 0;
     sections.forEach((section,index) => { if (section && section.getBoundingClientRect().top <= bottom+24) active = index; });
     links.forEach((link,index) => {
@@ -94,12 +101,19 @@
     scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches ? 'instant' : 'smooth'});
     brand.focus({preventScroll:true});
   });
+  // An interrupted smooth return must not suppress later upward scrolling.
+  const interruptReturn = () => { returning = false; };
+  for (const event of ['wheel','touchstart','pointerdown','scrollend']) addEventListener(event,interruptReturn,{passive:true});
+  addEventListener('keydown',event => {
+    if (['ArrowUp','ArrowDown','PageUp','PageDown','Home','End',' '].includes(event.key)) interruptReturn();
+  });
   new ResizeObserver(() => {
     root.style.setProperty('--header-height',header.getBoundingClientRect().height+'px');
     update();
   }).observe(header);
   addEventListener('scroll',() => {
-    if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; update(true); }); }
+    trackScroll();
+    if (!pending) { pending = true; requestAnimationFrame(() => { pending = false; update(); }); }
   },{passive:true});
   update();
 })();
