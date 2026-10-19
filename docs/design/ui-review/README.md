@@ -2,7 +2,8 @@
 
 Download and open [TaelgarVerse-UI-Review.html](TaelgarVerse-UI-Review.html) in a
 current browser. This standalone file includes all styles, scripts, seven full
-articles, and embedded images. It works offline without installation.
+review articles, linked NPC/settlement articles, and embedded images. It works
+offline without installation.
 
 ## Review controls
 
@@ -26,6 +27,13 @@ articles, and embedded images. It works offline without installation.
   production configuration. Contents are also omitted automatically when the
   article has no headings; try **Green Sea**. Omitted navigation releases its
   grid column, including when both navigation areas are disabled.
+- Place headers offer **Residents** for settlements or **Settlements** for
+  larger places, without counts. Try Chardon or Voltara for residents and
+  Addermarch for settlements. Each button opens a filterable card grid with
+  portraits/illustrations when available, names, and short excerpts. Cards
+  open bundled notes; a **Back to [place]** link returns to the original place.
+  The grid becomes one column on mobile. Melusa demonstrates an empty list.
+  These controls appear in proposals only, not the unchanged reference.
 
 At desktop and tablet widths, main sections appear in a second header row,
 with the current section highlighted. Links are taken from the captured
@@ -51,7 +59,10 @@ limitation and restores the snapshot values.
 ## Snapshot limitations
 
 Included pages: Chardon, Addermarch, Voltara, Melusa, the Green Sea, and Dunmari
-Frontier Sessions 110 and 120. Full rendered prose, headings, metadata, callouts,
+Frontier Sessions 110 and 120, plus 50 linked resident and settlement notes.
+The initial page selector lists the seven review articles; linked notes are
+added to it when opened and are also available through search.
+Full rendered prose, headings, metadata, callouts,
 links, and images are retained, including empty headings in the source.
 
 This is an offline visual proposal, not a deployed site. Content and navigation
@@ -64,6 +75,17 @@ explains its offline limitation when search is used. Both presentations explain
 the offline limitation when context or Behind the Curtain controls are changed.
 Navigation branches use the captured server-rendered tree. Images are embedded
 as resized WebP.
+
+Relationship cards use recorded, dated home/containment metadata, including
+neighborhoods and subregions, through the existing CustomJS whereabouts helper.
+They exclude PCs, people no longer alive at the selected date, and notes
+excluded from publication in that context. These are recorded relationships,
+not a complete census or relationships inferred from prose. Card descriptions
+and linked notes use the normal renderer with DM visibility off; comments and
+hidden DM text are filtered before packaging. Portraits use the first available
+image from the rendered note; otherwise the card shows initials. Relationship
+controls are demonstrated on the five original place pages, not recursively
+on every linked settlement.
 
 To share, send the HTML file as an attachment. Recipients should download it
 and open it in their browser; GitHub's source preview does not run the controls.
@@ -78,6 +100,13 @@ node docs/design/ui-review/build.mjs --snapshot
 node --test docs/design/ui-review/review.test.mjs
 ```
 
+To refresh relationship cards and linked notes while preserving the seven
+original article snapshots (requires dependencies and the configured vault):
+
+```sh
+node docs/design/ui-review/build.mjs --snapshot --refresh-relationships
+```
+
 To refresh content as well, install repository dependencies and make the
 configured source/runtime vault available, then run:
 
@@ -87,9 +116,11 @@ node docs/design/ui-review/build.mjs
 
 `template.html` holds the review controls, proposal markup, and styles;
 `review.js` manages the frame and review controls; `preview.js` runs inside
-proposal frames. The builder embeds all of them into the distributable HTML.
+proposal frames. `relationships.mjs` captures the relationship lists and linked
+notes during a content build. The builder embeds everything into the HTML.
 The dependency-free tests exercise the shipped JavaScript with a DOM/event
 harness; they check switching, viewport sizing, navigation options, bundled
-links, header controls, drawer/dialog interactions, and generated script syntax,
+links, header controls, drawer/dialog interactions, relationship cards and
+filters, linked-note navigation, and generated script syntax,
 but do not verify visual browser layout.
 This package does not change the production theme or server behavior.

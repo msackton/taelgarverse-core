@@ -49,6 +49,16 @@ article :is(h1,h2,h3,h4,h5,h6){scroll-margin-top:calc(var(--header-height,80px) 
 .section-navigation a{display:block;padding:8px 0 6px;color:var(--muted);font-size:14px;border-bottom:2px solid transparent;text-decoration:none}
 .section-navigation a:hover{color:var(--link);border-bottom-color:var(--line)}
 .section-navigation a[aria-current]{color:var(--link);border-bottom-color:var(--accent);font-weight:600}
+.place-actions{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 26px;font:14px/1.4 system-ui,sans-serif}.place-actions button{padding:9px 16px;color:var(--link);border-color:var(--line);background:var(--surface)}
+.related-back{display:inline-block;font-size:13px;margin-bottom:14px}
+.relationship-dialog{width:min(940px,calc(100vw - 48px));max-height:85dvh;padding:0;overflow:auto}
+.relationship-dialog-header{position:sticky;top:0;z-index:1;background:var(--bg);padding:20px 24px 16px;border-bottom:1px solid var(--line)}
+.relationship-dialog .dialog-heading{margin-bottom:8px}.relationship-context{margin:0 0 14px;color:var(--muted);font-size:13px}.relationship-filter{width:100%;font-size:16px}
+.relationship-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;padding:24px;margin:0;list-style:none}.relationship-grid>li{min-width:0}
+.relationship-card{display:block;height:100%;overflow:hidden;border:1px solid var(--line);border-radius:5px;color:var(--text);background:var(--surface);text-decoration:none!important}.relationship-card:hover{border-color:var(--accent);background:var(--soft)}
+.relationship-portrait{display:flex;align-items:center;justify-content:center;height:150px;background:var(--soft);color:var(--accent);font:40px/1 Georgia,serif}.relationship-portrait img{width:100%;height:100%;object-fit:cover;object-position:50% 30%}
+.relationship-card-copy{padding:16px}.relationship-card strong{display:block;font:400 21px/1.3 Georgia,serif;color:var(--link)}.relationship-card p{font:14px/1.6 system-ui,sans-serif;margin:8px 0 0;color:var(--muted)}.relationship-empty{padding:24px;margin:0;color:var(--muted)}
+@media(max-width:600px){.relationship-dialog{width:calc(100vw - 20px);max-width:none;max-height:calc(100dvh - 20px)}.relationship-dialog-header{padding:16px}.relationship-grid{grid-template-columns:1fr;padding:16px;gap:14px}.relationship-portrait{height:180px}}
 @media(min-width:801px){
  #navigation .nav-tree>li:not(.active-section){display:none}
  #navigation .nav-tree>.active-section>details>summary{display:none}
@@ -117,14 +127,16 @@ dialog{color:var(--text);background:var(--bg);border:1px solid var(--line);borde
  </div>
  <nav class="section-navigation" id="section-navigation" aria-label="Main sections"><ul id="section-links"></ul></nav>
 </header>
-<div class="site-layout"><div class="navigation-slot" id="navigation"></div><main class="article-column"><div id="breadcrumbs"></div><article id="article" tabindex="-1"></article></main><aside class="contents-slot" aria-labelledby="contents-title"><h2 class="sidebar-heading" id="contents-title"></h2><p class="sidebar-caption">On this page</p><nav id="toc" aria-label="On this page"></nav></aside></div>
+<div class="site-layout"><div class="navigation-slot" id="navigation"></div><main class="article-column"><a id="related-back" class="related-back" hidden></a><div id="breadcrumbs"></div><div class="place-actions" id="place-actions" role="group" aria-label="Related people and places" hidden></div><article id="article" tabindex="-1"></article></main><aside class="contents-slot" aria-labelledby="contents-title"><h2 class="sidebar-heading" id="contents-title"></h2><p class="sidebar-caption">On this page</p><nav id="toc" aria-label="On this page"></nav></aside></div>
 <footer class="site-footer"><span>TaelgarVerse</span><a href="#site">Back to top ↑</a></footer>
 <dialog class="site-dialog nav-drawer" id="navigation-dialog" aria-labelledby="navigation-dialog-title"><div class="dialog-heading"><h2 id="navigation-dialog-title">Explore Taelgar</h2><button type="button" data-close-dialog="navigation-dialog" aria-label="Close navigation">×</button></div><div id="navigation-dialog-body"></div></dialog>
 <dialog class="site-dialog" id="search-dialog" aria-labelledby="search-dialog-title"><div class="dialog-heading"><h2 id="search-dialog-title">Search TaelgarVerse</h2><button type="button" data-close-dialog="search-dialog" aria-label="Close search">×</button></div><div id="search-dialog-body"></div></dialog>
 <dialog class="site-dialog" id="settings-dialog" aria-labelledby="settings-dialog-title"><div class="dialog-heading"><h2 id="settings-dialog-title">Context &amp; visibility</h2><button type="button" data-close-dialog="settings-dialog" aria-label="Close settings">×</button></div><div id="settings-dialog-body"></div></dialog>
+<dialog class="site-dialog relationship-dialog" id="relationship-dialog" aria-labelledby="relationship-title" aria-describedby="relationship-context"><div class="relationship-dialog-header"><div class="dialog-heading"><h2 id="relationship-title"></h2><button type="button" data-close-dialog="relationship-dialog" aria-label="Close related places or people">×</button></div><p class="relationship-context" id="relationship-context"></p><label class="sr-only" for="relationship-filter">Filter by name or description</label><input type="search" class="relationship-filter" id="relationship-filter" placeholder="Filter by name or description"></div><ul class="relationship-grid" id="relationship-grid"></ul><p class="relationship-empty" id="relationship-empty" role="status" hidden></p></dialog>
 </div></template>
 <script type="application/json" id="current-assets">__CURRENT_ASSETS__</script>
 <script type="application/json" id="page-data">__PAGE_DATA__</script>
+<script type="application/json" id="related-pages">__RELATED_PAGES__</script>
 <script type="text/plain" id="preview-script">__PREVIEW_SCRIPT__</script>
 <script>__REVIEW_SCRIPT__</script>
 </body></html>

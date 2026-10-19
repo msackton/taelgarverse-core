@@ -3,6 +3,57 @@
   const {page, showNavigation, showContents, hash} = JSON.parse(document.getElementById('preview-data').textContent);
   const article = document.getElementById('article');
   article.innerHTML = page.html;
+  const actions = document.getElementById('place-actions');
+  const relationshipDialog = document.getElementById('relationship-dialog');
+  let currentCards = [], currentKind = '';
+  function drawCards() {
+    const grid = document.getElementById('relationship-grid');
+    grid.replaceChildren();
+    const query = document.getElementById('relationship-filter').value.trim().toLowerCase();
+    const filtered = currentCards.filter(card => `${card.name} ${card.description}`.toLowerCase().includes(query));
+    filtered.forEach(card => {
+      const item = document.createElement('li'), link = document.createElement('a');
+      link.className = 'relationship-card'; link.href = card.href;
+      const portrait = document.createElement('div'); portrait.className = 'relationship-portrait'; portrait.setAttribute('aria-hidden','true');
+      if (card.image) {
+        const image = document.createElement('img'); image.src = card.image; image.alt = ''; image.loading = 'lazy'; portrait.append(image);
+      } else portrait.textContent = card.name.split(/\s+/).slice(0,2).map(word => word[0]).join('');
+      const copy = document.createElement('div'), name = document.createElement('strong'), description = document.createElement('p');
+      copy.className = 'relationship-card-copy'; name.textContent = card.name; description.textContent = card.description;
+      copy.append(name,description); link.append(portrait,copy); item.append(link); grid.append(item);
+    });
+    const empty = document.getElementById('relationship-empty');
+    empty.hidden = filtered.length > 0;
+    empty.textContent = query ? 'No matching names or descriptions.' : `No ${currentKind} recorded for this place.`;
+  }
+  document.getElementById('relationship-filter').addEventListener('input',drawCards);
+  for (const [kind,cards] of Object.entries(page.relationships || {})) {
+    const button = document.createElement('button');
+    button.type = 'button'; button.textContent = kind === 'residents' ? 'Residents' : 'Settlements';
+    button.setAttribute('aria-haspopup','dialog'); button.setAttribute('aria-controls','relationship-dialog');
+    button.addEventListener('click', () => {
+      currentCards = cards; currentKind = kind;
+      document.getElementById('relationship-title').textContent = `${button.textContent} of ${page.title}`;
+      document.getElementById('relationship-context').textContent = kind === 'residents' ? `Recorded homes in ${page.title}, including its neighborhoods · ${page.context.date} DR` : `Settlements in ${page.title}, including its subregions · ${page.context.date} DR`;
+      document.getElementById('relationship-filter').value = '';
+      drawCards(); relationshipDialog.showModal();
+    });
+    actions.append(button);
+  }
+  if (actions.children.length) {
+    const header = article.querySelector(':scope > .grid.cards') || article.querySelector('h1');
+    header?.insertAdjacentElement('afterend',actions);
+    actions.hidden = false;
+  }
+  relationshipDialog.addEventListener('click', event => {
+    if (event.target !== relationshipDialog) return;
+    const rect = relationshipDialog.getBoundingClientRect();
+    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) relationshipDialog.close();
+  });
+  if (page.relatedFrom) {
+    const back = document.getElementById('related-back'); back.hidden = false;
+    back.textContent = '← Back to ' + page.relatedFrom.title; back.href = page.relatedFrom.href;
+  }
   document.getElementById('navigation').innerHTML = page.navigation;
   document.getElementById('breadcrumbs').innerHTML = page.breadcrumbs;
   document.getElementById('toc').innerHTML = page.toc;
@@ -107,6 +158,7 @@
       if (href === '#article') target?.focus({preventScroll:true});
     } else if (href?.startsWith('/')) {
       event.preventDefault();
+      if (relationshipDialog.open) relationshipDialog.close();
       parent.postMessage({kind:'preview-link', href, label:link.textContent}, '*');
     }
   });

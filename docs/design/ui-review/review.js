@@ -13,6 +13,12 @@
   };
   let design = 'current', viewport = 'fit', revision = 0;
   pages.forEach((page, index) => picker.add(new Option(page.name, index)));
+  const listedPages = new Set(pages.map((_,index) => index));
+  pages.push(...JSON.parse(get('related-pages').textContent));
+  function openPage(index, hash = '') {
+    if (!listedPages.has(index)) { picker.add(new Option(pages[index].title,index)); listedPages.add(index); }
+    picker.value = String(index); render(hash);
+  }
   const json = value => JSON.stringify(value).replace(/</g, '\\u003c');
   const script = code => '<script>' + code + '<' + '/script>';
   function render(hash = '') {
@@ -84,14 +90,14 @@
     if (data.kind === 'preview-link' && typeof data.href === 'string') {
       const url = new URL(data.href, 'https://offline.invalid');
       const index = pages.findIndex(page => url.pathname === '/page/' + page.slug);
-      if (index >= 0) { picker.value = String(index); render(url.hash); return; }
+      if (index >= 0) { openPage(index,url.hash); return; }
     } else if (data.kind === 'preview-search' && typeof data.query === 'string') {
       const query = data.query.trim().toLowerCase(), list = document.createElement('ul');
       pages.forEach((page, index) => {
         if (!`${page.name} ${page.title}`.toLowerCase().includes(query)) return;
         const item = document.createElement('li'), button = document.createElement('button');
         button.textContent = page.title;
-        button.addEventListener('click', () => { get('offline-dialog').close(); picker.value = String(index); render(); });
+        button.addEventListener('click', () => { get('offline-dialog').close(); openPage(index); });
         item.append(button); list.append(item);
       });
       if (!list.children.length) list.textContent = 'No matching titles in the bundled pages.';

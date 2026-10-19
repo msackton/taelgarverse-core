@@ -6,6 +6,7 @@ import vm from 'node:vm';
 const bundle = fs.readFileSync(new URL('./TaelgarVerse-UI-Review.html', import.meta.url), 'utf8');
 const extract = id => bundle.match(new RegExp('<script[^>]*id="' + id + '">([\\s\\S]*?)</script>'))[1];
 const pages = JSON.parse(extract('page-data'));
+const relatedPages = JSON.parse(extract('related-pages'));
 const reviewScript = fs.readFileSync(new URL('./review.js', import.meta.url), 'utf8');
 const previewScript = fs.readFileSync(new URL('./preview.js', import.meta.url), 'utf8');
 
@@ -25,7 +26,7 @@ class Element {
   getAttribute(name) { return this.attributes[name]; }
   removeAttribute(name) { delete this.attributes[name]; }
   add(option) { this.children.push(option); if (this.children.length === 1) this.value = String(option.value); }
-  append(child) { child.parent?.children.splice(child.parent.children.indexOf(child), 1); this.children.push(child); child.parent = this; }
+  append(...children) { for (const child of children) { child.parent?.children.splice(child.parent.children.indexOf(child), 1); this.children.push(child); child.parent = this; } }
   remove() { this.removed = true; }
   querySelector() { return null; }
   focus() { this.focused = true; }
@@ -39,6 +40,7 @@ function harness() {
   const nodes = new Map();
   const get = id => { if (!nodes.has(id)) nodes.set(id, new Element()); return nodes.get(id); };
   get('page-data').textContent = extract('page-data');
+  get('related-pages').textContent = extract('related-pages');
   get('current-assets').textContent = extract('current-assets');
   get('preview-script').textContent = extract('preview-script');
   get('site-styles').textContent = bundle.match(/<style id="site-styles">([\s\S]*?)<\/style>/)[1];
@@ -109,7 +111,12 @@ function proposalHarness(width = 390, page = pages[0], enabled = true, section =
   const nodes = new Map(), events = new Element(), messages = [];
   const get = id => { if (!nodes.has(id)) nodes.set(id,new Element()); return nodes.get(id); };
   get('preview-data').textContent = JSON.stringify({page,showNavigation:enabled,showContents:enabled});
-  const closeButtons = ['navigation','search','settings'].map(name => { const button = get(name + '-close'); button.dataset.closeDialog = name + '-dialog'; return button; });
+  get('place-actions').hidden = true;
+  get('related-back').hidden = true;
+  const header = get('article-header');
+  header.insertAdjacentElement = (position,element) => { assert.equal(position,'afterend'); header.append(element); };
+  get('article').querySelector = () => header;
+  const closeButtons = ['navigation','search','settings','relationship'].map(name => { const button = get(name + '-close'); button.dataset.closeDialog = name + '-dialog'; return button; });
   const roots = ['Home','Campaigns','People','Gazetteer','World Map','History','More pages'].map(label => {
     const root = new Element(), link = new Element();
     link.textContent = label; link.setAttribute('href', '/section/' + label);
@@ -208,13 +215,67 @@ test('header search submits and context changes explain the offline snapshot', (
 });
 
 test('standalone bundle has no unresolved placeholders and every generated script parses', () => {
-  assert.doesNotMatch(bundle, /__(PAGE_DATA|CURRENT_ASSETS|PREVIEW_SCRIPT|REVIEW_SCRIPT)__/);
+  assert.doesNotMatch(bundle, /__(PAGE_DATA|CURRENT_ASSETS|PREVIEW_SCRIPT|REVIEW_SCRIPT|RELATED_PAGES)__/);
   assert.equal(extract('preview-script').trim(), previewScript.trim());
   const h = harness();
   for (const design of ['current','classic','library','atlas']) {
     h.click('design', design);
     for (const match of h.source().matchAll(/<script>([\s\S]*?)<\/script>/g)) new vm.Script(match[1]);
   }
+});
+
+test('Residents opens every captured NPC as a linked card without a count, and filters/reset work', () => {
+  const page = pages.find(page => page.name === 'Chardon'), {get} = proposalHarness(1440,page);
+  const button = get('place-actions').children[0];
+  assert.equal(button.textContent,'Residents');
+  assert.equal(get('place-actions').parent,get('article-header'));
+  button.fire('click');
+  assert.equal(get('relationship-dialog').open,true);
+  assert.equal(get('relationship-title').textContent,'Residents of Chardon');
+  assert.equal(get('relationship-grid').children.length,page.relationships.residents.length);
+  for (const [index,item] of get('relationship-grid').children.entries()) {
+    assert.equal(item.children[0].href,page.relationships.residents[index].href);
+    assert.equal(item.children[0].children[1].children[0].textContent,page.relationships.residents[index].name);
+  }
+  get('relationship-filter').value = 'Agon'; get('relationship-filter').fire('input');
+  assert.ok(get('relationship-grid').children.length < page.relationships.residents.length);
+  get('relationship-filter').value = 'nonexistent-name'; get('relationship-filter').fire('input');
+  assert.equal(get('relationship-grid').children.length,0);
+  assert.equal(get('relationship-empty').hidden,false);
+  get('relationship-close').fire('click'); assert.equal(get('relationship-dialog').open,false);
+  button.fire('click'); assert.equal(get('relationship-grid').children.length,page.relationships.residents.length);
+});
+
+test('settlements, empty residents, and session pages use the right header actions', () => {
+  const addermarch = proposalHarness(390,pages.find(page => page.name === 'Addermarch'));
+  assert.equal(addermarch.get('place-actions').children[0].textContent,'Settlements');
+  addermarch.get('place-actions').children[0].fire('click');
+  assert.ok(addermarch.get('relationship-grid').children.length > 0);
+  const melusa = proposalHarness(390,pages.find(page => page.name === 'Melusa'));
+  melusa.get('place-actions').children[0].fire('click');
+  assert.equal(melusa.get('relationship-empty').textContent,'No residents recorded for this place.');
+  const session = proposalHarness(1440,pages.find(page => page.name.startsWith('Session')));
+  assert.equal(session.get('place-actions').hidden,true);
+});
+
+test('every relationship card resolves to a bundled note and returning to the place works', () => {
+  for (const place of pages) for (const cards of Object.values(place.relationships || {})) for (const card of cards) {
+    const slug = new URL(card.href,'https://offline.invalid').pathname.slice('/page/'.length);
+    const related = relatedPages.find(page => page.slug === slug);
+    assert.ok(related,card.name + ' must be bundled');
+    assert.ok(related.html.includes('<h1'));
+    assert.doesNotMatch(related.html, /%%SECRET|<script/i);
+    if (card.image) assert.match(card.image,/^data:image\/webp;base64,/);
+  }
+  const h = harness(); h.click('design','classic');
+  const card = pages[0].relationships.residents[0];
+  h.window.fire('message',{source:h.get('preview-frame').contentWindow,data:{kind:'preview-link',href:card.href}});
+  const related = previewData(h.source()).page;
+  assert.equal(related.title,card.name);
+  const preview = proposalHarness(390,related);
+  assert.equal(preview.get('related-back').hidden,false);
+  h.window.fire('message',{source:h.get('preview-frame').contentWindow,data:{kind:'preview-link',href:related.relatedFrom.href}});
+  assert.equal(previewData(h.source()).page.name,'Chardon');
 });
 
 test('proposal fragment links scroll inside srcdoc instead of opening a nested review', () => {

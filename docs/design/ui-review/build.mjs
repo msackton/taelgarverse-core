@@ -1,6 +1,6 @@
 // From repository root: node docs/design/ui-review/build.mjs [--snapshot]
 import fs from 'node:fs';
-let pages, currentAssets;
+let pages, currentAssets, engine, relatedPages = [];
 if (process.argv.includes('--snapshot')) {
   // Rebuild the UI without refreshing content or requiring the source vault.
   const previous = fs.readFileSync(new URL('./TaelgarVerse-UI-Review.html', import.meta.url), 'utf8');
@@ -11,13 +11,14 @@ if (process.argv.includes('--snapshot')) {
   };
   pages = read('page-data');
   currentAssets = read('current-assets');
+  if (previous.includes('id="related-pages"')) relatedPages = read('related-pages');
 } else {
   const {Engine} = await import('../../../src/engine.mjs');
   const {document:siteDocument} = await import('../../../src/render-engine.mjs');
   const {loadSettings} = await import('../../../src/config.mjs');
   const cheerio = await import('cheerio');
   const {default:sharp} = await import('sharp');
-  const engine = new Engine(loadSettings());
+  engine = new Engine(loadSettings());
   const names = ['Chardon', 'Addermarch', 'Voltara', 'Melusa', 'Green Sea', 'Session 110 (DuFr)', 'Session 120 (DuFr)'];
   const images = new Map();
   pages = [];
@@ -57,13 +58,23 @@ if (process.argv.includes('--snapshot')) {
       breadcrumbs:engine.navigation.breadcrumbs(view), currentDocument:current.html()});
   }
 }
+if (engine || process.argv.includes('--refresh-relationships')) {
+  if (!engine) {
+    const {Engine} = await import('../../../src/engine.mjs');
+    const {loadSettings} = await import('../../../src/config.mjs');
+    engine = new Engine(loadSettings());
+  }
+  const {captureRelationships} = await import('./relationships.mjs');
+  relatedPages = await captureRelationships(engine,pages);
+}
 const template = fs.readFileSync(new URL('./template.html', import.meta.url), 'utf8');
 const json = value => JSON.stringify(value).replace(/</g, '\\u003c');
 const readScript = name => fs.readFileSync(new URL('./' + name + '.js', import.meta.url), 'utf8').replace(/<\/script/gi, '<\\/script');
 // Replacement callbacks preserve literal $ sequences in content and scripts.
 const html = template.replace('__PAGE_DATA__', () => json(pages))
   .replace('__CURRENT_ASSETS__', () => json(currentAssets))
+  .replace('__RELATED_PAGES__', () => json(relatedPages))
   .replace('__PREVIEW_SCRIPT__', () => readScript('preview'))
   .replace('__REVIEW_SCRIPT__', () => readScript('review'));
 fs.writeFileSync(new URL('./TaelgarVerse-UI-Review.html', import.meta.url), html);
-console.log(JSON.stringify({bytes:Buffer.byteLength(html),snapshot:process.argv.includes('--snapshot'),pages:pages.map(p=>p.name)}));
+console.log(JSON.stringify({bytes:Buffer.byteLength(html),snapshot:process.argv.includes('--snapshot'),pages:pages.map(p=>p.name),relatedPages:relatedPages.length}));
