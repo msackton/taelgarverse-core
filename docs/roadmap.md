@@ -81,6 +81,29 @@ Let readers click page images to view them enlarged, restoring the existing
 site's basic image-viewing capability. Further image presentation improvements
 can follow later.
 
+### MVP-07: Audio embeds
+
+**Status:** Agreed scope; compatibility verification remains open.
+
+Support in-page playback of audio embeds used in the current vault. Verify the
+existing audio support as part of MVP compatibility.
+
+### MVP-08: Note embeds
+
+**Status:** Agreed scope; detailed behavior remains open.
+
+Render embedded notes as included content rather than ordinary links. Embedded
+content must respect the selected campaign/date context and applicable
+publication rules. Presentation and section/block embed behavior remain to be
+discussed.
+
+### MVP-09: Mermaid diagrams
+
+**Status:** Agreed scope; detailed behavior remains open.
+
+Render Mermaid blocks as diagrams, including the existing family trees in the
+vault. Detailed styling and diagram-link behavior remain to be discussed.
+
 ### Explicitly outside MVP
 
 - **Advanced session reading views.** The short/long narrative controls,
