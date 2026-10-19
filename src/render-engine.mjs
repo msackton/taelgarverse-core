@@ -1,4 +1,5 @@
 import {RenderError, escapeHtml, parseDM} from './common.mjs';
+import {buildBacklinkIndex,buildBacklinkCampaigns,linkedFrom} from './backlinks.mjs';
 import {parseNote, availableInContext} from './content-store.mjs';
 import {filterComments} from './comments.mjs';
 import {createMarkdown, renderMarkdown} from './markdown.mjs';
@@ -7,7 +8,7 @@ import {siteHeader} from './header.mjs';
 import {Navigation} from './navigation.mjs';
 
 export class RenderEngine {
-  constructor({settings,store,headers,renderHeader,navigationSource}) {
+  constructor({settings,store,headers,renderHeader,navigationSource,backlinkIndex}) {
     this.settings = settings;
     this.store = store;
     this.headers = headers;
@@ -16,18 +17,21 @@ export class RenderEngine {
     this.markdown = createMarkdown();
     this.notesMarkdown = createMarkdown({html:false});
     this.navigation = new Navigation(this.store,navigationSource);
+    this.backlinkIndex = backlinkIndex === undefined ? buildBacklinkIndex(store) : backlinkIndex;
+    this.backlinkCampaigns = buildBacklinkCampaigns(store,this.headers.registry);
+    if (backlinkIndex === undefined) this.store.warnings.push(...this.backlinkIndex.warnings);
   }
 
-  resolvePage(page, date, contextId, dm = false) {
+  resolvePage(page, date, contextId, dm = false, selectedCampaigns) {
     dm = parseDM(dm);
-    const context = {...this.contexts.resolve(contextId,date), dm};
+    const context = {...this.contexts.resolve(contextId,date,selectedCampaigns), dm};
     const entry = this.store.resolve(page);
     if (!availableInContext(entry,context)) throw new RenderError(404,'Page is not available in this context');
     return {entry,context};
   }
 
-  render(page, date, contextId, dm = false, loadedNote) {
-    const {entry,context} = this.resolvePage(page,date,contextId,dm);
+  render(page, date, contextId, dm = false, loadedNote, selectedCampaigns) {
+    const {entry,context} = this.resolvePage(page,date,contextId,dm,selectedCampaigns);
     date = context.date;
     dm = context.dm;
     const metadata = entry.note.metadata;
@@ -57,7 +61,9 @@ export class RenderEngine {
     const warnings = [];
     const rendered = renderMarkdown(this.markdown, body, {store: this.store, entry, date, context, warnings, dmNotes, notesMarkdown:this.notesMarkdown});
     return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,
-      ...rendered, warnings: [...new Set(warnings)]};
+      ...rendered, backlinks:this.backlinkIndex && (this.backlinkIndex.version>=2 || context.campaigns.length<=1)
+        ? linkedFrom(this.backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined,
+      warnings: [...new Set(warnings)]};
   }
 }
 
@@ -67,14 +73,19 @@ export function document(result,contextOptions,navigation) {
   const view = navigation?.view(result.context,result.page,result.navigationId);
   const sidebar = view ? navigation.sidebar(view) : '';
   const breadcrumbs = view ? navigation.breadcrumbs(view) : '';
-  const toc = result.toc ? '<aside class="page-toc"><details open><summary>On this page</summary><nav aria-label="On this page">' + result.toc + '</nav></details></aside>' : '';
+  const toc = result.toc ? '<details open><summary>On this page</summary><nav aria-label="On this page">' + result.toc + '</nav></details>' : '';
+  const backlinks = Array.isArray(result.backlinks) ? '<details class="page-backlinks" open><summary>Linked from</summary>' +
+    (result.backlinks.length ? '<nav aria-label="Linked from"><ul>' + result.backlinks.map(link =>
+      '<li><a href="' + escapeHtml(link.url) + '">' + escapeHtml(link.title) + '</a></li>').join('') + '</ul></nav>' :
+      '<p class="backlinks-empty">No incoming links.</p>') + '</details>' : '';
+  const pageNav = toc || backlinks ? '<aside class="page-toc" aria-label="Page navigation">' + toc + backlinks + '</aside>' : '';
   const diagrams = result.html.includes('class="mermaid-diagram"') ? '<script type="module" src="/theme/diagrams.js"></script>' : '';
   return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>' + escapeHtml(result.title) + ' — TaelgarVerse</title><link rel="stylesheet" href="/theme/material.css">' +
     '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"></head>' +
     '<body data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="deep-purple">' +
     siteHeader(result.context,contextOptions,{query:result.query}) +
-    '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (toc ? '' : ' layout--no-toc') + '">' + sidebar +
-    '<main id="page-content" class="md-typeset article-main">' + breadcrumbs + result.html + warning + '</main>' + toc +
+    '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (pageNav ? '' : ' layout--no-toc') + '">' + sidebar +
+    '<main id="page-content" class="md-typeset article-main">' + breadcrumbs + result.html + warning + '</main>' + pageNav +
     '</div><script src="/theme/navigation.js" defer></script><script src="/theme/image-viewer.js" defer></script>' + diagrams + '</body></html>';
 }

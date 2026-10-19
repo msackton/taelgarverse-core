@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Contexts} from '../src/contexts.mjs';
-import {siteHeader} from '../src/header.mjs';
+import {siteHeader,contextQuery} from '../src/header.mjs';
 import {load} from 'cheerio';
 
 const registry = {campaigns:{
@@ -75,12 +75,46 @@ test('date-only URLs remain Custom; presets reject mismatched overrides',() => {
   assert.throws(()=>contexts.resolve('missing'),{status:400});
   assert.throws(()=>contexts.resolve('custom','1720-02-29'),{status:400});
 });
-test('Modern and Custom have no campaign selection, including date-only requests',() => {
+test('Modern and legacy Custom/date-only requests retain no campaign selection',() => {
   const contexts = catalogue([session('one',{DR:'1720-01-01'})]);
   assert.deepEqual(contexts.resolve('modern').campaigns,[]);
   assert.deepEqual(contexts.resolve('custom','1730-01-01').campaigns,[]);
   assert.deepEqual(contexts.resolve(undefined,'1730-01-01').campaigns,[]);
   assert.deepEqual(contexts.resolve('first-campaign').campaigns,['one']);
+});
+
+test('Custom selects all campaigns, a normalized subset, or none without changing preset dates',() => {
+  const contexts = catalogue([session('one',{DR:'1720-01-01'})]);
+  const all = contexts.resolve('custom','1730-01-01','all');
+  assert.deepEqual(all.campaigns,['none','one','two']); // Includes undated presets.
+  assert.equal(all.allCampaigns,true);
+  assert.equal(contextQuery(all).get('campaigns'),'all');
+  const subset = contexts.resolve('custom','1730-01-01',['','SECOND-CAMPAIGN,First','one']);
+  assert.deepEqual(subset.campaigns,['one','two']);
+  assert.equal(contextQuery(subset).get('campaigns'),'one,two');
+  assert.deepEqual(contexts.resolve('custom','1730-01-01','').campaigns,[]);
+  assert.equal(contexts.resolve(undefined,undefined,'all').kind,'custom');
+  assert.throws(()=>contexts.resolve('custom',undefined,'unknown'),{status:400});
+  assert.throws(()=>contexts.resolve('modern',undefined,'all'),{status:400});
+  assert.throws(()=>contexts.resolve('first-campaign',undefined,'two'),{status:400});
+  assert.deepEqual(contexts.resolve('modern').campaigns,[]);
+  assert.deepEqual(contexts.resolve('first-campaign').campaigns,['one']);
+});
+
+test('Custom header preserves campaign checkboxes and offers undated campaigns; new Custom selections start with all',() => {
+  const contexts = catalogue([session('one',{DR:'1720-01-01'})]);
+  for (const [selection,count,all] of [['all',3,true],['one',1,false],['',0,false]]) {
+    const ctx = contexts.resolve('custom','1730-01-01',selection), $ = load(siteHeader(ctx,contexts.list()),{},false);
+    assert.equal($('[data-campaign-choice]:checked').length,count);
+    assert.equal($('[data-campaign-all]').is(':checked'),all);
+    assert.equal($('[data-campaign-choice][value=none]').is(':disabled'),false);
+    assert.equal($('[data-campaign-picker] input:disabled').length,0);
+    assert.equal(new URL($('.site-brand').attr('href'),'https://example.test').searchParams.get('campaigns'),selection || null);
+  }
+  const $ = load(siteHeader(contexts.resolve('modern'),contexts.list()),{},false);
+  assert.equal($('[data-campaign-all]').is(':checked'),true);
+  assert.equal($('[data-campaign-choice]:checked').length,3);
+  assert.equal($('[data-campaign-picker] input:not(:disabled)').length,0);
 });
 test('header shows selector and hides/disables date input except Custom',() => {
   const contexts = catalogue([session('one',{DR:'1720-01-01'})]);

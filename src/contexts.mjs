@@ -32,6 +32,8 @@ export class Contexts {
       campaigns.set(code,{...campaign,code,slug});
       for (const name of [slug,campaign.code,campaign.name,...(campaign.aliases || [])]) identities.set(normalize(name),code);
     }
+    this.campaignIdentities = identities;
+    this.campaignCodes = [...campaigns.keys()].sort();
     const sessions = new Map();
     for (const entry of store.entries) {
       const metadata = entry.note?.metadata;
@@ -66,11 +68,24 @@ export class Contexts {
 
   list() { return [...this.byId.values()].map(context => ({...context,campaigns:[...context.campaigns]})); }
 
-  resolve(id, date) {
-    const context = this.byId.get(id ?? (date === undefined ? 'modern' : 'custom'));
+  resolve(id, date, selectedCampaigns) {
+    const context = this.byId.get(id ?? (date === undefined && selectedCampaigns === undefined ? 'modern' : 'custom'));
     if (!context) throw new RenderError(400,'Unknown context');
     if (!context.available) throw new RenderError(400,context.label + ': ' + context.unavailableReason);
-    if (context.kind === 'custom') return {...context,date:validateDate(date ?? this.byId.get('modern').date)};
+    if (context.kind === 'custom') {
+      const selected = asList(selectedCampaigns).flatMap(value=>String(value).split(',')).map(normalize).filter(Boolean);
+      const allCampaigns = selected.includes('all');
+      const campaigns = new Set();
+      for (const name of selected) {
+        if (name === 'all') continue;
+        const code = this.campaignIdentities.get(name);
+        if (!code) throw new RenderError(400,'Unknown campaign selection');
+        campaigns.add(code);
+      }
+      return {...context,date:validateDate(date ?? this.byId.get('modern').date),
+        campaigns:allCampaigns ? [...this.campaignCodes] : [...campaigns].sort(),...(allCampaigns ? {allCampaigns:true} : {})};
+    }
+    if (selectedCampaigns !== undefined) throw new RenderError(400,'Use Custom to select campaigns');
     if (date !== undefined && date !== context.date) throw new RenderError(400,'Use Custom to override a context date');
     return {...context,campaigns:[...context.campaigns]};
   }

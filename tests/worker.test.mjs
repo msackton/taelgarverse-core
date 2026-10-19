@@ -25,6 +25,7 @@ before(async()=>{
   directory=fs.mkdtempSync(path.join(ROOT,'.cache','worker-test-'));
   const source=path.join(directory,'notes');fs.mkdirSync(source);
   const notes=JSON.parse(fs.readFileSync(new URL('./fixtures/notes.json',import.meta.url),'utf8'));
+  Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/backlinks.json',import.meta.url),'utf8')));
   for (const [relative,text] of Object.entries(notes)) {
     const file=path.join(source,relative);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,text);
   }
@@ -249,4 +250,93 @@ test('snapshots preserve the explicit no-template directory navigation mode',asy
   assert.equal(engine.navigation.paths.has('diagrams'),false);
   assert.equal(loaded.engine.navigation.paths.has('diagrams'),true);
   assert.equal(loaded.engine.navigation.roots.some(node=>node.label==='More pages'),false);
+});
+
+test('Worker reads backlinks from the publication index without fetching referring article bodies',async()=>{
+  const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
+    {key:'published/current.json',file:report.pointerFile}]);
+  const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+  const fetch=url=>app.fetch(new Request('https://example.test'+url),environment);
+  for (const query of ['date=1729-12-31','date=1730-01-01&dm=1','context=dunmar-frontier','context=addermarch&dm=1','date=1729-12-31',
+    'context=custom&date=1730-01-01&campaigns=all&dm=1','date=1730-01-01&campaigns=adma,dufr','date=1730-01-01&campaigns=adma']) {
+    const response=await fetch('/api/page?page=Backlink%20Target&'+query);
+    assert.equal(response.status,200);
+    const result=await response.json(), params=new URLSearchParams(query);
+    const expected=engine.render('Backlink Target',params.get('date') || undefined,params.get('context') || undefined,params.get('dm'),undefined,
+      params.has('campaigns') ? params.getAll('campaigns') : undefined);
+    assert.deepEqual(result.backlinks,expected.backlinks,query);
+    assert.ok(result.backlinks.some(link=>link.page==='backlink-source'));
+    assert.equal(result.backlinks.some(link=>link.page==='broken-reference'),false);
+    for (const [campaign,pages] of [
+      ['addermarch',['addermarch-backlink-session','campaigns/addermarch-campaign/handouts/backlink-letter']],
+      ['dunmar-frontier',['dunmar-backlink-session','campaigns/dunmari-frontier-campaign/letters/backlink-letter']],
+    ]) for (const page of pages) assert.equal(result.backlinks.some(link=>link.page===page),result.campaigns.includes(campaign==='addermarch' ? 'adma' : 'dufr'),page+' in '+query);
+    const html=load(await(await fetch('/page/backlink-target?'+query)).text());
+    assert.equal(html('.page-backlinks a').length,result.backlinks.length);
+    assert.equal(html('.article-main .page-backlinks').length,0);
+    assert.equal(html('.page-toc > details').length,1); // Title-only article.
+  }
+  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  assert.equal(index.backlinks.version,2);
+  assert.doesNotMatch(JSON.stringify(index.backlinks),/Paragraph|Article without|private ordinary/);
+  const shard=index.entries.find(entry=>entry.id==='Backlink Target.md').note.shard;
+  assert.deepEqual([...storage.calls.keys()].filter(key=>key.includes('/notes/')),
+    ['revisions/'+report.revision+'/notes/'+shard+'.json']);
+  assert.equal((await fetch('/api/page?page=Addermarch%20Backlink%20Session&context=modern')).status,200);
+});
+
+test('older publications still render without a backlink index; unsupported index versions fail explicitly',async()=>{
+  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  const storage=new LocalBucket(JSON.parse(fs.readFileSync(report.manifestFile,'utf8')));
+  const file=path.join(directory,'old-index.json');
+  delete index.backlinks;
+  fs.writeFileSync(file,JSON.stringify(index));
+  storage.objects.set('revisions/'+report.revision+'/index.json',file);
+  const loaded=await loadSnapshot(storage,report.revision,instantiate);
+  const entry=loaded.store.resolve('Backlink Target'), note=await loaded.store.getNote(entry);
+  const result=loaded.engine.render('Backlink Target',undefined,undefined,false,note);
+  assert.match(result.html,/Backlink Target/);
+  assert.equal(result.backlinks,undefined);
+  index.backlinks={version:1,byTarget:{'backlink-target':[{source:'backlink-source',when:[{}]}]},warnings:[]};
+  fs.writeFileSync(file,JSON.stringify(index));
+  const legacy=await loadSnapshot(storage,report.revision,instantiate);
+  assert.equal(legacy.engine.render('Backlink Target',undefined,undefined,false,note).backlinks.length,1);
+  assert.equal(legacy.engine.render('Backlink Target',undefined,'custom',false,note,'all').backlinks,undefined);
+  index.backlinks={version:999,byTarget:{}};
+  fs.writeFileSync(file,JSON.stringify(index));
+  await assert.rejects(()=>loadSnapshot(storage,report.revision,instantiate),{status:503});
+});
+
+test('Worker isolates Custom all/subset selections and rejects invalid selections before reading bodies',async()=>{
+  const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
+  const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+  const fetch=url=>app.fetch(new Request('https://example.test'+url),environment);
+  for (const query of ['context=custom&campaigns=missing','context=modern&campaigns=all']) {
+    assert.equal((await fetch('/api/page?page=Example&'+query)).status,400);
+  }
+  assert.equal([...storage.calls.keys()].some(key=>key.includes('/notes/')),false);
+  await Promise.all(['all','adma,dufr','adma',''].map(async campaigns=>{
+    const query=new URLSearchParams({page:'Backlink Empty',context:'custom',date:'1730-01-01',campaigns,dm:'1'});
+    const response=await fetch('/api/page?'+query);
+    assert.equal(response.status,200);
+    const result=await response.json();
+    assert.deepEqual(result,engine.render('Backlink Empty','1730-01-01','custom',true,undefined,campaigns));
+    assert.equal(result.backlinks.some(link=>link.page==='cross-campaign-reference'),campaigns==='adma');
+  }));
+});
+
+test('republishing replaces removed backlinks and invalidates the active Worker index',async()=>{
+  const file=path.join(engine.settings.source_dir,'Backlink Source.md'), original=fs.readFileSync(file,'utf8');
+  try {
+    fs.writeFileSync(file,'# Source\n\nThe reference was removed.\n');
+    const packaged=await prepareContent(engine.settings,path.join(directory,'changed-links-package'));
+    assert.notEqual(packaged.revision,report.revision);
+    const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
+      ...JSON.parse(fs.readFileSync(packaged.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
+    const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+    const read=async()=>await(await app.fetch(new Request('https://example.test/api/page?page=Backlink%20Target'),environment)).json();
+    assert.equal((await read()).backlinks.some(link=>link.page==='backlink-source'),true);
+    storage.objects.set('published/current.json',packaged.pointerFile);
+    assert.equal((await read()).backlinks.some(link=>link.page==='backlink-source'),false);
+  } finally { fs.writeFileSync(file,original); }
 });

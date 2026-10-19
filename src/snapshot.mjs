@@ -41,8 +41,10 @@ export async function loadSnapshot(bucket,revision,instantiate) {
   if (index.schemaVersion!==1 || index.revision!==revision) {
     throw new RenderError(503,'Content snapshot format is not supported by this Worker');
   }
+  if (index.backlinks && ![1,2].includes(index.backlinks.version)) throw new RenderError(503,'Backlink index format is not supported by this Worker');
   const store=new SnapshotStore(index,bucket);
   const headers=initializeHeaderRuntime({pages:store.entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta:index.coreMeta,registry:index.registry},instantiate);
-  const engine=new RenderEngine({settings:index.settings,store,headers,renderHeader:renderModuleHeader,navigationSource:index.navigationSource});
+  const engine=new RenderEngine({settings:index.settings,store,headers,renderHeader:renderModuleHeader,navigationSource:index.navigationSource,
+    backlinkIndex:index.backlinks || null});
   return {engine,store,index};
 }

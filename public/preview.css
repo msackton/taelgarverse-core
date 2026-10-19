@@ -8,10 +8,17 @@ body { margin: 0; font-family: system-ui, sans-serif; color: #283536; background
 .context-form select { font: inherit; color: white; background: #00695c; border: 1px solid #82b9b2; border-radius: 5px; padding: 7px 28px 7px 10px; max-width: min(410px,70vw); }
 .context-form select option { color: #283536; background: white; }
 .context-form select option:disabled { color: #6c7c79; }
-.custom-date-controls { display: flex; align-items: center; gap: 8px; }
+.custom-date-controls { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px; }
 .custom-date-controls[hidden] { display: none; }
 .context-form input { background: white; color: #283536; color-scheme: light; width: 145px; }
 .context-form button { background: white; color: #00695c; margin-left: 0; }
+.campaign-picker { position: relative; max-width: 100%; }
+.campaign-picker > summary { border: 1px solid #82b9b2; border-radius: 5px; padding: 7px 10px; cursor: pointer; }
+.campaign-picker summary:focus-visible { outline: 2px solid white; outline-offset: 3px; }
+.campaign-options { position: absolute; z-index: 40; right: 0; width: 270px; max-height: min(420px,60vh); overflow: auto; box-sizing: border-box; padding: 8px 12px; margin: 6px 0 0; border: 1px solid #adc2be; border-radius: 6px; box-shadow: 0 8px 24px #183c3a40; color: #283536; background: white; }
+.campaign-options label { display: flex; align-items: center; gap: 8px; padding: 7px 0; cursor: pointer; }
+.context-form .campaign-options input[type="checkbox"] { width: 16px; height: 16px; margin: 0; padding: 0; flex: 0 0 auto; accent-color: #00796b; }
+.campaign-all { font-weight: 650; border-bottom: 1px solid #e2e9e7; margin-bottom: 3px; }
 .dm-toggle { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
 .context-form .dm-toggle input { width: 16px; height: 16px; margin: 0; padding: 0; accent-color: #f6c665; cursor: pointer; }
 .md-typeset .dm-only-block { border: 1px solid #dbad52; border-left: 4px solid #ae7014; background: #fffaee; border-radius: 5px; padding: 12px 18px; margin: 1.25em 0; }
@@ -53,6 +60,8 @@ main { max-width: 850px; padding: 24px; margin: 0 auto; width: 100%; box-sizing:
 .page-toc ul ul { padding-left: 12px; }
 .page-toc a { padding: 4px 0 4px 8px; border-left: 2px solid transparent; border-radius: 0; }
 .page-toc a.is-active { border-color: #00796b; color: #00796b; font-weight: 600; }
+.page-backlinks:not(:first-child) { margin-top: 24px; padding-top: 18px; border-top: 1px solid #e2e9e7; }
+.backlinks-empty { color: #667b75; margin: 0; }
 .md-typeset .breadcrumbs { font-size: 12px; color: #667b75; margin: 0 0 20px; line-height: 1.6; }
 .md-typeset .breadcrumbs ol { display: flex; flex-wrap: wrap; gap: 4px 8px; list-style: none; padding: 0; margin: 0; }
 .md-typeset .breadcrumbs li { padding: 0; margin: 0; }
@@ -122,4 +131,5 @@ html.diagram-popup-open { overflow: hidden; }
   .context-form select { flex: 1; min-width: 0; max-width: none; }
   .context-form .dm-toggle { flex-basis: 100%; }
   .custom-date-controls { flex-basis: 100%; margin-left: 0; }
+  .campaign-options { position: static; width: auto; max-width: calc(100vw - 56px); }
 }

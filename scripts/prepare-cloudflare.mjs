@@ -4,6 +4,7 @@ import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {ROOT,loadSettings,isInside} from '../src/config.mjs';
 import {Store} from '../src/store.mjs';
+import {buildBacklinkIndex} from '../src/backlinks.mjs';
 import {headerRevision} from '../src/worker-headers.mjs';
 
 const sha = value=>createHash('sha256').update(value).digest('hex');
@@ -48,10 +49,11 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     }
     entries.push(entry);
   }
-  const base={schemaVersion:1,settings:{default_date:settings.default_date,campaigns:settings.campaigns},
+  const backlinks=buildBacklinkIndex(store);
+  const base={schemaVersion:1,settings:{default_date:settings.default_date,campaigns:settings.campaigns},backlinks,
     registry:JSON.parse(fs.readFileSync(path.join(settings.runtime_dir,'_scripts/session_note_campaigns.json'),'utf8')),
     coreMeta:JSON.parse(fs.readFileSync(path.join(settings.runtime_dir,'.obsidian/metadata.json'),'utf8')),
-    navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,warnings:store.warnings,entries};
+    navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,warnings:[...store.warnings,...backlinks.warnings],entries};
   const revision=sha(JSON.stringify(base)), prefix='revisions/'+revision;
   const directory=path.join(output,'revisions',revision);
   for (const [shard,notes] of shards) {

@@ -15,6 +15,7 @@ before(async () => {
   fs.mkdirSync(path.join(ROOT,'.cache'),{recursive:true});
   directory = fs.mkdtempSync(path.join(ROOT,'.cache','node-test-'));
   const notes = JSON.parse(fs.readFileSync(new URL('./fixtures/notes.json',import.meta.url),'utf8'));
+  Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/backlinks.json',import.meta.url),'utf8')));
   for (const [relative,source] of Object.entries(notes)) {
     const filename = path.join(directory,relative);
     fs.mkdirSync(path.dirname(filename),{recursive:true});
@@ -313,7 +314,7 @@ test('site navigation, breadcrumbs, page TOC and lazy branch links retain contex
 test('page finder and navigation use the same date availability as articles',async()=>{
   for (const [date,count] of [['1730-01-01',0],['1750-01-01',1]]) {
     const $ = load(await (await fetch(base + '/?q=Future&date=' + date)).text(),{},false);
-    assert.equal($('main li a').length,count);
+    assert.equal($('main li a[href^="/page/future?"]').length,count);
     assert.equal($('.site-sidebar a[href*="/page/future?"]').length,count);
   }
   const $ = load(await (await fetch(base + '/page/future?date=1730-01-01')).text(),{},false);
@@ -346,4 +347,61 @@ test('Mermaid pages load the local browser bundle only when visible diagrams exi
   assert.equal(bundle.status,200);
   assert.match(bundle.headers.get('content-type'),/^text\/javascript/);
   assert.ok((await bundle.text()).length > 1000);
+});
+
+test('Node API and right page navigation expose the same filtered backlinks, including empty articles',async()=>{
+  for (const query of ['date=1729-12-31','date=1730-01-01&dm=1','context=dunmar-frontier','context=addermarch&dm=1',
+    'context=custom&date=1730-01-01&campaigns=all&dm=1','date=1730-01-01&campaigns=adma,dufr','date=1730-01-01&campaigns=adma']) {
+    const response=await fetch(base+'/api/page?page=Backlink%20Target&'+query);
+    assert.equal(response.status,200);
+    const result=await response.json();
+    for (const [campaign,pages] of [
+      ['addermarch',['addermarch-backlink-session','campaigns/addermarch-campaign/handouts/backlink-letter']],
+      ['dunmar-frontier',['dunmar-backlink-session','campaigns/dunmari-frontier-campaign/letters/backlink-letter']],
+    ]) for (const page of pages) assert.equal(result.backlinks.some(link=>link.page===page),result.campaigns.includes(campaign==='addermarch' ? 'adma' : 'dufr'),page+' in '+query);
+    const $=load(await(await fetch(base+'/page/backlink-target?'+query)).text());
+    assert.deepEqual($('.page-backlinks a').map((_,el)=>$(el).attr('href')).get(),result.backlinks.map(link=>link.url));
+    assert.equal($('.page-toc > details').length,1);
+    assert.equal($('.article-main .page-backlinks').length,0);
+    for (const link of result.backlinks) assert.equal((await fetch(base+link.url)).status,200);
+  }
+  const $=load(await(await fetch(base+'/page/backlink-empty')).text());
+  assert.equal($('.page-backlinks summary').text(),'Linked from');
+  assert.equal($('.page-backlinks a').length,0);
+  assert.equal($('.backlinks-empty').text(),'No incoming links.');
+  assert.equal((await fetch(base+'/page/addermarch-backlink-session?context=modern')).status,200);
+});
+
+test('Custom campaigns filter article blocks and persist through article, search, navigation, DM and unavailable-page links',async()=>{
+  for (const [selection,adma,dufr,itc] of [['all',true,true,true],['adma,dufr',true,true,false],['adma',true,false,false],['',false,false,false]]) {
+    const query=new URLSearchParams({context:'custom',date:'1720-01-02',campaigns:selection,dm:'1'});
+    const response=await fetch(base+'/api/page?page=Example&'+query);
+    assert.equal(response.status,200);
+    const result=await response.json(), $=load(result.html,{},false);
+    assert.equal($.text().includes('Addermarch-only text'),adma);
+    assert.equal($.text().includes('selected campaign text'),dufr);
+    assert.equal($.text().includes('other campaign text'),itc);
+    const expected=selection || null;
+    for (const link of $('a[href^="/page/"]').toArray()) assert.equal(new URL($(link).attr('href'),'https://example.test').searchParams.get('campaigns'),expected);
+    const article=load(await(await fetch(base+'/page/people/example?'+query)).text());
+    for (const link of article('.site-sidebar a[href],.breadcrumbs a[href],.site-brand,.page-backlinks a').toArray()) {
+      assert.equal(new URL(article(link).attr('href'),'https://example.test').searchParams.get('campaigns'),expected);
+    }
+    const lazy=article('details[data-nav-url]').first().attr('data-nav-url');
+    const branch=await(await fetch(base+lazy)).json();
+    const children=load(branch.html,{},false);
+    for (const link of children('a[href]').toArray()) assert.equal(new URL(children(link).attr('href'),'https://example.test').searchParams.get('campaigns'),expected);
+    const finder=load(await(await fetch(base+'/?q=Example&'+query)).text());
+    assert.equal(finder('main form input[name=campaigns]').val(),selection || undefined);
+    const unavailable=load(await(await fetch(base+'/page/future?'+query)).text());
+    assert.equal(unavailable('header select option[selected]').val(),'custom');
+    assert.equal(new URL(unavailable('.site-brand').attr('href'),'https://example.test').searchParams.get('campaigns'),expected);
+  }
+  for (const query of ['context=modern&campaigns=all','context=custom&campaigns=unknown','context=dunmar-frontier&campaigns=adma']) {
+    assert.equal((await fetch(base+'/api/page?page=Example&'+query)).status,400);
+  }
+  assert.equal((await fetch(base+'/api/page?page=CampaignHidden&date=1720-01-02&campaigns=all')).status,404);
+  const links=await(await fetch(base+'/api/page?page=Backlink%20Source&date=1720-01-02&campaigns=all')).json();
+  const $=load(links.html,{},false);
+  for (const link of $('a[href^="/page/"]').toArray()) assert.equal(new URL($(link).attr('href'),'https://example.test').searchParams.get('campaigns'),'all');
 });

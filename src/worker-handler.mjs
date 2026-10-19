@@ -28,9 +28,9 @@ export function createWorker(instantiate) {
       const {engine,store}=await state.pending;
       return await handleRequest(request,engine,{
         runtime:'cloudflare-worker',revision,
-        async renderPage(page,date,context,dm) {
-          const {entry}=engine.resolvePage(page,date,context,dm), note=await store.getNote(entry);
-          return engine.render(page,date,context,dm,note);
+        async renderPage(page,date,context,dm,campaigns) {
+          const {entry}=engine.resolvePage(page,date,context,dm,campaigns), note=await store.getNote(entry);
+          return engine.render(page,date,context,dm,note,campaigns);
         },
         assets(entry,request) {
           return serveAsset(request,entry,async range=>{

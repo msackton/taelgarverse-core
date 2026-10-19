@@ -27,7 +27,7 @@ if (matchMedia('(max-width: 800px)').matches) {
   document.querySelector('.site-navigation')?.removeAttribute('open');
 }
 if (matchMedia('(max-width: 1100px)').matches) {
-  document.querySelector('.page-toc details')?.removeAttribute('open');
+  document.querySelectorAll('.page-toc > details').forEach(section=>section.removeAttribute('open'));
 }
 const sidebar = document.querySelector('.site-sidebar');
 const current = sidebar?.querySelector('[aria-current="page"]');

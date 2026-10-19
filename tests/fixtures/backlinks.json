@@ -1,0 +1,23 @@
+{
+  "Backlink Target.md": "---\naliases: [Backlink Alias]\n---\n# Backlink Target\n\n[[Backlink Target#Top|Self]]\n",
+  "Backlink Empty.md": "# Backlink Empty\n",
+  "Cross Campaign Reference.md": "# Cross Campaign Reference\n\n[Conditional reference][which]\n\n%%^Campaign:dufr%%\n[which]: <Backlink Target.md>\n%%^End%%\n\n%%^Campaign:adma%%\n[which]: <Backlink Empty.md>\n%%^End%%\n",
+  "Addermarch Backlink Session.md": "---\ntags: [session-note]\ncampaign: Addermarch Campaign\n---\n# Addermarch Session\n\n[[Backlink Target]]\n",
+  "Dunmar Backlink Session.md": "---\ntags: [session-note]\ncampaign: DuFr\n---\n# Dunmar Session\n\n[[Backlink Target]]\n",
+  "Campaigns/Addermarch Campaign/Handouts/Backlink Letter.md": "# Addermarch Handout\n\n[[Backlink Target]]\n",
+  "Campaigns/Dunmari Frontier Campaign/Letters/Backlink Letter.md": "# Dunmar Handout\n\n[[Backlink Target]]\n",
+  "Backlink Source.md": "---\nname: A Public Reference\n---\n# Source\n\n[[Backlink Target]] [[Backlink Alias#Top|alias]] [[Backlink Target|again]]\n\n[Markdown](Backlink%20Target.md#top)\n\n<a href=\"/page/backlink-target?date=1800-01-01#top\">HTML</a>\n\n[Reference][target]\n\n[target]: Backlink%20Target.md\n",
+  "Campaign Reference.md": "# Campaign Reference\n\n%%^Campaign:DUFR%%\n[[Backlink Target]]\n%%^End%%\n",
+  "Date Reference.md": "# Date Reference\n\n%%^Date:1730-01-01%%\n[[Backlink Target]]\n%%^End%%\n",
+  "Before Reference.md": "# Before Reference\n\n%%^Date:1730b%%\n[[Backlink Target]]\n%%^End%%\n",
+  "DM Reference.md": "# DM Reference\n\nParagraph. %%[[Backlink Target]]%%\n",
+  "DM Block Reference.md": "# DM Block Reference\n\n%%^Campaign:none%%\n[[Backlink Target]]\n%%^End%%\n",
+  "Hidden Reference.md": "---\nexcludePublish: all\n---\n# Hidden Reference\n\n[[Backlink Target]]\n",
+  "Excluded Reference.md": "---\nexcludePublish: [dufr]\n---\n# Excluded Reference\n\n[[Backlink Target]]\n",
+  "Future Reference.md": "---\ncreated: 1730-01-01\n---\n# Future Reference\n\n[[Backlink Target]]\n",
+  "Broken Reference.md": "# Broken Reference\n\n[[Backlink Target]]\n\n%% unterminated\n",
+  "Literal Reference.md": "# Literal Reference\n\n`[[Backlink Target]]`\n\n```md\n[[Backlink Target]]\n[example](Backlink%20Target.md)\n```\n\n\\[\\[Backlink Target\\]\\]\n\n[External](https://example.com/page/backlink-target) [Anchor](#backlink-target)\n",
+  "Embedded Reference.md": "# Embedded Reference\n\n![[Backlink Target]]\n",
+  "Stale Header.md": "---\nheaderVersion: 2023.11.25\ntags: [person]\n---\n# Stale Header\n[[Backlink Target]]\n\nArticle without an authored reference.\n",
+  "Prepared Header.md": "---\ntags: [person]\nwhereabouts: [{type: home, location: Backlink Target}]\n---\n<!-- taelgar:header -->\n\nArticle without an authored reference.\n"
+}

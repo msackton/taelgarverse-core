@@ -53,7 +53,7 @@ export function codeRanges(text) {
   return [...ranges, ...inline].sort((a,b) => a[0] - b[0]);
 }
 
-export function filterComments(text, {campaigns = [], date = null, source = '<text>', lineOffset = 0, dm = false, notes = []} = {}) {
+export function filterComments(text, {campaigns = [], date = null, source = '<text>', lineOffset = 0, dm = false, notes = [], conditions = []} = {}) {
   const ranges = codeRanges(text);
   const selected = new Set(campaigns.map(c => c.trim().toLowerCase()));
   const target = date === null ? null : dateKey(date, true);
@@ -82,7 +82,11 @@ export function filterComments(text, {campaigns = [], date = null, source = '<te
   const keep = (marker, offset) => {
     if (/^(Lint|Metadata(?::[^%\r\n]+)?|povNotes(?::[^%\r\n]+)?)$/i.test(marker)) return false;
     const campaign = /^Campaign:\s*(.+?)\s*$/i.exec(marker);
-    if (campaign) return campaign[1].trim().toLowerCase() === 'none' ? dm : selected.has(campaign[1].trim().toLowerCase());
+    if (campaign) {
+      const code = campaign[1].trim().toLowerCase();
+      conditions.push({campaign:code});
+      return code === 'none' ? dm : selected.has(code);
+    }
     const dated = /^Date:\s*([0-9]{1,4}(?:-[0-9]{1,2})?(?:-[0-9]{1,2})?)([A-Za-z]?)\s*$/i.exec(marker);
     if (dated) {
       if (target === null) error(offset, 'date block requires a configured export_date');
@@ -92,6 +96,7 @@ export function filterComments(text, {campaigns = [], date = null, source = '<te
       let cutoff;
       try { cutoff = dateKey(dated[1], true); }
       catch { error(offset, 'date block contains an invalid date'); }
+      conditions.push({date:cutoff});
       return suffix === 'b' ? target < cutoff : target >= cutoff;
     }
     error(offset, "unknown structured block marker '" + kind(marker) + "'");

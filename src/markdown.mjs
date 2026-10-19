@@ -186,6 +186,15 @@ export function createMarkdown(options = {}) {
   return md;
 }
 
+export function pageLinkEntry(store, href) {
+  if (!href?.startsWith('/page/')) return;
+  let target;
+  try { target = decodeURIComponent(href.slice(6).split(/[?#]/,1)[0]).replace(/\/$/, ''); }
+  catch { return; }
+  const entry = store.bySlug?.get(target.replace(/\.md$/, '')) || store.lookup(target).entry;
+  return entry?.note ? entry : undefined;
+}
+
 export function renderMarkdown(md, source, env) {
   const $ = load(md.render(source, env), {decodeEntities: false}, false);
   $('a[href], img[src], audio[src], source[src]').each((_, element) => {
@@ -207,11 +216,12 @@ export function renderMarkdown(md, source, env) {
   const context = env.context || {date:env.date,campaigns:[]};
   $('a[href^="/page/"]').each((_, element) => {
     const el = $(element);
-    let target;
-    try { target = decodeURIComponent(el.attr('href').slice(6).split(/[?#]/,1)[0]).replace(/\/$/, ''); }
-    catch { return; }
-    const entry = env.store.bySlug?.get(target.replace(/\.md$/, '')) || env.store.lookup(target).entry;
-    if (entry?.note && !availableInContext(entry,context)) el.replaceWith(el.contents());
+    const entry = pageLinkEntry(env.store,el.attr('href'));
+    if (entry) {
+      env.pageLinks?.add(entry.slug);
+      if (!availableInContext(entry,context)) el.replaceWith(el.contents());
+      else el.attr('href',pageUrl(entry.slug,env.date,env.context) + (el.attr('href').includes('#') ? '#' + el.attr('href').split('#').slice(1).join('#') : ''));
+    }
   });
   const used = new Set(), headings = [];
   $('h1,h2,h3,h4,h5,h6').each((_, element) => {
@@ -232,7 +242,7 @@ export function renderMarkdown(md, source, env) {
     (h.children.length ? list(h.children) : '') + '</li>').join('') + '</ul>';
   const toc = outline.length ? '<div class="toc">' + list(outline) + '</div>' : '';
   const popups = decorateDMNotes($,env.dmNotes,text => renderMarkdown(env.notesMarkdown,text,{
-    store:env.store, entry:env.entry, date:env.date, context:env.context, warnings:env.warnings,
+    store:env.store, entry:env.entry, date:env.date, context:env.context, warnings:env.warnings, pageLinks:env.pageLinks,
   }).html);
   if (popups) $.root().append(popups);
   return {html: $.html(), toc};

@@ -88,7 +88,7 @@ GET /api/page?page=People%2FZimkovans%2FZahara.md&date=1730-02-01
 GET /page/people/zimkovans/zahara?date=1730-02-01
 ~~~
 
-The JSON response contains page, title, date, dm, campaigns, context, html, toc, and warnings.
+The JSON response contains page, title, date, dm, campaigns, context, html, toc, backlinks, and warnings.
 The html field is an article fragment; /page/... wraps it in the Material-style
 preview. Internal links preserve the selected date.
 
@@ -103,12 +103,15 @@ GET /api/contexts
 GET /api/page?page=Zahara&context=modern
 GET /api/page?page=Zahara&context=into-the-chasm
 GET /api/page?page=Zahara&context=custom&date=1730-01-20
+GET /api/page?page=Zahara&context=custom&date=1730-01-20&campaigns=all
 ~~~
 
 The context selector lives in the header on article and page-finder pages.
-Selecting Custom reveals the date picker. Named context links retain their ID,
+Selecting Custom reveals the date and campaign pickers, with All campaigns or
+an individual subset. See [Custom campaign selections](docs/custom-contexts.md).
+Named context links retain their ID,
 so campaign dates advance after the source snapshot is refreshed. Custom links
-retain the explicit date. Unknown/undated presets or mismatched date overrides
+retain the explicit date and campaign selection. Unknown/undated presets or mismatched date overrides
 return 400; use Custom for manual dates. Unavailable article dates retain the
 header so a visitor can switch context again.
 
@@ -263,7 +266,8 @@ taelgar-static, or export docs/. Cloudflare uploads and deployments are explicit
 commands described in the publishing guide.
 
 Campaign presets show only matching campaign blocks, using their canonical
-registry codes (case-insensitive). Modern and Custom show no campaign-specific blocks.
+registry codes (case-insensitive). Modern shows no campaign-specific blocks;
+Custom shows blocks for its selected campaigns. Legacy date-only links select none.
 For example, content inside %%^Campaign:dufr%% ... %%^End%% appears only when
 the context includes dufr. Campaign:none is removed unless See Behind the Curtain is enabled.
 The snapshot includes all supported notes and assets outside underscore-prefixed
@@ -273,13 +277,13 @@ hidden tooling paths and AGENTS.md are also omitted. Tags and legacy ignore file
 do not restrict publication. excludePublish and date metadata remain in the snapshot.
 The website and API return 404 for excludePublish: all, a matching campaign
 exclusion, or a subject whose born/created date or activeYear is still in the
-future. Search and navigation apply the same check. Modern and Custom apply no
-campaign-specific exclusions. See Behind the Curtain does not bypass page availability.
+future. Search and navigation apply the same check. Modern and Custom without a
+campaign selection apply no campaign-specific exclusions. See Behind the Curtain does not bypass page availability.
 Explicit campaign/date markers are filtered, but knownTo, POV, inferred spoilers,
 viewer permissions, and the chronology of ordinary prose are not interpreted.
 
 General Dataview/DataviewJS body queries and Leaflet blocks show placeholders
-and warnings. Search ranking, backlinks, maps, and session zoom remain future work.
+and warnings. Search ranking, maps, and session zoom remain future work.
 
 The process renders synchronously. Warm single-request latency measurements do
 not establish concurrent-load throughput. No HTML response cache is enabled.

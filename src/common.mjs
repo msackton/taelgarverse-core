@@ -35,6 +35,14 @@ export function titleCase(value) {
     return word.replace(/\p{L}/u, c => c.toUpperCase());
   }).join(' ');
 }
+export function contextQuery(context) {
+  const query = context.kind === 'custom' ? new URLSearchParams({date:context.date}) : new URLSearchParams({context:context.id});
+  if (context.kind === 'custom') {
+    if (context.allCampaigns) query.set('campaigns','all');
+    else if (context.campaigns?.length) query.set('campaigns',context.campaigns.join(','));
+  }
+  if (context.dm) query.set('dm','1');
+  return query;
+}
 export const pageUrl = (slug, date, context) => '/page/' + slug.split('/').map(encodeURIComponent).join('/') +
-  (context && context.kind !== 'custom' ? '?context=' + encodeURIComponent(context.id) : '?date=' + encodeURIComponent(date)) +
-  (context?.dm ? '&dm=1' : '');
+  '?' + contextQuery(context || {kind:'custom',date});
