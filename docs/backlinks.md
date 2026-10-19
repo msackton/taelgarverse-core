@@ -25,8 +25,9 @@ Ownership comes from the source's `campaign` field (registry name, code, ID, or
 alias; lists may name multiple campaigns), falling back to the registry's
 `campaignRoot` folder. Handouts and timelines inside that folder follow the same
 rule as session notes. Unregistered campaign folders and sessions without an
-identifiable campaign have no matching context, so they do not add backlinks.
-Modern and Custom show only shared reference sources. Behind the Curtain does
+identifiable campaign appear only with Custom's **All campaigns** selection.
+Modern shows shared reference sources. [Custom](custom-contexts.md) can show all
+campaigns or a selected subset alongside shared sources. Behind the Curtain does
 not bypass campaign ownership. `knownTo` and `campaignInfo` do not establish
 ownership of a general world-reference page. This filter applies to backlinks;
 direct article access and the shared site navigation retain their own rules.
@@ -46,8 +47,8 @@ build fingerprint includes the backlink compiler and link/comment parsers, so
 changing them triggers a rebuild even when the vault commit is unchanged.
 
 At publication, the compiler parses each complete filtered article for the
-finite campaign/DM/date states that its comment markers can produce. Campaign
-contexts currently select one campaign; Modern and Custom select none. Parsing
+finite campaign/DM/date states that its comment markers can produce, including
+every subset of the campaign codes mentioned by that source. Parsing
 the whole article preserves reference definitions across blocks. Equal states
 reuse parsed references, and adjacent date intervals are merged.
 
@@ -62,6 +63,9 @@ snapshot, so removed links disappear without redeploying the Worker.
 Enabling the feature in production requires the updated renderer and one fresh
 content publication through `npm run content:publish -- --no-strict` (omit
 `--no-strict` for strict query checking). Deploying code and publishing content
-remain separate operations. Older snapshots remain renderable and omit the
-backlink section until republished. An unknown backlink index version is
-rejected explicitly.
+remain separate operations: deploy the updated renderer before publishing a
+version 2 index, which the earlier renderer cannot read. Older snapshots remain
+renderable and omit the backlink section until republished. Version 2 records campaign combinations for
+Custom selections. Version 1 remains usable for zero/single-campaign views but
+omits backlinks in multi-campaign views until a fresh publication. An unknown
+backlink index version is rejected explicitly.
