@@ -101,8 +101,6 @@ export class RenderEngine {
 }
 
 export function document(result,contextOptions,navigation,releases) {
-  const warning = result.warnings.length ? '<details class="warning"><summary>Render notes</summary><ul>' +
-    result.warnings.map(w => '<li>' + escapeHtml(w) + '</li>').join('') + '</ul></details>' : '';
   const view = navigation?.view(result.context,result.page,result.navigationId);
   const showNavigation = view && view.roots.length > 0 && !result.hide?.includes('navigation');
   const sidebar = showNavigation ? navigation.sidebar(view) : '';
@@ -122,6 +120,6 @@ export function document(result,contextOptions,navigation,releases) {
     (result.homepage ? '<link rel="stylesheet" href="/theme/homepage.css">' : '') + '</head>' +
     '<body>' + siteHeader(result.context,contextOptions,{query:result.query,sections:showNavigation ? navigation.sections(view) : '',navigation:!!showNavigation}) +
     '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (toc ? '' : ' layout--no-toc') + (hasSection ? '' : ' layout--no-navigation') + (result.homepage ? ' layout--home' : '') + '">' + sidebar +
-    '<main id="page-content" class="md-typeset article-main" tabindex="-1">' + breadcrumbs + result.html + warning + '</main>' + pageNav +
+    '<main id="page-content" class="md-typeset article-main" tabindex="-1">' + breadcrumbs + result.html + '</main>' + pageNav +
     '</div>' + siteDialogs() + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/site-ui.js" defer></script><script src="/theme/image-viewer.js" defer></script>' + diagrams + '</body></html>';
 }
