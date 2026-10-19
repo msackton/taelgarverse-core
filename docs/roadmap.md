@@ -155,8 +155,12 @@ Explore showing clusters of related NPCs, including which NPCs know one another.
 These interpersonal connections are distinct from the campaign knowledge
 recorded by `knownTo`.
 
-How connections are recorded or derived, and how the website presents them,
-remain to be discussed.
+Prefer discovering relationships from existing prose. Explicit authoring is
+acceptable for a few key relationships involving important people; this should
+not require maintaining a comprehensive manual relationship catalog.
+
+The extraction approach, representation, and website presentation remain to be
+discussed.
 
 ## Presentation improvements
 
