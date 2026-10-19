@@ -147,3 +147,16 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Python API and local configuration
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.egg-info/
+config.local.json
+.generated/
+.wrangler/
+wrangler.local.json
+.dev.vars
+.dev.vars.*

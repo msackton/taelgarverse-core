@@ -1,0 +1,17 @@
+{
+  "People/Example.md": "---\nheaderVersion: 2023.11.25\ntags: [person]\nname: Example\nspecies: human\ndisplayDefaults: {ruledBy: '<affiliationtitle>: <name>'}\nborn: 1700-01-01\ndied: 1740-01-01\nwhereabouts:\n  - {type: home, location: First Town, end: 1720-12-31}\n  - {type: home, location: Second Town, start: 1721-01-01}\n---\n# Example\n> Stale header must disappear.\n\nFixture biography with [[First Town|a town]].\n\n%% private ordinary comment %%\n%%^Campaign:none%%\nsecret body\n%%^End%%\n%%^Campaign:dufr%%\nselected campaign text\n%%^End%%\n%%^Campaign:itc%%\nother campaign text\n%%^End%%\n%%^Date:1730-01-01%%\nlater body\n%%^End%%\n\n> [!note] A callout\n> Test body.\n\n## Details\n\n| A | B |\n| - | - |\n| 1 | 2 |\n",
+  "Places/First Town.md": "# First Town\n\nFixture place.\n",
+  "Places/Second Town.md": "# Second Town\n\nFixture place.\n",
+  "Leader.md": "---\ntags: [person]\nname: Fixture Leader\nleaderOf:\n  - {place: Example, start: 1725-01-01, end: 1740-01-01, title: Protector}\naffiliations:\n  - {org: Example, type: member, start: 1700-01-01}\n---\n# Fixture Leader\n",
+  "Earlier Leader.md": "---\ntags: [person]\nname: Earlier Leader\naffiliations:\n  - {org: Example, type: leader, start: 1700-01-01, end: 1724-12-31, title: Guardian}\n---\n# Earlier Leader\n",
+  "Hidden.md": "---\nexcludePublish: all\n---\nPrivate page.\n",
+  "CampaignHidden.md": "---\nexcludePublish: [dufr]\n---\nPrivate page.\n",
+  "Future.md": "---\nactiveYear: 1740\n---\nFuture page.\n",
+  "Broken.md": "# Broken\n\n%% never closed\nsecret\n",
+  "Queries.md": "# Queries\n\n```dataviewjs\nthrow new Error(\"never execute me\");\n```\n\n`$=dv.current().name`\n",
+  "Ignored/Invisible.md": "# Invisible\n\nPrivate page.\n",
+  "_dm_notes/Secret.md": "# Secret\n\nPrivate page.\n",
+  "A/Same.md": "# Same A\n",
+  "B/Same.md": "# Same B\n",
+  "Image.md": "# Image\n\n![[tiny.png]]\n"
+}
