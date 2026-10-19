@@ -154,3 +154,18 @@ settings, including the live bucket connection and exact build commands, were
 not independently checked because the local Cloudflare login had expired.
 The move to vault-authored homepage and menu files is implemented in this checkout;
 the live site needs the updated core deployment and a new content publication.
+
+## Isolated AI Search pilot
+
+The separate `taelgarverse-search-pilot` instance uses built-in storage and hybrid
+keyword/vector indexing. Its creation and initial 22-note indexing were verified
+through the AI Search API on 2026-10-19. It uses the default
+`@cf/qwen/qwen3-embedding-0.6b` embedding model, 800-token managed chunks, and zero
+managed overlap. Fixed pilot views use `owner`, `run`, `view`, and `sha256` text
+metadata; raw publication shards are not a data source.
+
+The [pilot client](../experiments/ai-search/cloudflare.mjs) fixes the instance
+name and uses the existing Wrangler login or an environment token. The
+[operating guide](../experiments/ai-search/README.md) owns commands, limits,
+artifacts, and cleanup. No binding to this instance has been added to the
+production Worker; the local pilot viewer performs the experiment's queries.

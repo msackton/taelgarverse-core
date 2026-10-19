@@ -1,8 +1,11 @@
 # AI Search pilot
 
-**Status:** Planned, 2026-10-19. Cloudflare AI Search and a small-subset experiment
-are agreed. The sample below is proposed. No search resources, uploads, application
-changes, or production integration have been made.
+**Status:** Pilot tooling implemented, 2026-10-19. The separate Cloudflare
+`taelgarverse-search-pilot` instance contains the 22-note sample. Initial retrieval,
+chunking, visibility, and update experiments are complete and ready for user review. Production
+integration remains deferred. See the [operating guide](../experiments/ai-search/README.md).
+The [pilot observations](search-pilot-results.md) record the measured results and
+remaining limitations.
 
 ## Goal
 
@@ -15,7 +18,7 @@ answers are outside the initial experiment.
 Use an explicit, editable allowlist of roughly 20–25 notes. Never expand it
 automatically by following links, scanning a folder, or crawling the site.
 
-Proposed starting set:
+Selected starting set:
 
 - Dunmari Frontier Sessions 95, 96, and 97.
 - Rhodar von Glauer, Shadowkeep, Voknaz Manor, Drachen Peak, Rodnya Kinzal,
@@ -74,9 +77,8 @@ before/after date text. The sample can be replaced without changing site code.
 
 The harness is separate from the ongoing UI redesign. Credentials remain in the
 local environment; the production Worker, search box, and publisher stay outside
-the pilot. Initial tooling should cover preparation, explicit upload, querying,
-comparison, and an explicit reset of the pilot's own documents. These are planned
-capabilities, not commands that exist today.
+the pilot. The implemented CLI covers preparation, explicit upload, querying,
+comparison, live probes, and an explicit reset of the pilot's own documents.
 
 ## Evaluation and limits
 

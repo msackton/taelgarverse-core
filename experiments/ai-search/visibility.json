@@ -1,0 +1,19 @@
+{
+  "experiment":"visibility",
+  "siteUrl":"https://taelgarverse.msackton.workers.dev/",
+  "notes":[
+    "People/Other Nonhumans/Rhodar von Glauer.md",
+    "Gazetteer/Northern Green Sea/Ursk/Ursk.md",
+    "Cosmology/Energy Realms/Elemental Plane of Fire.md",
+    "Gazetteer/Extraplanar/Feywild/Twilight Kingdom/Twilight Promontory.md"
+  ],
+  "views":[
+    {"id":"public-all","label":"All campaigns · public · 1750","date":"1750-01-01","campaigns":"all","dm":false},
+    {"id":"public-none","label":"No campaigns · public · 1750","date":"1750-01-01","campaigns":"","dm":false},
+    {"id":"dm-all","label":"All campaigns · Behind the Curtain · 1750","date":"1750-01-01","campaigns":"all","dm":true},
+    {"id":"before-fire","label":"All campaigns · public · before May 31, 1749","date":"1749-05-30","campaigns":"all","dm":false},
+    {"id":"after-fire","label":"All campaigns · public · May 31, 1749","date":"1749-05-31","campaigns":"all","dm":false},
+    {"id":"before-door","label":"All campaigns · public · before October 7, 1740","date":"1740-10-06","campaigns":"all","dm":false}
+  ],
+  "limits":{"notes":25,"batchTokens":100000,"totalTokens":1000000,"queries":500}
+}

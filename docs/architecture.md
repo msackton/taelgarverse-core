@@ -59,6 +59,7 @@ flowchart LR
 | `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs` | Translate trusted vault classes into ordinary JavaScript modules. |
 | `public/`, `src/browser/`, `scripts/build-browser.mjs` | Application styles/scripts and the generated Mermaid browser bundle. |
 | `src/release-footer.mjs`, `public/release.js`, `scripts/build-core-release.mjs` | Version footer, copy behavior, and core provenance captured by Wrangler's custom build. |
+| `experiments/ai-search/` | Isolated AI Search pilot: allowlisted exports, token limits, explicit uploads, local viewer, and repeatable comparisons; no production imports. |
 
 ## Configuration
 

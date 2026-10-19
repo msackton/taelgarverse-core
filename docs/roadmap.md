@@ -58,7 +58,8 @@ links remains unspecified.
 
 ### MVP-03: Basic full-text search
 
-**Status:** Cloudflare AI Search hybrid pilot agreed; implementation pending.
+**Status:** Isolated Cloudflare AI Search hybrid pilot implemented; production
+integration pending evaluation.
 
 Restore basic full-text search across article content, beyond the current
 title/path finder. Use Cloudflare AI Search to explore both exact names/phrases

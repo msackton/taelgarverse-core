@@ -1,0 +1,18 @@
+[
+  {"id":"rhodar","kind":"name","query":"Rhodar von Glauer","expected":["People/Other Nonhumans/Rhodar von Glauer.md"]},
+  {"id":"shadowkeep","kind":"name","query":"Shadowkeep","expected":["Gazetteer/Northern Green Sea/Shadowkeep.md"]},
+  {"id":"chamutte","kind":"name","query":"Cha'mutte","expected":["People/Extraplanar Powers/Cha'mutte.md"]},
+  {"id":"chamutte-curly","kind":"punctuation","query":"Cha’mutte","expected":["People/Extraplanar Powers/Cha'mutte.md"]},
+  {"id":"mirror","kind":"phrase","query":"Mirror of Soul Trapping","expected":["Campaigns/Dunmari Frontier Campaign/Treasure/Mirror of Soul Trapping.md"]},
+  {"id":"urskan","kind":"alias","query":"Urskan","expected":["Gazetteer/Northern Green Sea/Ursk/Ursk.md"]},
+  {"id":"emperor","kind":"alias","query":"Emperor Apollyon","expected":["People/Historical Figures/Drankorian Emperors/Apollyon.md"]},
+  {"id":"session","kind":"name","query":"Dunmari Frontier Session 96","expected":["Campaigns/Dunmari Frontier Campaign/Session Notes/Session 96 (DuFr).md"]},
+  {"id":"vampire","kind":"semantic","query":"Where did the adventurers infiltrate a vampire lord's castle?","expected":["Campaigns/Dunmari Frontier Campaign/Session Notes/Session 96 (DuFr).md","People/Other Nonhumans/Rhodar von Glauer.md"]},
+  {"id":"troll","kind":"semantic","query":"How did the party create a distraction while entering the vampire's fortress?","expected":["Campaigns/Dunmari Frontier Campaign/Session Notes/Session 96 (DuFr).md"]},
+  {"id":"hag","kind":"semantic","query":"Who offered the party information about a vampire's coffin in exchange for a favor?","expected":["Campaigns/Dunmari Frontier Campaign/Session Notes/Session 96 (DuFr).md"]},
+  {"id":"bargain","kind":"semantic","query":"Who became a vampire to escape magical obligations to their homeland?","expected":["People/Other Nonhumans/Rhodar von Glauer.md"]},
+  {"id":"message","kind":"semantic","query":"Who sent Delwath an accusation about an attack in Chardon?","expected":["Campaigns/Dunmari Frontier Campaign/Session Notes/Session 96 (DuFr).md"]},
+  {"id":"fire-books","kind":"semantic","query":"What recovered books might explain how to travel in the elemental realm of fire?","expected":["Cosmology/Energy Realms/Elemental Plane of Fire.md"]},
+  {"id":"door","kind":"semantic","query":"Where did a vanished door leave a bottomless well?","expected":["Gazetteer/Extraplanar/Feywild/Twilight Kingdom/Twilight Promontory.md"]},
+  {"id":"unrelated","kind":"negative","query":"How do I replace the battery in an electric car?","expected":[]}
+]

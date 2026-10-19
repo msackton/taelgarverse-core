@@ -369,3 +369,12 @@ already handles normal publication.
 Prepare again after changing settings before using these separate commands.
 The manual `cf:publish` command records only the revision ID, so the next full
 `content:publish` run rebuilds instead of skipping unchanged content.
+
+## Isolated search experiment
+
+`npm run search:pilot -- help` describes the separate AI Search pilot. Its
+[operating guide](../experiments/ai-search/README.md) covers local preparation,
+authentication, explicit small uploads, comparisons, and cleanup. These commands
+do not publish vault content or deploy the website; they target only
+`taelgarverse-search-pilot` when using Cloudflare. Production search integration
+remains outside the experiment.
