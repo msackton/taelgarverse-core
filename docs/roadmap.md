@@ -50,6 +50,37 @@ not need the shared Taelgarverse header or navigation. Preserving the link in
 the source material may be sufficient as its entry point. Hosting and
 publishing integration remain to be discussed.
 
+### MVP-03: Basic full-text search
+
+**Status:** Agreed scope; detailed behavior remains open.
+
+Restore basic full-text search across article content, beyond the current
+title/path finder. More advanced search improvements can follow under
+Presentation improvements.
+
+### MVP-04: Backlinks
+
+**Status:** Agreed scope; detailed behavior remains open.
+
+Restore a basic display of pages linking to the current page, comparable to the
+existing Taelgarverse. Richer backlink presentation can follow later.
+
+### MVP-05: Existing tiled maps
+
+**Status:** Agreed scope; detailed behavior remains open.
+
+Restore the existing interactive map experience, including tiled maps and basic
+pan/zoom behavior. Additional map capabilities can follow under Presentation
+improvements.
+
+### MVP-06: Click-to-enlarge images
+
+**Status:** Agreed scope; detailed behavior remains open.
+
+Let readers click page images to view them enlarged, restoring the existing
+site's basic image-viewing capability. Further image presentation improvements
+can follow later.
+
 ### Explicitly outside MVP
 
 - **Advanced session reading views.** The short/long narrative controls,
