@@ -92,9 +92,9 @@
   document.getElementById('section-navigation').hidden = !hasNavigation;
   const mobile = matchMedia('(max-width:800px)'), narrow = matchMedia('(max-width:1100px)');
   const panels = [
-    {button:'navigation-toggle', dialog:'navigation-dialog', content:'navigation', desktop:'.site-layout', media:mobile, first:'.nav-tree a'},
+    {button:'navigation-toggle', dialog:'navigation-dialog', content:'navigation', desktop:'.site-layout', media:narrow, first:'.nav-tree a'},
     {button:'search-toggle', dialog:'search-dialog', content:'header-search', desktop:'#header-search-slot', media:narrow, first:'input'},
-    {button:'settings-toggle', dialog:'settings-dialog', content:'context-controls', desktop:'#header-context-slot', media:mobile, first:'select'}
+    {button:'settings-toggle', dialog:'settings-dialog', content:'context-controls', desktop:'#header-context-slot', media:narrow, first:'select'}
   ];
   panels.forEach(panel => {
     const dialog = document.getElementById(panel.dialog);
@@ -119,24 +119,55 @@
     });
     document.querySelector('.contents-slot').hidden = !hasContents || mobile.matches;
     document.querySelector('.site-layout').classList.toggle('no-toc', !hasContents || mobile.matches);
-    const sidebarVisible = hasNavigation && (mobile.matches || hasSection);
-    document.getElementById('navigation').hidden = !sidebarVisible;
-    document.querySelector('.site-layout').classList.toggle('no-nav', !sidebarVisible);
-    if (sectionHeading) sectionHeading.textContent = mobile.matches ? 'Explore Taelgar' : activeLabel;
+    document.getElementById('navigation').hidden = !hasNavigation || (!narrow.matches && !hasSection);
+    document.querySelector('.site-layout').classList.toggle('no-nav', !hasNavigation || !hasSection || narrow.matches);
+    document.getElementById('breadcrumbs').hidden = narrow.matches;
+    if (sectionHeading) sectionHeading.textContent = narrow.matches ? 'Explore Taelgar' : activeLabel;
   }
   configurePanels();
   mobile.addEventListener('change', configurePanels);
   narrow.addEventListener('change', configurePanels);
   new ResizeObserver(() => {
     document.documentElement.style.setProperty('--header-height', document.getElementById('site-header').getBoundingClientRect().height + 'px');
+    updateScrollUI();
   }).observe(document.getElementById('site-header'));
+  const brand = document.getElementById('header-brand'), backToTop = document.getElementById('back-to-top');
+  const articleTitle = article.querySelector('h1');
+  let lastScrollY = Math.max(0,window.scrollY), lastDirection = 0, directionDistance = 0, returningToTop = false;
+  function updateScrollUI(trackDirection = false) {
+    const passedTitle = articleTitle && articleTitle.getBoundingClientRect().bottom <= document.getElementById('site-header').getBoundingClientRect().bottom;
+    const label = passedTitle ? page.title : 'TaelgarVerse';
+    if (brand.textContent !== label) brand.textContent = label;
+    brand.classList.toggle('is-page-title', !!passedTitle);
+    brand.title = label;
+    brand.setAttribute('aria-label', label + ' — back to top');
+    const y = Math.max(0,window.scrollY), delta = y - lastScrollY;
+    if (trackDirection && delta) {
+      const direction = Math.sign(delta);
+      directionDistance = direction === lastDirection ? directionDistance + Math.abs(delta) : Math.abs(delta);
+      lastDirection = direction;
+      if (direction > 0) returningToTop = false;
+      // Ignore tiny trackpad movements; only reveal the shortcut when the
+      // reader reverses direction sufficiently far down a long page.
+      if (!returningToTop && directionDistance >= 12) backToTop.hidden = direction > 0 || y <= 500;
+    }
+    if (y <= 500) { backToTop.hidden = true; returningToTop = false; }
+    lastScrollY = y;
+  }
+  backToTop.addEventListener('click', () => {
+    returningToTop = true; backToTop.hidden = true;
+    window.scrollTo({top:0,behavior:matchMedia('(prefers-reduced-motion:reduce)').matches ? 'instant' : 'smooth'});
+    brand.focus({preventScroll:true});
+  });
   const links = [...document.querySelectorAll('#toc a')];
   const sections = links.map(link => document.getElementById(decodeURIComponent(link.hash.slice(1))));
   let pending = false;
   function trackSection() {
     pending = false;
+    updateScrollUI(true);
     let active = 0;
-    sections.forEach((section, index) => { if (section && section.getBoundingClientRect().top <= 120) active = index; });
+    const threshold = document.getElementById('site-header').getBoundingClientRect().bottom + 24;
+    sections.forEach((section, index) => { if (section && section.getBoundingClientRect().top <= threshold) active = index; });
     links.forEach((link, index) => {
       link.classList.toggle('active', index === active);
       if (index === active) link.setAttribute('aria-current', 'location');

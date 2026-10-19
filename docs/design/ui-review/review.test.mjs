@@ -60,6 +60,14 @@ function harness() {
 }
 function previewData(source) { return JSON.parse(source.match(/id="preview-data">([\s\S]*?)<\/script>/)[1]); }
 
+test('review starts with Quiet Library and retains the reference as a choice', () => {
+  const h = harness();
+  assert.match(h.source(), /data-design="library"/);
+  assert.equal(h.get('proposal-options').disabled, false);
+  h.click('design','current');
+  assert.ok(h.source().includes('reference-context'));
+});
+
 test('reference survives repeated design switches and page changes', () => {
   const h = harness();
   let previous = h.source();
@@ -107,13 +115,17 @@ test('bundled navigation preserves anchors and ignores messages from other frame
   assert.equal(previewData(h.source()).hash, '#history');
 });
 
-function proposalHarness(width = 390, page = pages[0], enabled = true, section = 'Gazetteer') {
+function proposalHarness(width = 390, page = pages[0], enabled = true, section = 'Gazetteer', reducedMotion = false) {
   const nodes = new Map(), events = new Element(), messages = [];
+  const window = new Element(); window.scrollY = 0;
+  window.scrollTo = options => { window.lastScroll = options; };
   const get = id => { if (!nodes.has(id)) nodes.set(id,new Element()); return nodes.get(id); };
   get('preview-data').textContent = JSON.stringify({page,showNavigation:enabled,showContents:enabled});
   get('place-actions').hidden = true;
   get('related-back').hidden = true;
   const header = get('article-header');
+  header.getBoundingClientRect = () => ({bottom:240-window.scrollY});
+  get('site-header').getBoundingClientRect = () => ({bottom:64,height:64});
   header.insertAdjacentElement = (position,element) => { assert.equal(position,'afterend'); header.append(element); };
   get('article').querySelector = () => header;
   const closeButtons = ['navigation','search','settings','relationship'].map(name => { const button = get(name + '-close'); button.dataset.closeDialog = name + '-dialog'; return button; });
@@ -132,10 +144,11 @@ function proposalHarness(width = 390, page = pages[0], enabled = true, section =
     addEventListener:events.addEventListener.bind(events)
   };
   const media = [];
-  vm.runInNewContext(previewScript, {document,matchMedia:query => {
+  vm.runInNewContext(previewScript, {document,window,requestAnimationFrame:callback => callback(),matchMedia:query => {
+    if (query.includes('prefers-reduced-motion')) return {matches:reducedMotion};
     const value = new Element(); value.limit = query.includes('800') ? 800 : 1100; value.matches = width <= value.limit; media.push(value); return value;
-  },addEventListener(){},ResizeObserver:class {observe(){}},parent:{postMessage:message => messages.push(message)},FormData:class {constructor(form){this.form=form;} get(){return this.form.value;}}});
-  return {get,events,messages,roots,resize(width) { media.forEach(value => { value.matches = width <= value.limit; }); media.forEach(value => value.fire('change')); }};
+  },addEventListener:window.addEventListener.bind(window),ResizeObserver:class {observe(){}},parent:{postMessage:message => messages.push(message)},FormData:class {constructor(form){this.form=form;} get(){return this.form.value;}}});
+  return {get,events,messages,roots,window,scroll(y) { window.scrollY=y; window.fire('scroll'); },resize(width) { media.forEach(value => { value.matches = width <= value.limit; }); media.forEach(value => value.fire('change')); }};
 }
 
 test('main sections become header links with active section; mobile restores the full tree', () => {
@@ -166,18 +179,19 @@ test('sections without children reclaim the desktop sidebar but keep mobile sect
   assert.equal(proposalHarness(1440,pages[0],false).get('section-navigation').hidden,true);
 });
 
-test('desktop uses sidebars; mobile mounts navigation in a drawer and removes contents', () => {
-  for (const width of [390,900,1440]) for (const page of [pages[0],pages[4]]) for (const enabled of [true,false]) {
+test('left navigation becomes a drawer before contents disappear, and small headers omit breadcrumbs', () => {
+  for (const width of [390,800,801,900,1100,1101,1440]) for (const page of [pages[0],pages[4]]) for (const enabled of [true,false]) {
     const {get} = proposalHarness(width,page,enabled);
     assert.equal(get('.site-navigation').open, true);
     assert.equal(get('navigation').hidden, !enabled);
     assert.equal(get('navigation-toggle').hidden, !enabled);
     assert.equal(get('.contents-slot').hidden, !enabled || !page.toc || width <= 800);
     assert.equal(get('.site-layout').classList.contains('no-toc'), !enabled || !page.toc || width <= 800);
-    assert.equal(get('.site-layout').classList.contains('no-nav'), !enabled);
-    assert.equal(get('navigation').parent, get(width <= 800 ? 'navigation-dialog-body' : '.site-layout'));
+    assert.equal(get('.site-layout').classList.contains('no-nav'), !enabled || width <= 1100);
+    assert.equal(get('breadcrumbs').hidden, width <= 1100);
+    assert.equal(get('navigation').parent, get(width <= 1100 ? 'navigation-dialog-body' : '.site-layout'));
     assert.equal(get('header-search').parent, get(width <= 1100 ? 'search-dialog-body' : '#header-search-slot'));
-    assert.equal(get('context-controls').parent, get(width <= 800 ? 'settings-dialog-body' : '#header-context-slot'));
+    assert.equal(get('context-controls').parent, get(width <= 1100 ? 'settings-dialog-body' : '#header-context-slot'));
     assert.match(get('context-controls').innerHTML, /See Behind the Curtain/);
     assert.equal(get('contents-title').textContent, page.title);
     assert.equal(get('#navigation .nav-search').removed, true);
@@ -285,4 +299,36 @@ test('proposal fragment links scroll inside srcdoc instead of opening a nested r
   events.fire('click', {target:{closest:() => ({getAttribute:() => '#history'})},preventDefault:() => { prevented = true; }});
   assert.equal(prevented, true);
   assert.equal(scrolled, true);
+});
+
+test('header shows the page title after it scrolls out of view and restores the wordmark at top', () => {
+  const h = proposalHarness();
+  assert.equal(h.get('header-brand').textContent,'TaelgarVerse');
+  h.scroll(180);
+  assert.equal(h.get('header-brand').textContent,pages[0].title);
+  assert.equal(h.get('header-brand').title,pages[0].title);
+  assert.equal(h.get('header-brand').classList.contains('is-page-title'),true);
+  h.scroll(0);
+  assert.equal(h.get('header-brand').textContent,'TaelgarVerse');
+  assert.equal(h.get('header-brand').classList.contains('is-page-title'),false);
+});
+
+test('Back to top appears on upward scroll and respects reduced motion without reappearing during return', () => {
+  for (const reducedMotion of [false,true]) {
+    const h = proposalHarness(390,pages[0],true,'Gazetteer',reducedMotion);
+    const button = h.get('back-to-top');
+    h.scroll(1000); assert.equal(button.hidden,true);
+    h.scroll(996); assert.equal(button.hidden,true);
+    h.scroll(980); assert.equal(button.hidden,false);
+    h.scroll(1000); assert.equal(button.hidden,true);
+    h.scroll(980); button.fire('click');
+    assert.equal(button.hidden,true);
+    assert.equal(h.window.lastScroll.top,0);
+    assert.equal(h.window.lastScroll.behavior,reducedMotion ? 'instant' : 'smooth');
+    assert.equal(h.get('header-brand').focused,true);
+    h.scroll(750); assert.equal(button.hidden,true);
+    h.scroll(0); assert.equal(button.hidden,true);
+    h.scroll(1000); h.scroll(980); assert.equal(button.hidden,false);
+    h.scroll(500); assert.equal(button.hidden,true);
+  }
 });

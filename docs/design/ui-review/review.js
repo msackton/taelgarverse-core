@@ -8,10 +8,10 @@
   const descriptions = {
     current:'Current site — the existing template, styles, and navigation. Proposal options are disabled to keep the reference unchanged.',
     classic:'Classic Encyclopedia — restrained serif headings, compact facts, and three columns. Contents float alongside long articles; short notes reclaim the space.',
-    library:'Quiet Library — serif prose and subtle rules, with the same responsive navigation. Compare palettes independently of typography.',
+    library:'Quiet Library — serif prose with Atlas’s wordmark and wider article layout. Main navigation becomes a drawer before page contents disappear; scroll up for Back to top.',
     atlas:'Atlas Reference — wider maps and article space, with the same three-column navigation and small-screen behavior.'
   };
-  let design = 'current', viewport = 'fit', revision = 0;
+  let design = 'library', viewport = 'fit', revision = 0;
   pages.forEach((page, index) => picker.add(new Option(page.name, index)));
   const listedPages = new Set(pages.map((_,index) => index));
   pages.push(...JSON.parse(get('related-pages').textContent));
