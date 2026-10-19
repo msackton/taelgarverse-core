@@ -21,13 +21,21 @@ not establish implementation priority.
 
 ### MVP-01: Table of contents and navigation
 
-**Status:** Agreed scope; detailed behavior remains open.
+**Status:** Agreed scope; article TOC details remain open.
 
-Provide sensible article table-of-contents management and site navigation
-architecture.
+Recreate a navigation experience close to the existing Taelgarverse, using one
+shared, curated site table of contents.
 
-**Open decision:** Whether campaign-specific navigation variants belong in MVP,
-and what those variants should change.
+- The website hierarchy does not have to mirror the Obsidian vault's folder
+  structure.
+- The curated TOC definition determines the site TOC. Do not automatically append
+  unlisted notes in an "Additional pages" catch-all (currently labeled "More
+  pages" in the dynamic implementation).
+- Other campaigns' material may remain visible. Campaign-specific navigation
+  variants are not required for MVP.
+
+Sensible article table-of-contents management remains in scope; its detailed
+behavior is still to be discussed.
 
 ### MVP-02: Generic HTML extensions, including Taelgar II
 
