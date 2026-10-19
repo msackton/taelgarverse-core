@@ -249,11 +249,27 @@ page links to the current page.
 
 ### P-06: Campaign hubs and standard campaign presentation
 
-**Status:** Agreed direction; content and layout remain open.
+**Status:** Agreed structure and authoring direction; emphasis and layout remain open.
 
-Develop campaign hubs and consistent ways to present information about a
-campaign. Determine which information and navigation should be shared across
-campaigns and where individual campaigns need flexibility.
+Use a shared set of sections while retaining room for each campaign's character
+and particular resources:
+
+- **Overview:** premise, setting, campaign dates, and current/completed status.
+- **The party:** PCs and their shared party page.
+- **The story:** sessions or episodes, grouped into arcs where useful, plus the
+  timeline.
+- **Campaign reference:** relevant NPCs, places, maps, and organizations.
+- **Resources:** handouts, treasure, special mechanics, and other
+  campaign-specific material.
+
+Generate collections that otherwise require repetitive maintenance, such as
+session lists and NPC indexes. Keep introductions, arc summaries, and highlighted
+resources authored. Existing hubs such as Lost in the Feywild illustrate how
+storytelling and distinctive content can fit within this shared structure.
+
+For active campaigns, the relative emphasis on finding references during play
+versus catching up on the story between sessions remains open. Placement of the
+latest session, common references, and broader story is still to be discussed.
 
 ### P-07: Generated campaign context and encounters
 
