@@ -318,3 +318,25 @@ onto the website's maps.
 
 Consider automatic generation of updated drawing exports and interactive
 Excalidraw presentation after MVP. Exported images are sufficient for MVP.
+
+### P-11: Image optimization and bandwidth reduction
+
+**Status:** Agreed direction; implementation and performance targets remain open.
+
+Reduce image download sizes substantially. Large source images currently incur
+unnecessary bandwidth costs when displayed at small or fixed sizes on the page.
+
+- Generate resized and compressed website image variants while preserving vault
+  originals.
+- Serve variants appropriate to the displayed size, viewport, and screen pixel
+  density, including thumbnails and cards.
+- Load larger versions for enlargement or detailed inspection when requested,
+  rather than downloading them during ordinary page viewing.
+- Defer loading offscreen images where appropriate.
+- Preserve visual quality, transparency, and legibility, including text and
+  fine detail in maps and diagrams.
+
+Measure image bytes transferred on representative image-heavy pages, including
+mobile views, and compare before/after results alongside visual quality. The
+image-generation approach, formats, size variants, and performance targets
+remain to be decided.
