@@ -1,22 +1,9 @@
 import {dateKey, pageUrl} from './common.mjs';
-import {availableInContext} from './content-store.mjs';
+import {authoredBody,availableInContext} from './content-store.mjs';
 import {filterComments} from './comments.mjs';
 import {createMarkdown, renderMarkdown} from './markdown.mjs';
 
-// Backlinks describe authored references. Remove the generated header slot,
-// including legacy saved headers, before indexing the remaining article body.
-// The legacy boundary matches OutputHandler.regenerateHeader in CustomJS.
-export function authoredBody(note) {
-  const marker = /^[ \t\r\n]*<!-- taelgar:header -->[ \t]*(?:\r?\n|$)/;
-  if (marker.test(note.body)) return note.body.replace(marker,'');
-  if (!note.metadata.headerVersion || !note.metadata.tags) return note.body;
-  const lines = note.body.split('\n');
-  let end = lines.findIndex(line => line.trim() === '');
-  if (end < 0) end = lines.length;
-  const next = lines.findIndex((line,index) => index > end && line.trim() !== '');
-  if (next >= 0) end = next - 1;
-  return lines.slice(0,end).some(line => line.trim().startsWith('#')) ? lines.slice(end).join('\n') : note.body;
-}
+export {authoredBody} from './content-store.mjs';
 
 const firstDate = 10101;
 const fullDate = key => String(Math.floor(key / 10000)).padStart(4,'0') + '-' +

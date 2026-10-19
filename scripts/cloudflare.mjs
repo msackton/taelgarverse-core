@@ -35,6 +35,12 @@ function verifiedUpload(report,config) {
   }
 }
 
+function publicationPointer(report) {
+  // The commit stays in the snapshot; stamp the time of activation here.
+  fs.writeFileSync(report.pointerFile,JSON.stringify({revision:report.revision,
+    completedAt:new Date().toISOString()})+'\n');
+}
+
 if (task==='check' || task==='deploy') {
   await buildBrowser();
   const config=loadCloudflareConfig();
@@ -63,6 +69,7 @@ if (task==='check' || task==='deploy') {
   const storage=local ? ['--local','--persist-to',path.join(ROOT,'.wrangler/state')] : ['--remote'];
   await run(['r2','bulk','put',report.bucket,...flags,'--filename',report.manifestFile,...storage,'--concurrency','8','--force']);
   if (local) {
+    publicationPointer(report);
     await run(['r2','object','put',report.bucket+'/published/current.json',...flags,'--file',report.pointerFile,...storage,'--force']);
   } else {
     fs.writeFileSync(receiptFile,JSON.stringify({revision:report.revision,bucket:report.bucket,
@@ -71,6 +78,7 @@ if (task==='check' || task==='deploy') {
 } else if (task==='publish') {
   const {report,config,flags}=prepared();
   verifiedUpload(report,config);
+  publicationPointer(report);
   await run(['r2','object','put',report.bucket+'/published/current.json',...flags,
     '--file',report.pointerFile,'--remote','--force']);
 } else {

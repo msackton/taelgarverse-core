@@ -6,6 +6,7 @@ import {ROOT,loadSettings,isInside} from '../src/config.mjs';
 import {Store} from '../src/store.mjs';
 import {buildBacklinkIndex} from '../src/backlinks.mjs';
 import {headerRevision} from '../src/worker-headers.mjs';
+import {repositoryVersion} from './repository-version.mjs';
 
 const sha = value=>createHash('sha256').update(value).digest('hex');
 const writeJSON = (file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value)+'\n');};
@@ -22,7 +23,7 @@ async function hashFile(file) {
   return hash.digest('hex');
 }
 
-export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare')) {
+export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare'),sourceVersion=repositoryVersion(settings.vault_dir)) {
   output=path.resolve(output);
   if (!isInside(ROOT,output) || output===ROOT) throw new Error('Content staging directory must be inside this project');
   const store=new Store(settings), shards=new Map(), uploads=[];
@@ -50,10 +51,12 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     entries.push(entry);
   }
   const backlinks=buildBacklinkIndex(store);
-  const base={schemaVersion:1,settings:{default_date:settings.default_date,campaigns:settings.campaigns},backlinks,
-    registry:JSON.parse(fs.readFileSync(path.join(settings.runtime_dir,'_scripts/session_note_campaigns.json'),'utf8')),
-    coreMeta:JSON.parse(fs.readFileSync(path.join(settings.runtime_dir,'.obsidian/metadata.json'),'utf8')),
-    navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,warnings:[...store.warnings,...backlinks.warnings],entries};
+  const base={schemaVersion:1,sourceVersion:{commit:sourceVersion.commit,dirty:sourceVersion.dirty},settings:{default_date:settings.default_date,campaigns:settings.campaigns},backlinks,
+    registry:JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'_scripts/session_note_campaigns.json'),'utf8')),
+    coreMeta:JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'.obsidian/metadata.json'),'utf8')),
+    navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,
+    homeSource:settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null,
+    warnings:[...store.warnings,...backlinks.warnings],entries};
   const revision=sha(JSON.stringify(base)), prefix='revisions/'+revision;
   const directory=path.join(output,'revisions',revision);
   for (const [shard,notes] of shards) {

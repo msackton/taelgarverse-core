@@ -9,6 +9,7 @@ import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
 import {loadSnapshot} from '../src/snapshot.mjs';
 import {instantiate} from '../src/worker-headers.mjs';
+import {handleRequest} from '../src/application.mjs';
 
 let directory,report,bucket,engine,worker,env;
 class LocalBucket {
@@ -26,6 +27,7 @@ before(async()=>{
   const source=path.join(directory,'notes');fs.mkdirSync(source);
   const notes=JSON.parse(fs.readFileSync(new URL('./fixtures/notes.json',import.meta.url),'utf8'));
   Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/backlinks.json',import.meta.url),'utf8')));
+  Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/embeds.json',import.meta.url),'utf8')));
   for (const [relative,text] of Object.entries(notes)) {
     const file=path.join(source,relative);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,text);
   }
@@ -48,8 +50,12 @@ before(async()=>{
     '%%DM [[CampaignHidden|popup campaign]] and [[Unborn|popup birth]].%%',
   ].join('\n'));
   fs.writeFileSync(path.join(source,'_ignore.txt'),'Ignored/\n');
-  fs.writeFileSync(path.join(source,'_nav.md'),'- [Home](index.md)\n- People\n    - {glob: people/}\n- Places\n    - {glob: places/}\n');
-  const settings={...loadSettings(),source_dir:source,ignore_file:path.join(source,'_ignore.txt'),nav_source:path.join(source,'_nav.md'),campaigns:['dufr','adma']};
+  fs.mkdirSync(path.join(source,'_website'));
+  const navSource=path.join(source,'_website','navigation.md'), homeSource=path.join(source,'_website','home.md');
+  fs.writeFileSync(navSource,'- [Home](index.md)\n- People\n    - {glob: people/}\n- Places\n    - {glob: places/}\n');
+  fs.copyFileSync(new URL('./fixtures/home.md',import.meta.url),homeSource);
+  fs.writeFileSync(path.join(source,'_website','private.md'),'Unpublished website planning.');
+  const settings={...loadSettings(),source_dir:source,ignore_file:path.join(source,'_ignore.txt'),nav_source:navSource,home_source:homeSource,campaigns:['dufr','adma']};
   report=await prepareContent(settings,path.join(directory,'package'));
   bucket=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
     {key:'published/current.json',file:report.pointerFile}]);
@@ -57,6 +63,79 @@ before(async()=>{
   engine=new Engine(settings);worker=createWorker(instantiate);
 });
 after(()=>{if(directory && isInside(path.join(ROOT,'.cache'),directory))fs.rmSync(directory,{recursive:true});});
+
+test('footer follows each publication pointer and rollback without cached metadata leaking',async()=>{
+  const pointer=path.join(directory,'release-pointer.json');
+  const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
+  const storage=new LocalBucket([...uploads,{key:'published/current.json',file:pointer}]);
+  const app=createWorker(instantiate,{commit:'a'.repeat(40),publishedAt:'2026-10-18T12:00:00Z'});
+  const environment={...env,CONTENT:storage};
+  for (const [commit,completedAt] of [['b','2026-10-19T01:00:00Z'],['c','2026-10-20T01:00:00Z'],['b','2026-10-19T01:00:00Z']]) {
+    fs.writeFileSync(pointer,JSON.stringify({revision:report.revision,commit:commit.repeat(40),dirty:false,completedAt}));
+    const home=load(await (await app.fetch(new Request('https://example.test/'),environment)).text());
+    const browse=home('.site-sidebar a[href^="/browse/"]').first().attr('href');
+    for (const url of ['/','/?q=Example','/page/people/example',browse,'/page/does-not-exist']) {
+      const response=await app.fetch(new Request('https://example.test'+url),environment);
+      const $=load(await response.text());
+      assert.equal($('.site-footer [data-copy-commit]').last().attr('data-copy-commit'),commit.repeat(40),url);
+      assert.equal($('.site-footer time').attr('datetime'),new Date(completedAt).toISOString(),url);
+      assert.doesNotMatch($('.site-footer').text(),/Oct 18/);
+    }
+  }
+  assert.equal(storage.calls.get('revisions/'+report.revision+'/index.json'),1);
+});
+
+test('manual activation reads its content commit from the immutable snapshot',async()=>{
+  const sourceVersion={commit:'d'.repeat(40),dirty:true};
+  const prepared=await prepareContent(engine.settings,path.join(directory,'release-package'),sourceVersion);
+  assert.deepEqual(JSON.parse(fs.readFileSync(prepared.indexFile,'utf8')).sourceVersion,sourceVersion);
+  fs.writeFileSync(prepared.pointerFile,JSON.stringify({revision:prepared.revision,completedAt:'2026-10-19T16:00:00Z'}));
+  const storage=new LocalBucket([...JSON.parse(fs.readFileSync(prepared.manifestFile,'utf8')),
+    {key:'published/current.json',file:prepared.pointerFile}]);
+  const response=await createWorker(instantiate).fetch(new Request('https://example.test/'),{...env,CONTENT:storage});
+  const $=load(await response.text());
+  assert.equal($('.site-footer [data-copy-commit]').attr('data-copy-commit'),sourceVersion.commit);
+  assert.match($('.site-footer').text(),/Updated Oct 19, 2026.*Content ddddddd\*/);
+});
+
+test('Worker expands published note embeds like Node and loads only visible note shards',async()=>{
+  for (const query of ['context=modern','context=custom&date=1720-01-01&campaigns=dufr',
+    'context=custom&date=1730-01-01&campaigns=all&dm=1']) {
+    const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
+    const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+    const url='https://example.test/api/page?page=Embed%20Host&'+query;
+    const response=await app.fetch(new Request(url),environment);
+    assert.equal(response.status,200);
+    const result=await response.json(), params=new URL(url).searchParams;
+    assert.deepEqual(result,engine.render('Embed Host',params.get('date') ?? undefined,params.get('context'),params.get('dm') ?? false,undefined,params.get('campaigns') ?? undefined));
+    const $=load(result.html,{},false);
+    assert.equal($('.note-embed').length,query.includes('campaigns=') ? 5 : 4);
+    assert.doesNotMatch(result.html,/Stale embedded header|Outside requested section|Private page|Future page/);
+    assert.match($.text(),/Shared voyage/); assert.match($.text(),/Nested voyage/);
+    assert.equal($.text().includes('Frontier voyage'),query.includes('campaigns='));
+    assert.equal($.text().includes('Later voyage'),query.includes('1730'));
+    assert.equal($.text().includes('Voyage popup'),query.includes('dm=1'));
+    const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+    const expected=['Embed Host.md','Embed Sources/Child.md','Nested Embed.md',...(query.includes('campaigns=') ? ['Embed Sources/Campaign.md'] : [])];
+    const keys=new Set(expected.map(id=>'revisions/'+report.revision+'/notes/'+index.entries.find(e=>e.id===id).note.shard+'.json'));
+    assert.deepEqual(new Set([...storage.calls.keys()].filter(key=>key.includes('/notes/'))),keys);
+    for (const key of keys) assert.equal(storage.calls.get(key),1,key);
+    assert.doesNotMatch(result.toc,/Travels/);
+  }
+});
+
+test('published homepage note embeds retain lazy loading',async()=>{
+  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  index.homeSource+='\n\n![[Nested Embed]]\n';
+  const file=path.join(directory,'embed-home-index.json'); fs.writeFileSync(file,JSON.stringify(index));
+  const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
+  storage.objects.set('revisions/'+report.revision+'/index.json',file);
+  const app=createWorker(instantiate);
+  const response=await app.fetch(new Request('https://example.test/?date=1730-01-01&campaigns=all&dm=1'),{...env,CONTENT:storage});
+  assert.equal(response.status,200);
+  const $=load(await response.text());
+  assert.match($('.note-embed').text(),/Nested voyage/);
+});
 
 test('packaged snapshot has no machine paths or raw note bodies in the metadata index',()=>{
   const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
@@ -69,7 +148,7 @@ test('packaged snapshot has no machine paths or raw note bodies in the metadata 
     assert.equal(ids.has(id),false,id);
   }
   assert.equal(index.entries.find(e=>e.id==='Hidden.md').note.metadata.excludePublish,'all');
-  assert.doesNotMatch(JSON.stringify(index),/source_dir|runtime_dir|Fixture biography|private ordinary comment/);
+  assert.doesNotMatch(JSON.stringify(index),/source_dir|runtime_dir|vault_dir|Fixture biography|private ordinary comment/);
   assert.equal(index.entries.every(e=>!('filename' in e)),true);
 });
 
@@ -98,6 +177,69 @@ test('Worker rejects unavailable pages before reading any note body and permits 
   assert.equal((await fetch('/assets/assets/dm-map.png')).status,200);
   assert.equal((await fetch('/assets/assets/dm-reference/map.png')).status,200);
   assert.equal((await fetch('/assets/assets/worldbuilding/hidden.png')).status,404);
+});
+
+test('published website Markdown renders like Node without exposing website files as articles',async()=>{
+  const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
+  const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  assert.equal(index.homeSource,fs.readFileSync(engine.settings.home_source,'utf8'));
+  assert.equal(index.navigationSource,fs.readFileSync(engine.settings.nav_source,'utf8'));
+  assert.equal(index.entries.some(entry=>entry.id.startsWith('_website/')),false);
+  assert.doesNotMatch(JSON.stringify(index),/Unpublished website planning/);
+  await Promise.all(['context=modern','context=addermarch','context=dunmar-frontier&dm=1','context=custom&date=1750-01-01&campaigns=all'].map(async query=>{
+    const url='https://example.test/?'+query;
+    const response=await app.fetch(new Request(url),environment);
+    assert.equal(response.status,200);
+    const html=await response.text();
+    // Node preview and the published Worker have independent release metadata.
+    const nodeHtml=await (await handleRequest(new Request(url),engine,{releases:{content:index.sourceVersion}})).text();
+    assert.equal(html,nodeHtml);
+    const $=load(html);
+    assert.equal($('main h1').text(),'Welcome to the fixture site');
+    assert.equal($('main a[href="https://example.org/"]').length,1);
+    assert.equal($('main').text().includes('Private homepage note'),query.includes('dm=1'));
+    assert.equal($('main').text().includes('Addermarch homepage content'),query.includes('addermarch') || query.includes('campaigns=all'));
+    assert.equal($('main a').filter((_,a)=>$(a).text()==='Conditional link').length,query.includes('dunmar-frontier') || query.includes('campaigns=all') ? 0 : 1);
+  }));
+  assert.equal([...storage.calls.keys()].some(key=>key.includes('/notes/')),false);
+  assert.equal((await request('/page/_website/home')).status,404);
+});
+
+test('old publications retain the page finder; invalid homepage data is rejected',async()=>{
+  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  const file=path.join(directory,'legacy-home-index.json');
+  const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
+  storage.objects.set('revisions/'+report.revision+'/index.json',file);
+  delete index.homeSource;
+  fs.writeFileSync(file,JSON.stringify(index));
+  const response=await createWorker(instantiate).fetch(new Request('https://example.test/'),{...env,CONTENT:storage});
+  assert.equal(response.status,200);
+  assert.match(await response.text(),/Up to 100 matching pages/);
+  index.homeSource={invalid:true};
+  fs.writeFileSync(file,JSON.stringify(index));
+  await assert.rejects(()=>loadSnapshot(storage,report.revision,instantiate),{status:503});
+});
+
+test('republishing changes the homepage and navigation together without redeploying code',async()=>{
+  const homeFile=engine.settings.home_source, navFile=engine.settings.nav_source;
+  const originalHome=fs.readFileSync(homeFile,'utf8'), originalNav=fs.readFileSync(navFile,'utf8');
+  try {
+    fs.writeFileSync(homeFile,'# Updated home\n\nNew homepage text.\n');
+    fs.writeFileSync(navFile,'- [Home](index.md)\n- [Updated menu](people/example.md)\n');
+    const next=await prepareContent(engine.settings,path.join(directory,'updated-website'));
+    assert.notEqual(next.revision,report.revision);
+    const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
+      ...JSON.parse(fs.readFileSync(next.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
+    const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+    const read=async()=>load(await (await app.fetch(new Request('https://example.test/'),environment)).text());
+    assert.equal((await read())('main h1').text(),'Welcome to the fixture site');
+    storage.objects.set('published/current.json',next.pointerFile);
+    const updated=await read();
+    assert.equal(updated('main h1').text(),'Updated home');
+    assert.match(updated('.site-sidebar').text(),/Updated menu/);
+    assert.doesNotMatch(updated('main').text(),/Website introduction/);
+  } finally {fs.writeFileSync(homeFile,originalHome);fs.writeFileSync(navFile,originalNav);}
 });
 
 test('Worker renders the same article as the VM reference and isolates request preferences',async()=>{

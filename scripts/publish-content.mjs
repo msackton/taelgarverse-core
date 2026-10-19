@@ -110,8 +110,10 @@ export function createStorage({bucket, configFile, local = false, persistTo = pa
       try { await invoke(['r2', 'object', 'get', `${bucket}/${CHECKPOINT_KEY}`, '--file', filename]); }
       catch (error) { if (isMissingCheckpoint(error)) return null; throw error; }
       const value = JSON.parse(await fs.readFile(filename, 'utf8'));
-      // A pointer published by the older manual command has no Git metadata.
-      if (value && Object.keys(value).length === 1 && /^[a-f0-9]{64}$/.test(value.revision || '')) return null;
+      // Manual publication pointers carry a revision and optional activation time,
+      // but have no publisher fingerprint that can justify skipping a build.
+      if (value && Object.keys(value).every(key=>['revision','completedAt'].includes(key)) &&
+          /^[a-f0-9]{64}$/.test(value.revision || '')) return null;
       return validateCheckpoint(value);
     },
     async upload(report) {
@@ -179,7 +181,7 @@ export function buildFingerprint(settings, options) {
   const hash = createHash('sha256');
   hash.update(JSON.stringify({version: 1, image: {maxSize: options.maxSize, quality: options.quality, ...IMAGE_VERSION},
     strict: !options.noStrict, default_date: settings.default_date}));
-  for (const filename of [settings.nav_source,
+  for (const filename of [settings.nav_source, settings.home_source,
     new URL('./publish-content.mjs', import.meta.url), new URL('./optimize-images.mjs', import.meta.url),
     new URL('./prepare-cloudflare.mjs', import.meta.url), new URL('../src/store.mjs', import.meta.url),
     new URL('../src/content-store.mjs', import.meta.url), new URL('../src/backlinks.mjs', import.meta.url),
@@ -187,7 +189,7 @@ export function buildFingerprint(settings, options) {
     new URL('../src/common.mjs', import.meta.url), new URL('./build-runtime.mjs', import.meta.url)]) {
     // A Windows checkout may use CRLF while macOS uses LF. That alone must not
     // invalidate the shared R2 checkpoint for an otherwise identical build.
-    hash.update(filename ? readFileSync(filename, 'utf8').replace(/\r\n/g, '\n') : '<no-navigation>');
+    hash.update(filename ? readFileSync(filename, 'utf8').replace(/\r\n/g, '\n') : '<no-website-source>');
   }
   return hash.digest('hex');
 }
@@ -203,8 +205,8 @@ async function removeWorkingDirectory(directory) {
 }
 
 export async function main(options) {
-  const settings = loadSettings(options.config);
-  const vault = await fs.realpath(path.resolve(options.vault || settings.runtime_dir));
+  const settings = loadSettings(options.config, {vault: options.vault});
+  const vault = settings.vault_dir;
   const config = loadCloudflareConfig();
   const binding = config.r2_buckets?.find(item => item.binding === 'CONTENT');
   if (!binding?.bucket_name || binding.jurisdiction) throw new Error('Configure a standard CONTENT R2 bucket in wrangler.local.json.');
@@ -230,12 +232,13 @@ export async function main(options) {
       log: console.log,
       async verifyInputs() {
         const current = loadCloudflareConfig();
-        if (buildFingerprint(loadSettings(options.config), options) !== fingerprint || current.name !== config.name ||
+        const currentSettings = loadSettings(options.config, {vault: options.vault});
+        if (currentSettings.vault_dir !== vault || buildFingerprint(currentSettings, options) !== fingerprint || current.name !== config.name ||
             current.account_id !== config.account_id || current.r2_buckets?.find(item => item.binding === 'CONTENT')?.bucket_name !== binding.bucket_name) {
           throw new Error('Publisher code, settings, or destination changed during the build; run again before publishing.');
         }
       },
-      async build() {
+      async build(sourceVersion) {
         working = await fs.mkdtemp(path.join(CACHE, 'run-'));
         if (isInside(vault, working)) throw new Error('The export directory must be outside the Taelgar vault.');
         const output = path.join(working, 'vault');
@@ -250,7 +253,7 @@ export async function main(options) {
         const report = JSON.parse(await fs.readFile(reportFile, 'utf8'));
         validateMaterializationReport(report, output);
         await fs.copyFile(reportFile, path.join(CACHE, 'materialization-report.json'));
-        const preparedSettings = {...settings, source_dir: output, runtime_dir: vault};
+        const preparedSettings = {...settings, source_dir: output};
         const store = new Store(preparedSettings);
         console.log('Optimizing exported JPEG, PNG, and WebP images…');
         let lastLog = 0;
@@ -262,7 +265,7 @@ export async function main(options) {
             }
           });
         console.log(`Images: ${images.optimized}/${images.images} smaller; ${(images.inputBytes / 1048576).toFixed(1)} → ${(images.outputBytes / 1048576).toFixed(1)} MiB`);
-        const prepared = await prepareContent(preparedSettings);
+        const prepared = await prepareContent(preparedSettings,undefined,sourceVersion);
         const preparedConfig = JSON.parse(await fs.readFile(prepared.configFile, 'utf8'));
         if (prepared.bucket !== binding.bucket_name || preparedConfig.account_id !== config.account_id || preparedConfig.name !== config.name) {
           throw new Error('Cloudflare destination changed during preparation.');
@@ -295,9 +298,10 @@ export async function main(options) {
 const help = `Usage: npm run content:publish -- [options]
 Checks the Taelgar commit in R2, exports via Obsidian, optimizes images, then uploads.
 Requires Node 22+, Git, the vault open in Obsidian with Dataview ready, and Wrangler login.
+Settings: config.json, plus config.local.json automatically when present.
 
-  --config FILE            Website settings (or TAELGARVERSE_CONFIG)
-  --vault PATH             Taelgar Git checkout (defaults to runtime_dir)
+  --config FILE            Alternative to automatic config.local.json (or TAELGARVERSE_CONFIG)
+  --vault PATH             Taelgar Git checkout for this run (overrides vault_dir)
   --obsidian-command PATH   Override automatic Windows/macOS CLI detection
   --obsidian-vault NAME     Optional Obsidian vault name or ID
   --no-strict               Permit failed/unsupported queries, reporting each one

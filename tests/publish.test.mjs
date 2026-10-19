@@ -137,6 +137,16 @@ test('build fingerprints tolerate Windows line endings and machine paths, but no
   assert.equal(value, buildFingerprint({...settings, ignore_file: 'missing-legacy-ignore.txt', campaigns: ['adma']}, options));
   assert.notEqual(value, buildFingerprint(settings, {...options, maxSize: 4096}));
   assert.notEqual(value, buildFingerprint(settings, {...options, noStrict: true}));
+  const home=path.join(directory,'home.md'), otherHome=path.join(directory,'other-home.md');
+  await fs.writeFile(home,'# Home\r\n');
+  await fs.writeFile(otherHome,'# Home\n');
+  const withHome=buildFingerprint({...settings,home_source:home},options);
+  assert.notEqual(value,withHome);
+  assert.equal(withHome,buildFingerprint({...settings,home_source:otherHome},options));
+  await fs.writeFile(home,'# Updated home\n');
+  assert.notEqual(withHome,buildFingerprint({...settings,home_source:home},options));
+  await fs.writeFile(navigation,'- Updated navigation\n');
+  assert.notEqual(value,buildFingerprint(settings,options));
 });
 
 test('R2 storage distinguishes missing object, legacy pointer, invalid data, and authentication failure', async t => {
@@ -158,6 +168,8 @@ test('R2 storage distinguishes missing object, legacy pointer, invalid data, and
   }});
   assert.deepEqual(await storage.readCheckpoint(filename), checkpoint);
   response = {revision};
+  assert.equal(await storage.readCheckpoint(filename), null);
+  response = {revision,completedAt:'2026-10-19T12:00:00Z'};
   assert.equal(await storage.readCheckpoint(filename), null);
   response = {commit: state.commit};
   await assert.rejects(storage.readCheckpoint(filename), /Invalid R2 build checkpoint/);

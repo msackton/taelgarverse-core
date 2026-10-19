@@ -3,7 +3,7 @@ import {loadSnapshot} from './snapshot.mjs';
 import {serveAsset,themeFiles} from './http-assets.mjs';
 import {RenderError} from './common.mjs';
 
-export function createWorker(instantiate) {
+export function createWorker(instantiate,coreRelease = {}) {
   let state;
   return {async fetch(request,env) {
     try {
@@ -18,20 +18,22 @@ export function createWorker(instantiate) {
         if (url.pathname==='/health') return Response.json({status:'awaiting-content',runtime:'cloudflare-worker'},{headers:{'Cache-Control':'no-store'}});
         throw new RenderError(503,'No content has been published');
       }
-      const {revision}=await publication.json();
+      const published=await publication.json(), {revision}=published;
       if (!/^[a-f0-9]{64}$/.test(revision || '')) throw new RenderError(503,'Published content pointer is invalid');
       if (!state || state.revision!==revision || state.bucket!==env.CONTENT) {
         const pending=loadSnapshot(env.CONTENT,revision,instantiate);
         const current={revision,bucket:env.CONTENT,pending};state=current;
         pending.catch(()=>{if(state===current)state=undefined;});
       }
-      const {engine,store}=await state.pending;
+      const {engine,store,index}=await state.pending;
       return await handleRequest(request,engine,{
         runtime:'cloudflare-worker',revision,
+        releases:{core:coreRelease,content:{...(index.sourceVersion || {}),
+          ...(published.commit ? {commit:published.commit,dirty:published.dirty} : {}),publishedAt:published.completedAt}},
         async renderPage(page,date,context,dm,campaigns) {
-          const {entry}=engine.resolvePage(page,date,context,dm,campaigns), note=await store.getNote(entry);
-          return engine.render(page,date,context,dm,note,campaigns);
+          return engine.renderAsync(page,date,context,dm,campaigns,entry=>store.getNote(entry));
         },
+        renderHome:context=>engine.renderHomeAsync(context,entry=>store.getNote(entry)),
         assets(entry,request) {
           return serveAsset(request,entry,async range=>{
             const object=await env.CONTENT.get(entry.objectKey,{range});

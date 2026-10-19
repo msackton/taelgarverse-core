@@ -12,7 +12,19 @@ import {decorateDMNotes} from './dm.mjs';
 import {icons} from './icons.mjs';
 const aliases = {summary:'abstract',tldr:'abstract',hint:'tip',important:'tip',check:'success',done:'success',
   help:'question',faq:'question',caution:'warning',attention:'warning',fail:'failure',missing:'failure',error:'danger',cite:'quote'};
-const anchorId = value => value.trim().toLowerCase().replace(/[^\p{L}\p{N}_\s-]/gu, '').replace(/\s+/g, '-');
+export const anchorId = value => value.trim().toLowerCase().replace(/[^\p{L}\p{N}_\s-]/gu, '').replace(/\s+/g, '-');
+export const fragmentId = value => value.startsWith('^') ? value.slice(1) : anchorId(value);
+
+function wikiTarget(env, target) {
+  if (!target) return {status:'heading',entry:env.entry};
+  // Explicit relative paths belong to the authoring note, including inside embeds.
+  if (/^\.\.?\//.test(target)) {
+    const relative = path.posix.normalize(path.posix.join(path.posix.dirname(env.entry.id),target));
+    const matches = env.store.canonical.get(relative) || env.store.canonical.get(relative + '.md');
+    return matches?.size === 1 ? {status:'found',entry:[...matches][0]} : {status:matches ? 'ambiguous' : 'missing'};
+  }
+  return env.store.lookup(target);
+}
 
 function calloutClass(value) {
   const [raw, meta = ''] = value.toLowerCase().split('|');
@@ -81,10 +93,22 @@ function inlineExtensions(md) {
     const label = parts[1] || target || fragment;
     if (silent) return true;
     const env = state.env;
-    const resolution = /^(?:https?:\/\/|mailto:)/.test(target) ? {status:'external'} : target ? env.store.lookup(target) : {status: 'heading'};
+    const resolution = /^(?:https?:\/\/|mailto:)/.test(target) ? {status:'external'} : wikiTarget(env,target);
+    if (embed && resolution.entry?.note) {
+      const entry = resolution.entry, href = pageUrl(entry.slug,env.date,env.context) + (fragment ? '#' + fragmentId(fragment) : '');
+      // Capture the authored reference without expanding it in the backlink compiler.
+      env.pageLinks?.add(entry.slug);
+      if (availableInContext(entry,env.context || {date:env.date,campaigns:[]})) {
+        const index = (env.noteEmbeds ??= []).length;
+        env.noteEmbeds.push({entry,fragment,label,href});
+        state.push('html_inline','',0).content = '<span class="note-embed-slot" data-note-embed="' + index + '"><a href="' + escapeHtml(href) + '">' + escapeHtml(label) + '</a></span>';
+      }
+      state.pos = end + 2;
+      return true;
+    }
     if (resolution.status === 'external' || resolution.status === 'heading' || resolution.entry?.note) {
       const href = resolution.status === 'external' ? target : resolution.status === 'heading' ? '' : pageUrl(resolution.entry.slug, env.date,env.context);
-      const open = state.push('link_open', 'a', 1); open.attrSet('href', href + (fragment ? '#' + anchorId(fragment) : ''));
+      const open = state.push('link_open', 'a', 1); open.attrSet('href', href + (fragment ? '#' + fragmentId(fragment) : ''));
       state.push('text', '', 0).content = label;
       state.push('link_close', 'a', -1);
     } else if (resolution.entry) {
@@ -170,6 +194,18 @@ export function createMarkdown(options = {}) {
       });
     }
   });
+  md.core.ruler.after('inline','obsidian_block_ids',state => {
+    for (const block of state.tokens) {
+      if (block.type !== 'inline') continue;
+      const last = block.children?.at(-1);
+      const match = last?.type === 'text' && /(?:^|\s)\^([A-Za-z0-9-]+)\s*$/.exec(last.content);
+      if (!match || /\\\^[A-Za-z0-9-]+\s*$/.test(block.content)) continue;
+      last.content = last.content.slice(0,match.index).trimEnd();
+      const marker = new state.Token('html_inline','',0);
+      marker.content = '<span class="note-block-anchor" id="' + match[1] + '"></span>';
+      block.children.push(marker);
+    }
+  });
   // Prevent the text rule consuming icon shortcodes before our inline rule.
   const originalText = md.inline.ruler.__rules__.find(r => r.name === 'text').fn;
   md.inline.ruler.at('text', (state, silent) => {
@@ -197,6 +233,15 @@ export function pageLinkEntry(store, href) {
 
 export function renderMarkdown(md, source, env) {
   const $ = load(md.render(source, env), {decodeEntities: false}, false);
+  $('.note-block-anchor').each((_,element)=>{
+    const anchor = $(element), parent = anchor.parent();
+    let block = parent.closest('li,p,blockquote,table');
+    if (parent.is('p') && !parent.text().trim() && parent.contents().length === 1 && parent.prev().length) block = parent.prev();
+    if (!block.length || block.attr('id')) return;
+    block.attr('id',anchor.attr('id'));
+    anchor.remove();
+    if (parent.is('p') && !parent.contents().length && parent[0] !== block[0]) parent.remove();
+  });
   $('a[href], img[src], audio[src], source[src]').each((_, element) => {
     const el = $(element), attribute = element.tagName === 'a' ? 'href' : 'src';
     const raw = el.attr(attribute);
@@ -242,7 +287,7 @@ export function renderMarkdown(md, source, env) {
     (h.children.length ? list(h.children) : '') + '</li>').join('') + '</ul>';
   const toc = outline.length ? '<div class="toc">' + list(outline) + '</div>' : '';
   const popups = decorateDMNotes($,env.dmNotes,text => renderMarkdown(env.notesMarkdown,text,{
-    store:env.store, entry:env.entry, date:env.date, context:env.context, warnings:env.warnings, pageLinks:env.pageLinks,
+    store:env.store, entry:env.entry, date:env.date, context:env.context, warnings:env.warnings, pageLinks:env.pageLinks, noteEmbeds:env.noteEmbeds,
   }).html);
   if (popups) $.root().append(popups);
   return {html: $.html(), toc};

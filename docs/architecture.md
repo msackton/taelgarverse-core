@@ -1,207 +1,165 @@
-# Dynamic Taelgarverse architecture
+# Architecture and maintenance
 
-## Current runtime
+TaelgarVerse renders vault Markdown for a selected in-world date and campaign.
+The same application runs locally in Node and on Cloudflare Workers. Website
+code and published vault content have independent release paths.
 
-The reference preview is a pure Node.js application; the hosted adapter now
-runs the same rendering and routing modules in Cloudflare Workers. See
-[Cloudflare publishing](cloudflare.md) for the deployment workflow.
+## Documentation map
 
-~~~text
-Browser / API client
-  → Node HTTP server
-  → in-memory page + metadata + link indexes
-  → original CustomJS header rules in a fresh VM context
-  → Node comment/campaign/date filtering
-  → markdown-it and Obsidian-specific extensions
-  → HTML fragment or Material-style preview
-~~~
+| Document | Owns |
+| --- | --- |
+| [Deploy](deploy.md) | Human instructions for publishing content, credentials, local previews, and recovery. |
+| [Architecture](architecture.md) | Component boundaries, code map, and maintenance rules for agents. |
+| [Vault usage](vault.md) | Which vault files and fields are consumed, rendering semantics, and limitations. |
+| [Cloudflare](cloudflare.md) | Current hosted topology, bindings, storage layout, and operational behavior. |
 
-src/application.mjs handles requests through Fetch Request/Response APIs.
-server.mjs adapts that handler to a local Node HTTP server; worker.mjs and
-worker-handler.mjs adapt it to Cloudflare. store.mjs scans the local filesystem;
-content-store.mjs supplies shared metadata, YAML parsing, and lookup indexes.
-headers.mjs is the VM reference adapter; header-runtime.mjs runs generated
-ordinary header modules in Workers. render-engine.mjs joins the shared filters,
-Markdown, navigation, and HTML document. engine.mjs initializes the Node preview.
+[Roadmap](roadmap.md) and [UI review](design/ui-review/README.md) are separate
+planning/design artifacts. Keep their proposals distinct from implemented behavior.
 
-The content snapshot and compiled header code load once. Node renders get a
-fresh VM context; Worker renders get fresh instances of the generated header
-classes. Shared metadata is frozen, with per-request display/date state. The
-Node VM is a compatibility adapter for trusted scripts, not a security boundary
-for arbitrary code. No Python subprocess, database, external header service,
-or full site build is in the request path.
+## Components and flow
 
-The adapter supplies metadata/file lookup, a small Dataview DataArray surface,
-and array/string helpers. Helpers do not modify the application's global
-prototypes. A reverse affiliation index narrows leadership candidates; original
-rules decide type/dates/text. Unexpected affiliation shapes retain a full scan.
+```mermaid
+flowchart LR
+    V[taelgar vault] --> O[Obsidian materializer]
+    O --> P[Content publisher]
+    V --> S[Homepage and menu Markdown]
+    S --> P
+    P --> R[R2 snapshots and assets]
+    C[taelgarverse-core main] --> B[Cloudflare build pipeline]
+    B --> W[Worker and static application assets]
+    R --> W
+    W --> U[Browser / API client]
+    V --> N[Local Node reference renderer]
+```
 
-Body queries are data: unsupported Dataview/Leaflet blocks show warnings and
-placeholders. Arbitrary body JavaScript is not executed.
+- **`taelgar`** owns Markdown, media, homepage text, menu structure, campaign identity, display metadata, trusted
+  CustomJS header rules, and the Obsidian materializer. Publishing exports copies;
+  it does not rewrite source notes.
+- **`taelgarverse-core`** owns rendering, routing, navigation behavior, browser assets, the
+  publisher, and the checked-in Worker header module. Cloudflare builds need this
+  repository and its dependencies; they do not need a vault checkout or Obsidian.
+- **`taelgarverse` / the older static publishing pipeline** are independent of
+  this application. Their MkDocs output and materialized static headers are not
+  inputs to the dynamic renderer.
 
-## Navigation
+| Code | Responsibility |
+| --- | --- |
+| `scripts/publish-content.mjs` | Git checkpoint, Obsidian export, image optimization, upload, then activation. |
+| `scripts/prepare-cloudflare.mjs` | Package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. |
+| `src/store.mjs`, `src/content-store.mjs` | Local filesystem scan, YAML parsing, page/asset lookup, shared availability rules. |
+| `src/snapshot.mjs` | Load the R2 index and fetch/cache Markdown shards on demand. |
+| `src/application.mjs` | Shared Fetch API router: homepage, articles, page finder, contexts, navigation, assets, health. |
+| `src/render-engine.mjs` | Resolve context/page, generate header, filter comments, render Markdown and page shell. |
+| `src/contexts.mjs`, `src/navigation.mjs` | Session-derived dates and context-filtered navigation. |
+| `src/backlinks.mjs` | Index authored incoming links and filter them by source availability and visible comment states. |
+| `src/embeds.mjs` | Expand visible note/heading/block embeds, bound recursion, preserve source-relative rendering, and isolate anchors/popups. |
+| `src/comments.mjs`, `src/markdown.mjs`, `src/dm.mjs` | Conditional prose, Obsidian syntax, link handling, Behind the Curtain notes. |
+| `src/engine.mjs`, `src/server.mjs`, `src/headers.mjs` | Node initialization, HTTP adapter, fresh VM context for trusted CustomJS. |
+| `src/worker.mjs`, `src/worker-handler.mjs`, `src/header-runtime.mjs` | Worker adapter and fresh instances of generated header classes. |
+| `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs` | Translate trusted vault classes into ordinary JavaScript modules. |
+| `public/`, `src/browser/`, `scripts/build-browser.mjs` | Application styles/scripts and the generated Mermaid browser bundle. |
+| `src/release-footer.mjs`, `public/release.js`, `scripts/build-core-release.mjs` | Version footer, copy behavior, and core provenance captured by Wrangler's custom build. |
 
-The bundled navigation.md starts from the existing website's curated source
-template. Node expands its directory directives at startup against the same
-indexed Markdown as the renderer. Note titles, directory indexes, and curated
-labels form the entire navigation tree. Unlisted pages remain accessible through
-search and direct links, without a catch-all section or synthetic breadcrumbs.
-Empty curated templates stay empty. The nav_source setting can select another
-template, or null for a directory-based tree; prepared snapshots retain that
-distinction with a nullable navigationSource.
+## Configuration
 
-Each request filters the tree by campaign exclusions, born/created, and activeYear. The HTML
-shell renders the selected page's ancestors and immediate siblings, opens its
-branch, marks the active link, and supplies breadcrumbs. Collapsed branches load
-one level at a time through /api/navigation. Native details, server-rendered
-Browse section links, and /browse/:section routes provide keyboard navigation
-and a JavaScript-free fallback. Section IDs derive from their ancestry and
-target/label, so adding unrelated notes does not invalidate section URLs.
+`config.json` owns shared vault/content defaults. `loadSettings()` automatically
+applies the ignored `config.local.json` when present; local files need only changed
+values. An explicit filename (the publisher's `--config`) or `TAELGARVERSE_CONFIG`
+selects an alternative to the local file, in that order of priority. Defaults
+still apply. Resolve each path relative to the file that supplies it, so a file
+in another directory cannot accidentally relocate inherited paths.
 
-The article TOC follows the rendered heading hierarchy and excludes the first
-title heading and comment popup headings. It appears on the right on wide
-screens and becomes a collapsible panel above the article on smaller screens.
-Site links and branch requests carry the selected date/campaign and Behind the
-Curtain preference. Navigation does not render every article to build its tree.
+`vault_dir` selects the original vault for content, metadata, and trusted scripts.
+The optional `source_dir` selects different Markdown/media for exported previews;
+when omitted or null, it follows the resolved vault. The publisher's `--vault`
+overrides `vault_dir` before checking filesystem paths, then the export step
+supplies its temporary `source_dir`. For compatibility, the loader converts old
+`runtime_dir` keys to `vault_dir` within each settings file before merging them.
+The application uses only `vault_dir` and the resolved `source_dir`.
 
-## Original publishing pipeline
+The default `nav_source` and `home_source` follow the resolved `vault_dir` to
+`_website/navigation.md` and `_website/home.md`. They always come from the original
+vault, including during export packaging. Explicit overrides resolve relative
+to their settings file; missing files fail configuration loading. Explicit null
+selects directory navigation or the old page-finder homepage, respectively.
+The publisher fingerprints both files so changes cannot be skipped as unchanged.
 
-Investigated October 18, 2026 using the local repositories and
-[the public site](https://tsackton.github.io/taelgarverse/).
+Cloudflare account/resource settings remain in `wrangler.json` and the optional
+`wrangler.local.json`; they are independent of the vault settings. The supported
+keys and examples belong in [deploy](deploy.md#configuration-settings). Changes
+to file selection, merging, or path resolution must update that guide and the
+configuration tests in `tests/config.test.mjs`.
 
-1. The taelgar Obsidian vault contains YAML, wikilinks, compact headers,
-   CustomJS views, queries, conditional blocks, and private comments.
-2. taelgarverse/autobuild_website.sh materialize invokes the vault's
-   _scripts/materialize-dataview/materialize-dataview.mjs. Obsidian's plugin
-   renders supported content into taelgar-static/. The wrapper deletes prior
-   output before this step.
-3. taelgar-utils/website/build_site.py export builds the link index, filters
-   content, converts Obsidian syntax, processes assets, and writes docs/.
-4. MkDocs renders docs/ with Material, Python-Markdown, and plugins.
-   .github/workflows/gh-pages.yml builds on pushes/pull requests and deploys
-   the default branch's site/ artifact to GitHub Pages.
+## Runtime boundaries
 
-The dynamic engine does not run or modify these stages.
+Each render resolves a date/campaign and checks page availability before loading
+the body. It then regenerates the header, filters comments/conditional blocks,
+and renders HTML. Search, navigation, and internal-link availability use the same
+metadata rule. These rules are specified in [vault usage](vault.md).
 
-## Why original Markdown matters
+`RenderEngine.renderHome()` applies the shared comment and Markdown renderer to
+the authored homepage, without generating an article header or indexing it as a
+note. The root route uses it unless a `q` parameter requests search. Homepage and
+menu sources live in the revision index, separate from article shards. The
+schema-1 `homeSource` field is optional so older publications retain the page
+finder; a supplied value must be a string or null. Deploy the updated core and
+publish content to enable the homepage, in either order. Both website source
+files are read explicitly; the normal underscore-folder exclusion stays in place.
 
-The vault's outputs.js generates headers through DateManager,
-WhereaboutsManager, NameManager, AffiliationManager, EventManager, TokenParser,
-display defaults, and the campaign registry. Related notes provide names,
-parent locations, and reverse relationships: a single requested file is
-insufficient without the metadata index.
+Header calculations need metadata from the whole indexed vault for names,
+locations, and relationships. The adapters share frozen metadata but create fresh
+header state per render. A reverse affiliation index narrows leadership queries;
+the original classes still decide dates and display text. Unexpected affiliation
+shapes fall back to a full scan.
 
-The materializer accepts --date, but the current wrapper does not pass it.
-website.json separately sets export_date to 1750-01-01. These stages can use
-different dates. The dynamic engine uses one date for both stages.
+Node uses `node:vm` for trusted header code; it is not a sandbox for arbitrary
+scripts. Workers use the committed `src/worker-headers.mjs`, with no runtime code
+evaluation. Body Dataview/JavaScript is not executed by either renderer. Supported
+Dataview queries are materialized during publication and do not rerun when a
+visitor changes context.
 
-Rendering the old exported docs/ would leave headers frozen and could not recover
-prose already removed. The API supports original compact headers and Markdown
-prepared by the vault materializer's `--dynamic-website` option. Prepared notes
-retain YAML and a leading `<!-- taelgar:header -->` marker. The renderer consumes
-that marker and inserts a fresh header without treating the first body heading
-as an old header. Source and runtime directories may differ, so prepared DQL
-results can coexist with original CustomJS header rules and metadata indexes.
+The Worker shares an index and bounded Markdown cache within an isolate. It reads
+the R2 publication pointer on content requests and replaces that state when the
+revision changes. Node reads a filesystem snapshot at startup and must restart
+after vault, runtime, settings, homepage, or menu changes. There is no rendered HTML
+cache. [Cloudflare](cloudflare.md) owns the hosted storage/request details.
 
-## Pure Node migration and performance
+## Change and release rules
 
-The initial Python/Node prototype took 209–335 ms per sample render. Keeping
-a Node worker alive and indexing reverse affiliations reduced it to 20–63 ms.
-The Node migration removes the process bridge. Filters/link resolution were
-ported into local Node modules. markdown-it uses attrs, footnotes, definition
-lists, emoji, and local extensions for Obsidian links/callouts/icons and Markdown
-inside HTML cards. Bundled CSS/icons retain the preview appearance.
+| Change | Required release action |
+| --- | --- |
+| Vault Markdown/media, session notes, registry, `.obsidian/metadata.json` | Run the content publisher. |
+| `_website/home.md`, `_website/navigation.md`, `home_source`, `nav_source`, `default_date`, materializer, packaging, image settings | Republish content; use `--force` if the change is outside the publisher's fingerprint. A core merge alone does not refresh the published homepage or menu. |
+| Renderer, routes, CSS/browser scripts, dependencies, Worker configuration | Merge core changes to `main`; the Cloudflare pipeline deploys them. |
+| Vault CustomJS header classes | Run `npm run build:worker-headers`, review and commit the generated `src/worker-headers.mjs` (and changed generated icons), then merge core to `main`. Content publication does not regenerate or deploy this module. Republish if data also changed. |
+| Snapshot schema or publication/availability policy | Update producer and consumers together; determine a compatible deployment order and whether existing snapshots must be republished. |
 
-Warm uncached engine medians on this Windows machine:
+`npm run build:runtime` regenerates the local `.generated/headers.mjs` and
+`src/icons.mjs`; it does **not** update the committed Worker header module.
+`public/generated/` is ignored and rebuilt from the pinned browser dependencies.
+Core provenance is also generated locally under `.generated/` by Wrangler before
+packaging. Content source commits travel with snapshots, while publication dates
+come from their activation pointers; see [footer provenance](cloudflare.md#how-updates-reach-the-site).
 
-| Page / date | Optimized Python + Node | Pure Node |
-| --- | ---: | ---: |
-| Zahara / 1730-01-20 | 20 ms | 20 ms |
-| Zahara / 1730-02-01 | 25 ms | 16 ms |
-| Seeker / 1748-01-01 | 63 ms | 27 ms |
-| Melusa / 1730-01-20 | 22 ms | 14 ms |
-| Dunmar Fellowship / 1750-01-01 | 27 ms | 15 ms |
-| Vindristjarna / 1750-01-01 | 32 ms | 22 ms |
+Agents must update the relevant core docs in the same change:
 
-These medians use ten measurements per request. Startup, HTTP, assets, browser
-rendering, and high-concurrency queueing are excluded. No HTML cache is used.
-The npm benchmark script repeats the measurement.
+- Update **deploy** for changed commands, prerequisites, authentication, flags,
+  checkpoint/recovery behavior, or release steps. Verify examples against
+  `package.json` and the scripts; distinguish local commands from remote writes.
+- Update **cloudflare** for changed resource names, bindings, domains, build
+  configuration, object layout, caching, or observability. Cite code for configured
+  behavior and dated live evidence for deployed facts. Mark unverified dashboard
+  settings as such; never record credentials or infer a completed deployment.
+- Update **vault** for changed file selection, metadata, contexts, comment syntax,
+  links, query handling, or media support. Check both export and request behavior.
+- Update **architecture** when ownership, module boundaries, or the release rules
+  change. Link to the owning doc instead of copying its detailed rules. Remove
+  superseded prose and repair inbound links. Leave the roadmap and UI review
+  untouched unless changes to those artifacts are requested.
 
-All six samples preserved links and warnings. Text matched exactly on four;
-Seeker and Dunmar Fellowship differ in list markers because markdown-it parses
-lists that Python-Markdown left as literal hyphens. Byte-for-byte HTML parity
-is not promised across engines. The same 2,685 pages index without warnings.
-
-## Publication and content boundaries
-
-Campaign context selects a date and marker-filter campaign set. Modern follows
-the latest campaign date; Custom supplies a manual date. Both select no
-campaigns, so campaign-specific blocks stay hidden. Campaign presets use their own campaign
-codes. Page availability is checked server-side for every request. Dates are in-world DR.
-knownTo, POV, inferred historical coverage, viewer knowledge, and player
-authorization remain future design work.
-
-Contexts are derived at startup from published session notes and the existing
-registry. The registry supplies identity; session-note DR_end (falling back to
-DR) supplies the date. See [campaign date derivation](campaign-contexts.md) for
-ordering and missing-date behavior. No separate website metadata or landing-page
-date overrides are used.
-
-The snapshot includes all supported Markdown and assets except those under
-underscore-prefixed or Worldbuilding folders, at any depth (Worldbuilding is
-case-insensitive). Dot-prefixed tooling paths, AGENTS.md, and symlinks are also
-omitted, as are assets/dm and asset/dm with all descendants (case-insensitive).
-Legacy ignore-file rules, tags, and excludePublish do not prune the index.
-
-One availability check handles page rendering, search, and navigation. It rejects
-excludePublish: all, exclusions matching the request's campaign code, and future
-born/created or activeYear dates. Website and API requests return 404; the Worker
-checks indexed metadata before fetching Markdown. DM mode does not bypass this
-check. Modern and Custom have no campaign-specific exclusions. Birth/creation
-dates follow CustomJS's existing partial-date conventions: numeric years start
-January 1, quoted years and year-month strings use the period's last day. Unknown
-birth/creation dates do not establish a future date. Death/destruction dates do
-not hide historical subjects.
-
-Links may reference an unavailable page; following them still applies the same
-404 check. The full metadata index remains available to header calculations.
-Assets are served independently of referring pages; page exclusions do not act
-as asset permissions.
-
-The raw vault has an unterminated comment in
-Groups/Cultures/Deno'qai Tribes/Deno'qai.md. Full export scans fail there. The API
-indexes metadata independently and rejects that note when requested.
-Source notes were not changed.
-
-Comment parsing validates discarded as well as retained blocks, rejects
-unknown/nested/unbalanced markers, and treats fenced/inline code as literal.
-Date:X is visible on/after X; Date:Xb is visible strictly before X.
-Metadata, POV notes, and Lint are always removed. Ordinary comments and
-Campaign:none are removed by default. With `dm=1`, visible ordinary comments
-become numbered paragraph-end references with native HTML popovers, and
-Campaign:none renders inside panels labeled Behind the Curtain. Notes inside filtered-out
-campaign/date/administrative blocks are never collected. Comment popups render
-Markdown with raw HTML and arbitrary attributes disabled, and their local
-heading/footnote IDs are scoped to avoid collisions with the article. Popup
-headings do not appear in the article TOC. Date/campaign/DM context survives
-navigation. The UI calls this See Behind the Curtain: a viewing preference
-available to every visitor. Hosted deployment does not require a DM role or
-login to enable it. The `dm` API parameter remains compatible with existing URLs.
-
-## Next increments
-
-1. Complete the first workers.dev deployment after refreshing account sign-in.
-   Versioned content packaging, the R2 snapshot store, generated header modules,
-   local Workers runtime, and reference parity checks are implemented.
-2. Evolve generated header classes into a maintained library with explicit lookup
-   functions and RenderContext, retaining parity with the vault rules.
-3. Define header/body boundaries and supported query adapters. Materialized
-   bodies can supply unsupported queries once dates/boundaries are explicit.
-4. Resolve authorized campaign POV server-side and apply it to every derived
-   surface, including metadata lookups and errors.
-5. Cache by content revision, renderer version, page, date, and authorized POV.
-   A bounded cache within the immutable snapshot is a smaller first step.
-6. Restore search ranking/maps/backlinks and deploy. Measure load
-   before choosing worker threads, multiple Node processes, or a CDN.
-
-The API shape can stay stable as these internals change.
+For behavior changes, run the relevant tests in `tests/`; use `npm test` for shared
+rendering changes and `npm run cf:check` for the Worker package. Tests that build
+headers need the configured vault. Publisher storage changes also have the local
+`node --test tests/publish-r2.integration.mjs` check. Use `cf:smoke` only against
+a Worker serving equivalent content/settings to the local reference. Documentation
+edits need link/example checks; they do not require publishing content.

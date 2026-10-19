@@ -16,6 +16,7 @@ before(async () => {
   directory = fs.mkdtempSync(path.join(ROOT,'.cache','node-test-'));
   const notes = JSON.parse(fs.readFileSync(new URL('./fixtures/notes.json',import.meta.url),'utf8'));
   Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/backlinks.json',import.meta.url),'utf8')));
+  Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/embeds.json',import.meta.url),'utf8')));
   for (const [relative,source] of Object.entries(notes)) {
     const filename = path.join(directory,relative);
     fs.mkdirSync(path.dirname(filename),{recursive:true});
@@ -32,9 +33,11 @@ before(async () => {
   fs.writeFileSync(path.join(directory,'AdderSession.md'),'---\ntags: [session-note]\ncampaign: Addermarch\nsessionNumber: 1\nDR: 1720-01-01\nDR_end: 1720-01-02\n---\n# Session\n');
   fs.appendFileSync(path.join(directory,'People/Example.md'),'\n%%^Campaign:adma%%\nAddermarch-only text\n%%^End%%\n');
   fs.writeFileSync(path.join(directory,'ignore.txt'),'Ignored/\n');
-  const navSource = path.join(directory,'_navigation.md');
+  fs.mkdirSync(path.join(directory,'_website'));
+  const navSource = path.join(directory,'_website','navigation.md'), homeSource = path.join(directory,'_website','home.md');
+  fs.copyFileSync(new URL('./fixtures/home.md',import.meta.url),homeSource);
   fs.writeFileSync(navSource,'- [Home](index.md)\n- People\n    - {glob: people/}\n- Places\n    - {glob: places/}\n- [Future](future.md)\n');
-  engine = new Engine({...loadSettings(),source_dir:directory,ignore_file:path.join(directory,'ignore.txt'),nav_source:navSource,campaigns:['dufr','adma']});
+  engine = new Engine({...loadSettings(),source_dir:directory,ignore_file:path.join(directory,'ignore.txt'),nav_source:navSource,home_source:homeSource,campaigns:['dufr','adma']});
   server = createServer(engine);
   await new Promise((resolve,reject) => { server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
   base = 'http://127.0.0.1:' + server.address().port;
@@ -43,6 +46,21 @@ after(async () => {
   if (server) await new Promise(resolve => server.close(resolve));
   if (directory && isInside(path.join(ROOT,'.cache'),directory)) fs.rmSync(directory,{recursive:true});
 });
+test('Node HTML and API include context-filtered note embeds without adding child headings to the TOC',async()=>{
+  const query='context=custom&date=1730-01-01&campaigns=all&dm=1';
+  const api=await fetch(base+'/api/page?page=Embed%20Host&'+query);
+  assert.equal(api.status,200);
+  const result=await api.json(), $=load(result.html,{},false);
+  assert.equal($('.note-embed').length,5);
+  for (const expected of ['Shared voyage','Frontier voyage','Later voyage','Voyage popup','Nested voyage','Campaign embed']) assert.ok($.text().includes(expected),expected);
+  assert.doesNotMatch(result.html,/Stale embedded header|Outside requested section/);
+  assert.doesNotMatch(result.toc,/Travels/);
+  const html=await (await fetch(base+'/page/embed-host?'+query)).text();
+  assert.match(html,/class="note-embed"/);
+  const ids=load(html)('[id]').map((_,el)=>el.attribs.id).get();
+  assert.equal(new Set(ids).size,ids.length);
+});
+
 test('headers recalculate ages, locations, lifecycle and preserve body',() => {
   const early = text(render()), later = text(render('Example','1730-01-01')), dead = text(render('Example','1750-01-01'));
   assert.match(early,/20 years old/); assert.match(early,/First Town/);
@@ -178,7 +196,7 @@ test('concurrent HTTP dates stay isolated',async () => {
 });
 test('indexed leadership equals full-scan reference across dates',() => {
   const input = {
-    runtimeDir:engine.settings.runtime_dir,
+    runtimeDir:engine.settings.vault_dir,
     pages:engine.store.entries.filter(e => e.note).map(e => ({path:e.id,metadata:e.note.metadata})),
     coreMeta:engine.headers.coreMeta, registry:engine.headers.registry, indexAffiliations:false,
   };
@@ -309,6 +327,22 @@ test('site navigation, breadcrumbs, page TOC and lazy branch links retain contex
   assert.equal((await fetch(base + '/api/navigation?branch=missing')).status,404);
   assert.equal((await fetch(base + '/browse/missing')).status,404);
   assert.equal((await fetch(base + '/theme/navigation.js')).status,200);
+});
+
+test('homepage renders authored Markdown with context links and keeps search separate',async()=>{
+  const response = await fetch(base + '/?context=addermarch');
+  assert.equal(response.status,200);
+  const $ = load(await response.text());
+  assert.equal($('main h1').text(),'Welcome to the fixture site');
+  assert.match($('main').text(),/Website introduction|Addermarch homepage content/);
+  assert.doesNotMatch($('main').text(),/Private homepage note|Up to 100 matching pages/);
+  assert.equal($('main a[href="/page/people/example?context=addermarch"]').length,1);
+  assert.equal($('main form[role="search"] input[name="context"]').val(),'addermarch');
+  assert.equal(engine.store.entries.some(entry=>entry.id.startsWith('_website/')),false);
+  const finder = load(await (await fetch(base + '/?q=&context=addermarch')).text());
+  assert.match(finder('main').text(),/Up to 100 matching pages/);
+  assert.doesNotMatch(finder('main').text(),/Website introduction/);
+  assert.equal(finder('.context-form input[name="q"]').val(),'');
 });
 
 test('page finder and navigation use the same date availability as articles',async()=>{

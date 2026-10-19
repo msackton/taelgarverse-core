@@ -41,7 +41,7 @@ export function buildRuntime(settings = loadSettings(),output = path.join(ROOT,'
   };
   const hash = createHash('sha256');
   const declarations = Object.entries(headerFiles).map(([name,file])=>{
-    const source = fs.readFileSync(path.join(settings.runtime_dir,'_scripts/customJS',file),'utf8').replace(/\r\n?/g,'\n');
+    const source = fs.readFileSync(path.join(settings.vault_dir,'_scripts/customJS',file),'utf8').replace(/\r\n?/g,'\n');
     hash.update(file+'\0'+source);
     return '  customJS.' + name + ' = new (' + standardHelpers(source) + ')();';
   });

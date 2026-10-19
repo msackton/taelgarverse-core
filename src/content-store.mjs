@@ -20,6 +20,20 @@ export function parseNote(source) {
   const metadata = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? normalizeYaml(parsed) : {};
   return {metadata, body: source.slice(match[0].length), source};
 }
+
+// Saved generated headers are not authored article content. This boundary
+// matches OutputHandler.regenerateHeader in the trusted CustomJS runtime.
+export function authoredBody(note) {
+  const marker = /^[ \t\r\n]*<!-- taelgar:header -->[ \t]*(?:\r?\n|$)/;
+  if (marker.test(note.body)) return note.body.replace(marker,'');
+  if (!note.metadata.headerVersion || !note.metadata.tags) return note.body;
+  const lines = note.body.split('\n');
+  let end = lines.findIndex(line => line.trim() === '');
+  if (end < 0) end = lines.length;
+  const next = lines.findIndex((line,index) => index > end && line.trim() !== '');
+  if (next >= 0) end = next - 1;
+  return lines.slice(0,end).some(line => line.trim().startsWith('#')) ? lines.slice(end).join('\n') : note.body;
+}
 export function excluded(metadata, settings) {
   const raw = metadata.excludePublish;
   const exclusions = (typeof raw === 'string' ? raw.split(',') : Array.isArray(raw) ? raw : []).map(x => String(x).trim().toLowerCase());

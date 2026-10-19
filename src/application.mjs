@@ -29,7 +29,7 @@ function shell(title, content,header = '') {
   return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>' + escapeHtml(title) + '</title><link rel="stylesheet" href="/theme/preview.css"></head><body>' + header + '<main>' + content + '</main></body></html>';
 }
-async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)=>engine.render(page,date,context,dm,undefined,campaigns),assets,theme,runtime='node',revision}={}) {
+async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)=>engine.render(page,date,context,dm,undefined,campaigns),renderHome=context=>engine.renderHome(context),assets,theme,runtime='node',revision,releases=engine.releases}={}) {
       if (!['GET','HEAD'].includes(request.method)) { return new Response(JSON.stringify({detail:'Method not allowed'}),{status:405,headers:{Allow:'GET, HEAD','Content-Type':'application/json'}}); }
       const url = new URL(request.url);
       const pathname = decodeURIComponent(url.pathname);
@@ -52,13 +52,13 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
         return send(200,await renderPage(page,date,contextId,dm,selectedCampaigns));
       }
       if (pathname.startsWith('/page/')) {
-        try { return send(200,document(await renderPage(pathname.slice(6),date,contextId,dm,selectedCampaigns),engine.contexts.list(),engine.navigation),'text/html'); }
+        try { return send(200,document(await renderPage(pathname.slice(6),date,contextId,dm,selectedCampaigns),engine.contexts.list(),engine.navigation,releases),'text/html'); }
         catch (error) {
           if (error.status !== 404) throw error;
           const context = {...engine.contexts.resolve(contextId,date,selectedCampaigns), dm};
           return send(404,document({title:'Page unavailable',html:'<h1>Page unavailable</h1><p>' + escapeHtml(error.message) +
-            '. Choose another context or return to <a href="/?' + escapeHtml(contextQuery(context).toString()) + '">the page finder</a>.</p>',
-            toc:'',warnings:[],context},engine.contexts.list(),engine.navigation),'text/html');
+            '. Choose another context or return to <a href="/?q=&amp;' + escapeHtml(contextQuery(context).toString()) + '">the page finder</a>.</p>',
+            toc:'',warnings:[],context},engine.contexts.list(),engine.navigation,releases),'text/html');
         }
       }
       if (pathname === '/docs') {
@@ -66,7 +66,7 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
           '<form action="/api/page"><label>Page <input name="page" value="Zahara" required></label><label> Date (DR) ' +
           '<input name="date" value="' + engine.settings.default_date + '"></label><button>Try request</button></form>' +
           '<p>Returns article <code>html</code>, <code>toc</code>, <code>backlinks</code>, page/title/date/campaign context, and rendering warnings.</p>' +
-          '<p><a href="/openapi.json">OpenAPI schema</a> · <a href="/">Page finder</a></p>'),'text/html');
+          '<p><a href="/openapi.json">OpenAPI schema</a> · <a href="/?q=">Page finder</a></p>'),'text/html');
       }
       if (pathname.startsWith('/browse/')) {
         const context = {...engine.contexts.resolve(contextId,date,selectedCampaigns),dm};
@@ -75,18 +75,24 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
         const items = node.children.map(child=>view.visible.get(child.id)).map(child=>'<li><a href="' + escapeHtml(engine.navigation.url(child,context)) + '">' + escapeHtml(child.label) + '</a></li>').join('');
         const overview = node.entry ? '<p><a href="' + escapeHtml(pageUrl(node.entry.slug,context.date,context)) + '">Read the overview</a></p>' : '';
         return send(200,document({title:node.label,html:'<h1>' + escapeHtml(node.label) + '</h1>' + overview +
-          '<ul class="section-pages">' + items + '</ul>',toc:'',warnings:[],context,navigationId:node.id},engine.contexts.list(),engine.navigation),'text/html');
+          '<ul class="section-pages">' + items + '</ul>',toc:'',warnings:[],context,navigationId:node.id},engine.contexts.list(),engine.navigation,releases),'text/html');
       }
       if (pathname === '/') {
         const query = url.searchParams.get('q') || '';
         const context = {...engine.contexts.resolve(contextId,date,selectedCampaigns), dm};
+        const searchContext = [...contextQuery(context)].map(([key,value])=>'<input type="hidden" name="' + key + '" value="' + escapeHtml(value) + '">').join('');
+        const searchForm = '<form role="search" aria-label="Find a page">' + searchContext +
+          '<input name="q" aria-label="Find a page" value="' + escapeHtml(query) + '"><button>Find a page</button></form>';
+        if (!url.searchParams.has('q')) {
+          const home = await renderHome(context);
+          if (home) return send(200,document({...home,title:'TaelgarVerse',html:home.html + searchForm,context},engine.contexts.list(),engine.navigation,releases),'text/html');
+        }
         const entries = [...engine.store.bySlug.values()].sort((a,b) => a.slug.localeCompare(b.slug))
           .filter(e => availableInContext(e,context) && (e.slug + ' ' + e.title).toLowerCase().includes(query.toLowerCase())).slice(0,100);
         const links = entries.map(e => '<li><a href="' + escapeHtml(pageUrl(e.slug,context.date,context)) + '">' + escapeHtml(e.title) + '</a></li>').join('');
-        const searchContext = [...contextQuery(context)].map(([key,value])=>'<input type="hidden" name="' + key + '" value="' + escapeHtml(value) + '">').join('');
         return send(200,document({title:'TaelgarVerse',html:'<h1>TaelgarVerse</h1><p>Explore the world, browse campaign resources, or find a page.</p>' +
-          '<form>' + searchContext + '<input name="q" aria-label="Find a page" value="' + escapeHtml(query) + '"><button>Find a page</button></form>' +
-          '<p>Up to 100 matching pages.</p><ul>' + links + '</ul>',toc:'',warnings:[],context,query},engine.contexts.list(),engine.navigation),'text/html');
+          searchForm +
+          '<p>Up to 100 matching pages.</p><ul>' + links + '</ul>',toc:'',warnings:[],context,query},engine.contexts.list(),engine.navigation,releases),'text/html');
       }
       if (pathname.startsWith('/assets/')) {
         const entry=engine.store.assets.get(pathname.slice(8));

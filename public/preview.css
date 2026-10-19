@@ -1,5 +1,12 @@
 html { font-size: 20px; }
 body { margin: 0; font-family: system-ui, sans-serif; color: #283536; background: #fff; }
+.site-footer { display: flex; justify-content: center; align-items: baseline; flex-wrap: wrap; gap: 6px 10px; margin: 36px 16px 20px; padding-top: 16px; border-top: 1px solid #e2e9e7; color: #64736f; font-size: 12px; }
+.site-footer .release-commit { margin: 0; padding: 2px 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.site-footer .release-commit code { color: inherit; font: 12px ui-monospace, monospace; background: transparent; }
+.release-commit:hover { text-decoration: underline; }
+.release-commit:focus-visible { outline: 2px solid #00796b; outline-offset: 3px; }
+.release-status:empty { display: none; }
+.release-status { flex-basis: 100%; text-align: center; }
 .site-header { background: #00796b; color: white; padding: 12px 5vw; display: flex; justify-content: space-between; align-items: center; gap: 12px 24px; flex-wrap: wrap; }
 .site-header a { color: inherit; font-weight: 650; font-size: 20px; text-decoration: none; }
 .site-header span { font-size: 14px; }
@@ -86,6 +93,11 @@ html.image-viewer-open { overflow: hidden; }
 .image-viewer-caption { font-size: 14px; line-height: 1.4; margin: 0; max-width: 70ch; overflow-wrap: anywhere; }
 .image-viewer a:focus-visible, .image-viewer button:focus-visible { outline: 3px solid #00796b; outline-offset: 3px; }
 .md-typeset audio { display: block; max-width: 100%; margin: 1em 0; }
+.md-typeset .note-embed { margin: 1.5em 0; padding: 14px 20px; border-left: 3px solid #91b5ad; background: #f5f8f7; border-radius: 0 5px 5px 0; min-width: 0; overflow-wrap: anywhere; }
+.md-typeset .note-embed-title { margin-bottom: 12px; font-size: 13px; font-weight: 600; }
+.md-typeset .note-embed-content > :first-child { margin-top: 0; }
+.md-typeset .note-embed-content > :last-child { margin-bottom: 0; }
+.md-typeset .note-embed .note-embed { margin: 1em 0; padding-right: 8px; }
 .md-typeset .mermaid-diagram { width: 100%; margin: 1.5em 0; }
 .mermaid-output { max-width: 100%; }
 .mermaid-output:empty { display: none; }

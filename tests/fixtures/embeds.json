@@ -1,0 +1,6 @@
+{
+  "Embed Host.md": "# Embed Host\n\n## Host section\n\n![[Embed Sources/Child#Travels]]\n\n![[Embed Sources/Child#Travels]]\n\n![[Hidden]] ![[Future]]\n\n%%^Campaign:dufr%%\n![[Embed Sources/Campaign]]\n%%^End%%\n",
+  "Embed Sources/Child.md": "---\nheaderVersion: old\ntags: [object]\n---\n# Old saved header\n> Stale embedded header.\n\n## Travels\n\nShared voyage. [town](../Places/First%20Town.md)\n\n%%^Campaign:dufr%%\nFrontier voyage.\n%%^End%%\n\n%%^Date:1730-01-01%%\nLater voyage.\n%%^End%%\n\nVoyage footnote[^voyage]. %%DM Voyage popup.%%\n\n![[Nested Embed]]\n\n## Elsewhere\n\nOutside requested section.\n\n[^voyage]: Voyage footnote body.\n",
+  "Embed Sources/Campaign.md": "Campaign embed.\n",
+  "Nested Embed.md": "Nested voyage.\n"
+}

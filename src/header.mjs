@@ -1,6 +1,6 @@
 import {escapeHtml,contextQuery} from './common.mjs';
 export {contextQuery};
-export function siteHeader(context, options, {query = ''} = {}) {
+export function siteHeader(context, options, {query} = {}) {
   const custom = context.kind === 'custom';
   const choices = options.map(option => '<option value="' + escapeHtml(option.id) + '"' +
     (option.id === context.id ? ' selected' : '') + (!option.available ? ' disabled' : '') + '>' +
@@ -19,7 +19,7 @@ export function siteHeader(context, options, {query = ''} = {}) {
     '</fieldset></details>';
   return '<header class="site-header"><a class="site-brand" href="/?' + escapeHtml(contextQuery(context).toString()) + '">TaelgarVerse</a>' +
     '<form class="context-form" method="get" data-context-form>' +
-    (query ? '<input type="hidden" name="q" value="' + escapeHtml(query) + '">' : '') +
+    (query !== undefined ? '<input type="hidden" name="q" value="' + escapeHtml(query) + '">' : '') +
     '<label class="context-label" for="site-context">Context:</label><select id="site-context" name="context" aria-label="Context">' + choices + '</select>' +
     '<div class="custom-date-controls" data-custom-date' + (custom ? '' : ' hidden') + '>' +
     '<label class="sr-only" for="context-date">Custom date (DR)</label><input id="context-date" type="date" name="date" aria-label="Custom date (DR)" value="' +

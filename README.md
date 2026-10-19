@@ -2,23 +2,30 @@
 
 A pure Node.js API that renders Taelgarverse pages from original vault Markdown
 for a requested in-world DR date. The API, YAML parser, filters, header adapter,
-Markdown renderer, tests, and benchmark all run in Node. No Python, MkDocs build,
-or running Obsidian application is needed.
+Markdown renderer, tests, and benchmark all run in Node. Rendering needs no Python,
+MkDocs build, or running Obsidian application. The content publisher uses Obsidian
+to materialize vault queries before uploading content.
 
-The Cloudflare version runs the same site in a Worker with R2-backed content.
-The web core deploys from this repository without the vault; content is prepared,
-uploaded, and published separately. For local Cloudflare development, run
+The live [Cloudflare site](https://taelgarverse.msackton.workers.dev/) runs the same
+application in a Worker with R2-backed content. Merges to this repository's `main`
+branch deploy the web core automatically through Cloudflare Builds; vault content
+is published separately. For local Cloudflare development, run
 `npm run cf:prepare`, `npm run cf:seed`, then `npm run cf:dev` and open
 http://127.0.0.1:8787/.
-See [Cloudflare setup and publishing](docs/cloudflare.md) for sign-in, the
-workers.dev preview, content updates, and rollback. The Node preview below
-remains available as a reference.
+The core documentation is:
+
+- [Deploy](docs/deploy.md): publish vault content, configure authorization, and recover from failures.
+- [Architecture](docs/architecture.md): components, release boundaries, and documentation maintenance rules.
+- [Vault usage](docs/vault.md): input files, metadata, contexts, and rendering behavior.
+- [Cloudflare](docs/cloudflare.md): hosted resources, bindings, and snapshot storage.
+
+The Node preview below remains available as a reference.
 
 ## Run locally
 
 For the cross-platform Obsidian export, web image optimization, and R2 publication
 pipeline, use `npm run content:publish -- --no-strict`. Unchanged Taelgar commits
-skip the build. See [content publishing](docs/publish-content.md) for prerequisites,
+skip the build. See [content publishing](docs/deploy.md) for prerequisites,
 the R2 commit checkpoint, image settings, and offline testing.
 
 Requires Node.js 22.12+ and an adjacent checkout of the Taelgar vault:
@@ -35,7 +42,7 @@ or [the API explorer](http://127.0.0.1:8765/docs).
 
 The server reports its URL and indexed page count when ready. Press Ctrl+C to
 stop it. Restart after editing vault content, scripts, or configuration: the
-server uses an in-memory snapshot. Restart after editing navigation.md too.
+server uses an in-memory snapshot. This includes the vault's `_website` files.
 **npm run dev** watches application code only, not the external vault.
 
 The server defaults to localhost port 8765. To choose another port in PowerShell:
@@ -47,31 +54,25 @@ npm start
 
 ## Configuration
 
-config.example.json uses the sibling vault. Copy it to
-ignored config.local.json to customize it, then set:
+[config.json](config.json) contains the shared defaults for the sibling vault.
+To use another vault location on this computer, create `config.local.json` with:
 
-~~~powershell
-$env:TAELGARVERSE_CONFIG = 'config.local.json'
-npm start
+~~~json
+{
+  "vault_dir": "D:/notes/taelgar"
+}
 ~~~
 
-Paths are relative to the configuration file:
+Replace the path with your vault location. The local file is loaded automatically
+and excluded from Git; settings you omit keep their shared defaults. Paths are
+relative to the file containing them. See [configuration settings](docs/deploy.md#configuration-settings)
+for navigation, dates, alternative files, and Cloudflare settings.
 
-| Key | Purpose |
-| --- | --- |
-| source_dir | Original vault Markdown and assets, not already-exported docs/ |
-| runtime_dir | Vault containing _scripts/customJS, .obsidian/metadata.json, and _scripts/session_note_campaigns.json |
-| nav_source | Curated navigation template; defaults to bundled navigation.md. Set null to use the content directory tree. |
-| default_date | Fallback when no dated campaign exists; initially 1750-01-01 |
-
-The source and runtime directories may differ. Runtime scripts are trusted server
-code; Markdown body queries are not executed. The earlier utils_dir and
-node_command settings are no longer used. Legacy ignore_file and campaigns
-settings no longer restrict publication; campaign selection comes from each request.
+Runtime scripts are trusted server code; Markdown body queries are not executed.
 
 For prepared Markdown, run the vault materializer with `--dynamic-website`, set
 `source_dir` to its output directory (for example, `../taelgar-dynamic`), and keep
-`runtime_dir` pointing at `../taelgar`. That mode materializes Dataview queries,
+`vault_dir` pointing at `../taelgar`. That mode materializes Dataview queries,
 removes DataviewJS blocks and sections left empty by them, and replaces generated
 note headers with `<!-- taelgar:header -->`. A leading marker is replaced with a
 header for the requested date and campaign. The original-vault configuration
@@ -117,7 +118,7 @@ header so a visitor can switch context again.
 
 Presets use the campaign registry for identity and session-note frontmatter as
 the sole source of campaign dates. The latest session supplies DR_end, falling
-back to DR. See [campaign date derivation](docs/campaign-contexts.md) for session
+back to DR. See [campaign date derivation](docs/vault.md#campaigns-and-dates) for session
 ordering, limitations, and source dates. No extra vault metadata is needed.
 
 The **See Behind the Curtain** checkbox in the header adds `dm=1` to the request. Ordinary
@@ -139,6 +140,13 @@ GET /api/page?page=Zahara&context=dunmar-frontier&dm=1
 GET /page/people/zimkovans/zahara?context=dunmar-frontier&dm=1
 ~~~
 
+## Homepage
+
+Edit `_website/home.md` in the `taelgar` vault to change the homepage text and
+links. It uses the existing TaelgarVerse introduction and includes a search box
+supplied by the core. Submitting a search opens the page finder at `/?q=...`.
+Publish homepage changes with the usual [content publishing command](docs/deploy.md).
+
 ## Site navigation and page TOC
 
 Articles have a site sidebar, breadcrumbs, and a separate **On this page** TOC.
@@ -148,9 +156,8 @@ the branch. Search, navigation, and breadcrumbs retain the date/campaign and
 See Behind the Curtain setting. Future-active and context-excluded pages are
 omitted from navigation and page-finder results.
 
-Edit **navigation.md** to change the site hierarchy. Its initial structure was
-copied from taelgar-utils/website/templates/toc.md, the current site's source
-template. It is now maintained here independently and requires no export build.
+Edit **`_website/navigation.md` in the `taelgar` vault** to change the site hierarchy.
+Publish menu changes with the notes; the core supplies the navigation behavior.
 Indented Markdown lists accept links to exported-style note paths, plain section
 labels, and directory expansions:
 
@@ -185,8 +192,9 @@ current section while scrolling. Comment popup headings stay outside the TOC.
 | 409 | Ambiguous page name; use its full relative path |
 | 422 | Header failure or comments that cannot be safely filtered |
 
-/health reports runtime, page count, indexing warnings, and context warnings. / searches filenames
-and titles. /docs contains a request form; /openapi.json describes the API.
+`/health` reports runtime, page count, indexing warnings, and context warnings.
+`/` shows the homepage; `/?q=...` searches filenames and titles. `/docs` contains
+a request form; `/openapi.json` describes the API.
 Only indexed assets are served, with byte-range support for media/PDFs.
 Responses use Cache-Control: no-store.
 
@@ -200,7 +208,7 @@ viewer and returns to the image when closed. Images with authored links retain
 their destinations, and ordinary inline images still render without JavaScript.
 Exported Excalidraw PNGs use this same presentation; no drawing export is run by
 the website. The viewer uses the published image, including any resizing done
-during [content publication](docs/publish-content.md#image-settings).
+during [content publication](docs/deploy.md#image-settings).
 
 Obsidian audio embeds such as `![[song.mp3]]` and
 `![[assets/session-audio/session/clip.m4a]]` render native audio players.
@@ -210,6 +218,23 @@ the current vault's MP3 and M4A examples have been checked in the local browser.
 The publication pipeline already copies and packages eligible audio assets
 without transcoding or image optimization; no separate audio publication step
 is needed.
+
+## Note embeds
+
+`![[Another Note]]` inserts the authored note body in a bordered panel with a
+link to the source. `![[Another Note#Heading]]` includes that section and its
+subheadings; `![[Another Note#^block-id]]` includes a referenced block. Paragraphs
+and list items can be named with a trailing `^block-id` marker. Generated note
+headers are omitted. Embedded headings stay out of the host page's TOC.
+
+Nested embeds, links, media, footnotes, and Behind the Curtain popups retain their
+source-note context. Campaign/date comments and page availability are checked
+before content is included. Cycles, missing sections, and malformed child comments
+fall back to a source link with a render note. Expansion stops after eight levels
+or 32 included notes per page. See [vault rendering rules](docs/vault.md#links-navigation-and-media).
+
+The existing publication format already retains notes and embed syntax. Deploying
+the renderer enables embeds in existing snapshots. No new embed index is needed.
 
 ## Mermaid diagrams
 
@@ -259,11 +284,11 @@ Header relationships are tested against the original CustomJS full-scan behavior
 
 ## Scope
 
-The Node preview and Cloudflare local runtime are ready; the first remote
-Cloudflare deployment awaits account sign-in. The original GitHub Pages site
-continues independently. These renderers do not write the vault, refresh
-taelgar-static, or export docs/. Cloudflare uploads and deployments are explicit
-commands described in the publishing guide.
+The Cloudflare site is live, and the Node preview remains a local reference.
+The original GitHub Pages pipeline is independent. Rendering does not write the
+vault; the content publisher exports disposable copies and updates R2. Core
+merges deploy automatically, while vault publication uses the explicit command
+in [Deploy](docs/deploy.md).
 
 Campaign presets show only matching campaign blocks, using their canonical
 registry codes (case-insensitive). Modern shows no campaign-specific blocks;
@@ -314,4 +339,4 @@ compared with 20–63 ms in the optimized Python/Node version. Startup varies wi
 filesystem caching; the running server most recently indexed 2,685 pages in
 about 1.4 seconds. Measurements exclude HTTP, assets, and browser rendering.
 
-See [the pipeline investigation and next steps](docs/architecture.md).
+See [architecture and maintenance](docs/architecture.md) and the [roadmap](docs/roadmap.md).

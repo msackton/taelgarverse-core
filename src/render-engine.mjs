@@ -6,9 +6,11 @@ import {createMarkdown, renderMarkdown} from './markdown.mjs';
 import {Contexts} from './contexts.mjs';
 import {siteHeader} from './header.mjs';
 import {Navigation} from './navigation.mjs';
+import {expandNoteEmbeds} from './embeds.mjs';
+import {releaseFooter} from './release-footer.mjs';
 
 export class RenderEngine {
-  constructor({settings,store,headers,renderHeader,navigationSource,backlinkIndex}) {
+  constructor({settings,store,headers,renderHeader,navigationSource,homeSource = null,backlinkIndex}) {
     this.settings = settings;
     this.store = store;
     this.headers = headers;
@@ -17,6 +19,7 @@ export class RenderEngine {
     this.markdown = createMarkdown();
     this.notesMarkdown = createMarkdown({html:false});
     this.navigation = new Navigation(this.store,navigationSource);
+    this.home = homeSource === null ? null : parseNote(homeSource);
     this.backlinkIndex = backlinkIndex === undefined ? buildBacklinkIndex(store) : backlinkIndex;
     this.backlinkCampaigns = buildBacklinkCampaigns(store,this.headers.registry);
     if (backlinkIndex === undefined) this.store.warnings.push(...this.backlinkIndex.warnings);
@@ -30,7 +33,7 @@ export class RenderEngine {
     return {entry,context};
   }
 
-  render(page, date, contextId, dm = false, loadedNote, selectedCampaigns) {
+  render(page, date, contextId, dm = false, loadedNote, selectedCampaigns, embedLoading) {
     const {entry,context} = this.resolvePage(page,date,contextId,dm,selectedCampaigns);
     date = context.date;
     dm = context.dm;
@@ -51,7 +54,38 @@ export class RenderEngine {
         throw wrapped;
       }
     }
-    const dmNotes = [];
+    return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,
+      ...this.renderBody(body,entry,context,embedLoading), backlinks:this.backlinkIndex && (this.backlinkIndex.version>=2 || context.campaigns.length<=1)
+        ? linkedFrom(this.backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
+  }
+
+  async renderAsync(page,date,contextId,dm,selectedCampaigns,loadNote) {
+    const {entry} = this.resolvePage(page,date,contextId,dm,selectedCampaigns);
+    const note = await loadNote(entry);
+    return this.loadEmbeds(loading=>this.render(page,date,contextId,dm,note,selectedCampaigns,loading),loadNote,new Map([[entry.id,note]]));
+  }
+
+  async loadEmbeds(render,loadNote,notes=new Map()) {
+    const loading = {notes,pending:new Map()};
+    for (;;) {
+      loading.pending.clear();
+      const result = render(loading);
+      if (!loading.pending.size) return result;
+      await Promise.all([...loading.pending.values()].map(async entry=>loading.notes.set(entry.id,await loadNote(entry))));
+    }
+  }
+
+  renderHome(context,embedLoading) {
+    // This is website content, not a searchable vault article or a header input.
+    return this.home === null ? null : this.renderBody(this.home.body,{id:'_website/home.md',target:'index.md'},context,embedLoading);
+  }
+
+  async renderHomeAsync(context,loadNote) {
+    return this.loadEmbeds(loading=>this.renderHome(context,loading),loadNote);
+  }
+
+  renderBody(body, entry, context, embedLoading) {
+    const {date,dm} = context, dmNotes = [];
     try {
       body = filterComments(body, {campaigns: context.campaigns, date, source: entry.id, dm, notes:dmNotes});
     } catch (error) {
@@ -59,15 +93,14 @@ export class RenderEngine {
       throw error;
     }
     const warnings = [];
-    const rendered = renderMarkdown(this.markdown, body, {store: this.store, entry, date, context, warnings, dmNotes, notesMarkdown:this.notesMarkdown});
-    return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,
-      ...rendered, backlinks:this.backlinkIndex && (this.backlinkIndex.version>=2 || context.campaigns.length<=1)
-        ? linkedFrom(this.backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined,
-      warnings: [...new Set(warnings)]};
+    const noteEmbeds = [], env = {store:this.store,entry,date,context,warnings,dmNotes,notesMarkdown:this.notesMarkdown,noteEmbeds};
+    const rendered = renderMarkdown(this.markdown,body,env);
+    if (noteEmbeds.length) rendered.html = expandNoteEmbeds(rendered.html,noteEmbeds,{...env,markdown:this.markdown},embedLoading);
+    return {...rendered,warnings: [...new Set(warnings)]};
   }
 }
 
-export function document(result,contextOptions,navigation) {
+export function document(result,contextOptions,navigation,releases) {
   const warning = result.warnings.length ? '<details class="warning"><summary>Render notes</summary><ul>' +
     result.warnings.map(w => '<li>' + escapeHtml(w) + '</li>').join('') + '</ul></details>' : '';
   const view = navigation?.view(result.context,result.page,result.navigationId);
@@ -87,5 +120,5 @@ export function document(result,contextOptions,navigation) {
     siteHeader(result.context,contextOptions,{query:result.query}) +
     '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (pageNav ? '' : ' layout--no-toc') + '">' + sidebar +
     '<main id="page-content" class="md-typeset article-main">' + breadcrumbs + result.html + warning + '</main>' + pageNav +
-    '</div><script src="/theme/navigation.js" defer></script><script src="/theme/image-viewer.js" defer></script>' + diagrams + '</body></html>';
+    '</div>' + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/image-viewer.js" defer></script>' + diagrams + '</body></html>';
 }

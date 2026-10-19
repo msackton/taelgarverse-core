@@ -1,7 +1,8 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "taelgarverse-preview",
+  "name": "taelgarverse",
   "main": "src/worker.mjs",
+  "build": {"command": "node scripts/build-core-release.mjs"},
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
   "preview_urls": false,

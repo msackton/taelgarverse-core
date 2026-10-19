@@ -1,180 +1,156 @@
-# Cloudflare publishing
+# How the site runs on Cloudflare
 
-The Cloudflare version serves the same site through a Worker, with a private R2
-bucket holding the content snapshot and binary assets. The initial Worker name
-is `taelgarverse-preview`; its first public URL will be on your `workers.dev`
-subdomain. The original GitHub Pages site is independent of this deployment.
+The live site is [taelgarverse.msackton.workers.dev](https://taelgarverse.msackton.workers.dev/).
+Cloudflare runs the website and stores the published copies of the vault.
+Your local Obsidian vault is where you edit the content.
 
-For a single Windows/macOS command that exports through Obsidian, optimizes web
-images, and publishes to R2 with a Taelgar commit checkpoint, see
-[content publishing](publish-content.md).
+For publishing steps, commands, and account setup, see [Update the website](deploy.md).
 
-## Current state
+## The pieces
 
-The Worker builds and runs locally against Cloudflare's Workers runtime and R2
-emulator. Real-vault article output matches the original Node renderer across
-the six benchmark requests with See Behind the Curtain on and off. The shared
-test suite covers the snapshot and Worker request handler too.
+| Piece | What it does |
+| --- | --- |
+| **Worker: `taelgarverse`** | The program that turns notes into web pages. It chooses what to show for the reader's selected campaign and date. |
+| **R2 storage: `taelgarverse-content`** | Holds the published notes, images, audio, homepage, menu, and supporting data. Cloudflare calls this storage container a “bucket.” |
+| **Website files from `public/`** | The styles, browser scripts, icons, and diagram support used by the site. These are uploaded with the website code. Vault images and audio go in R2 instead. |
+| **Workers Builds** | The connection to GitHub that updates the website code when changes merge into `taelgarverse-core/main`. |
+| **Logs** | Records of website errors and build failures, available in Cloudflare. Logging is enabled in the project configuration. |
 
-The first prepared snapshot contains 2,685 notes and 681 indexed asset paths
-(about 1.6 GB of asset data). Deduplicated assets and 32 Markdown shards produce
-711 uploaded objects, including the metadata index. This is a content snapshot;
-HTML still renders for each requested date and campaign.
+The Worker reaches R2 through a connection named `CONTENT`, and the website
+files through one named `ASSETS`. Cloudflare calls these connections “bindings.”
+They let the Worker use those resources without a saved API token in its code.
+See Cloudflare's [R2 connection guide](https://developers.cloudflare.com/r2/api/workers/workers-api-usage/).
 
-No remote bucket, Worker, or domain was created in the initial preparation.
-The CLI's saved login was expired; sign-in was deferred by the user.
+The project declares no separate database or scheduled publishing job. Its
+configuration is in [wrangler.json](../wrangler.json); the
+[settings reference](deploy.md#cloudflare-settings) explains each setting.
 
-## Local Cloudflare preview
+## How updates reach the site
 
-Requires Node 22.12+, the sibling vault and ignore file configured in
-config.example.json, and dependencies installed with `npm ci`.
+**Website code:** merge a change into `main` in GitHub. Cloudflare builds and
+deploys the Worker and website files. This changes page rendering, styles, and
+site features. The build uses the core repository; it does not need Obsidian or
+a copy of the vault.
 
-```powershell
-npm run cf:prepare
-npm run cf:seed
-npm run cf:dev
-```
+**Vault content:** run `npm run content:publish -- --no-strict` on your computer.
+The script asks Obsidian to prepare the notes, makes copies of large images
+smaller, and uploads a complete saved version to R2. Once the upload succeeds,
+it tells the Worker to use that version. No website code deployment is needed.
+The homepage and menu come from `taelgar/_website` and are included in the same
+publication.
 
-Open http://127.0.0.1:8787/. `cf:seed` explicitly writes to local R2 storage,
-under `.wrangler/state`, and `cf:dev` uses those local bindings. Neither command
-uploads content to Cloudflare. The first seed copies the asset data into local
-emulator storage, so it takes longer and uses more disk than the Node preview.
+The publisher uses your local Cloudflare login or API token. The GitHub build
+has its own Cloudflare authorization. These are separate from how visitors
+read the site.
 
-The dev, check, and deploy commands also rebuild the local Mermaid browser
-bundle into `public/generated/`. Install development dependencies with `npm ci`
-before using them. The bundle is served as an application asset and loaded only
-by articles containing diagrams; it is separate from R2 content snapshots.
+The site footer shows the content publication date (UTC) and abbreviated core
+and Taelgar commit IDs. Hover a hash for the full ID and publication timestamp;
+click it to copy the full ID. The core timestamp appears only in its tooltip.
+An asterisk marks uncommitted changes. Older publications without provenance
+show an unavailable date or hash until content is published again.
 
-Verify the running Worker with:
+Wrangler's custom build step captures the core commit and timestamp immediately
+before deployment in `.generated/core-release.mjs`. These travel with the Worker
+version, including on rollback. Content commits are stored in the immutable
+snapshot; activation timestamps come from that request's `published/current.json`
+(`completedAt`). Restoring a saved pointer restores its date and commit together.
+Local Node previews show checkout hashes and “Local preview” without publication
+dates. No Git or GitHub requests occur in the deployed Worker or browser.
 
-```powershell
-npm test
-npm run cf:check
-npm run cf:smoke
-```
+For maintainers checking the build setup: the Mermaid diagram files must be
+generated before deployment. Using `npm run cf:deploy` as the deploy command
+includes this step. If the deploy command is `npx wrangler deploy`, use
+`npm run build:browser` as the build command. The destination Worker must be
+`taelgarverse`. These are supported setups; the exact current dashboard commands
+were not checked. Cloudflare explains the two commands in its
+[build settings guide](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/).
 
-`cf:check` bundles the Worker with Wrangler's deployment dry run. `cf:smoke`
-compares the actual running Worker with the local reference renderer. It accepts
-a different URL as an argument, including a deployed preview URL.
+## What is stored in R2
 
-## First hosted preview
+Each publication gets a long unique ID, called a **revision**. The storage
+contains three kinds of files:
 
-Refresh the CLI login in an interactive terminal:
+| Location | What it contains |
+| --- | --- |
+| `published/current.json` | A small file saying which revision the website should use. It also records the Git version and publishing settings so unchanged content can be skipped next time. |
+| `revisions/<revision>/` | A saved version of the notes and supporting data. `index.json` holds the homepage and menu Markdown, plus the page list, campaign information, metadata, backlinks, and media locations. The `notes/` folder holds article Markdown in groups of files. |
+| `assets/` | Images, audio, and other published attachments. Identical files share one stored copy, even across publications. |
 
-```powershell
-npx.cmd wrangler login
-npx.cmd wrangler whoami
-```
+Older publications and media remain in storage. There is no automatic cleanup.
+The JavaScript that generates note headers is part of the Worker code, so changing
+those rules requires a [code update](architecture.md#change-and-release-rules).
 
-Confirm the intended account. If it has multiple accounts, or you want different
-resource names, create ignored `wrangler.local.json` with the desired overrides:
+## What happens when someone opens a page
 
-```json
-{
-  "account_id": "your-account-id",
-  "name": "taelgarverse-preview",
-  "r2_buckets": [
-    {"binding": "CONTENT", "bucket_name": "taelgarverse-content"}
-  ]
-}
-```
+1. The Worker checks which content revision is current.
+2. It finds the requested note and checks whether it is available for the
+   selected campaign and date.
+3. It reads the note, creates its header, and turns the Markdown into a web page.
+4. The browser loads the page's images and audio through the Worker from R2.
 
-Publish the web core directly from this repository. It only needs the checked-in
-Worker code and `public/` assets. Cloudflare's deploy command can remain
-`npx wrangler deploy` with no build command or vault checkout. A new Worker
-responds to `/health` with `awaiting-content` until content is published:
+Visible note embeds load their note shards on demand, using the same selected
+campaign/date as the parent. Request-local note data avoids repeated loads during
+nested expansion. Hidden embeds and nested embeds outside a requested section do
+not trigger body reads. No separate embed index or snapshot schema is required.
 
-```powershell
-npm run cf:check
-npm run cf:deploy
-```
+The homepage uses the published `_website/home.md` text, with links and marked
+content adjusted for the reader's campaign and date. Submitting its search box
+opens the page finder at `/?q=...`. An older publication without homepage text
+continues to show the page finder until content is published again.
 
-Publish vault content separately from a machine with the configured vault:
+The Worker reuses loaded note data to keep this fast, but checks for a new
+publication on content requests. Page responses are marked not to be cached;
+browsers can reuse images and audio after checking whether they have changed.
 
-```powershell
-npm run cf:prepare
-npm run cf:bucket
-npm run cf:upload
-npm run cf:publish
-```
+Readers do not need a login. **Behind the Curtain is also available to everyone.**
+Hiding a note from a campaign view does not make its media private, and its
+metadata may still contribute to names and relationships shown elsewhere.
+See [when a page is shown](vault.md#when-a-page-is-shown).
 
-Bucket creation is a one-time operation. If the named bucket already exists,
-verify that it is the intended content bucket before using it. R2 must be
-enabled on the account. The bucket can remain private: visitors receive rendered
-HTML and indexed assets through the Worker. There is no raw-Markdown route.
+The site does not offer a raw Markdown or full index download. R2 does not need
+public access: the Worker serves the content. Keep the bucket private.
 
-Wrangler prints the actual public URL after deployment. Check it with:
+## Check the site
 
-```powershell
-npm run cf:smoke -- https://the-url-printed-by-wrangler.workers.dev
-```
+Open the [health page](https://taelgarverse.msackton.workers.dev/health) to see the
+current revision, page count, and warnings. The
+[campaign information page](https://taelgarverse.msackton.workers.dev/api/contexts)
+shows the available campaign views, their dates, and which session notes supplied
+those dates.
 
-The upload wrapper records success for the prepared revision, bucket, Worker
-name, and configured account. `cf:publish` requires that matching receipt, then
-updates `published/current.json` in R2. The Worker reads that pointer on each
-request and loads the new snapshot without a Worker deployment. An account ID
-in the override file makes the destination explicit between runs.
+- `ok` means the content index loaded. Still check the pages and media you changed.
+- `awaiting-content` means no publication has been selected yet.
+- A `503` error can mean required published files are missing or invalid.
+- A `404` or `422` on an article can come from the note or selected campaign/date;
+  check [vault usage](vault.md) as well as the error message.
 
-The upload command uses the pinned Wrangler version's experimental `r2 bulk put`
-command. It streams files with bounded concurrency. The wrapper validates that
-every object key belongs to the prepared revision or a content hash, then skips
-Wrangler's overwrite prompt: retrying the upload writes the same immutable
-objects. Use the dedicated normal R2 bucket created above. Verify this command
-when upgrading Wrangler.
+For code deployment failures, look at the Cloudflare build log. For errors while
+reading the website, look at the Worker's logs.
 
-## Content updates and rollback
+## Restore older content
 
-After editing Markdown, navigation, or content configuration, run prepare,
-upload, and publish again. Repeat seed instead of upload and publish for a
-local-only update. Web core changes deploy through `cf:deploy` independently.
+Usually, the easiest fix is to correct the vault, commit it, and publish again.
 
-Preparation creates `.cache/cloudflare/latest.json`, a revision directory with
-the metadata index, Markdown shards, and upload manifest, and content-addressed
-asset copies. It also emits an R2 pointer file and an ignored Wrangler config
-for content upload. Static theme files and the Worker header runtime are part
-of the web core repository.
-No output is written to the vault. Configuration and machine paths are excluded
-from the uploaded metadata index.
+To restore a saved publication directly, first check that its notes and media
+still exist in R2. Then replace `published/current.json` with a saved copy from
+that successful publication. This tells the website to use the older content.
 
-The Worker lazily reads the requested Markdown shard. It keeps a bounded cache
-of eight shards and shares the immutable metadata/link/header indexes between
-requests. Header objects and date/campaign preferences are request-local.
-Binary assets stream from R2 with ETags, conditional GET, and byte-range support.
+If only the revision ID is available, that file can contain
+`{"revision":"<64-character revision ID>"}`. The site can read it, but the next
+publishing run will rebuild because the record of the previous Git version and
+settings is missing.
 
-Existing revisions and asset objects remain available for rollback. To select
-an earlier content revision, publish a pointer containing that revision to
-`published/current.json`. Worker rollback is a separate operation. There is
-no automatic deletion of old content in this version.
+Restoring an older Worker deployment changes website code only. It does not
+change which vault publication is selected in R2.
 
-## Runtime compatibility and scope
+## What was checked
 
-The hosted renderer uses a checked-in JavaScript module derived from the vault's
-trusted CustomJS classes. A syntax-aware transform replaces
-Obsidian's `.first()`, `.last()`, and `.contains()` helpers with standard methods.
-Changes to those CustomJS classes are renderer changes: run
-`npm run build:worker-headers`, commit `src/worker-headers.mjs`, then deploy the
-web core. Markdown and asset changes only need the content publication step.
-It uses neither `node:vm` nor runtime evaluation and does not modify global
-prototypes. The local Node preview retains the VM adapter as a reference;
-article rendering, routing, filters, Markdown, and navigation are shared.
+On **2026-10-19**, the public health page reported `ok`, `cloudflare-worker`,
+**3,029 pages**, and no index or campaign warnings. The maintainer confirmed
+automatic deployment from `main`.
 
-Wrangler currently warns about an existing nullish-coalescing expression in the
-upstream date utility. That source rule is preserved and parity checks pass.
-The warning does not prevent the build.
-
-See Behind the Curtain remains a viewing preference for everyone. There is no
-DM login requirement. HTML/API responses retain `Cache-Control: no-store` during
-this first migration. Content-aware HTML caching can be added after deployment
-measurements. A custom domain and automated publishing can follow the preview.
-
-Workers Free has a 10 ms CPU limit per request, which may be too tight for cold
-snapshot initialization or larger pages. Measure on the hosted preview; the
-Workers Paid plan starts at $5/month and provides higher CPU limits. No plan
-change is performed by these scripts. Optional paid-plan CPU limits can be set
-through a `limits` override in `wrangler.local.json`.
-
-Provider references: [Workers Node compatibility](https://developers.cloudflare.com/workers/runtime-apis/nodejs/),
-[R2 bindings](https://developers.cloudflare.com/r2/api/workers/workers-api-usage/),
-[static assets](https://developers.cloudflare.com/workers/static-assets/),
-[pricing](https://developers.cloudflare.com/workers/platform/pricing/), and
-[deployment rollback](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/rollbacks/).
+Resource names and settings above come from the repository. Dashboard-only
+settings, including the live bucket connection and exact build commands, were
+not independently checked because the local Cloudflare login had expired.
+The move to vault-authored homepage and menu files is implemented in this checkout;
+the live site needs the updated core deployment and a new content publication.
