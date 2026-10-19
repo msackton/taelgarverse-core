@@ -1,7 +1,7 @@
 <!doctype html>
-<html lang="en" data-theme="light" data-design="current">
+<html lang="en" data-theme="light">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>TaelgarVerse — UI design review</title>
-<style>
+<style id="site-styles">
 *{box-sizing:border-box}html{--bg:#fff;--surface:#f5f6f7;--text:#262d32;--muted:#59646c;--line:#d7dde1;--link:#245a87;--accent:#315b73;--soft:#eaf0f4;color-scheme:light;scroll-behavior:smooth}
 html[data-theme=dark]{--bg:#191e23;--surface:#222930;--text:#e1e5e8;--muted:#aeb9c1;--line:#414c55;--link:#8fc3ef;--accent:#a2c5d8;--soft:#2b3945;color-scheme:dark}
 body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}button,input,select{font:inherit;color:inherit;border:1px solid var(--line);border-radius:5px;background:var(--bg);padding:7px 10px}button,select,summary{cursor:pointer}button:hover{background:var(--soft)}a{color:var(--link);text-decoration:none}a:hover{text-decoration:underline}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:3px solid var(--link);outline-offset:3px}button[aria-pressed=true]{color:var(--bg);background:var(--text);border-color:var(--text)}[hidden]{display:none!important}.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
@@ -9,66 +9,122 @@ body{margin:0;background:var(--bg);color:var(--text);font:16px/1.65 system-ui,-a
 .site-header{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:22px 32px;border-bottom:1px solid var(--line)}.brand{font:600 29px/1.2 Georgia,serif;letter-spacing:-.6px;color:var(--text)}.header-tools{display:flex;align-items:center;gap:22px;flex-wrap:wrap;font-size:12px;color:var(--muted)}.appearance{display:flex;align-items:center;gap:8px}.appearance select{padding:4px 8px}.context{font-variant-numeric:tabular-nums}
 .site-layout{max-width:1520px;margin:auto;display:grid;grid-template-columns:230px minmax(0,1fr) 215px;gap:36px;padding:30px 32px 72px;align-items:start}.navigation-slot,.contents-slot{position:sticky;top:22px;max-height:calc(100vh - 44px);overflow:auto;scrollbar-width:thin;font-size:13px;line-height:1.5;min-width:0}.navigation-slot{padding-right:14px;border-right:1px solid var(--line)}.site-navigation>summary,.contents-slot>details>summary{font-weight:650;margin:0 0 16px}.nav-search{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:20px}.nav-search input[type=search]{width:100%;min-width:0;font-size:13px}.nav-search button{font-size:12px;padding:3px 9px}.nav-tree,.nav-tree ul,.toc ul{list-style:none;margin:0;padding:0}.nav-tree ul{padding-left:12px;border-left:1px solid var(--line);margin:6px 0 10px 4px}.nav-tree li{margin:7px 0}.nav-tree a{color:var(--muted)}.nav-tree a[aria-current=page]{font-weight:650;color:var(--link);background:var(--soft)}.nav-placeholder{font-size:12px}.contents-slot{padding-left:18px;border-left:1px solid var(--line)}.toc li{margin:9px 0}.toc ul ul{margin-left:12px;font-size:12px}.toc a{color:var(--muted);display:inline-block}.toc a.active{color:var(--link);font-weight:650}.article-column{min-width:0;max-width:850px;width:100%;margin:0 auto}.breadcrumbs{font-size:12px;line-height:1.6;color:var(--muted);margin-bottom:22px}.breadcrumbs ol{display:flex;flex-wrap:wrap;list-style:none;padding:0;margin:0;gap:5px 8px}.breadcrumbs li+li:before{content:"/";margin-right:8px}.breadcrumbs a{color:var(--muted)}
 article{overflow-wrap:break-word;display:flow-root}article h1,article h2{font-family:Georgia,"Times New Roman",serif;font-weight:400;line-height:1.25;letter-spacing:-.35px}article h1{font-size:40px;margin:0 0 23px;border-bottom:1px solid var(--line);padding-bottom:14px}article h2{font-size:28px;margin:2em 0 .7em;border-bottom:1px solid var(--line);padding-bottom:8px;clear:both}article h3{font-size:20px;line-height:1.4;margin:1.7em 0 .65em;font-weight:650}article h4{font-size:17px;margin:1.5em 0 .55em;font-weight:650}article :is(h1,h2,h3,h4,h5,h6){scroll-margin-top:28px}article p{margin:0 0 1.1em}article li{margin:.35em 0}article ul,article ol{padding-left:1.6em}article a{text-underline-offset:3px}article img{max-width:100%;height:auto;border-radius:3px}article img[align=right],article .taelgar-image--aside{float:right;clear:right;width:42%;margin:6px 0 16px 24px}article img[align=left]{float:left;width:42%;margin:6px 24px 16px 0}article .map-image{background:#fff;border:1px solid var(--line);padding:10px}article .taelgar-image--figure{max-width:100%;width:36rem;margin:1.2em auto}article .taelgar-image--hero{width:100%}article svg{width:1em;height:1em;vertical-align:-.12em;fill:currentColor}.twemoji{display:inline-block}.grid.cards{font-size:14px;padding:12px 16px;background:var(--surface);border:1px solid var(--line);border-radius:4px;margin-bottom:24px}.grid.cards>ul{list-style:none;margin:0;padding:0}.grid.cards li{margin:5px 0}.grid.cards .twemoji{margin-right:5px;color:var(--muted)}article blockquote,article .admonition:not(.image){margin:1.5em 0;padding:15px 20px;border-left:3px solid var(--accent);background:var(--surface)}article blockquote p:last-child,article .admonition p:last-child{margin-bottom:0}.admonition-title{font-weight:650;margin-bottom:8px!important}.admonition.image{background:none;border:0;margin:1.5em 0}.admonition.image>.admonition-title{display:none}article table{display:block;max-width:100%;overflow:auto;border-collapse:collapse;font-size:14px}article td,article th{border:1px solid var(--line);padding:8px 12px;text-align:left}article th{background:var(--surface)}article hr{border:0;border-top:1px solid var(--line);margin:2em 0}article pre{overflow:auto;background:var(--surface);padding:14px}.site-footer{border-top:1px solid var(--line);padding:18px 32px;display:flex;gap:20px;justify-content:space-between;font-size:12px;color:var(--muted)}
-html[data-design=modern]{--accent:#347569;--link:#216859;--soft:#e7f2ed}html[data-design=modern][data-theme=dark]{--accent:#8ec8bb;--link:#94d4c2;--soft:#253e39}[data-design=modern] .brand,[data-design=modern] article h1,[data-design=modern] article h2{font-family:system-ui,sans-serif;font-weight:650;letter-spacing:-.9px}[data-design=modern] .site-header{border-top:4px solid var(--accent)}[data-design=modern] .site-layout{grid-template-columns:215px minmax(0,1fr) 190px;gap:32px;max-width:1400px}[data-design=modern] article h1{border:0;font-size:38px}[data-design=modern] article h2{border:0;font-size:26px}[data-design=modern] .grid.cards{border:0;border-radius:10px}[data-design=modern] .navigation-slot{border:0}[data-design=modern] .contents-slot{border:0;background:var(--surface);padding:16px;border-radius:8px}
-[data-design=atlas] .site-layout{grid-template-columns:245px minmax(0,1fr);grid-template-areas:"nav article" "toc article";grid-template-rows:360px 1fr;gap:28px 48px;max-width:1380px}[data-design=atlas] .navigation-slot{grid-area:nav;position:static;max-height:360px;border:0;background:var(--surface);padding:18px}[data-design=atlas] .article-column{grid-area:article;max-width:980px}[data-design=atlas] .contents-slot{grid-area:toc;border:0;border-top:2px solid var(--accent);padding:18px 8px}[data-design=atlas] .site-header{background:var(--surface)}[data-design=atlas] article h1{font-size:44px;border:0}[data-design=atlas] article h2{border-bottom:2px solid var(--line)}[data-design=atlas] article .map-image{width:100%}
-[data-design=reader] .site-header{max-width:1150px;margin:auto}[data-design=reader] .site-layout{display:flex;flex-direction:column;max-width:850px;gap:20px;padding-top:22px}[data-design=reader] .navigation-slot,[data-design=reader] .contents-slot{position:static;width:100%;max-height:none;border:0;padding:0}[data-design=reader] .navigation-slot{order:0}[data-design=reader] .contents-slot{order:1;padding-bottom:18px;border-bottom:1px solid var(--line)}[data-design=reader] .article-column{order:2}[data-design=reader] .site-navigation>nav{max-height:360px;overflow:auto;background:var(--surface);padding:20px}[data-design=reader] .site-navigation>summary,[data-design=reader] .contents-slot summary{margin-bottom:0}[data-design=reader] .toc{padding:16px 20px;background:var(--surface);max-height:420px;overflow:auto}[data-design=reader] article{font-size:18px;line-height:1.8}[data-design=reader] article h1{font-size:44px;border:0}[data-design=reader] article h2{border:0;font-size:30px}
-html[data-design=library]{--bg:#faf9f6;--surface:#f0eee9;--text:#34332f;--muted:#68665f;--line:#d9d6ce;--link:#715137;--accent:#8b7053;--soft:#eae3d8}html[data-design=library][data-theme=dark]{--bg:#21221f;--surface:#2b2d28;--text:#e7e5de;--muted:#b9b9ad;--line:#494b42;--link:#d6bc91;--accent:#bda785;--soft:#393a30}[data-design=library] .site-header{border-bottom:3px double var(--line)}[data-design=library] .brand{font-variant:small-caps;letter-spacing:1px}[data-design=library] article{font-family:Georgia,"Times New Roman",serif;font-size:18px;line-height:1.8}[data-design=library] article h1{font-size:42px}[data-design=library] article h3,[data-design=library] article h4{font-family:system-ui,sans-serif;font-size:18px}[data-design=library] .grid.cards{font-family:system-ui,sans-serif;border:0;border-left:2px solid var(--accent);border-radius:0}[data-design=library] .site-layout{max-width:1400px;grid-template-columns:210px minmax(0,1fr) 180px}
+
+/* Shared layout: typography never changes where navigation lives. */
+.site-layout{grid-template-areas:"nav article toc"}
+.navigation-slot{grid-area:nav}.article-column{grid-area:article}.contents-slot{grid-area:toc}
+.site-layout.no-toc{grid-template-columns:230px minmax(0,1fr);grid-template-areas:"nav article"}
+.site-layout.no-nav{grid-template-columns:minmax(0,1fr) 215px;grid-template-areas:"article toc"}
+.site-layout.no-nav.no-toc{grid-template-columns:minmax(0,1fr);grid-template-areas:"article"}
+.article-column{max-width:960px}.contents-slot{border:0;padding-left:12px}
+.nav-tree a,.toc a{padding:4px 0;overflow-wrap:anywhere}.toc a{border-left:2px solid transparent;padding-left:10px}.toc a.active{border-color:var(--accent)}
+article h3,article h4{font-family:Georgia,"Times New Roman",serif;font-weight:400}
+[data-design=library] .brand{font-variant:small-caps;letter-spacing:1px}
+[data-design=library] article{font-family:Georgia,"Times New Roman",serif;font-size:18px;line-height:1.8}
+[data-design=library] .site-header{border-bottom:3px double var(--line)}
+[data-design=library] .grid.cards{font-family:system-ui,sans-serif;border:0;border-left:2px solid var(--accent);border-radius:0}
+[data-design=atlas] article .map-image{width:100%}
+[data-design=atlas] .article-column{max-width:1040px}
+[data-design=atlas] article h2{border-bottom:2px solid var(--line)}
+html[data-palette=stone]{--bg:#f6f7f5;--surface:#eaf0ed;--text:#2e3938;--muted:#586a65;--line:#ced9d4;--link:#32675f;--accent:#52786d;--soft:#e1ebe5}
+html[data-palette=plum]{--bg:#f8f6f8;--surface:#efebf0;--text:#3a333e;--muted:#6f6374;--line:#dbd2dd;--link:#795576;--accent:#866681;--soft:#ebe1ec}
+html[data-palette=parchment]{--bg:#faf8f2;--surface:#f0ece2;--text:#39372f;--muted:#6d675b;--line:#d9d1c1;--link:#705435;--accent:#8b7053;--soft:#eae3d8}
+html[data-theme=dark][data-palette=stone]{--bg:#202827;--surface:#293331;--text:#e0e8e2;--muted:#afc0b6;--line:#43584e;--link:#9dc9b9;--accent:#8eac9f;--soft:#34463e}
+html[data-theme=dark][data-palette=plum]{--bg:#28232b;--surface:#332c37;--text:#e9e1ec;--muted:#c0afc6;--line:#54465c;--link:#d2afd4;--accent:#b89cbb;--soft:#43364a}
+html[data-theme=dark][data-palette=parchment]{--bg:#25251f;--surface:#303029;--text:#e7e5de;--muted:#b9b9ad;--line:#494b42;--link:#d6bc91;--accent:#bda785;--soft:#393a30}
+/* Sidebars stay beside the article until the mobile drawer takes over. */
+#site{--layout-width:1600px;--layout-gutter:32px}
+.site-header{position:sticky;top:0;z-index:10;background:var(--bg);padding:14px max(var(--layout-gutter),calc((100% - var(--layout-width))/2 + var(--layout-gutter)));gap:16px;min-height:80px;flex-wrap:wrap}
+.brand{font-size:27px;white-space:nowrap}.header-tools{gap:10px;flex-wrap:nowrap;margin-left:auto}
+.header-search-slot{flex:1;max-width:330px;min-width:180px}.header-search{display:flex;gap:6px;margin:0}.header-search input{width:100%;min-width:0;font-size:14px}.header-search button{padding:6px 10px}
+.header-context-slot{margin-left:auto}.context-form{display:flex;align-items:center;gap:8px 12px;margin:0;font-size:12px;flex-wrap:wrap}.context-form select{max-width:260px;padding:7px;font-size:12px}.dm-toggle{display:flex;align-items:center;gap:6px;white-space:nowrap}.dm-toggle input{accent-color:var(--accent);width:16px;height:16px}.custom-date-controls{display:flex;gap:6px;align-items:center}
+.icon-button{display:none;align-items:center;justify-content:center;flex:none;min-width:44px;min-height:44px;padding:9px}.icon-button svg,.header-search button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7}
+.site-layout{max-width:var(--layout-width);padding-inline:var(--layout-gutter);gap:32px}.navigation-slot,.contents-slot{top:calc(var(--header-height,80px) + 24px);max-height:calc(100dvh - var(--header-height,80px) - 48px)}
+.navigation-slot{padding-right:20px}.contents-slot{border-left:1px solid var(--line);padding-left:20px}.sidebar-heading{font:500 18px/1.35 Georgia,serif;margin:0 0 10px;overflow-wrap:anywhere}.sidebar-caption{color:var(--muted);font-size:12px;margin:0 0 14px}.site-navigation>summary{list-style:none;cursor:default}.site-navigation>summary::-webkit-details-marker{display:none}
+article :is(h1,h2,h3,h4,h5,h6){scroll-margin-top:calc(var(--header-height,80px) + 24px)}
+.site-dialog{color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:6px;width:min(480px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:20px}.site-dialog::backdrop{background:#17292370}.dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}.dialog-heading h2{font:400 23px/1.3 Georgia,serif;margin:0}.dialog-heading button{min-width:44px;min-height:44px;font-size:22px;padding:2px}.site-dialog .context-form{display:flex;flex-direction:column;align-items:stretch;gap:14px;font-size:14px}.site-dialog .context-form select{max-width:100%;font-size:14px}.site-dialog .custom-date-controls{flex-wrap:wrap}.site-dialog .header-search input{font-size:16px}
+.nav-drawer{margin:0;height:100dvh;max-height:100dvh;width:min(350px,88vw);max-width:88vw;border:0;border-right:1px solid var(--line);border-radius:0;padding:20px}.nav-drawer .site-navigation>summary{display:none}.nav-drawer .navigation-slot{position:static;max-height:none;overflow:visible;border:0;padding:0;width:100%}
+.section-navigation{flex:0 0 100%;min-width:0;border-top:1px solid var(--line);margin-top:2px;padding-top:4px}
+.section-navigation ul{display:flex;flex-wrap:wrap;gap:4px 24px;list-style:none;padding:0;margin:0}
+.section-navigation a{display:block;padding:8px 0 6px;color:var(--muted);font-size:14px;border-bottom:2px solid transparent;text-decoration:none}
+.section-navigation a:hover{color:var(--link);border-bottom-color:var(--line)}
+.section-navigation a[aria-current]{color:var(--link);border-bottom-color:var(--accent);font-weight:600}
+@media(min-width:801px){
+ #navigation .nav-tree>li:not(.active-section){display:none}
+ #navigation .nav-tree>.active-section>details>summary{display:none}
+ #navigation .nav-tree>.active-section>details>ul{padding-left:0;margin:0;border-left:0}
+ .site-navigation>summary{font:500 18px/1.35 Georgia,serif;color:var(--text)}
+}
+@media(max-width:1200px){#site{--layout-gutter:24px}.site-layout{grid-template-columns:190px minmax(0,1fr) 165px;gap:20px;padding:24px}.site-layout.no-toc{grid-template-columns:190px minmax(0,1fr)}.site-layout.no-nav{grid-template-columns:minmax(0,1fr) 165px}.site-layout.no-nav.no-toc{grid-template-columns:minmax(0,1fr)}.header-context-slot{flex:1}.context-form select{max-width:230px}}
+@media(max-width:1100px){#search-toggle{display:inline-flex}.header-search-slot{display:none}.header-tools{margin-left:0}.header-context-slot{margin-left:auto;flex:0 1 auto}.context-form{justify-content:flex-end}.context-form select{max-width:220px}.context-label{display:none}}
+@media(max-width:800px){
+ .section-navigation{display:none}
+ .site-header{padding:10px 12px;gap:8px;flex-wrap:nowrap;min-height:64px}.brand{font-size:23px;letter-spacing:-.6px}.header-tools{margin-left:auto;gap:2px}.header-context-slot{display:none}#navigation-toggle,#settings-toggle{display:inline-flex}
+ .site-layout,.site-layout.no-nav,.site-layout.no-toc{display:block;padding:24px 18px 44px}.contents-slot{display:none}.article-column{max-width:100%}
+ .site-layout>.navigation-slot{display:none}.context-label{display:block}.site-dialog .context-form{justify-content:flex-start}
+ article{font-size:16px!important;line-height:1.7!important}article h1{font-size:34px}article h2{font-size:26px}
+ article img[align=right],article img[align=left],article .taelgar-image--aside{float:none;width:auto;display:block;max-height:480px;margin:16px auto}
+ .site-footer{padding:16px 18px}.breadcrumbs{margin-bottom:16px}
+}
+@media(max-width:360px){.brand{font-size:20px}.site-header{padding:8px;gap:4px}.header-tools{gap:0}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media print{.navigation-slot,.contents-slot,.site-header,.site-dialog,.site-footer{display:none!important}.site-layout{display:block!important;padding:0}.article-column{max-width:none}}
+</style>
+<style>
+.review-tools{padding:14px 24px}.review-tools header{margin-bottom:8px}.review-tools label{margin:0}.review-tools header>label{margin-left:auto}
+.review-options{display:flex;flex-wrap:wrap;align-items:center;gap:12px 22px;margin-top:12px}.review-options fieldset{display:flex;gap:8px;align-items:center;border:0;padding:0;margin:0}.review-options legend{float:left;margin-right:10px}.review-options label{gap:6px}.review-options input{accent-color:var(--accent)}.review-options select{padding:5px 8px}.review-options fieldset:disabled{opacity:.55}
+.preview-stage{padding:20px;overflow:hidden;background:#dce2e0;min-height:500px}.preview-size{position:relative;margin:auto}.preview-frame{display:block;position:absolute;top:0;left:0;border:0;background:white;transform-origin:top left;box-shadow:0 2px 18px #263c3220}
+.viewport-status{font-size:12px;color:var(--muted)}
 dialog{color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:8px;width:min(540px,90vw);padding:24px}dialog::backdrop{background:#0008}dialog h2{margin-top:0;font-size:20px}dialog ul{max-height:50vh;overflow:auto}dialog button{margin-top:10px}
-@media(max-width:1100px){.site-layout,[data-design=modern] .site-layout,[data-design=library] .site-layout{grid-template-columns:190px minmax(0,1fr);grid-template-areas:"nav toc" "nav article";gap:24px}.navigation-slot{grid-area:nav}.article-column{grid-area:article}.contents-slot{grid-area:toc;position:static;border:0;border-bottom:1px solid var(--line);padding:0 0 16px;max-height:none}.contents-slot>details>summary{margin-bottom:0}.contents-slot .toc{max-height:300px;overflow:auto;padding-top:10px}.header-tools{gap:8px;flex-direction:column;align-items:flex-end}}
-@media(max-width:720px){.review-tools{padding:14px 16px}.review-tools header{gap:8px}.review-tools label{margin:0;width:100%}.review-tools select{flex:1;min-width:0}.designs{gap:5px}.designs button{font-size:12px;padding:6px 8px}.site-header{padding:20px 18px;gap:16px;flex-direction:column;align-items:flex-start}.brand{font-size:27px}.header-tools{align-items:flex-start;width:100%;gap:12px;flex-direction:row;justify-content:space-between}.context{font-size:11px;max-width:55%}.site-layout,[data-design=modern] .site-layout,[data-design=atlas] .site-layout,[data-design=reader] .site-layout,[data-design=library] .site-layout{display:flex;flex-direction:column;padding:20px 18px 44px;gap:20px}.navigation-slot,[data-design=atlas] .navigation-slot{order:0;position:static;border:0;border-bottom:1px solid var(--line);padding:0 0 16px;max-height:none;width:100%;background:none}.site-navigation>nav{max-height:340px;overflow:auto;padding:12px}.site-navigation>summary{margin:0}.contents-slot,[data-design=modern] .contents-slot,[data-design=atlas] .contents-slot{order:1;width:100%;position:static;border:0;border-bottom:1px solid var(--line);padding:0 0 16px;background:none;border-radius:0}.article-column{order:2;max-width:100%}article{font-size:16px!important;line-height:1.7!important}article h1{font-size:34px!important}article h2{font-size:26px!important}article h3{font-size:20px!important}article img[align=right],article img[align=left],article .taelgar-image--aside{float:none;width:auto;display:block;max-height:480px;margin:16px auto}.site-footer{padding:16px 18px}}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}@media print{.review-tools,.navigation-slot,.contents-slot,.header-tools,.site-footer{display:none!important}.site-layout{display:block!important;padding:0}.article-column{max-width:none}html{--bg:#fff;--text:#111;--link:#111}}
-#current-site{display:block;border:0;width:100%;height:85vh;min-height:600px;background:white}html[data-design=current] #site{display:none}html:not([data-design=current]) #current-site{display:none}
+@media(max-width:720px){.review-tools{padding:12px}.review-tools header>label{margin:0;width:100%}.designs button{font-size:12px;padding:6px 8px}.review-options{gap:10px}.review-options fieldset{flex-wrap:wrap}.preview-stage{padding:12px}}
 </style></head>
 <body>
-<section class="review-tools" aria-label="Design review controls"><header><strong>TaelgarVerse · design review</strong><label for="review-page">Page <select id="review-page"></select></label></header><div class="designs" role="group" aria-label="Design"><button data-design="current" aria-pressed="true">Current site · reference</button><button data-design="classic" aria-pressed="false">1 · Classic Encyclopedia</button><button data-design="modern" aria-pressed="false">2 · Modern Codex</button><button data-design="atlas" aria-pressed="false">3 · Atlas Reference</button><button data-design="reader" aria-pressed="false">4 · Reader’s Edition</button><button data-design="library" aria-pressed="false">5 · Quiet Library</button></div><p id="design-description"></p></section>
-<iframe id="current-site" title="Current TaelgarVerse site reference" sandbox="allow-scripts"></iframe>
-<div id="site"><a class="skip-link" href="#article">Skip to article</a><header class="site-header"><a class="brand" href="#">TaelgarVerse</a><div class="header-tools"><span class="context" id="context"></span><label class="appearance" for="appearance">Appearance <select id="appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label></div></header><div class="site-layout"><div class="navigation-slot" id="navigation"></div><main class="article-column"><div id="breadcrumbs"></div><article id="article" tabindex="-1"></article></main><aside class="contents-slot"><details id="contents" open><summary>On this page</summary><nav id="toc" aria-label="On this page"></nav></details></aside></div><footer class="site-footer"><span>TaelgarVerse</span><a href="#site">Back to top ↑</a></footer></div>
+<section class="review-tools" aria-label="Design review controls">
+ <header><strong>TaelgarVerse · design review</strong><label for="review-page">Page <select id="review-page"></select></label></header>
+ <div class="designs" role="group" aria-label="Design">
+  <button data-design="current" aria-pressed="true">Current site · reference</button>
+  <button data-design="classic" aria-pressed="false">Classic Encyclopedia</button>
+  <button data-design="library" aria-pressed="false">Quiet Library</button>
+  <button data-design="atlas" aria-pressed="false">Atlas Reference</button>
+ </div>
+ <div class="review-options">
+  <div class="designs" role="group" aria-label="Preview viewport"><button data-viewport="fit" aria-pressed="true">Fit window</button><button data-viewport="desktop" aria-pressed="false">Desktop · 1440</button><button data-viewport="tablet" aria-pressed="false">Tablet · 900</button><button data-viewport="mobile" aria-pressed="false">Mobile · 390</button></div>
+  <span class="viewport-status" id="viewport-status" aria-live="polite"></span>
+ </div>
+ <div class="review-options">
+  <fieldset id="proposal-options" disabled><legend>Proposal options</legend>
+   <label>Palette <select id="palette"><option value="stone">Sage & stone</option><option value="plum">Muted plum</option><option value="parchment">Parchment</option></select></label>
+   <label>Appearance <select id="appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label>
+   <label><input type="checkbox" id="show-navigation" checked>Site navigation</label>
+   <label><input type="checkbox" id="show-contents" checked>Page contents</label>
+  </fieldset>
+ </div>
+ <p id="design-description"></p>
+</section>
+<div class="preview-stage" id="preview-stage"><div class="preview-size" id="preview-size"><iframe class="preview-frame" id="preview-frame" title="Current TaelgarVerse site reference" sandbox="allow-scripts"></iframe></div></div>
 <dialog id="offline-dialog" aria-labelledby="dialog-title"><h2 id="dialog-title"></h2><div id="dialog-content"></div><form method="dialog"><button>Close</button></form></dialog>
+
+<template id="proposal-template"><div id="site">
+<a class="skip-link" href="#article">Skip to article</a>
+<header class="site-header" id="site-header">
+ <button class="icon-button" id="navigation-toggle" aria-label="Open navigation" aria-haspopup="dialog" aria-controls="navigation-dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button>
+ <a class="brand" href="#">TaelgarVerse</a>
+ <div class="header-search-slot" id="header-search-slot"><form class="header-search" id="header-search" role="search"><label class="sr-only" for="site-search">Search TaelgarVerse</label><input id="site-search" type="search" name="q" placeholder="Search TaelgarVerse"><button aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button></form></div>
+ <div class="header-context-slot" id="header-context-slot"><div id="context-controls"></div></div>
+ <div class="header-tools">
+  <button class="icon-button" id="search-toggle" aria-label="Open search" aria-haspopup="dialog" aria-controls="search-dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button>
+  <button class="icon-button" id="settings-toggle" aria-label="Context and Behind the Curtain" aria-haspopup="dialog" aria-controls="settings-dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m10 3-1 3-3 1-3 3 2 2-1 3 3 3 3-1 2 2 3-1 1-3 3-2-1-3-3-1-1-3Z"/><circle cx="11" cy="11" r="3"/></svg></button>
+ </div>
+ <nav class="section-navigation" id="section-navigation" aria-label="Main sections"><ul id="section-links"></ul></nav>
+</header>
+<div class="site-layout"><div class="navigation-slot" id="navigation"></div><main class="article-column"><div id="breadcrumbs"></div><article id="article" tabindex="-1"></article></main><aside class="contents-slot" aria-labelledby="contents-title"><h2 class="sidebar-heading" id="contents-title"></h2><p class="sidebar-caption">On this page</p><nav id="toc" aria-label="On this page"></nav></aside></div>
+<footer class="site-footer"><span>TaelgarVerse</span><a href="#site">Back to top ↑</a></footer>
+<dialog class="site-dialog nav-drawer" id="navigation-dialog" aria-labelledby="navigation-dialog-title"><div class="dialog-heading"><h2 id="navigation-dialog-title">Explore Taelgar</h2><button type="button" data-close-dialog="navigation-dialog" aria-label="Close navigation">×</button></div><div id="navigation-dialog-body"></div></dialog>
+<dialog class="site-dialog" id="search-dialog" aria-labelledby="search-dialog-title"><div class="dialog-heading"><h2 id="search-dialog-title">Search TaelgarVerse</h2><button type="button" data-close-dialog="search-dialog" aria-label="Close search">×</button></div><div id="search-dialog-body"></div></dialog>
+<dialog class="site-dialog" id="settings-dialog" aria-labelledby="settings-dialog-title"><div class="dialog-heading"><h2 id="settings-dialog-title">Context &amp; visibility</h2><button type="button" data-close-dialog="settings-dialog" aria-label="Close settings">×</button></div><div id="settings-dialog-body"></div></dialog>
+</div></template>
 <script type="application/json" id="current-assets">__CURRENT_ASSETS__</script>
 <script type="application/json" id="page-data">__PAGE_DATA__</script>
-<script>
-(() => {
- const pages=JSON.parse(document.getElementById('page-data').textContent),html=document.documentElement,picker=document.getElementById('review-page');
- const descriptions={current:'Current site — existing page template and production styles, shown unchanged in its current light appearance. Backend-dependent controls use the bundled snapshot.',classic:'Classic Encyclopedia — three columns, serif headings, compact facts, and familiar reference navigation.',modern:'Modern Codex — sans serif headings, more open spacing, green accents, and a quieter contents panel.',atlas:'Atlas Reference — a broad article column with navigation and contents on the left; more room for maps.',reader:'Reader’s Edition — one centered reading column, larger prose, and collapsible navigation and contents.',library:'Quiet Library — serif prose, warm neutral colors, restrained rules, and a scholarly feel.'};
- const currentAssets=JSON.parse(document.getElementById('current-assets').textContent),currentFrame=document.getElementById('current-site');
- let observer,currentPage=-1;
- function renderCurrent(){
-  if(html.dataset.design!=='current')return;
-  currentPage=Number(picker.value);
-  const bridge=`document.addEventListener('click',e=>{const a=e.target.closest('a');if(!a)return;const href=a.getAttribute('href');if(href&&href.startsWith('#')){e.preventDefault();document.getElementById(decodeURIComponent(href.slice(1)))?.scrollIntoView();return;}if(href&&href.startsWith('/')){e.preventDefault();parent.postMessage({kind:'reference-link',href,label:a.textContent},'*');}});
-  document.addEventListener('submit',e=>{e.preventDefault();parent.postMessage({kind:'reference-form',search:e.target.matches('.nav-search')?new FormData(e.target).get('q'):null},'*');});
-  document.querySelector('.context-form')?.addEventListener('change',e=>{e.currentTarget.reset();parent.postMessage({kind:'reference-context'},'*');});`;
-  const script=code=>'<script>'+code+'<'+ '/script>';
-  currentFrame.srcdoc=pages[currentPage].currentDocument.replace('</head>','<style>'+currentAssets.css+'</style></head>').replace('</body>',script(currentAssets.navigation)+script(bridge)+'</body>');
- }
- window.addEventListener('message',event=>{
-  if(event.source!==currentFrame.contentWindow)return;
-  const data=event.data;if(!data||typeof data.kind!=='string')return;
-  if(data.kind==='reference-link'){
-   const url=new URL(data.href,'https://offline.invalid'),index=pages.findIndex(p=>url.pathname==='/page/'+p.slug);
-   if(index>=0){render(index);return;}
-  }
-  const p=document.createElement('p');
-  p.textContent=data.kind==='reference-context'?'Context dates and DM visibility require the live backend. This reference retains the selected page’s original context.':data.kind==='reference-form'?'This is an offline reference snapshot. Use the Page selector above to open one of the seven included pages.':'This destination is outside the seven pages bundled in the offline review. Use the Page selector above to explore the included pages.';
-  dialog('Offline reference',p);
- });
- pages.forEach((page,i)=>picker.add(new Option(page.name,i)));
- function configurePanels(){document.querySelector('.site-navigation').open=!matchMedia('(max-width:720px)').matches&&html.dataset.design!=='reader';document.getElementById('contents').open=!matchMedia('(max-width:1100px)').matches&&html.dataset.design!=='reader';}
- function render(index,scroll=true){
-  picker.value=String(index);const page=pages[Number(index)];
-  document.getElementById('article').innerHTML=page.html;document.getElementById('navigation').innerHTML=page.navigation;document.getElementById('breadcrumbs').innerHTML=page.breadcrumbs;document.getElementById('toc').innerHTML=page.toc;
-  document.querySelector('.contents-slot').hidden=!document.querySelector('#toc a');
-  document.getElementById('context').textContent=`${page.context.label} · ${page.context.date} DR`;document.title=`${page.title} — TaelgarVerse design review`;configurePanels();
-  if(observer)observer.disconnect();observer=new IntersectionObserver(entries=>{const visible=entries.find(e=>e.isIntersecting);if(visible)document.querySelectorAll('#toc a').forEach(a=>a.classList.toggle('active',a.hash==='#'+visible.target.id));},{rootMargin:'0px 0px -65% 0px'});document.querySelectorAll('#article :is(h2,h3,h4,h5,h6)').forEach(h=>observer.observe(h));
-  renderCurrent();
-  if(scroll)window.scrollTo({top:0,behavior:'instant'});
- }
- picker.addEventListener('change',()=>render(picker.value));
- document.querySelectorAll('button[data-design]').forEach(button=>button.addEventListener('click',()=>{html.dataset.design=button.dataset.design;document.querySelectorAll('button[data-design]').forEach(b=>b.setAttribute('aria-pressed',String(b===button)));document.getElementById('design-description').textContent=descriptions[button.dataset.design];configurePanels();renderCurrent();}));
- const appearance=document.getElementById('appearance'),preference=matchMedia('(prefers-color-scheme:dark)');function setTheme(){html.dataset.theme=appearance.value==='system'?(preference.matches?'dark':'light'):appearance.value;}appearance.addEventListener('change',setTheme);preference.addEventListener('change',setTheme);matchMedia('(max-width:720px)').addEventListener('change',configurePanels);matchMedia('(max-width:1100px)').addEventListener('change',configurePanels);
- function dialog(title,content){document.getElementById('dialog-title').textContent=title;document.getElementById('dialog-content').replaceChildren(content);document.getElementById('offline-dialog').showModal();}
- document.getElementById('site').addEventListener('click',event=>{const link=event.target.closest('a');if(!link)return;const href=link.getAttribute('href');if(!href||!href.startsWith('/'))return;event.preventDefault();const url=new URL(href,'https://offline.invalid'),index=pages.findIndex(p=>url.pathname==='/page/'+p.slug);if(index>=0){render(index);if(url.hash)document.getElementById(decodeURIComponent(url.hash.slice(1)))?.scrollIntoView();}else{const p=document.createElement('p');p.textContent=`“${link.textContent.trim()}” is outside the seven pages bundled in this offline review. Use the Page selector above the site to explore the included pages.`;dialog('Page not included in this export',p);}});
- document.getElementById('site').addEventListener('submit',event=>{if(!event.target.matches('.nav-search'))return;event.preventDefault();const query=new FormData(event.target).get('q').trim().toLowerCase(),list=document.createElement('ul');pages.forEach((page,i)=>{if(page.name.toLowerCase().includes(query)||page.title.toLowerCase().includes(query)){const item=document.createElement('li'),button=document.createElement('button');button.textContent=page.title;button.addEventListener('click',()=>{document.getElementById('offline-dialog').close();render(i);});item.append(button);list.append(item);}});if(!list.children.length)list.textContent='No matching titles in the seven bundled pages.';dialog('Search this offline export',list);});
- document.getElementById('design-description').textContent=descriptions.current;render(0,false);setTheme();
-})();
-</script></body></html>
+<script type="text/plain" id="preview-script">__PREVIEW_SCRIPT__</script>
+<script>__REVIEW_SCRIPT__</script>
+</body></html>
