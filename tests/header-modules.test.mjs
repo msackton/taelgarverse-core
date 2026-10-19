@@ -4,7 +4,7 @@ import {Engine} from '../src/engine.mjs';
 import {loadSettings} from '../src/config.mjs';
 import {initializeHeaderRuntime,renderModuleHeader} from '../src/header-runtime.mjs';
 import {renderHeader} from '../src/headers.mjs';
-import {instantiate} from '../.generated/headers.mjs';
+import {instantiate} from '../src/worker-headers.mjs';
 import {standardHelpers} from '../scripts/build-runtime.mjs';
 
 test('module headers match original CustomJS across representative dates and relationships',()=>{

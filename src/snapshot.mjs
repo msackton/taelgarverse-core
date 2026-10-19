@@ -33,13 +33,13 @@ export class SnapshotStore extends ContentStore {
   }
 }
 
-export async function loadSnapshot(bucket,revision,instantiate,headerRevision) {
+export async function loadSnapshot(bucket,revision,instantiate) {
   if (!/^[a-f0-9]{64}$/.test(revision || '')) throw new RenderError(503,'No content revision has been published');
   const object=await bucket.get('revisions/'+revision+'/index.json');
   if (!object) throw new RenderError(503,'Content revision is not available');
   const index=await object.json();
-  if (index.schemaVersion!==1 || index.revision!==revision || index.headerRevision!==headerRevision) {
-    throw new RenderError(503,'Content snapshot and Worker runtime must be deployed together');
+  if (index.schemaVersion!==1 || index.revision!==revision) {
+    throw new RenderError(503,'Content snapshot format is not supported by this Worker');
   }
   const store=new SnapshotStore(index,bucket);
   const headers=initializeHeaderRuntime({pages:store.entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta:index.coreMeta,registry:index.registry},instantiate);

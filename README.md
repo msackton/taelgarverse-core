@@ -5,14 +5,21 @@ for a requested in-world DR date. The API, YAML parser, filters, header adapter,
 Markdown renderer, tests, and benchmark all run in Node. No Python, MkDocs build,
 or running Obsidian application is needed.
 
-The Cloudflare version now runs the same site in a Worker with R2-backed
-content. For local Cloudflare development, run `npm run cf:prepare`,
-`npm run cf:seed`, then `npm run cf:dev` and open http://127.0.0.1:8787/.
+The Cloudflare version runs the same site in a Worker with R2-backed content.
+The web core deploys from this repository without the vault; content is prepared,
+uploaded, and published separately. For local Cloudflare development, run
+`npm run cf:prepare`, `npm run cf:seed`, then `npm run cf:dev` and open
+http://127.0.0.1:8787/.
 See [Cloudflare setup and publishing](docs/cloudflare.md) for sign-in, the
 workers.dev preview, content updates, and rollback. The Node preview below
 remains available as a reference.
 
 ## Run locally
+
+For the cross-platform Obsidian export, web image optimization, and R2 publication
+pipeline, use `npm run content:publish -- --no-strict`. Unchanged Taelgar commits
+skip the build. See [content publishing](docs/publish-content.md) for prerequisites,
+the R2 commit checkpoint, image settings, and offline testing.
 
 Requires Node.js 22+ and an adjacent checkout of the Taelgar vault:
 
@@ -62,6 +69,14 @@ Paths are relative to the configuration file:
 The source and runtime directories may differ. Runtime scripts are trusted server
 code; Markdown body queries are not executed. The earlier utils_dir and
 node_command settings are no longer used.
+
+For prepared Markdown, run the vault materializer with `--dynamic-website`, set
+`source_dir` to its output directory (for example, `../taelgar-dynamic`), and keep
+`runtime_dir` pointing at `../taelgar`. That mode materializes Dataview queries,
+removes DataviewJS blocks and sections left empty by them, and replaces generated
+note headers with `<!-- taelgar:header -->`. A leading marker is replaced with a
+header for the requested date and campaign. The original-vault configuration
+above continues to work.
 
 CSS and icons are bundled in public/. They do not require Python or a sibling
 utilities repository at runtime. Sources/licenses are in public/vendor/NOTICE.md.

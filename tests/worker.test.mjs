@@ -7,7 +7,7 @@ import {Engine} from '../src/engine.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
 import {loadSnapshot} from '../src/snapshot.mjs';
-import {instantiate,headerRevision} from '../.generated/headers.mjs';
+import {instantiate} from '../src/worker-headers.mjs';
 
 let directory,report,bucket,engine,worker,env;
 class LocalBucket {
@@ -32,9 +32,10 @@ before(async()=>{
   fs.writeFileSync(path.join(source,'_nav.md'),'- [Home](index.md)\n- People\n    - {glob: people/}\n- Places\n    - {glob: places/}\n');
   const settings={...loadSettings(),source_dir:source,ignore_file:path.join(source,'_ignore.txt'),nav_source:path.join(source,'_nav.md')};
   report=await prepareContent(settings,path.join(directory,'package'));
-  bucket=new LocalBucket(JSON.parse(fs.readFileSync(report.manifestFile,'utf8')));
-  env={CONTENT:bucket,CONTENT_REVISION:report.revision,ASSETS:{fetch:async()=>new Response('theme')}};
-  engine=new Engine(settings);worker=createWorker(instantiate,headerRevision);
+  bucket=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
+    {key:'published/current.json',file:report.pointerFile}]);
+  env={CONTENT:bucket,ASSETS:{fetch:async request=>new Response(new URL(request.url).pathname)}};
+  engine=new Engine(settings);worker=createWorker(instantiate);
 });
 after(()=>{if(directory && isInside(path.join(ROOT,'.cache'),directory))fs.rmSync(directory,{recursive:true});});
 
@@ -65,6 +66,8 @@ test('Worker renders the same article as the VM reference and isolates request p
 });
 
 test('Worker serves HTML/navigation, assets with ranges/ETags, HEAD, and normal errors',async()=>{
+  assert.equal(await(await request('/theme/preview.css')).text(),'/preview.css');
+  assert.equal(await(await request('/theme/material.css')).text(),'/vendor/material.css');
   const html=await(await request('/page/people/example?date=1720-01-01&dm=1')).text();
   assert.match(html,/Site navigation|Breadcrumb/);assert.match(html,/See Behind the Curtain/);
   const asset=await request('/assets/tiny.png',{headers:{Range:'bytes=0-6'}});
@@ -81,12 +84,23 @@ test('Worker serves HTML/navigation, assets with ranges/ETags, HEAD, and normal 
   assert.equal((await(await request('/health')).json()).runtime,'cloudflare-worker');
 });
 
-test('snapshot load failures can recover and mismatched runtime revisions fail clearly',async()=>{
-  await assert.rejects(loadSnapshot(bucket,report.revision,instantiate,'different'),{status:503});
-  const failing=new LocalBucket(JSON.parse(fs.readFileSync(report.manifestFile,'utf8'))), key='revisions/'+report.revision+'/index.json';
+test('snapshot load failures recover and publication can change without redeploying Worker',async()=>{
+  await assert.rejects(loadSnapshot(bucket,'bad',instantiate),{status:503});
+  const failing=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
+    {key:'published/current.json',file:report.pointerFile}]), key='revisions/'+report.revision+'/index.json';
   failing.missing.add(key);
-  const retry=createWorker(instantiate,headerRevision), retryEnv={...env,CONTENT:failing};
+  const retry=createWorker(instantiate), retryEnv={...env,CONTENT:failing};
   assert.equal((await retry.fetch(new Request('https://example.test/health'),retryEnv)).status,503);
   failing.missing.delete(key);
+  assert.equal((await retry.fetch(new Request('https://example.test/health'),retryEnv)).status,200);
+  failing.missing.add('published/current.json');
+  assert.equal((await(await retry.fetch(new Request('https://example.test/health'),retryEnv)).json()).status,'awaiting-content');
+  assert.equal((await retry.fetch(new Request('https://example.test/'),retryEnv)).status,503);
+  failing.missing.delete('published/current.json');
+  const alternate=path.join(directory,'alternate.json');
+  fs.writeFileSync(alternate,JSON.stringify({revision:'a'.repeat(64)}));
+  failing.objects.set('published/current.json',alternate);
+  assert.equal((await retry.fetch(new Request('https://example.test/health'),retryEnv)).status,503);
+  failing.objects.set('published/current.json',report.pointerFile);
   assert.equal((await retry.fetch(new Request('https://example.test/health'),retryEnv)).status,200);
 });

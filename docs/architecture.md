@@ -92,8 +92,13 @@ The materializer accepts --date, but the current wrapper does not pass it.
 website.json separately sets export_date to 1750-01-01. These stages can use
 different dates. The dynamic engine uses one date for both stages.
 
-Rendering exported docs/ would leave headers frozen and could not recover
-prose already removed. The API therefore starts from original compact headers.
+Rendering the old exported docs/ would leave headers frozen and could not recover
+prose already removed. The API supports original compact headers and Markdown
+prepared by the vault materializer's `--dynamic-website` option. Prepared notes
+retain YAML and a leading `<!-- taelgar:header -->` marker. The renderer consumes
+that marker and inserts a fresh header without treating the first body heading
+as an old header. Source and runtime directories may differ, so prepared DQL
+results can coexist with original CustomJS header rules and metadata indexes.
 
 ## Pure Node migration and performance
 

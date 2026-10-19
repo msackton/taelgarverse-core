@@ -21,6 +21,7 @@ before(async () => {
     fs.writeFileSync(filename,source);
   }
   fs.writeFileSync(path.join(directory,'tiny.png'),'fixture asset');
+  fs.writeFileSync(path.join(directory,'Dynamic.md'),'---\ntags: [person]\nspecies: human\nname: Dynamic Person\nborn: 1700-01-01\n---\n<!-- taelgar:header -->\n\n# Body heading\n\nPrepared biography.\n\n```html\n<!-- taelgar:header -->\n```\n');
   fs.writeFileSync(path.join(directory,'Session.md'),'---\ntags: [session-note]\ncampaign: Dunmar Frontier\nsessionNumber: 1\nDR: 1720-01-01\nDR_end: 1720-01-02\n---\n# Session\n');
   fs.writeFileSync(path.join(directory,'AdderSession.md'),'---\ntags: [session-note]\ncampaign: Addermarch\nsessionNumber: 1\nDR: 1720-01-01\nDR_end: 1720-01-02\n---\n# Session\n');
   fs.appendFileSync(path.join(directory,'People/Example.md'),'\n%%^Campaign:adma%%\nAddermarch-only text\n%%^End%%\n');
@@ -42,6 +43,19 @@ test('headers recalculate ages, locations, lifecycle and preserve body',() => {
   assert.match(later,/30 years old/); assert.match(later,/Second Town/);
   assert.match(dead,/died at age 40 years/);
   assert.doesNotMatch(early,/Stale header/); assert.match(early,/Fixture biography/);
+});
+
+test('prepared header markers insert a date-aware header and preserve following headings and literal examples',() => {
+  for (const [date,age] of [['1720-01-01',20],['1730-01-01',30]]) {
+    const result = render('Dynamic',date), $ = load(result.html,{},false);
+    assert.equal($('h1#dynamic-person').length,1);
+    assert.equal($('h1#body-heading').length,1);
+    assert.match($.text(),new RegExp(age + ' years old'));
+    assert.match($.text(),/Prepared biography/);
+    assert.equal($('pre code').text().trim(),'<!-- taelgar:header -->');
+    assert.equal((result.html.match(/<!-- taelgar:header -->/g) || []).length,0);
+    assert.equal(result.warnings.length,0);
+  }
 });
 test('private comments, campaigns and temporal blocks',() => {
   const early = text(render()), later = text(render('Example','1730-01-01'));

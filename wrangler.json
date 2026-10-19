@@ -6,12 +6,11 @@
   "workers_dev": true,
   "preview_urls": false,
   "assets": {
-    "directory": ".generated/public",
+    "directory": "public",
     "binding": "ASSETS"
   },
   "r2_buckets": [
     {"binding": "CONTENT", "bucket_name": "taelgarverse-content"}
   ],
-  "vars": {"CONTENT_REVISION": "unpublished"},
   "observability": {"enabled": true}
 }

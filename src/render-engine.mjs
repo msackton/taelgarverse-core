@@ -30,9 +30,14 @@ export class RenderEngine {
     }
     const note = loadedNote || entry.note;
     let body = note.body;
-    if (metadata.headerVersion && metadata.tags) {
+    // Prepared Markdown places this marker at the start of the body. A leading
+    // marker is explicit; examples inside code or prose are left alone.
+    const headerMarker = /^[ \t\r\n]*<!-- taelgar:header -->[ \t]*(?:\r?\n|$)/.exec(body);
+    if (headerMarker || (metadata.headerVersion && metadata.tags)) {
       try {
-        body = parseNote(this.renderHeader(this.headers, {source: note.source, name: entry.name, metadata, date})).body;
+        const source = headerMarker ? '---\n---\n' : note.source;
+        const generated = parseNote(this.renderHeader(this.headers, {source, name: entry.name, metadata, date})).body;
+        body = headerMarker ? generated.trimEnd() + '\n\n' + body.slice(headerMarker[0].length).replace(/^(?:[ \t]*\r?\n)*/, '') : generated;
       } catch (error) {
         const wrapped = new RenderError(422, 'Header generation failed; check the configured CustomJS runtime');
         wrapped.cause = error;

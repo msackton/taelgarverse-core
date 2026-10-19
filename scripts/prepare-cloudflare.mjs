@@ -4,11 +4,17 @@ import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {ROOT,loadSettings,isInside} from '../src/config.mjs';
 import {Store} from '../src/store.mjs';
-import {themeFiles} from '../src/http-assets.mjs';
-import {buildRuntime} from './build-runtime.mjs';
+import {headerRevision} from '../src/worker-headers.mjs';
 
 const sha = value=>createHash('sha256').update(value).digest('hex');
 const writeJSON = (file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value)+'\n');};
+export function loadCloudflareConfig() {
+  const config=JSON.parse(fs.readFileSync(path.join(ROOT,'wrangler.json'),'utf8'));
+  const localFile=path.join(ROOT,'wrangler.local.json');
+  const local=fs.existsSync(localFile) ? JSON.parse(fs.readFileSync(localFile,'utf8')) : {};
+  for (const key of ['name','account_id','r2_buckets','limits']) if (local[key]) config[key]=local[key];
+  return config;
+}
 async function hashFile(file) {
   const hash=createHash('sha256');
   for await (const chunk of fs.createReadStream(file)) hash.update(chunk);
@@ -18,7 +24,7 @@ async function hashFile(file) {
 export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare')) {
   output=path.resolve(output);
   if (!isInside(ROOT,output) || output===ROOT) throw new Error('Content staging directory must be inside this project');
-  const runtime=buildRuntime(settings), store=new Store(settings), shards=new Map(), uploads=[];
+  const store=new Store(settings), shards=new Map(), uploads=[];
   const entries=[];
   for (const original of store.entries) {
     const {filename,note,...entry}=original;
@@ -42,7 +48,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     }
     entries.push(entry);
   }
-  const base={schemaVersion:1,headerRevision:runtime.revision,settings:{default_date:settings.default_date,campaigns:settings.campaigns},
+  const base={schemaVersion:1,settings:{default_date:settings.default_date,campaigns:settings.campaigns},
     registry:JSON.parse(fs.readFileSync(path.join(settings.runtime_dir,'_scripts/session_note_campaigns.json'),'utf8')),
     coreMeta:JSON.parse(fs.readFileSync(path.join(settings.runtime_dir,'.obsidian/metadata.json'),'utf8')),
     navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : '',warnings:store.warnings,entries};
@@ -58,25 +64,14 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   // A binary can occur at multiple vault paths. Upload its content only once.
   const unique=[...new Map(uploads.map(upload=>[upload.key,upload])).values()];
   const manifestFile=path.join(directory,'uploads.json');writeJSON(manifestFile,unique);
-  const config=JSON.parse(fs.readFileSync(path.join(ROOT,'wrangler.json'),'utf8'));
-  const localFile=path.join(ROOT,'wrangler.local.json');
-  const local=fs.existsSync(localFile) ? JSON.parse(fs.readFileSync(localFile,'utf8')) : {};
-  for (const key of ['name','account_id','r2_buckets','limits']) if (local[key]) config[key]=local[key];
+  const config=loadCloudflareConfig();
   config.main=path.join(ROOT,'src/worker.mjs');
-  const standard=output===path.resolve(ROOT,'.cache/cloudflare');
-  config.assets.directory=standard ? path.join(ROOT,'.generated/public') : path.join(output,'public');
-  config.vars={...config.vars,CONTENT_REVISION:revision};
-  const configFile=standard ? path.join(ROOT,'.generated/wrangler.json') : path.join(output,'wrangler.json');writeJSON(configFile,config);
-  const publicDir=config.assets.directory;
-  fs.mkdirSync(path.join(publicDir,'theme'),{recursive:true});
-  for (const [target,source] of Object.entries(themeFiles)) fs.copyFileSync(path.join(ROOT,'public',source),path.join(publicDir,'theme',target));
-  fs.mkdirSync(path.join(publicDir,'licenses'),{recursive:true});
-  for (const file of fs.readdirSync(path.join(ROOT,'public/vendor'))) if (file!=='material.css') {
-    fs.copyFileSync(path.join(ROOT,'public/vendor',file),path.join(publicDir,'licenses',file));
-  }
+  config.assets.directory=path.join(ROOT,'public');
+  const configFile=path.join(output,'wrangler.json');writeJSON(configFile,config);
+  const pointerFile=path.join(output,'current.json');writeJSON(pointerFile,{revision});
   const report={revision,indexFile,manifestFile,configFile,bucket:config.r2_buckets.find(b=>b.binding==='CONTENT').bucket_name,
     notes:entries.filter(e=>e.note).length,assets:entries.filter(e=>!e.note).length,objects:unique.length,
-    assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),headerRevision:runtime.revision};
+    assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision};
   writeJSON(path.join(output,'latest.json'),report);
   return report;
 }

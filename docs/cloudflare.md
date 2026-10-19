@@ -70,15 +70,23 @@ resource names, create ignored `wrangler.local.json` with the desired overrides:
 }
 ```
 
-Then prepare and check the exact snapshot, create the bucket once, upload its
-objects, and deploy the Worker:
+Publish the web core directly from this repository. It only needs the checked-in
+Worker code and `public/` assets. Cloudflare's deploy command can remain
+`npx wrangler deploy` with no build command or vault checkout. A new Worker
+responds to `/health` with `awaiting-content` until content is published:
+
+```powershell
+npm run cf:check
+npm run cf:deploy
+```
+
+Publish vault content separately from a machine with the configured vault:
 
 ```powershell
 npm run cf:prepare
-npm run cf:check
 npm run cf:bucket
 npm run cf:upload
-npm run cf:deploy
+npm run cf:publish
 ```
 
 Bucket creation is a one-time operation. If the named bucket already exists,
@@ -93,9 +101,10 @@ npm run cf:smoke -- https://the-url-printed-by-wrangler.workers.dev
 ```
 
 The upload wrapper records success for the prepared revision, bucket, Worker
-name, and configured account. `cf:deploy` requires that matching receipt so it
-does not deploy a new revision before its content upload completes. An account
-ID in the override file also makes the destination explicit between runs.
+name, and configured account. `cf:publish` requires that matching receipt, then
+updates `published/current.json` in R2. The Worker reads that pointer on each
+request and loads the new snapshot without a Worker deployment. An account ID
+in the override file makes the destination explicit between runs.
 
 The upload command uses the pinned Wrangler version's experimental `r2 bulk put`
 command. It streams files with bounded concurrency. The wrapper validates that
@@ -106,14 +115,15 @@ when upgrading Wrangler.
 
 ## Content updates and rollback
 
-After editing Markdown, navigation, runtime rules, or configuration, run prepare,
-check, upload, and deploy again. Repeat seed instead of upload for a local-only
-update, then restart the local Worker with `cf:dev`.
+After editing Markdown, navigation, or content configuration, run prepare,
+upload, and publish again. Repeat seed instead of upload and publish for a
+local-only update. Web core changes deploy through `cf:deploy` independently.
 
 Preparation creates `.cache/cloudflare/latest.json`, a revision directory with
 the metadata index, Markdown shards, and upload manifest, and content-addressed
-asset copies. It emits ignored `.generated/headers.mjs`, the static theme and
-license files, and `.generated/wrangler.json` with `CONTENT_REVISION` pinned.
+asset copies. It also emits an R2 pointer file and an ignored Wrangler config
+for content upload. Static theme files and the Worker header runtime are part
+of the web core repository.
 No output is written to the vault. Configuration and machine paths are excluded
 from the uploaded metadata index.
 
@@ -122,16 +132,19 @@ of eight shards and shares the immutable metadata/link/header indexes between
 requests. Header objects and date/campaign preferences are request-local.
 Binary assets stream from R2 with ETags, conditional GET, and byte-range support.
 
-Deploying a content revision pins code, header rules, and content together.
-Existing revisions and asset objects remain available for rollback. Rolling back
-the Worker deployment restores its previous content-revision setting as well.
-There is no automatic deletion of old content in this version.
+Existing revisions and asset objects remain available for rollback. To select
+an earlier content revision, publish a pointer containing that revision to
+`published/current.json`. Worker rollback is a separate operation. There is
+no automatic deletion of old content in this version.
 
 ## Runtime compatibility and scope
 
-The hosted renderer uses ordinary JavaScript modules generated from the vault's
-trusted CustomJS classes at preparation time. A syntax-aware transform replaces
+The hosted renderer uses a checked-in JavaScript module derived from the vault's
+trusted CustomJS classes. A syntax-aware transform replaces
 Obsidian's `.first()`, `.last()`, and `.contains()` helpers with standard methods.
+Changes to those CustomJS classes are renderer changes: run
+`npm run build:worker-headers`, commit `src/worker-headers.mjs`, then deploy the
+web core. Markdown and asset changes only need the content publication step.
 It uses neither `node:vm` nor runtime evaluation and does not modify global
 prototypes. The local Node preview retains the VM adapter as a reference;
 article rendering, routing, filters, Markdown, and navigation are shared.
