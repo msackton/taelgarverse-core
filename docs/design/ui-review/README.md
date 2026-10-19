@@ -5,10 +5,10 @@ Chrome, Edge, Firefox, or Safari browser. The standalone export includes its
 styles, scripts, page excerpts, and images. No internet connection, running
 TaelgarVerse server, installation, or ChatGPT account is required.
 
-Choose **Page** and **Section preview** at the top. Use the design picker or
-arrows below the preview to compare five directions: Classic Encyclopedia,
-Modern Codex, Atlas Reference, Reader's Edition, and Quiet Library. Each design
-includes System, Light, and Dark appearance options.
+Use the five **Design** buttons at the top to compare Classic Encyclopedia,
+Modern Codex, Atlas Reference, Reader's Edition, and Quiet Library. Choose
+**Page** and **Section preview** directly below them. Each design includes
+System, Light, and Dark appearance options.
 
 The review contains Chardon, Addermarch, Voltara, Melusa, the Green Sea, and
 Dunmari Frontier Sessions 110 and 120. Long sections are excerpted and marked
