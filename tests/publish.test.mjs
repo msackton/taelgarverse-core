@@ -106,7 +106,11 @@ test('subprocess arguments containing spaces and shell characters remain literal
 
 test('R2 storage distinguishes missing object, legacy pointer, invalid data, and authentication failure', async t => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'taelgar-publish-test-'));
-  t.after(() => fs.rm(directory, {recursive: true}));
+  t.after(async () => {
+    assert.equal(path.dirname(path.resolve(directory)), path.resolve(os.tmpdir()));
+    assert.ok(path.basename(directory).startsWith('taelgar-publish-test-'));
+    await fs.rm(directory, {recursive: true});
+  });
   const filename = path.join(directory, 'checkpoint.json');
   let response = checkpoint, failure, recorded;
   const storage = createStorage({bucket: 'test-bucket', configFile: 'config path.json', run: async (exe, args) => {
