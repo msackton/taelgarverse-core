@@ -64,10 +64,17 @@ Presentation improvements.
 
 ### MVP-04: Backlinks
 
-**Status:** Agreed scope; detailed behavior remains open.
+**Status:** Implemented; local browser and publication-index verification complete.
 
 Restore a basic display of pages linking to the current page, comparable to the
 existing Taelgarverse. Richer backlink presentation can follow later.
+
+Articles show **Linked from** in the right-hand page navigation, with a sorted,
+deduplicated list of referring pages. Authored article links respect source-page
+availability and occurrence-level campaign/date/Behind the Curtain visibility.
+Publication builds a reverse index so the Worker can display backlinks without
+fetching referring article bodies. The feature needs the updated renderer and
+a fresh content publication. See [backlink behavior and indexing](backlinks.md).
 
 ### MVP-05: Existing tiled maps
 
