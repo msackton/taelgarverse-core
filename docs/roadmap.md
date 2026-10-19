@@ -104,6 +104,14 @@ discussed.
 Render Mermaid blocks as diagrams, including the existing family trees in the
 vault. Detailed styling and diagram-link behavior remain to be discussed.
 
+### MVP-10: Excalidraw through exported images
+
+**Status:** Agreed scope.
+
+Display Excalidraw drawings through exported images, using the normal image
+presentation and enlargement support. Automatic export and interactive drawing
+support are deferred until after MVP.
+
 ### Explicitly outside MVP
 
 - **Advanced session reading views.** The short/long narrative controls,
@@ -271,3 +279,10 @@ authoring requirement.
 Explore generating map locations and linked map features from the map metadata
 recorded by the linter. Determine how existing location records can be resolved
 onto the website's maps.
+
+### P-10: Excalidraw export automation and interactive drawings
+
+**Status:** Deferred until after MVP; detailed scope remains open.
+
+Consider automatic generation of updated drawing exports and interactive
+Excalidraw presentation after MVP. Exported images are sufficient for MVP.
