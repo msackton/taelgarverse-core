@@ -68,9 +68,9 @@ The page shell uses Quiet Library typography with the Sage & stone palette.
 `src/header.mjs` owns header controls and dialog markup; `src/navigation.mjs`
 renders context-filtered section links and the lazy navigation tree. Browser
 code moves the same navigation, search, and context controls into dialogs below
-1100px. Backlinks remain accessible below the article on mobile and on pages
-without a contents list. Material CSS still provides article components; the
-Quiet Library stylesheet overrides its colors with shared light/dark tokens.
+1100px. Backlinks use the right sidebar even without a contents list, and remain
+accessible below the article on mobile. Material CSS still provides article
+components; the Quiet Library stylesheet overrides its colors with shared light/dark tokens.
 Appearance defaults to the operating system, is applied before styles load, and
 explicit choices persist in `localStorage` under `taelgarverse-appearance`.
 This preference does not alter content context or server caching.

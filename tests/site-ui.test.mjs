@@ -34,7 +34,7 @@ test('optional navigation omissions reclaim space while retaining search/setting
     assert.equal($('.site-sidebar').length,hide.includes('navigation') ? 0 : 1);
     assert.equal($('#navigation-toggle').length,hide.includes('navigation') ? 0 : 1);
     assert.equal($('.page-contents').length,hide.includes('toc') ? 0 : 1);
-    assert.equal($('.layout--no-toc').length,hide.includes('toc') ? 1 : 0);
+    assert.equal($('.layout--no-toc').length,0); // Backlinks still use the right sidebar.
     assert.equal($('#header-search').length,1); assert.equal($('#settings-toggle').length,1);
     assert.equal($('.page-backlinks').length,1);
   }

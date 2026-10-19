@@ -232,7 +232,7 @@ also includes unrecognized campaign sources. Campaign ownership comes from the
 source note's `campaign` property or its registered campaign folder. This does
 not change whether those articles can be opened directly.
 Generated header relationships and links back to the same article are excluded.
-Backlinks appear beside long articles and below short articles; on mobile they
+Nonempty backlinks appear in the right sidebar even on short articles; on mobile they
 appear in a collapsed **Linked from** section below the article.
 
 The header gear offers **System**, **Light**, and **Dark** appearance. System is

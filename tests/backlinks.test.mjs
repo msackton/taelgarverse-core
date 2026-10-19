@@ -115,13 +115,13 @@ test('the index strips saved and prepared header slots without dropping article 
   }
 });
 
-test('Linked from shares page navigation, releases the right column without a TOC, and escapes titles',() => {
+test('Linked from keeps the right column without a TOC, hides empty sections, and escapes titles',() => {
   const result = {title:'Target',page:'backlink-target',context:context(),html:'<h1>Target</h1>',toc:'',warnings:[],
     backlinks:[{page:'source',title:'<img src=x onerror=alert(1)>',url:'/page/source?date=1720-01-01&dm=1'}]};
   let $ = load(document(result,[]));
   assert.equal($('.page-toc .page-backlinks summary').text(),'Linked from');
   assert.equal($('.article-main .page-backlinks').length,0);
-  assert.equal($('.layout--no-toc').length,1);
+  assert.equal($('.layout--no-toc').length,0);
   assert.equal($('.page-toc--backlinks-only').length,1);
   assert.equal($('.page-backlinks a').text(),result.backlinks[0].title);
   assert.equal($('.page-backlinks img').length,0);
