@@ -155,7 +155,7 @@ not independently checked because the local Cloudflare login had expired.
 The move to vault-authored homepage and menu files is implemented in this checkout;
 the live site needs the updated core deployment and a new content publication.
 
-## Isolated AI Search pilot
+## Isolated search pilot
 
 The separate `taelgarverse-search-pilot` instance uses built-in storage and hybrid
 keyword/vector indexing. Its creation and initial 22-note indexing were verified
@@ -169,3 +169,19 @@ name and uses the existing Wrangler login or an environment token. The
 [operating guide](../experiments/ai-search/README.md) owns commands, limits,
 artifacts, and cleanup. No binding to this instance has been added to the
 production Worker; the local pilot viewer performs the experiment's queries.
+
+An independent D1 database, also named `taelgarverse-search-pilot`, was created
+and tested through the D1 REST API on 2026-10-19. Its FTS5 index contains the same
+22-note whole-note/passage exports and the four-note visibility sample. The
+[baseline client](../experiments/ai-search/baseline.mjs) fixes this resource name,
+checks the ownership/schema marker before mutations, applies run/view filters in
+SQL, and validates the active digest and excerpts against the local export.
+Incremental updates, deletions and the active digest commit in one transaction;
+live rollback, visibility, and edit/delete probes passed.
+
+D1 requires no AI instance or AI credentials/scopes. The local server uses the
+existing Cloudflare login with D1 access, while the optional AI request uses
+AI Search permissions. `--no-ai` prevents AI requests; per-search disabling and
+provider/timeout fallback return the D1 results. No D1 binding or search route has
+been added to the production Worker. Neither index is updated by the production
+publisher. Uploading to either remains an explicit pilot command.

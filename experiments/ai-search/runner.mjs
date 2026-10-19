@@ -94,7 +94,7 @@ export function searchRequest(batch,view,query,mode,{rerank=false,threshold=0,ke
       context_expansion:0,return_on_failure:false,filters:{owner:OWNER,run:batch.run,view}},
     query_rewrite:{enabled:false},reranking:{enabled:rerank,match_threshold:threshold},cache:{enabled:false}}};
 }
-export function groupResults(batch,view,response){
+export function groupResults(batch,view,response,limit=5){
   if(!Array.isArray(response.chunks))throw new Error('Unexpected AI Search response: no chunks array');
   const docs=new Map(batch.documents.filter(d=>d.view===view).map(d=>[d.key,d])), pages=new Map();
   for(const chunk of response.chunks){
@@ -108,7 +108,7 @@ export function groupResults(batch,view,response){
     const result={page:doc.page,title:doc.title,url:doc.url,score:chunk.score,excerpt:String(chunk.text ?? ''),heading:doc.heading,scores:chunk.scoring_details};
     if(!pages.has(doc.page))pages.set(doc.page,result);
   }
-  return [...pages.values()].slice(0,5);
+  return [...pages.values()].slice(0,limit);
 }
 export async function compareQuery(client,batch,view,query,{modes=MODES,reserveUsage=()=>{},...settings}={}){
   const requests=modes.map(mode=>({mode,body:searchRequest(batch,view,query,mode,settings)}));

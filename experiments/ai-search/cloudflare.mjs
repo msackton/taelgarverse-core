@@ -41,9 +41,9 @@ export class PilotClient {
     this.base='https://api.cloudflare.com/client/v4/accounts/'+account+'/ai-search/namespaces/default/instances';
     this.headers={Authorization:'Bearer '+token};
   }
-  async request(suffix='',{method='GET',body,form}={}) {
+  async request(suffix='',{method='GET',body,form,signal}={}) {
     let response;
-    try{response=await this.fetcher(this.base+'/'+PILOT_INSTANCE+suffix,{method,redirect:'error',signal:AbortSignal.timeout(60000),
+    try{response=await this.fetcher(this.base+'/'+PILOT_INSTANCE+suffix,{method,redirect:'error',signal:signal ? AbortSignal.any([signal,AbortSignal.timeout(60000)]) : AbortSignal.timeout(60000),
       headers:{...this.headers,...(!form && body ? {'Content-Type':'application/json'} : {})},body:form || (body ? JSON.stringify(body) : undefined)});}
     catch{throw new Error('Cloudflare request could not complete; remote state may be unchanged or still processing. Check status before retrying.');}
     let data;
@@ -96,7 +96,7 @@ export class PilotClient {
     if(!owned(item))throw new Error('Refusing to delete a document outside the pilot namespace');
     await this.request('/items/'+encodeURIComponent(item.id),{method:'DELETE'});
   }
-  async search(body){const data=await this.request('/search',{method:'POST',body});return data.result ?? data;}
+  async search(body,{signal}={}){const data=await this.request('/search',{method:'POST',body,signal});return data.result ?? data;}
   async stats(){return (await this.request('/stats')).result;}
 }
 export const owned=item=>item.source_id==='builtin' && item.key?.startsWith('tvpilot/') && item.metadata?.owner===OWNER;

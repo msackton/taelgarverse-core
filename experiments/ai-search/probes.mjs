@@ -6,7 +6,7 @@ const setText=(doc,text,codec)=>{doc.text=text;doc.tokens=codec.count(text);doc.
 // Synthetic markers are confined to exported copies in their own diagnostic run.
 export async function updateProbe(client,original,{codec,reserveUsage,log=()=>{},record=()=>{},saveBatch=()=>{}}){
   const batch=structuredClone(original), run='article-'+hash('update-probe:'+original.run).slice(0,16);
-  batch.run=run;batch.documents=batch.documents.slice(0,2);
+  batch.run=run;batch.documents=batch.documents.filter(d=>d.view===batch.views[0].id).slice(0,2);
   if(batch.documents.length!==2)throw new Error('Update probe needs two exported documents');
   const oldMarker='pilotoldmarkerqzv',newMarker='pilotnewmarkerqzv',deleteMarker='pilotdeletemarkerqzv';
   batch.documents.forEach((d,i)=>{d.key=d.key.replace(original.run,run);d.metadata.run=run;setText(d,d.text+'\n\nPilot diagnostic marker: '+(i?deleteMarker:oldMarker),codec);});
@@ -32,7 +32,7 @@ export async function updateProbe(client,original,{codec,reserveUsage,log=()=>{}
   const report={type:'update-probe',run,first,changed,unchanged,checks,cleanedUp:true,completedAt:new Date().toISOString()};record(report);return report;
 }
 
-export async function visibilityProbe(client,batch,{reserveUsage,record=()=>{}}){
+export function visibilityCases(batch){
   const cases=[
     {view:'public-all',source:'Rhodar von Glauer.md',term:'millstone',present:true},
     {view:'public-none',source:'Rhodar von Glauer.md',term:'millstone',present:false},
@@ -50,6 +50,10 @@ export async function visibilityProbe(client,batch,{reserveUsage,record=()=>{}})
     .sort((a,b)=>b.length-a.length || a.localeCompare(b))[0];
   if(!term)throw new Error('No distinct DM term available for visibility probe');
   cases.push({view:'public-all',source:'Ursk.md',term,present:false},{view:'dm-all',source:'Ursk.md',term,present:true});
+  return cases;
+}
+export async function visibilityProbe(client,batch,{reserveUsage,record=()=>{}}){
+  const cases=visibilityCases(batch);
   const results=[];
   for(const c of cases){
     const doc=batch.documents.find(d=>d.view===c.view && d.source.endsWith(c.source));if(!doc)throw new Error('Missing visibility probe document');

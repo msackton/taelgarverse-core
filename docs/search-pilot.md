@@ -2,7 +2,9 @@
 
 **Status:** Pilot tooling implemented, 2026-10-19. The separate Cloudflare
 `taelgarverse-search-pilot` instance contains the 22-note sample. Initial retrieval,
-chunking, visibility, and update experiments are complete and ready for user review. Production
+chunking, visibility, and update experiments are complete and ready for user review.
+An independent D1 FTS5 baseline now supports full-text search with optional AI
+enrichment, per-search/server disabling, and provider/timeout fallback. Production
 integration remains deferred. See the [operating guide](../experiments/ai-search/README.md).
 The [pilot observations](search-pilot-results.md) record the measured results and
 remaining limitations.
@@ -12,6 +14,12 @@ remaining limitations.
 Evaluate hybrid search for exact names/phrases and meaning-based questions before
 indexing the full website. Return ranked source pages and excerpts. Generated
 answers are outside the initial experiment.
+
+Keep full-text search usable without AI Search. Index the same prepared sample
+in D1, prefer exact titles/aliases, and compare D1 alone with D1 plus vector
+retrieval. AI queries and AI indexing have separate controls; a disabled or
+unavailable AI layer must preserve baseline results. This is implemented in the
+isolated harness, with production integration still deferred.
 
 ## Sample
 
@@ -99,7 +107,8 @@ used by backlinks to search results. Additional campaign ownership filters remai
 a product decision.
 
 Proposed initial limits: **100,000 prepared tokens per batch**, **1 million total
-prepared ingestion tokens**, and **500 search requests** across the first pilot.
+prepared ingestion tokens**, and **500 AI search requests** across the first pilot.
+D1 has a separate 500-SQL-request budget; actual row reads/writes are recorded.
 Count duplicated views, passage prefixes, overlap, and reruns. A dry run reports
 the planned upload and request counts and refuses work exceeding configured
 limits. These are harness limits, not Cloudflare account billing caps; compare

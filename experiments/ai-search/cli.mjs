@@ -10,12 +10,15 @@ import {PilotClient,credentials,owned} from './cloudflare.mjs';
 import {readJSON,writeJSON,validateBatch,reserve,syncBatch,compareQuery} from './runner.mjs';
 import {reportHTML,viewerHTML} from './viewer.mjs';
 import {updateProbe,visibilityProbe} from './probes.mjs';
+import {D1PilotClient,D1_DATABASE,recordD1Usage} from './baseline.mjs';
+import {layeredQuery,LAYER_MODES} from './layered.mjs';
+import {baselineVisibilityProbe,baselineUpdateProbe} from './baseline-probes.mjs';
 
 export const CACHE=path.join(ROOT,'.cache/ai-search-pilot');
 function options(argv){
   const result={command:argv[0]==='--help' ? 'help' : argv[0] || 'help'};
-  const flags=new Set(['dry-run','rerank']);
-  const values=new Set(['pilot','config','source','views','style','chunk-tokens','overlap-tokens','batch','query','mode','threshold','keyword-match','port']);
+  const flags=new Set(['dry-run','rerank','no-ai']);
+  const values=new Set(['pilot','config','source','views','style','chunk-tokens','overlap-tokens','batch','query','mode','threshold','keyword-match','port','engine','ai-timeout-ms']);
   for(let i=1;i<argv.length;i++){
     const key=argv[i].replace(/^--/,'');
     if(flags.has(key))result[key]=true;
@@ -29,6 +32,7 @@ const batchFile=run=>{
   return path.join(CACHE,'batches',run,'manifest.json');
 };
 const receiptFile=run=>path.join(path.dirname(batchFile(run)),'upload.json');
+const baselineReceiptFile=run=>path.join(path.dirname(batchFile(run)),'baseline-upload.json');
 function loadBatch(run,codec,config){
   run ??=readJSON(path.join(CACHE,'latest.json')).run;
   const batch=readJSON(batchFile(run));
@@ -43,13 +47,17 @@ function uploaded(batch){
   const file=receiptFile(batch.run), receipt=fs.existsSync(file) ? readJSON(file) : {};
   if(receipt.digest!==batch.digest || !receipt.completedAt)throw new Error('Upload this exact batch and wait for indexing before searching');
 }
+function baselineUploaded(batch,account){
+  const file=baselineReceiptFile(batch.run),receipt=fs.existsSync(file)?readJSON(file):{};
+  if(receipt.digest!==batch.digest || !receipt.completedAt || receipt.account!==account)throw new Error('Sync this exact batch with baseline-upload before searching');
+}
 function environment(client,batch){return {
   previous:fs.existsSync(receiptFile(batch.run)) ? readJSON(receiptFile(batch.run)) : {},
   reserveUsage:amount=>reserve(CACHE,client.account,batch.limits,amount),
   record:report=>writeJSON(receiptFile(batch.run),{...report,account:client.account}),log:message=>console.log(message),
 };}
 
-export function createPilotServer({loadBatches,search}){
+export function createPilotServer({loadBatches,search,aiEnabled=true}){
   return http.createServer(async(req,res)=>{
     const send=(status,body,type='application/json')=>{res.writeHead(status,{'Content-Type':type+'; charset=utf-8','Cache-Control':'no-store',
       'X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; base-uri 'none'; frame-ancestors 'none'"});res.end(type==='application/json'?JSON.stringify(body):body);};
@@ -59,6 +67,7 @@ export function createPilotServer({loadBatches,search}){
       const url=new URL(req.url,'http://'+host);
       if(req.method==='GET' && url.pathname==='/')return send(200,viewerHTML,'text/html');
       if(req.method==='GET' && url.pathname==='/api/batches')return send(200,loadBatches());
+      if(req.method==='GET' && url.pathname==='/api/settings')return send(200,{aiEnabled});
       if(req.method==='POST' && url.pathname==='/api/search'){
         if(!req.headers['content-type']?.startsWith('application/json'))return send(415,{detail:'Use application/json'});
         let body='';for await(const chunk of req){body+=chunk;if(Buffer.byteLength(body)>8192)return send(413,{detail:'Request too large'});}
@@ -80,18 +89,26 @@ Local:
 Remote, using CLOUDFLARE_API_TOKEN or the existing Wrangler login:
   init | status
   upload [--batch <run ID>]
-  query --query "..." [--mode hybrid|keyword|vector] [--views public-all] [--rerank]
-  compare [--batch <run ID>] [--views public-all] [--rerank]
+  baseline-init | baseline-status
+  baseline-upload [--batch <run ID>] [--dry-run]   (independent of AI indexing)
+  baseline-reset --batch <run ID>   (only this run's D1 rows)
+  baseline-probe-visibility --batch <visibility run ID>
+  baseline-probe-updates --batch <main sample run ID>
+  query --query "..." [--engine baseline|enhanced|compare|ai] [--views public-all]
+  compare [--engine baseline|enhanced|compare|ai] [--batch <run ID>] [--views public-all]
+  --engine ai preserves the original --mode hybrid|keyword|vector comparison.
   probe-updates [--batch <run ID>]   (two diagnostic copies; cleans up afterward)
   probe-visibility --batch <visibility run ID>
   reset --batch <run ID>   (only documents owned by that pilot batch)
 Local viewer backed by remote queries:
-  serve [--port 8770]
-Optional retrieval settings: --threshold 0..1, --keyword-match and|or.
+  serve [--port 8770] [--no-ai]
+Optional retrieval settings: --threshold 0..1, --keyword-match and|or, --rerank,
+  --no-ai, --ai-timeout-ms 10..30000 (default 5000 for the optional AI layer).
 Prepared files, usage counters, upload receipts, and results stay in .cache/ai-search-pilot.`);return;
   }
   const codec=tokenizer();
   try{
+    if(opts['dry-run'] && !['upload','baseline-upload'].includes(opts.command))throw new Error('--dry-run is supported only for upload and baseline-upload');
     if(opts.command==='prepare'){
       const settings=loadSettings(opts.config);if(opts.source)settings.source_dir=fs.realpathSync(path.resolve(opts.source));
       const store=new Store(settings), registry=readJSON(path.join(settings.vault_dir,'_scripts/session_note_campaigns.json'));
@@ -104,12 +121,73 @@ Prepared files, usage counters, upload receipts, and results stay in .cache/ai-s
         fs.writeFileSync(path.join(path.dirname(file),doc.view+'-'+path.basename(file)),doc.text);}
       console.log(JSON.stringify({run:batch.run,notes:batch.sources.length,documents:batch.documents.length,tokens:batch.tokens,warnings:batch.warnings,manifest:batchFile(batch.run)},null,2));return;
     }
-    if(opts.command==='upload' && opts['dry-run']){
+    if(['upload','baseline-upload'].includes(opts.command) && opts['dry-run']){
       const batch=loadBatch(opts.batch,codec,config);console.log(JSON.stringify({instance:PILOT_INSTANCE,run:batch.run,documents:batch.documents.length,
-        tokens:batch.tokens,views:batch.views.map(v=>v.id),limits:batch.limits,remoteCalls:0},null,2));return;
+        tokens:batch.tokens,views:batch.views.map(v=>v.id),limits:batch.limits,remoteCalls:0,engine:opts.command==='baseline-upload'?'D1':'AI Search'},null,2));return;
     }
-    if(!['init','status','upload','query','compare','reset','serve','probe-updates','probe-visibility'].includes(opts.command))throw new Error('Unknown pilot command: '+opts.command);
-    const client=new PilotClient(credentials());
+    if(!['init','status','upload','query','compare','reset','serve','probe-updates','probe-visibility','baseline-init','baseline-status','baseline-upload','baseline-reset','baseline-probe-visibility','baseline-probe-updates'].includes(opts.command))throw new Error('Unknown pilot command: '+opts.command);
+    const auth=credentials(),d1Root=path.join(CACHE,'d1');
+    const baseline=new D1PilotClient({...auth,reserveUsage:amount=>reserve(d1Root,auth.account,config.limits,amount),onUsage:usage=>recordD1Usage(d1Root,auth.account,usage)});
+    const runLayered=async(batch,view,query,settings)=>{
+      baselineUploaded(batch,auth.account);
+      return layeredQuery({baseline,aiEnabled:!opts['no-ai'],aiSearch:async(body,signal)=>{
+        uploaded(batch);reserve(CACHE,auth.account,batch.limits,{queries:1});
+        return new PilotClient(auth).search(body,{signal});
+      }},batch,view,query,{...settings,aiTimeoutMs:Number(opts['ai-timeout-ms'] ?? 5000)});
+    };
+    if(opts.command.startsWith('baseline-')){
+      if(opts.command==='baseline-init'){console.log(JSON.stringify(await baseline.ensure(),null,2));return;}
+      if(opts.command==='baseline-status'){
+        await baseline.connect();const status=await baseline.query([{sql:'SELECT b.run,b.digest,COUNT(d.key) AS documents FROM tv_pilot_batches b LEFT JOIN tv_pilot_docs d ON d.run=b.run GROUP BY b.run,b.digest'}]);
+        console.log(JSON.stringify({database:D1_DATABASE,account:auth.account,runs:status.results[0].results,usage:readJSON(path.join(d1Root,'metrics',auth.account+'.json'))},null,2));return;
+      }
+      const batch=loadBatch(opts.batch,codec,config),lock=path.join(CACHE,'sync-d1-'+auth.account+'-'+batch.run+'.lock'),fd=fs.openSync(lock,'wx');
+      try{
+        if(opts.command.startsWith('baseline-probe-')){
+          baselineUploaded(batch,auth.account);
+          const result=opts.command==='baseline-probe-visibility' ? await baselineVisibilityProbe(baseline,batch) :
+            await baselineUpdateProbe(baseline,batch,{codec,saveBatch:b=>writeJSON(batchFile(b.run),b)});
+          writeJSON(path.join(CACHE,'reports',opts.command+'.json'),result);
+          if(!result.passed)throw new Error('D1 probe failed; inspect the saved report');
+          console.log(JSON.stringify(result,null,2));return;
+        }
+        if(opts.command==='baseline-reset'){
+          if(!opts.batch)throw new Error('Reset requires an explicit --batch ID');
+          await baseline.reset(batch.run);if(fs.existsSync(baselineReceiptFile(batch.run)))fs.unlinkSync(baselineReceiptFile(batch.run));
+          console.log('Deleted D1 rows from '+batch.run+'; AI index and usage counters retained');return;
+        }
+        const receipt=await baseline.sync(batch);writeJSON(baselineReceiptFile(batch.run),receipt);console.log(JSON.stringify(receipt,null,2));return;
+      }finally{fs.closeSync(fd);fs.unlinkSync(lock);}
+    }
+    if(opts.command==='serve'){
+      const ready=(b,file)=>{try{const r=readJSON(file);return r.digest===b.digest && Boolean(r.completedAt) && r.account===auth.account;}catch{return false;}};
+      const loadBatches=()=>{
+        const folder=path.join(CACHE,'batches');if(!fs.existsSync(folder))return [];
+        return fs.readdirSync(folder).filter(run=>/^(article|passages)-[a-f0-9]{16}$/.test(run)).flatMap(run=>{
+          const b=loadBatch(run,codec,config),d1Ready=ready(b,baselineReceiptFile(run)),aiReady=ready(b,receiptFile(run));
+          return d1Ready || aiReady ? [{run,style:b.options.style,chunkTokens:b.options.chunkTokens,experiment:b.options.experiment || 'sample',notes:b.sources.length,
+            baseline:d1Ready,ai:aiReady,views:b.views.map(({id,label})=>({id,label}))}] : [];
+        });
+      };
+      const server=createPilotServer({loadBatches,aiEnabled:!opts['no-ai'],search:async input=>{
+        const batch=loadBatch(input.run,codec,config);
+        if(!Array.isArray(input.modes) || !input.modes.length || input.modes.length>3 || new Set(input.modes).size!==input.modes.length || typeof input.rerank!=='boolean' || typeof input.ai!=='boolean')throw new Error('Invalid search modes');
+        let result;
+        if(input.modes.every(m=>LAYER_MODES.includes(m))){
+          result=await runLayered(batch,input.view,input.query,{modes:input.modes,ai:input.ai,rerank:input.rerank,threshold:input.threshold ?? .4,keywordMatch:input.keywordMatch || 'and'});
+        }else{
+          if(opts['no-ai'] || !input.ai)throw new Error('AI Search is disabled; select D1 full-text or the layered comparison');
+          uploaded(batch);result=await compareQuery(new PilotClient(auth),batch,input.view,input.query,{modes:input.modes,rerank:input.rerank,threshold:input.threshold ?? .4,
+            keywordMatch:input.keywordMatch || 'and',reserveUsage:amount=>reserve(CACHE,auth.account,batch.limits,amount)});
+        }
+        recordReport([result]);return result;
+      }});
+      const port=Number(opts.port || 8770);if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('Invalid local port');
+      await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
+      console.log('Search pilot: http://127.0.0.1:'+port+' (AI '+(opts['no-ai']?'disabled':'optional')+')');
+      for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(()=>process.exit(0)));return;
+    }
+    const client=new PilotClient(auth);
     if(opts.command==='init'){
       const info=await client.ensure();console.log(JSON.stringify({instance:PILOT_INSTANCE,account:client.account,embeddingModel:info.embedding_model,
         indexMethod:info.index_method,chunkSize:info.chunk_size,overlap:info.chunk_overlap},null,2));return;
@@ -118,27 +196,6 @@ Prepared files, usage counters, upload receipts, and results stay in .cache/ai-s
       const items=await client.list();console.log(JSON.stringify({instance:PILOT_INSTANCE,account:client.account,stats:await client.stats(),
         runs:[...new Set(items.filter(owned).map(i=>i.metadata.run))],sample:items.slice(0,1).map(i=>({status:i.status,metadata:i.metadata,fields:Object.keys(i)})),
         usage:fs.existsSync(path.join(CACHE,'usage',client.account+'.json'))?readJSON(path.join(CACHE,'usage',client.account+'.json')):null},null,2));return;
-    }
-    if(opts.command==='serve'){
-      const loadBatches=()=>{
-        const folder=path.join(CACHE,'batches');if(!fs.existsSync(folder))return [];
-        return fs.readdirSync(folder).filter(run=>/^(article|passages)-[a-f0-9]{16}$/.test(run) && fs.existsSync(receiptFile(run))).flatMap(run=>{
-          const b=loadBatch(run,codec,config);try{uploaded(b);}catch{return [];}
-          return [{run,style:b.options.style,chunkTokens:b.options.chunkTokens,experiment:b.options.experiment || 'sample',notes:b.sources.length,
-            views:b.views.map(({id,label})=>({id,label}))}];
-        });
-      };
-      const server=createPilotServer({loadBatches,search:async input=>{
-        const batch=loadBatch(input.run,codec,config);uploaded(batch);
-        if(!Array.isArray(input.modes) || !input.modes.length || input.modes.length>3 || new Set(input.modes).size!==input.modes.length || typeof input.rerank!=='boolean')throw new Error('Invalid search modes');
-        const result=await compareQuery(new PilotClient(credentials()),batch,input.view,input.query,{modes:input.modes,rerank:input.rerank,threshold:input.threshold ?? .4,
-          reserveUsage:amount=>reserve(CACHE,client.account,batch.limits,amount)});
-        recordReport([result]);return result;
-      }});
-      const port=Number(opts.port || 8770);if(!Number.isInteger(port)||port<1024||port>65535)throw new Error('Invalid local port');
-      await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(port,'127.0.0.1',resolve);});
-      console.log('Search pilot: http://127.0.0.1:'+port);for(const signal of ['SIGINT','SIGTERM'])process.on(signal,()=>server.close(()=>process.exit(0)));
-      return;
     }
     const batch=loadBatch(opts.batch,codec,config);
     if(opts.command==='upload'){
@@ -155,21 +212,26 @@ Prepared files, usage counters, upload receipts, and results stay in .cache/ai-s
       if(fs.existsSync(receiptFile(batch.run)))fs.unlinkSync(receiptFile(batch.run));
       console.log('Deleted '+items.length+' documents from '+batch.run+'; cumulative usage retained');return;
     }
-    uploaded(batch);
     if(opts.command.startsWith('probe-')){
+      uploaded(batch);
       const settings={codec,reserveUsage:amount=>reserve(CACHE,client.account,batch.limits,amount),log:message=>console.log(message),
         saveBatch:exported=>writeJSON(batchFile(exported.run),exported),
         record:report=>writeJSON(path.join(CACHE,'reports',opts.command+'.json'),report)};
       const result=opts.command==='probe-updates' ? await updateProbe(client,batch,settings) : await visibilityProbe(client,batch,settings);
       console.log(JSON.stringify(result,null,2));return;
     }
-    const view=opts.views || batch.views[0].id, settings={rerank:Boolean(opts.rerank),threshold:Number(opts.threshold ?? 0),keywordMatch:opts['keyword-match'] || 'and',
+    const engine=opts.engine || (opts.mode?'ai':'compare');
+    if(!['baseline','enhanced','compare','ai'].includes(engine))throw new Error('Unknown search engine');
+    if(opts.mode && engine!=='ai')throw new Error('--mode applies only to --engine ai');
+    const view=opts.views || batch.views[0].id, settings={rerank:Boolean(opts.rerank),threshold:Number(opts.threshold ?? (engine==='ai'?0:.4)),keywordMatch:opts['keyword-match'] || 'and',
       reserveUsage:amount=>reserve(CACHE,client.account,batch.limits,amount)};
     const queries=opts.command==='query' ? [{query:opts.query,expected:[]}] : readJSON(new URL('./queries.json',import.meta.url));
+    if(engine==='ai'){if(opts['no-ai'])throw new Error('AI Search is disabled');uploaded(batch);}
     const comparisons=[];
     const reportPath=path.join(CACHE,'reports',new Date().toISOString().replaceAll(':','-')+'-'+Math.random().toString(36).slice(2,7));
     for(const query of queries){
-      const result=await compareQuery(client,batch,view,query.query,{...settings,...(opts.command==='query'?{modes:[opts.mode || 'hybrid']}:{})});
+      const result=engine==='ai' ? await compareQuery(client,batch,view,query.query,{...settings,...(opts.command==='query'?{modes:[opts.mode || 'hybrid']}:{})}) :
+        await runLayered(batch,view,query.query,{...settings,modes:engine==='compare'?LAYER_MODES:[engine],ai:!opts['no-ai']});
       result.kind=query.kind || 'manual';
       result.evaluation=Object.fromEntries(result.results.map(r=>[r.mode,query.expected.length ? r.pages.some(p=>query.expected.some(id=>batch.documents.find(d=>d.source===id)?.page===p.page)) : query.kind==='negative' ? r.pages.length===0 : null]));
       comparisons.push(result);console.log(JSON.stringify({query:query.query,results:result.results.map(r=>({mode:r.mode,latencyMs:r.latencyMs,pages:r.pages.map(p=>p.title),expectedHit:result.evaluation[r.mode]}))}));

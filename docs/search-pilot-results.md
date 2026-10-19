@@ -1,9 +1,61 @@
-# AI Search pilot observations
+# Search pilot observations
 
 Measured on 2026-10-19 against the isolated `taelgarverse-search-pilot` instance.
 These are exploratory results from the 22-note sample, not a production search
 evaluation. See the [operating guide](../experiments/ai-search/README.md) to repeat
 the runs or try different questions.
+
+## Independent full-text baseline and optional AI
+
+The same exports are now indexed in the separate D1 database named
+`taelgarverse-search-pilot`. The default viewer compares D1 alone with D1 plus
+one optional vector-retrieval request. Both use the same visible prose. Exact
+title/alias matches are preferred; remaining candidates combine with reciprocal
+rank fusion. AI is disabled per search with the checkbox or for the server with
+`serve --no-ai`. Index updates remain separate explicit commands.
+
+The 16-query, whole-note run with all-word matching and AI disabled found all
+eight name/alias/phrase cases and one paraphrased case: **9/15 positive hits@5**.
+It returned no results for the unrelated question. Median D1 response time was
+**138.5 ms**, including the management-API network call but excluding harness
+startup/authentication. The 16 searches read **333 D1 rows total**, ranging from
+2 to 83 per search, and wrote zero rows. The AI request counter stayed unchanged
+throughout that run. These are sample measurements, not full-vault estimates.
+
+The five-second bounded-AI comparison found **12/15 positive hits@5** versus
+D1's 9/15, and both rejected the unrelated question. D1's median was 166.5 ms;
+the enhanced response median was about 3.8 seconds. **Six of 16 AI attempts timed
+out**, preserving the D1 ordering and excerpts. An earlier three-second trial
+had a different set of timeouts and 13/15 enhanced hits; these sequential runs
+are not a controlled comparison of timeout values. Provider latency needs more
+observation before choosing production behavior. The browser check separately
+found Session 96 for the vampire-castle question with AI enabled and showed
+identical full-text results with zero AI attempts when disabled.
+
+A second server started with `--no-ai` also rejected an explicitly requested
+AI-only query. Even a client sending `ai: true` received identical D1 results in
+both layered columns; the AI request counter remained unchanged. Local tests
+cover provider/quota failure, stale or foreign AI results, and timeout/abort
+fallback. The pilot comparison waits for the optional AI attempt before showing
+both columns; a production interface could display baseline results immediately.
+
+The initial 22-note D1 upload reported **90 rows written**, including index work,
+and a **393,216-byte** database. With the passage and visibility exports plus
+diagnostic activity, the database remained about 1.2 MB. Successful D1 responses
+record row reads/writes, SQL time, and storage separately from the AI budget.
+The sample is comfortably below the published included D1 allowances; account
+usage and the full corpus still need measurement. See [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/).
+
+All **eight live D1 visibility checks** and **five update/delete checks** passed.
+The real API also rolled back an intentionally failed diagnostic transaction,
+preserving the active digest. An unchanged sync sent zero documents and wrote
+zero rows. Diagnostic copies were removed afterward. SQLite-backed tests cover
+weighted ranking, phrases, apostrophes, edits/deletions, transaction rollback,
+stale excerpts, scope isolation, and refusal to initialize a foreign schema.
+
+D1 FTS5's BM25 statistics span the database, including the alternate exports;
+as with the AI-only keyword comparisons below, rankings are exploratory. The
+pilot is still restricted to fixed exported views and the selected notes.
 
 ## Retrieval
 

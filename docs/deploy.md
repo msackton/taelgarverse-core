@@ -372,9 +372,13 @@ The manual `cf:publish` command records only the revision ID, so the next full
 
 ## Isolated search experiment
 
-`npm run search:pilot -- help` describes the separate AI Search pilot. Its
+`npm run search:pilot -- help` describes the separate search pilot. Its
 [operating guide](../experiments/ai-search/README.md) covers local preparation,
 authentication, explicit small uploads, comparisons, and cleanup. These commands
 do not publish vault content or deploy the website; they target only
-`taelgarverse-search-pilot` when using Cloudflare. Production search integration
-remains outside the experiment.
+the D1 database and AI Search instance each named `taelgarverse-search-pilot`
+when using Cloudflare. `baseline-upload` syncs D1 independently; AI `upload` is
+optional. `serve --no-ai` enforces baseline-only operation, and the ordinary
+viewer has a per-search AI toggle. Disabling queries does not remove the AI
+index or stop separately invoked uploads. Production search integration remains
+outside the experiment.
