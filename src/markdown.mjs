@@ -141,7 +141,7 @@ export function createMarkdown(options = {}) {
   md.renderer.rules.fence = (tokens, index, options, env, renderer) => {
     const type = tokens[index].info.trim();
     if (/^mermaid(?:\s|$)/i.test(type)) {
-      return '<figure class="mermaid-diagram"><div class="mermaid-output" role="region" aria-label="Diagram" tabindex="0"></div>' +
+      return '<figure class="mermaid-diagram"><div class="mermaid-output"></div>' +
         '<details class="mermaid-source" open><summary>Diagram source</summary><pre><code class="language-mermaid">' +
         escapeHtml(tokens[index].content) + '</code></pre></details></figure>\n';
     }

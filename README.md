@@ -212,10 +212,12 @@ is needed.
 
 Mermaid fences render in the browser as SVG diagrams, including the existing
 House of Sewick and House of Lils family trees. Authored styles are retained.
-Wide diagrams keep readable text and scroll within the article; flowcharts
-initially show their first node. A collapsible **Diagram source** remains
-available and stays open if JavaScript is unavailable or a diagram fails.
-One invalid diagram does not prevent other diagrams from rendering.
+Diagrams fit the article width and viewport height without inline scrolling.
+**See bigger** opens a popup at full size, with a **Fit to window** option;
+**See source** opens the Mermaid text in a separate popup. Both popups support
+Close, Escape, backdrop dismissal, and returning keyboard focus to the button.
+Readable inline source remains available without JavaScript. A rendering error
+keeps the source accessible and does not prevent other diagrams from rendering.
 
 The [Mermaid library](https://mermaid.js.org/config/usage) is pinned and bundled
 locally with strict rendering and diagram links/callbacks disabled. It is loaded

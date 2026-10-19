@@ -77,14 +77,28 @@ html.image-viewer-open { overflow: hidden; }
 .image-viewer-caption { font-size: 14px; line-height: 1.4; margin: 0; max-width: 70ch; overflow-wrap: anywhere; }
 .image-viewer a:focus-visible, .image-viewer button:focus-visible { outline: 3px solid #00796b; outline-offset: 3px; }
 .md-typeset audio { display: block; max-width: 100%; margin: 1em 0; }
-.md-typeset .mermaid-diagram { margin: 1.5em 0; }
-.mermaid-output { max-width: 100%; overflow: auto; }
+.md-typeset .mermaid-diagram { width: 100%; margin: 1.5em 0; }
+.mermaid-output { max-width: 100%; }
 .mermaid-output:empty { display: none; }
-.mermaid-output svg { display: block; height: auto; }
-.mermaid-output:focus-visible { outline: 2px solid #00796b; outline-offset: 3px; }
+.mermaid-output svg { display: block; width: auto; height: auto; max-width: 100%; max-height: 70vh; max-height: 70dvh; margin: 0 auto; }
+.diagram-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; font-size: 14px; }
+.diagram-actions button, .diagram-popup-header button { margin: 0; }
+.diagram-actions button:disabled { opacity: .5; cursor: default; }
 .md-typeset .mermaid-source { margin: 12px 0 0; font-size: 13px; }
+.md-typeset .mermaid-source[hidden] { display: none; }
 .mermaid-source summary { cursor: pointer; }
 .mermaid-error { padding: 12px; background: #fff6e4; color: #79500d; font-size: 14px; }
+html.diagram-popup-open { overflow: hidden; }
+.diagram-popup { box-sizing: border-box; width: min(1400px, calc(100vw - 32px)); height: min(900px, calc(100vh - 32px)); height: min(900px, calc(100dvh - 32px)); max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); padding: 16px; border: 0; border-radius: 8px; background: #fff; color: #283536; box-shadow: 0 12px 64px #0005; }
+.diagram-popup[open] { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 16px; }
+.diagram-popup::backdrop { background: #102421d9; }
+.diagram-popup-header { display: flex; align-items: center; gap: 12px; font-size: 14px; }
+.diagram-popup-header h2 { flex: 1; font-size: 18px; line-height: 1.3; margin: 0; }
+.diagram-popup-content { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; }
+.diagram-popup-content svg { display: block; height: auto; max-width: none; }
+.diagram-popup-content--fit svg { width: auto; max-width: 100%; max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); margin: 0 auto; }
+.diagram-popup-content pre { margin: 0; padding: 16px; background: #f3f6f5; font: 14px/1.5 ui-monospace, monospace; tab-size: 2; }
+.diagram-popup button:focus-visible, .diagram-popup-content:focus-visible, .diagram-actions button:focus-visible { outline: 2px solid #00796b; outline-offset: 3px; }
 .md-typeset .twemoji svg { width: 1em; height: 1em; }
 @media (max-width: 1100px) {
   .layout { grid-template-columns: 220px minmax(0,1fr); grid-template-areas: "navigation toc" "navigation article"; gap: 16px 28px; }

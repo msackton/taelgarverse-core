@@ -121,10 +121,13 @@ vault. Further styling and diagram-link behavior remain to be discussed.
 
 Mermaid is pinned and bundled locally, loaded only for pages with diagrams, and
 uses strict rendering with links/callbacks disabled. Existing node styles are
-preserved. Wide diagrams scroll within the article, and readable source remains
-available without JavaScript or after a rendering error. Both existing family
-trees, mobile containment, and recovery after an invalid diagram were checked
-in the browser. Node and Worker tests cover context filtering and asset routing.
+preserved. Diagrams fit within the article width and viewport height. "See bigger"
+opens a full-size popup with a fit-to-window option, and "See source" opens the
+Mermaid text in a popup. Both support keyboard closing and focus restoration.
+Readable source remains available without JavaScript or after a rendering error.
+Both existing family trees, mobile containment, and recovery after an invalid
+diagram were checked in the browser. Node and Worker tests cover context
+filtering and asset routing.
 
 ### MVP-10: Excalidraw through exported images
 
