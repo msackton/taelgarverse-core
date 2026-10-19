@@ -162,10 +162,89 @@ not require maintaining a comprehensive manual relationship catalog.
 The extraction approach, representation, and website presentation remain to be
 discussed.
 
+### IA-05: Audit queries, inserts, and embedded content
+
+**Status:** Agreed investigation; feature decisions follow the inventory.
+
+Review where the current vault uses Dataview, DataviewJS, inline backtick
+expressions, and other special inserts or embeds. Include Leaflet, Mermaid,
+Obsidian canvases, and any other formats found in use.
+
+Identify the purpose and location of each pattern, its current website
+handling, and the decisions needed to preserve, replace, or deliberately omit
+it. This audit does not change the agreed exclusion of DataviewJS support and
+output parity from MVP.
+
 ## Presentation improvements
 
 Website-only improvements that do not change the vault. Discussion areas include
 UI, table-of-contents and navigation management, search, map structures, image
 zoom and popups, and backlink generation.
 
-No individual backlog items have been agreed yet.
+### P-01: Reading experience
+
+**Status:** Agreed direction; detailed design remains open.
+
+Improve typography, spacing, mobile layouts, and theme choices, informed by
+the existing UI design work.
+
+### P-02: Tables and cards
+
+**Status:** Agreed direction; detailed design remains open.
+
+Explore sortable and filterable reference tables and compact NPC cards where
+they make collections easier to scan.
+
+### P-03: Map exploration
+
+**Status:** Agreed direction; detailed design remains open.
+
+Extend the MVP map experience with distance measurement, switchable overlays,
+and navigation between world and regional maps.
+
+### P-04: Better search
+
+**Status:** Agreed direction; detailed design remains open.
+
+Improve ranking and snippets beyond basic MVP full-text search, with optional
+filters for types of content.
+
+### P-05: More informative backlinks
+
+**Status:** Agreed direction; detailed design remains open.
+
+Make backlinks more useful, including short excerpts explaining why another
+page links to the current page.
+
+### P-06: Campaign hubs and standard campaign presentation
+
+**Status:** Agreed direction; content and layout remain open.
+
+Develop campaign hubs and consistent ways to present information about a
+campaign. Determine which information and navigation should be shared across
+campaigns and where individual campaigns need flexibility.
+
+### P-07: Generated campaign context and encounters
+
+**Status:** Agreed investigation; sources and generation approach remain open.
+
+Explore per-campaign encounter lists for NPCs and similar campaign context on
+entity pages. Consider session-note backlinks, processed transcripts, and
+related session artifacts as sources. The definition of an encounter and the
+details of extraction and presentation remain open.
+
+### P-08: Name explorers from linter metadata
+
+**Status:** Agreed investigation; detailed design remains open.
+
+Explore using the name metadata recorded by the linter to generate name
+explorers. Start from the existing metadata rather than assuming a new
+authoring requirement.
+
+### P-09: Automatic map locations from linter metadata
+
+**Status:** Agreed investigation; detailed design remains open.
+
+Explore generating map locations and linked map features from the map metadata
+recorded by the linter. Determine how existing location records can be resolved
+onto the website's maps.
