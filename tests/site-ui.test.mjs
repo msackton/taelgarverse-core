@@ -29,7 +29,7 @@ test('live Quiet Library shell includes accessible settings, context-preserving 
 });
 test('optional navigation omissions reclaim space while retaining search/settings and backlinks',() => {
   for (const hide of [['navigation'],['toc'],['navigation','toc']]) {
-    const $ = load(document({...result,hide,backlinks:[]},[],nav));
+    const $ = load(document({...result,hide,backlinks:[{page:'source',title:'Source',url:'/page/source'}]},[],nav));
     assert.equal($('.section-navigation').length,hide.includes('navigation') ? 0 : 1);
     assert.equal($('.site-sidebar').length,hide.includes('navigation') ? 0 : 1);
     assert.equal($('#navigation-toggle').length,hide.includes('navigation') ? 0 : 1);

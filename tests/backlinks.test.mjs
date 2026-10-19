@@ -126,8 +126,10 @@ test('Linked from shares page navigation, releases the right column without a TO
   assert.equal($('.page-backlinks a').text(),result.backlinks[0].title);
   assert.equal($('.page-backlinks img').length,0);
   $ = load(document({...result,toc:'<a href="#section">Section</a>',backlinks:[]},[]));
-  assert.equal($('.page-toc > details').length,2);
-  assert.equal($('.backlinks-empty').text(),'No incoming links.');
+  assert.equal($('.page-toc > details').length,1);
+  assert.equal($('.page-backlinks').length,0);
+  $ = load(document({...result,backlinks:[]},[]));
+  assert.equal($('.page-toc').length,0);
   $ = load(document({...result,backlinks:undefined},[]));
   assert.equal($('.page-toc').length,0);
 });

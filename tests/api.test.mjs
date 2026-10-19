@@ -408,9 +408,8 @@ test('Node API and right page navigation expose the same filtered backlinks, inc
     for (const link of result.backlinks) assert.equal((await fetch(base+link.url)).status,200);
   }
   const $=load(await(await fetch(base+'/page/backlink-empty')).text());
-  assert.equal($('.page-backlinks summary').text(),'Linked from');
-  assert.equal($('.page-backlinks a').length,0);
-  assert.equal($('.backlinks-empty').text(),'No incoming links.');
+  assert.equal($('.page-backlinks').length,0);
+  assert.equal($('.page-toc').length,0);
   assert.equal((await fetch(base+'/page/addermarch-backlink-session?context=modern')).status,200);
 });
 

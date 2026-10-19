@@ -107,10 +107,9 @@ export function document(result,contextOptions,navigation,releases) {
   const hasSection = showNavigation && view.trail[0]?.children.length > 0;
   const breadcrumbs = view ? navigation.breadcrumbs(view) : '';
   const toc = result.toc && !result.hide?.includes('toc') ? '<details class="page-contents" open><summary>On this page</summary><nav aria-label="On this page">' + result.toc + '</nav></details>' : '';
-  const backlinks = Array.isArray(result.backlinks) ? '<details class="page-backlinks" open><summary>Linked from</summary>' +
-    (result.backlinks.length ? '<nav aria-label="Linked from"><ul>' + result.backlinks.map(link =>
-      '<li><a href="' + escapeHtml(link.url) + '">' + escapeHtml(link.title) + '</a></li>').join('') + '</ul></nav>' :
-      '<p class="backlinks-empty">No incoming links.</p>') + '</details>' : '';
+  const backlinks = Array.isArray(result.backlinks) && result.backlinks.length ? '<details class="page-backlinks" open><summary>Linked from</summary>' +
+    '<nav aria-label="Linked from"><ul>' + result.backlinks.map(link =>
+      '<li><a href="' + escapeHtml(link.url) + '">' + escapeHtml(link.title) + '</a></li>').join('') + '</ul></nav></details>' : '';
   const pageNav = toc || backlinks ? '<aside class="page-toc' + (toc ? '' : ' page-toc--backlinks-only') + '" aria-label="Page navigation">' +
     (toc ? '<h2 class="page-nav-title">' + escapeHtml(result.title) + '</h2>' : '') + toc + backlinks + '</aside>' : '';
   const diagrams = result.html.includes('class="mermaid-diagram"') ? '<script type="module" src="/theme/diagrams.js"></script>' : '';

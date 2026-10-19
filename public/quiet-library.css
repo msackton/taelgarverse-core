@@ -89,7 +89,6 @@ form { background: var(--surface); }
 .nav-tree ul, .page-backlinks:not(:first-child) { border-color: var(--line); }
 .nav-tree details > summary::before { color: var(--accent); }
 .page-toc--backlinks-only { grid-area: backlinks; position: static; max-height: none; width: 100%; max-width: 1040px; margin: 0 auto; padding: 20px 0 0; border: 0; border-top: 1px solid var(--line); }
-.backlinks-empty { color: var(--muted); }
 .md-typeset .breadcrumbs { font: 12px/1.6 system-ui, sans-serif; color: var(--muted); margin-bottom: 22px; }
 .breadcrumbs a { color: var(--muted); }
 .breadcrumbs li + li::before { color: var(--accent); }
