@@ -35,8 +35,12 @@ and what those variants should change.
 
 Provide a general mechanism for incorporating generic HTML pages or sections
 into the dynamic website. Taelgar II is a required MVP use case for that
-mechanism. Navigation, presentation, and publishing integration remain to be
-discussed.
+mechanism.
+
+Taelgar II can remain a standalone website with its own presentation; it does
+not need the shared Taelgarverse header or navigation. Preserving the link in
+the source material may be sufficient as its entry point. Hosting and
+publishing integration remain to be discussed.
 
 ### Explicitly outside MVP
 
