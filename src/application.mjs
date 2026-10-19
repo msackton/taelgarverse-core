@@ -2,6 +2,7 @@ import {RenderError,escapeHtml,pageUrl,parseDM} from './common.mjs';
 import {document} from './render-engine.mjs';
 import {contextQuery} from './header.mjs';
 import {availableInContext} from './content-store.mjs';
+import {homepage} from './homepage.mjs';
 
 const apiSpec = {
   openapi:'3.1.0', info:{title:'TaelgarVerse rendering API',version:'0.2.0'},
@@ -85,7 +86,7 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
           '<input name="q" aria-label="Find a page" value="' + escapeHtml(query) + '"><button>Find a page</button></form>';
         if (!url.searchParams.has('q')) {
           const home = await renderHome(context);
-          if (home) return send(200,document({...home,title:'TaelgarVerse',html:home.html + searchForm,context},engine.contexts.list(),engine.navigation,releases),'text/html');
+          if (home) return send(200,document({...homepage(home,context,engine.store),title:'TaelgarVerse',context},engine.contexts.list(),engine.navigation,releases),'text/html');
         }
         const entries = [...engine.store.bySlug.values()].sort((a,b) => a.slug.localeCompare(b.slug))
           .filter(e => availableInContext(e,context) && (e.slug + ' ' + e.title).toLowerCase().includes(query.toLowerCase())).slice(0,100);

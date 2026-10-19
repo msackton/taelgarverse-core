@@ -143,8 +143,11 @@ GET /page/people/zimkovans/zahara?context=dunmar-frontier&dm=1
 ## Homepage
 
 Edit `_website/home.md` in the `taelgar` vault to change the homepage text and
-links. It uses the existing TaelgarVerse introduction and includes a search box
-supplied by the core. Submitting a search opens the page finder at `/?q=...`.
+links within the introduction. Core owns the dedicated Quiet Library homepage
+template, decorative map, and prominent Current Games, Gazetteer, and World Map
+buttons. The heading and first paragraph from `home.md` appear in the banner;
+the remaining prose appears below the buttons. The buttons and homepage search
+retain the selected context. Submitting a search opens the page finder at `/?q=...`.
 Publish homepage changes with the usual [content publishing command](docs/deploy.md).
 
 ## Site navigation and page TOC

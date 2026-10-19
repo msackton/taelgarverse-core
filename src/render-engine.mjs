@@ -118,9 +118,10 @@ export function document(result,contextOptions,navigation,releases) {
   const diagrams = result.html.includes('class="mermaid-diagram"') ? '<script type="module" src="/theme/diagrams.js"></script>' : '';
   return '<!doctype html><html lang="en" data-appearance="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><script src="/theme/appearance.js"></script>' +
     '<title>' + escapeHtml(result.title) + ' — TaelgarVerse</title><link rel="stylesheet" href="/theme/material.css">' +
-    '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"><link rel="stylesheet" href="/theme/quiet-library.css"></head>' +
+    '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"><link rel="stylesheet" href="/theme/quiet-library.css">' +
+    (result.homepage ? '<link rel="stylesheet" href="/theme/homepage.css">' : '') + '</head>' +
     '<body>' + siteHeader(result.context,contextOptions,{query:result.query,sections:showNavigation ? navigation.sections(view) : '',navigation:!!showNavigation}) +
-    '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (toc ? '' : ' layout--no-toc') + (hasSection ? '' : ' layout--no-navigation') + '">' + sidebar +
+    '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (toc ? '' : ' layout--no-toc') + (hasSection ? '' : ' layout--no-navigation') + (result.homepage ? ' layout--home' : '') + '">' + sidebar +
     '<main id="page-content" class="md-typeset article-main" tabindex="-1">' + breadcrumbs + result.html + warning + '</main>' + pageNav +
     '</div>' + siteDialogs() + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/site-ui.js" defer></script><script src="/theme/image-viewer.js" defer></script>' + diagrams + '</body></html>';
 }
