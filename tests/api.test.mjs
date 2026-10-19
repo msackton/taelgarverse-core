@@ -334,6 +334,9 @@ test('homepage renders authored Markdown with context links and keeps search sep
   assert.equal(response.status,200);
   const $ = load(await response.text());
   assert.equal($('main h1').text(),'Welcome to the fixture site');
+  assert.equal($('.home-hero h1').text(),'Welcome to the fixture site');
+  assert.equal($('.home-entry').length,3);
+  assert.equal($('.layout--home').length,1);
   assert.match($('main').text(),/Website introduction|Addermarch homepage content/);
   assert.doesNotMatch($('main').text(),/Private homepage note|Up to 100 matching pages/);
   assert.equal($('main a[href="/page/people/example?context=addermarch"]').length,1);
@@ -343,6 +346,11 @@ test('homepage renders authored Markdown with context links and keeps search sep
   assert.match(finder('main').text(),/Up to 100 matching pages/);
   assert.doesNotMatch(finder('main').text(),/Website introduction/);
   assert.equal(finder('.context-form input[name="q"]').val(),'');
+  assert.equal(finder('.home-hero').length,0);
+  for (const [file,type] of [['homepage.css','text/css'],['home-map.webp','image/webp']]) {
+    const asset = await fetch(base+'/theme/'+file);
+    assert.equal(asset.status,200); assert.ok(asset.headers.get('content-type').startsWith(type));
+  }
 });
 
 test('page finder and navigation use the same date availability as articles',async()=>{
@@ -400,9 +408,8 @@ test('Node API and right page navigation expose the same filtered backlinks, inc
     for (const link of result.backlinks) assert.equal((await fetch(base+link.url)).status,200);
   }
   const $=load(await(await fetch(base+'/page/backlink-empty')).text());
-  assert.equal($('.page-backlinks summary').text(),'Linked from');
-  assert.equal($('.page-backlinks a').length,0);
-  assert.equal($('.backlinks-empty').text(),'No incoming links.');
+  assert.equal($('.page-backlinks').length,0);
+  assert.equal($('.page-toc').length,0);
   assert.equal((await fetch(base+'/page/addermarch-backlink-session?context=modern')).status,200);
 });
 

@@ -197,6 +197,8 @@ test('published website Markdown renders like Node without exposing website file
     assert.equal(html,nodeHtml);
     const $=load(html);
     assert.equal($('main h1').text(),'Welcome to the fixture site');
+    assert.equal($('.home-hero h1').length,1);
+    assert.equal($('.home-entry').length,3);
     assert.equal($('main a[href="https://example.org/"]').length,1);
     assert.equal($('main').text().includes('Private homepage note'),query.includes('dm=1'));
     assert.equal($('main').text().includes('Addermarch homepage content'),query.includes('addermarch') || query.includes('campaigns=all'));
@@ -204,6 +206,8 @@ test('published website Markdown renders like Node without exposing website file
   }));
   assert.equal([...storage.calls.keys()].some(key=>key.includes('/notes/')),false);
   assert.equal((await request('/page/_website/home')).status,404);
+  assert.equal(await(await request('/theme/homepage.css')).text(),'/homepage.css');
+  assert.equal(await(await request('/theme/home-map.webp')).text(),'/images/home-map.webp');
 });
 
 test('old publications retain the page finder; invalid homepage data is rejected',async()=>{

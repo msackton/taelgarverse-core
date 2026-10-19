@@ -143,8 +143,11 @@ GET /page/people/zimkovans/zahara?context=dunmar-frontier&dm=1
 ## Homepage
 
 Edit `_website/home.md` in the `taelgar` vault to change the homepage text and
-links. It uses the existing TaelgarVerse introduction and includes a search box
-supplied by the core. Submitting a search opens the page finder at `/?q=...`.
+links within the introduction. Core owns the dedicated Quiet Library homepage
+template, decorative map, and prominent Current Games, Gazetteer, and World Map
+buttons. The heading and first paragraph from `home.md` appear in the banner;
+the remaining prose appears below the buttons. The buttons and homepage search
+retain the selected context. Submitting a search opens the page finder at `/?q=...`.
 Publish homepage changes with the usual [content publishing command](docs/deploy.md).
 
 ## Site navigation and page TOC
@@ -180,7 +183,16 @@ explicitly set to null, navigation follows the content directory tree.
 Only the current branch's immediate siblings and ancestors are sent with the
 article. Expanding another branch loads its children through `/api/navigation`.
 Without JavaScript, **Browse section** links provide ordinary section pages.
-On narrow screens the site navigation and page TOC become collapsible panels.
+Quiet Library uses serif prose, a neutral Sage & stone palette, and top-level
+section links in the desktop header. At 1100px the left navigation becomes a
+hamburger drawer and header search becomes a magnifying-glass button. At 800px
+page contents disappear, while backlinks remain available below the article.
+The header gear offers System (default), Light, and Dark appearance and remembers
+the selection in the browser. On smaller screens it also contains the context
+and Behind the Curtain controls. The page title replaces the wordmark after
+scrolling, and upward scrolling reveals a Back to top button.
+Notes and the authored homepage can use `hide: [navigation, toc]` to omit either
+or both navigation areas; see [vault usage](docs/vault.md#links-navigation-and-media).
 The page TOC nests subheadings, omits the article title, and highlights the
 current section while scrolling. Comment popup headings stay outside the TOC.
 

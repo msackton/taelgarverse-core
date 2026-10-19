@@ -22,33 +22,3 @@ async function loadBranch(details) {
 document.addEventListener('toggle',event=>{
   if (event.target.matches('details[data-nav-url]')) loadBranch(event.target);
 },true);
-
-if (matchMedia('(max-width: 800px)').matches) {
-  document.querySelector('.site-navigation')?.removeAttribute('open');
-}
-if (matchMedia('(max-width: 1100px)').matches) {
-  document.querySelectorAll('.page-toc > details').forEach(section=>section.removeAttribute('open'));
-}
-const sidebar = document.querySelector('.site-sidebar');
-const current = sidebar?.querySelector('[aria-current="page"]');
-if (current && matchMedia('(min-width: 801px)').matches) {
-  const offset = current.getBoundingClientRect().top - sidebar.getBoundingClientRect().top;
-  if (offset > sidebar.clientHeight - 40) sidebar.scrollTop += offset - sidebar.clientHeight / 2;
-}
-const links = [...document.querySelectorAll('.page-toc a[href^="#"]')];
-const sections = links.map(link=>document.getElementById(decodeURIComponent(link.hash.slice(1))));
-let pending = false;
-function trackSection() {
-  pending = false;
-  let active = 0;
-  sections.forEach((section,index)=>{ if (section && section.getBoundingClientRect().top <= 120) active = index; });
-  links.forEach((link,index)=>{
-    link.classList.toggle('is-active',index===active);
-    if (index===active) link.setAttribute('aria-current','location');
-    else link.removeAttribute('aria-current');
-  });
-}
-if (links.length) {
-  trackSection();
-  addEventListener('scroll',()=>{ if (!pending) { pending = true; requestAnimationFrame(trackSection); } },{passive:true});
-}

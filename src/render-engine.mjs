@@ -4,7 +4,7 @@ import {parseNote, availableInContext} from './content-store.mjs';
 import {filterComments} from './comments.mjs';
 import {createMarkdown, renderMarkdown} from './markdown.mjs';
 import {Contexts} from './contexts.mjs';
-import {siteHeader} from './header.mjs';
+import {siteHeader,siteDialogs} from './header.mjs';
 import {Navigation} from './navigation.mjs';
 import {expandNoteEmbeds} from './embeds.mjs';
 import {releaseFooter} from './release-footer.mjs';
@@ -54,7 +54,7 @@ export class RenderEngine {
         throw wrapped;
       }
     }
-    return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,
+    return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,hide:Array.isArray(metadata.hide) ? metadata.hide : [],
       ...this.renderBody(body,entry,context,embedLoading), backlinks:this.backlinkIndex && (this.backlinkIndex.version>=2 || context.campaigns.length<=1)
         ? linkedFrom(this.backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
   }
@@ -77,7 +77,7 @@ export class RenderEngine {
 
   renderHome(context,embedLoading) {
     // This is website content, not a searchable vault article or a header input.
-    return this.home === null ? null : this.renderBody(this.home.body,{id:'_website/home.md',target:'index.md'},context,embedLoading);
+    return this.home === null ? null : {...this.renderBody(this.home.body,{id:'_website/home.md',target:'index.md'},context,embedLoading),hide:Array.isArray(this.home.metadata.hide) ? this.home.metadata.hide : []};
   }
 
   async renderHomeAsync(context,loadNote) {
@@ -101,24 +101,24 @@ export class RenderEngine {
 }
 
 export function document(result,contextOptions,navigation,releases) {
-  const warning = result.warnings.length ? '<details class="warning"><summary>Render notes</summary><ul>' +
-    result.warnings.map(w => '<li>' + escapeHtml(w) + '</li>').join('') + '</ul></details>' : '';
   const view = navigation?.view(result.context,result.page,result.navigationId);
-  const sidebar = view ? navigation.sidebar(view) : '';
+  const showNavigation = view && view.roots.length > 0 && !result.hide?.includes('navigation');
+  const sidebar = showNavigation ? navigation.sidebar(view) : '';
+  const hasSection = showNavigation && view.trail[0]?.children.length > 0;
   const breadcrumbs = view ? navigation.breadcrumbs(view) : '';
-  const toc = result.toc ? '<details open><summary>On this page</summary><nav aria-label="On this page">' + result.toc + '</nav></details>' : '';
-  const backlinks = Array.isArray(result.backlinks) ? '<details class="page-backlinks" open><summary>Linked from</summary>' +
-    (result.backlinks.length ? '<nav aria-label="Linked from"><ul>' + result.backlinks.map(link =>
-      '<li><a href="' + escapeHtml(link.url) + '">' + escapeHtml(link.title) + '</a></li>').join('') + '</ul></nav>' :
-      '<p class="backlinks-empty">No incoming links.</p>') + '</details>' : '';
-  const pageNav = toc || backlinks ? '<aside class="page-toc" aria-label="Page navigation">' + toc + backlinks + '</aside>' : '';
+  const toc = result.toc && !result.hide?.includes('toc') ? '<details class="page-contents" open><summary>On this page</summary><nav aria-label="On this page">' + result.toc + '</nav></details>' : '';
+  const backlinks = Array.isArray(result.backlinks) && result.backlinks.length ? '<details class="page-backlinks" open><summary>Linked from</summary>' +
+    '<nav aria-label="Linked from"><ul>' + result.backlinks.map(link =>
+      '<li><a href="' + escapeHtml(link.url) + '">' + escapeHtml(link.title) + '</a></li>').join('') + '</ul></nav></details>' : '';
+  const pageNav = toc || backlinks ? '<aside class="page-toc' + (toc ? '' : ' page-toc--backlinks-only') + '" aria-label="Page navigation">' +
+    (toc ? '<h2 class="page-nav-title">' + escapeHtml(result.title) + '</h2>' : '') + toc + backlinks + '</aside>' : '';
   const diagrams = result.html.includes('class="mermaid-diagram"') ? '<script type="module" src="/theme/diagrams.js"></script>' : '';
-  return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
+  return '<!doctype html><html lang="en" dir="ltr" data-appearance="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><script src="/theme/appearance.js"></script>' +
     '<title>' + escapeHtml(result.title) + ' — TaelgarVerse</title><link rel="stylesheet" href="/theme/material.css">' +
-    '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"></head>' +
-    '<body data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="deep-purple">' +
-    siteHeader(result.context,contextOptions,{query:result.query}) +
-    '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (pageNav ? '' : ' layout--no-toc') + '">' + sidebar +
-    '<main id="page-content" class="md-typeset article-main">' + breadcrumbs + result.html + warning + '</main>' + pageNav +
-    '</div>' + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/image-viewer.js" defer></script>' + diagrams + '</body></html>';
+    '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"><link rel="stylesheet" href="/theme/quiet-library.css">' +
+    (result.homepage ? '<link rel="stylesheet" href="/theme/homepage.css">' : '') + '</head>' +
+    '<body>' + siteHeader(result.context,contextOptions,{query:result.query,sections:showNavigation ? navigation.sections(view) : '',navigation:!!showNavigation}) +
+    '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (pageNav ? '' : ' layout--no-toc') + (hasSection ? '' : ' layout--no-navigation') + (result.homepage ? ' layout--home' : '') + '">' + sidebar +
+    '<main id="page-content" class="md-typeset article-main" tabindex="-1">' + breadcrumbs + result.html + '</main>' + pageNav +
+    '</div>' + siteDialogs() + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/site-ui.js" defer></script><script src="/theme/image-viewer.js" defer></script>' + diagrams + '</body></html>';
 }
