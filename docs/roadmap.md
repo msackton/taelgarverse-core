@@ -121,6 +121,17 @@ as an editorial reading position rather than a validity interval. Comparison
 rules for years, decades, `modern`, and `undated`, along with the relationship
 to authored date blocks, remain to be worked out before implementation.
 
+### IA-02: Campaign indexes from knownTo
+
+**Status:** Agreed direction; index design remains open.
+
+Use `knownTo` to build campaign-specific reference collections, such as a
+campaign NPC index. Do not use it to filter page availability by party knowledge
+or change a page's description.
+
+The specific collections, their contents, and how they are authored and
+generated remain to be discussed.
+
 ## Presentation improvements
 
 Website-only improvements that do not change the vault. Discussion areas include
