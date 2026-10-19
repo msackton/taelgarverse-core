@@ -21,5 +21,6 @@
   "A/Same.md": "# Same A\n",
   "B/Same.md": "# Same B\n",
   "Image.md": "# Image\n\n![[tiny.png]]\n",
-  "Media.md": "# Media\n\n![[assets/excalidraw/drawing.png|400]]\n\n[![Linked drawing](assets/excalidraw/drawing.png)](https://example.test/drawing)\n\n![[assets/audio/song.mp3]]\n\n![[assets/session-audio/session/clip.m4a]]\n\n[[song.mp3|Download song]]\n\n%%^Campaign:dufr%%\n![[song.mp3]]\n%%^End%%\n\n%%![[clip.m4a]]%%\n"
+  "Media.md": "# Media\n\n![[assets/excalidraw/drawing.png|400]]\n\n[![Linked drawing](assets/excalidraw/drawing.png)](https://example.test/drawing)\n\n![[assets/audio/song.mp3]]\n\n![[assets/session-audio/session/clip.m4a]]\n\n[[song.mp3|Download song]]\n\n%%^Campaign:dufr%%\n![[song.mp3]]\n%%^End%%\n\n%%![[clip.m4a]]%%\n",
+  "Diagrams.md": "# Diagrams\n\n## Family\n\n```mermaid\ngraph TD\nA[Parent] --> B[Child]\n```\n\n%%^Campaign:dufr%%\n```mermaid\ngraph TD\nC[Campaign parent] --> D[Campaign child]\n```\n%%^End%%\n"
 }

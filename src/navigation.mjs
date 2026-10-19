@@ -9,11 +9,11 @@ const directory = value => path.posix.normalize(value.trim().replace(/\\/g,'/').
 const alphabetical = (a,b) => a.label.localeCompare(b.label,undefined,{numeric:true,sensitivity:'base'});
 
 export class Navigation {
-  constructor(store, template = '') {
+  constructor(store, template = null) {
     this.entries = store.entries.filter(entry=>entry.note);
     this.byTarget = new Map(this.entries.map(entry=>[entry.target,entry]));
     const roots = [], stack = [{indent:-1,children:roots}];
-    for (const line of template.split(/\r?\n/)) {
+    for (const line of (template || '').split(/\r?\n/)) {
       const match = /^( *)-\s+(.+?)\s*$/.exec(line);
       if (!match) continue;
       const indent = match[1].length, content = match[2];
@@ -34,12 +34,7 @@ export class Navigation {
         stack.push({indent,children:node.children});
       }
     }
-    const mentioned = new Set();
-    const collect = nodes => nodes.forEach(node=>{ if(node.entry) mentioned.add(node.entry); collect(node.children); });
-    collect(roots);
-    const remaining = this.entries.filter(entry=>!mentioned.has(entry));
-    if (roots.length && remaining.length) roots.push({label:'More pages',children:this.expand(['.'],remaining)});
-    if (!roots.length) roots.push({label:'Home',home:true,children:[]},...this.expand(['.'],this.entries));
+    if (template === null) roots.push({label:'Home',home:true,children:[]},...this.expand(['.'],this.entries));
     this.nodes = new Map();
     this.paths = new Map();
     const index = (nodes,ancestors = []) => {

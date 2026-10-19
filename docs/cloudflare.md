@@ -26,7 +26,7 @@ The CLI's saved login was expired; sign-in was deferred by the user.
 
 ## Local Cloudflare preview
 
-Requires Node 22+, the sibling vault and ignore file configured in
+Requires Node 22.12+, the sibling vault and ignore file configured in
 config.example.json, and dependencies installed with `npm ci`.
 
 ```powershell
@@ -39,6 +39,11 @@ Open http://127.0.0.1:8787/. `cf:seed` explicitly writes to local R2 storage,
 under `.wrangler/state`, and `cf:dev` uses those local bindings. Neither command
 uploads content to Cloudflare. The first seed copies the asset data into local
 emulator storage, so it takes longer and uses more disk than the Node preview.
+
+The dev, check, and deploy commands also rebuild the local Mermaid browser
+bundle into `public/generated/`. Install development dependencies with `npm ci`
+before using them. The bundle is served as an application asset and loaded only
+by articles containing diagrams; it is separate from R2 content snapshots.
 
 Verify the running Worker with:
 

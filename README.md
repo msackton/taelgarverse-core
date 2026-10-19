@@ -21,7 +21,7 @@ pipeline, use `npm run content:publish -- --no-strict`. Unchanged Taelgar commit
 skip the build. See [content publishing](docs/publish-content.md) for prerequisites,
 the R2 commit checkpoint, image settings, and offline testing.
 
-Requires Node.js 22+ and an adjacent checkout of the Taelgar vault:
+Requires Node.js 22.12+ and an adjacent checkout of the Taelgar vault:
 
 ~~~powershell
 cd C:\Users\msack\taelgarverse-core
@@ -161,9 +161,11 @@ labels, and directory expansions:
 
 Expansions include indexed Markdown only, use note titles, sort numerically
 within titles, and recognize folder-name index pages. Empty or unavailable
-leaves disappear. Indexed pages outside the curated structure remain accessible
-under **More pages**. Section identifiers remain stable when unrelated notes
-are added. With no template, navigation follows the content directory tree.
+leaves disappear. The curated definition is the entire site TOC; unlisted notes
+remain available through search and direct links, without a catch-all section
+or invented breadcrumbs. An empty curated definition stays empty. Section
+identifiers remain stable when unrelated notes are added. With `nav_source`
+explicitly set to null, navigation follows the content directory tree.
 
 Only the current branch's immediate siblings and ancestors are sent with the
 article. Expanding another branch loads its children through `/api/navigation`.
@@ -205,6 +207,27 @@ the current vault's MP3 and M4A examples have been checked in the local browser.
 The publication pipeline already copies and packages eligible audio assets
 without transcoding or image optimization; no separate audio publication step
 is needed.
+
+## Mermaid diagrams
+
+Mermaid fences render in the browser as SVG diagrams, including the existing
+House of Sewick and House of Lils family trees. Authored styles are retained.
+Wide diagrams keep readable text and scroll within the article; flowcharts
+initially show their first node. A collapsible **Diagram source** remains
+available and stays open if JavaScript is unavailable or a diagram fails.
+One invalid diagram does not prevent other diagrams from rendering.
+
+The [Mermaid library](https://mermaid.js.org/config/usage) is pinned and bundled
+locally with strict rendering and diagram links/callbacks disabled. It is loaded
+only on pages containing visible diagrams. The API returns the escaped source
+and diagram containers; the article shell loads the browser renderer.
+
+`npm start`, `npm run dev`, `npm test`, `npm run cf:dev`, `npm run cf:check`, and
+`npm run cf:deploy` rebuild the browser bundle automatically. Run
+`npm run build:browser` after changing `src/browser/diagrams.mjs` while a preview
+is already running. Output lives in ignored `public/generated/`; application
+code and dependency pins are the source of truth. After pulling dependency
+changes, run `npm ci` before starting or deploying.
 
 ## Rendering architecture
 
@@ -254,8 +277,7 @@ Explicit campaign/date markers are filtered, but knownTo, POV, inferred spoilers
 viewer permissions, and the chronology of ordinary prose are not interpreted.
 
 General Dataview/DataviewJS body queries and Leaflet blocks show placeholders
-and warnings. Mermaid stays a code block. Search ranking,
-backlinks, maps, and session zoom remain future work.
+and warnings. Search ranking, backlinks, maps, and session zoom remain future work.
 
 The process renders synchronously. Warm single-request latency measurements do
 not establish concurrent-load throughput. No HTML response cache is enabled.

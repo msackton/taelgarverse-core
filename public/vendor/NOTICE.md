@@ -13,3 +13,8 @@
   taelgar-utils/website/overrides/assets/stylesheets/taelgarverse.css.
 
 These are static assets. Updating them does not require Python at runtime.
+
+The generated ../generated/diagrams.js browser bundle uses Mermaid 12.2.0,
+Copyright Knut Sveidqvist, MIT; see mermaid-LICENSE. Source:
+https://github.com/mermaid-js/mermaid. Dependency license comments are retained
+in the bundle. Rebuild it with npm run build:browser after npm ci.

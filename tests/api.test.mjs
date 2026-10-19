@@ -320,3 +320,30 @@ test('page finder and navigation use the same date availability as articles',asy
   assert.equal($('.site-sidebar').length,1);
   assert.equal($('.site-sidebar a[href*="/page/future?"]').length,0);
 });
+
+test('unlisted articles stay accessible and searchable without a catch-all navigation branch',async()=>{
+  const article = await fetch(base + '/page/media?context=modern');
+  assert.equal(article.status,200);
+  const $ = load(await article.text());
+  assert.equal($('.breadcrumbs').length,0);
+  assert.doesNotMatch($('.site-sidebar').text(),/More pages/);
+  assert.equal($('.site-sidebar a[href*="/page/media?"]').length,0);
+  const finder = load(await (await fetch(base + '/?q=Media&context=modern')).text());
+  assert.equal(finder('main a[href="/page/media?context=modern"]').length,1);
+});
+
+test('Mermaid pages load the local browser bundle only when visible diagrams exist',async()=>{
+  const article = load(await (await fetch(base + '/page/diagrams?context=modern')).text());
+  assert.equal(article('.mermaid-diagram').length,1);
+  assert.equal(article('script[type="module"][src="/theme/diagrams.js"]').length,1);
+  assert.equal(article('.mermaid-source[open]').length,1);
+  assert.equal(article('.page-toc a[href="#family"]').length,1);
+  const campaign = await (await fetch(base + '/api/page?page=Diagrams&context=dunmar-frontier')).json();
+  assert.equal(load(campaign.html)('.mermaid-diagram').length,2);
+  const ordinary = load(await (await fetch(base + '/page/media')).text());
+  assert.equal(ordinary('script[src="/theme/diagrams.js"]').length,0);
+  const bundle = await fetch(base + '/theme/diagrams.js');
+  assert.equal(bundle.status,200);
+  assert.match(bundle.headers.get('content-type'),/^text\/javascript/);
+  assert.ok((await bundle.text()).length > 1000);
+});

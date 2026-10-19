@@ -51,7 +51,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const base={schemaVersion:1,settings:{default_date:settings.default_date,campaigns:settings.campaigns},
     registry:JSON.parse(fs.readFileSync(path.join(settings.runtime_dir,'_scripts/session_note_campaigns.json'),'utf8')),
     coreMeta:JSON.parse(fs.readFileSync(path.join(settings.runtime_dir,'.obsidian/metadata.json'),'utf8')),
-    navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : '',warnings:store.warnings,entries};
+    navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,warnings:store.warnings,entries};
   const revision=sha(JSON.stringify(base)), prefix='revisions/'+revision;
   const directory=path.join(output,'revisions',revision);
   for (const [shard,notes] of shards) {

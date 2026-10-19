@@ -156,6 +156,7 @@ __pycache__/
 *.egg-info/
 config.local.json
 .generated/
+public/generated/
 .wrangler/
 wrangler.local.json
 .dev.vars

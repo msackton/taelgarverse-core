@@ -18,7 +18,7 @@ const source = '- [Home](index.md)\n- [People](people/people.md)\n    - {glob: p
   '- [Unpublished](missing.md)\n';
 const navigation = () => new Navigation({entries},source);
 
-test('curated order, natural leaf ordering, directory indexes and fallback coverage',()=>{
+test('curated order, natural leaf ordering and directory indexes omit unlisted notes',()=>{
   const nav = navigation();
   assert.deepEqual(nav.roots.slice(0,4).map(node=>node.label),['Home','People','Places','Flat']);
   const humans = nav.roots[1].children[0];
@@ -29,7 +29,12 @@ test('curated order, natural leaf ordering, directory indexes and fallback cover
   assert.deepEqual(region.children.map(node=>node.label),['Town']);
   assert.equal(nav.roots[3].children.some(node=>node.label==='Future'),false);
   assert.equal(nav.roots[3].children.some(node=>node.label==='Town'),true);
-  assert.equal(nav.paths.get('extra/other').at(0).label,'More pages');
+  assert.equal(nav.paths.has('extra/other'),false);
+  assert.equal(nav.roots.some(node=>node.label==='More pages'),false);
+  const view = nav.view(context,'extra/other');
+  assert.deepEqual(view.trail,[]);
+  assert.equal(nav.breadcrumbs(view),'');
+  assert.doesNotMatch(nav.sidebar(view),/More pages|extra\/other/);
 });
 
 test('sidebar opens only the current path, with active page and breadcrumbs',()=>{
@@ -68,6 +73,14 @@ test('navigation escapes source labels and works with no curated template',()=>{
   assert.doesNotMatch(html,/<script>/);
   assert.match(html,/&lt;script&gt;Town/);
   assert.equal(nav.paths.get('places/town').length,2);
+});
+
+test('an empty curated template or an expansion with no matches does not add a directory fallback',()=>{
+  for (const template of ['', '- {glob: missing/}\n']) {
+    const nav = new Navigation({entries},template);
+    assert.deepEqual(nav.roots,[]);
+    assert.equal(nav.paths.size,0);
+  }
 });
 
 test('section URLs remain stable as notes are added and current-page markers are unique',()=>{

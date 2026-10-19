@@ -68,6 +68,7 @@ export function document(result,contextOptions,navigation) {
   const sidebar = view ? navigation.sidebar(view) : '';
   const breadcrumbs = view ? navigation.breadcrumbs(view) : '';
   const toc = result.toc ? '<aside class="page-toc"><details open><summary>On this page</summary><nav aria-label="On this page">' + result.toc + '</nav></details></aside>' : '';
+  const diagrams = result.html.includes('class="mermaid-diagram"') ? '<script type="module" src="/theme/diagrams.js"></script>' : '';
   return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>' + escapeHtml(result.title) + ' — TaelgarVerse</title><link rel="stylesheet" href="/theme/material.css">' +
     '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"></head>' +
@@ -75,5 +76,5 @@ export function document(result,contextOptions,navigation) {
     siteHeader(result.context,contextOptions,{query:result.query}) +
     '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (toc ? '' : ' layout--no-toc') + '">' + sidebar +
     '<main id="page-content" class="md-typeset article-main">' + breadcrumbs + result.html + warning + '</main>' + toc +
-    '</div><script src="/theme/navigation.js" defer></script><script src="/theme/image-viewer.js" defer></script></body></html>';
+    '</div><script src="/theme/navigation.js" defer></script><script src="/theme/image-viewer.js" defer></script>' + diagrams + '</body></html>';
 }

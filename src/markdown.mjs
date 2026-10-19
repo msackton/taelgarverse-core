@@ -140,6 +140,11 @@ export function createMarkdown(options = {}) {
   const originalFence = md.renderer.rules.fence;
   md.renderer.rules.fence = (tokens, index, options, env, renderer) => {
     const type = tokens[index].info.trim();
+    if (/^mermaid(?:\s|$)/i.test(type)) {
+      return '<figure class="mermaid-diagram"><div class="mermaid-output" role="region" aria-label="Diagram" tabindex="0"></div>' +
+        '<details class="mermaid-source" open><summary>Diagram source</summary><pre><code class="language-mermaid">' +
+        escapeHtml(tokens[index].content) + '</code></pre></details></figure>\n';
+    }
     if (['dataview','dataviewjs','leaflet'].includes(type)) {
       env.warnings.push(type + ' block requires a materialized body or a future query adapter');
       return '<div class="admonition warning"><p class="admonition-title">Dynamic content unavailable</p><p>This block has not been rendered.</p></div>\n';

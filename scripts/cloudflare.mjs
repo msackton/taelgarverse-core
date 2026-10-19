@@ -3,6 +3,7 @@ import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {ROOT} from '../src/config.mjs';
 import {loadCloudflareConfig} from './prepare-cloudflare.mjs';
+import {buildBrowser} from './build-browser.mjs';
 
 const task=process.argv[2], extra=process.argv.slice(3);
 const output=path.join(ROOT,'.cache/cloudflare');
@@ -35,6 +36,7 @@ function verifiedUpload(report,config) {
 }
 
 if (task==='check' || task==='deploy') {
+  await buildBrowser();
   const config=loadCloudflareConfig();
   config.main=path.join(ROOT,'src/worker.mjs');
   config.assets.directory=path.join(ROOT,'public');
@@ -47,6 +49,7 @@ if (task==='check' || task==='deploy') {
   const {report,flags}=prepared();
   await run(['r2','bucket','create',report.bucket,...flags]);
 } else if (task==='dev') {
+  await buildBrowser();
   const {flags}=prepared();
   await run(['dev',...flags,'--ip','127.0.0.1','--port','8787','--persist-to',path.join(ROOT,'.wrangler/state')]);
 } else if (task==='upload-local' || task==='upload-remote') {

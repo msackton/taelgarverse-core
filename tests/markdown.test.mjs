@@ -114,3 +114,16 @@ test('page TOC follows heading hierarchy, omits the title and preserves duplicat
   assert.equal($('.toc > ul > li').first().find('ul ul a').text(),'Detail');
   assert.equal(render('# Only a title').toc,'');
 });
+
+test('Mermaid fences preserve escaped source as a readable fallback without affecting ordinary fences or TOC',()=>{
+  const definition = 'graph TD\nA["<img src=x onerror=alert(1)>"] --> B["[[Target]]"]\n';
+  const result = render('## Family\n\n```mermaid \n' + definition + '```\n\n```js\nconst x = 1;\n```\n');
+  const $ = load(result.html,{},false);
+  assert.equal($('.mermaid-diagram').length,1);
+  assert.equal($('.mermaid-output[role="region"][tabindex="0"]').length,1);
+  assert.equal($('.mermaid-source[open] code').text(),definition);
+  assert.equal($('.mermaid-diagram img,.mermaid-diagram a,.mermaid-diagram script').length,0);
+  assert.match($('code.language-js').text(),/const x = 1/);
+  assert.equal(load(result.toc)('a').text(),'Family');
+  assert.deepEqual(result.warnings,[]);
+});

@@ -21,7 +21,7 @@ not establish implementation priority.
 
 ### MVP-01: Table of contents and navigation
 
-**Status:** Agreed scope; article TOC details remain open.
+**Status:** Curated-only site navigation implemented; article TOC details remain open.
 
 Recreate a navigation experience close to the existing Taelgarverse, using one
 shared, curated site table of contents.
@@ -29,13 +29,17 @@ shared, curated site table of contents.
 - The website hierarchy does not have to mirror the Obsidian vault's folder
   structure.
 - The curated TOC definition determines the site TOC. Do not automatically append
-  unlisted notes in an "Additional pages" catch-all (currently labeled "More
-  pages" in the dynamic implementation).
+  unlisted notes in an "Additional pages" catch-all.
 - Other campaigns' material may remain visible. Campaign-specific navigation
   variants are not required for MVP.
 
 Sensible article table-of-contents management remains in scope; its detailed
 behavior is still to be discussed.
+
+The automatic "More pages" branch is removed. Unlisted pages remain accessible
+through search and direct links, without fabricated breadcrumbs. Empty curated
+definitions stay empty; the explicit no-template configuration still produces
+a directory tree. Existing article TOC behavior is retained pending discussion.
 
 ### MVP-02: Generic HTML extensions, including Taelgar II
 
@@ -110,10 +114,17 @@ discussed.
 
 ### MVP-09: Mermaid diagrams
 
-**Status:** Agreed scope; detailed behavior remains open.
+**Status:** Diagram rendering implemented and verified locally; diagram-link behavior remains open.
 
 Render Mermaid blocks as diagrams, including the existing family trees in the
-vault. Detailed styling and diagram-link behavior remain to be discussed.
+vault. Further styling and diagram-link behavior remain to be discussed.
+
+Mermaid is pinned and bundled locally, loaded only for pages with diagrams, and
+uses strict rendering with links/callbacks disabled. Existing node styles are
+preserved. Wide diagrams scroll within the article, and readable source remains
+available without JavaScript or after a rendering error. Both existing family
+trees, mobile containment, and recovery after an invalid diagram were checked
+in the browser. Node and Worker tests cover context filtering and asset routing.
 
 ### MVP-10: Excalidraw through exported images
 

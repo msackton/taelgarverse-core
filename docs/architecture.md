@@ -44,8 +44,11 @@ placeholders. Arbitrary body JavaScript is not executed.
 The bundled navigation.md starts from the existing website's curated source
 template. Node expands its directory directives at startup against the same
 indexed Markdown as the renderer. Note titles, directory indexes, and curated
-labels form a tree; uncovered pages appear under More pages. The nav_source
-setting can select another template, or null for a directory-based tree.
+labels form the entire navigation tree. Unlisted pages remain accessible through
+search and direct links, without a catch-all section or synthetic breadcrumbs.
+Empty curated templates stay empty. The nav_source setting can select another
+template, or null for a directory-based tree; prepared snapshots retain that
+distinction with a nullable navigationSource.
 
 Each request filters the tree by campaign exclusions, born/created, and activeYear. The HTML
 shell renders the selected page's ancestors and immediate siblings, opens its

@@ -4,10 +4,11 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12.0"
   },
   "scripts": {
     "build:runtime": "node scripts/build-runtime.mjs",
+    "build:browser": "node scripts/build-browser.mjs",
     "build:worker-headers": "node scripts/build-worker-headers.mjs",
     "cf:prepare": "node scripts/prepare-cloudflare.mjs",
     "cf:check": "node scripts/cloudflare.mjs check",
@@ -19,7 +20,9 @@
     "cf:deploy": "node scripts/cloudflare.mjs deploy",
     "cf:smoke": "node scripts/smoke-worker.mjs",
     "content:publish": "node scripts/publish-content.mjs",
-    "pretest": "node scripts/build-runtime.mjs",
+    "pretest": "node scripts/build-runtime.mjs && node scripts/build-browser.mjs",
+    "prestart": "node scripts/build-browser.mjs",
+    "predev": "node scripts/build-browser.mjs",
     "start": "node src/server.mjs",
     "dev": "node --watch src/server.mjs",
     "test": "node --test tests/*.test.mjs",
@@ -37,6 +40,8 @@
   },
   "devDependencies": {
     "acorn": "8.19.0",
+    "esbuild": "0.28.2",
+    "mermaid": "12.2.0",
     "wrangler": "4.151.1"
   }
 }

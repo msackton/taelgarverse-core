@@ -225,3 +225,28 @@ test('snapshot load failures recover and publication can change without redeploy
   failing.objects.set('published/current.json',report.pointerFile);
   assert.equal((await retry.fetch(new Request('https://example.test/health'),retryEnv)).status,200);
 });
+
+test('Worker keeps unlisted articles searchable and renders context-filtered Mermaid with local assets',async()=>{
+  const html = await (await request('/page/diagrams?context=modern')).text(), $ = load(html);
+  assert.equal($('.mermaid-diagram').length,1);
+  assert.equal($('script[type="module"][src="/theme/diagrams.js"]').length,1);
+  assert.equal($('.site-sidebar a[href*="/page/diagrams?"]').length,0);
+  assert.equal($('.breadcrumbs').length,0);
+  assert.doesNotMatch($('.site-sidebar').text(),/More pages/);
+  const finder = load(await (await request('/?q=Diagrams&context=modern')).text());
+  assert.equal(finder('main a[href="/page/diagrams?context=modern"]').length,1);
+  const campaign = await (await request('/api/page?page=Diagrams&context=dunmar-frontier')).json();
+  assert.equal(load(campaign.html)('.mermaid-diagram').length,2);
+  assert.equal(await (await request('/theme/diagrams.js')).text(),'/generated/diagrams.js');
+});
+
+test('snapshots preserve the explicit no-template directory navigation mode',async()=>{
+  const packaged=await prepareContent({...engine.settings,nav_source:null},path.join(directory,'directory-nav-package'));
+  const index=JSON.parse(fs.readFileSync(packaged.indexFile,'utf8'));
+  assert.equal(index.navigationSource,null);
+  const storage=new LocalBucket(JSON.parse(fs.readFileSync(packaged.manifestFile,'utf8')));
+  const loaded=await loadSnapshot(storage,packaged.revision,instantiate);
+  assert.equal(engine.navigation.paths.has('diagrams'),false);
+  assert.equal(loaded.engine.navigation.paths.has('diagrams'),true);
+  assert.equal(loaded.engine.navigation.roots.some(node=>node.label==='More pages'),false);
+});

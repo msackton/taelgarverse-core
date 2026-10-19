@@ -25,7 +25,7 @@ body { margin: 0; font-family: system-ui, sans-serif; color: #283536; background
 .md-typeset .dm-note-close { font-size: 22px; line-height: 1; padding: 2px 6px; margin: 0; background: transparent; border: 0; color: #805210; }
 .dm-note-content > :last-child { margin-bottom: 0; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-.layout { display: grid; grid-template-columns: 240px minmax(0, 850px) 180px; grid-template-areas: "navigation article toc"; gap: 32px; max-width: 1450px; margin: 32px auto; padding: 0 24px; }
+.layout { display: grid; grid-template-columns: 240px minmax(0, 850px) 180px; grid-template-areas: "navigation article toc"; gap: 32px; width: 100%; box-sizing: border-box; max-width: 1450px; margin: 32px auto; padding: 0 24px; }
 .layout--no-toc { grid-template-areas: "navigation article article"; }
 main { max-width: 850px; padding: 24px; margin: 0 auto; width: 100%; box-sizing: border-box; }
 .layout main { padding: 0; min-width: 0; grid-area: article; }
@@ -77,6 +77,14 @@ html.image-viewer-open { overflow: hidden; }
 .image-viewer-caption { font-size: 14px; line-height: 1.4; margin: 0; max-width: 70ch; overflow-wrap: anywhere; }
 .image-viewer a:focus-visible, .image-viewer button:focus-visible { outline: 3px solid #00796b; outline-offset: 3px; }
 .md-typeset audio { display: block; max-width: 100%; margin: 1em 0; }
+.md-typeset .mermaid-diagram { margin: 1.5em 0; }
+.mermaid-output { max-width: 100%; overflow: auto; }
+.mermaid-output:empty { display: none; }
+.mermaid-output svg { display: block; height: auto; }
+.mermaid-output:focus-visible { outline: 2px solid #00796b; outline-offset: 3px; }
+.md-typeset .mermaid-source { margin: 12px 0 0; font-size: 13px; }
+.mermaid-source summary { cursor: pointer; }
+.mermaid-error { padding: 12px; background: #fff6e4; color: #79500d; font-size: 14px; }
 .md-typeset .twemoji svg { width: 1em; height: 1em; }
 @media (max-width: 1100px) {
   .layout { grid-template-columns: 220px minmax(0,1fr); grid-template-areas: "navigation toc" "navigation article"; gap: 16px 28px; }
