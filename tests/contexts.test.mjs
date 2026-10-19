@@ -54,6 +54,19 @@ test('only session notes supply campaign dates',() => {
   assert.equal(contexts.resolve('first-campaign').source,'one-1');
   assert.equal(contexts.resolve('modern').date,'1720-05-06');
 });
+
+test('session exclusions apply to their own campaign before selecting its date and source',()=>{
+  const contexts=catalogue([
+    session('one',{sessionNumber:1,DR:'1720-01-01',excludePublish:['two']}),
+    session('one',{sessionNumber:2,DR:'1800-01-01',excludePublish:'all'}),
+    session('one',{sessionNumber:3,DR:'1801-01-01',excludePublish:['ONE']}),
+    session('two',{sessionNumber:1,DR:'1730-01-01',excludePublish:['one']}),
+  ]);
+  assert.equal(contexts.resolve('first-campaign').date,'1720-01-01');
+  assert.equal(contexts.resolve('first-campaign').source,'one-1');
+  assert.equal(contexts.resolve('second-campaign').date,'1730-01-01');
+  assert.equal(contexts.resolve('modern').source,'two-1');
+});
 test('date-only URLs remain Custom; presets reject mismatched overrides',() => {
   const contexts = catalogue([session('one',{DR:'1720-01-01'})]);
   assert.equal(contexts.resolve(undefined,'1730-01-01').id,'custom');

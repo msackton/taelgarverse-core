@@ -165,11 +165,21 @@ export async function publishContent(options, deps) {
   return result;
 }
 
+export function validateMaterializationReport(report, output) {
+  if (report.status !== 'ok' || !report.outputComplete || !report.dynamicWebsite ||
+      typeof report.outputPath !== 'string' || path.resolve(report.outputPath) !== path.resolve(output)) {
+    throw new Error('Materializer did not produce a complete dynamic website export.');
+  }
+  if (report.publicationPolicy !== 'context-v1') {
+    throw new Error('Update the vault materializer and reload its Obsidian plugin to export all context-filtered content.');
+  }
+}
+
 export function buildFingerprint(settings, options) {
   const hash = createHash('sha256');
   hash.update(JSON.stringify({version: 1, image: {maxSize: options.maxSize, quality: options.quality, ...IMAGE_VERSION},
-    strict: !options.noStrict, default_date: settings.default_date, campaigns: settings.campaigns}));
-  for (const filename of [settings.ignore_file, settings.nav_source,
+    strict: !options.noStrict, default_date: settings.default_date}));
+  for (const filename of [settings.nav_source,
     new URL('./publish-content.mjs', import.meta.url), new URL('./optimize-images.mjs', import.meta.url),
     new URL('./prepare-cloudflare.mjs', import.meta.url), new URL('../src/store.mjs', import.meta.url),
     new URL('../src/content-store.mjs', import.meta.url), new URL('./build-runtime.mjs', import.meta.url)]) {
@@ -236,9 +246,7 @@ export async function main(options) {
         await runCommand(process.execPath, args, {cwd: vault, live: true});
         const reportFile = path.join(output, '.dataview-materialization-report.json');
         const report = JSON.parse(await fs.readFile(reportFile, 'utf8'));
-        if (report.status !== 'ok' || !report.outputComplete || !report.dynamicWebsite || path.resolve(report.outputPath) !== output) {
-          throw new Error('Materializer did not produce a complete dynamic website export.');
-        }
+        validateMaterializationReport(report, output);
         await fs.copyFile(reportFile, path.join(CACHE, 'materialization-report.json'));
         const preparedSettings = {...settings, source_dir: output, runtime_dir: vault};
         const store = new Store(preparedSettings);

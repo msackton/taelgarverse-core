@@ -30,7 +30,7 @@ resources or deploy Worker code.
 
 1. Export into a fresh temporary directory using `--dynamic-website`: insert
    header markers, delete DataviewJS and newly empty sections, render Dataview.
-2. Resize and compress the exported, publishable JPEG, PNG, and WebP assets.
+2. Resize and compress the exported JPEG, PNG, and WebP assets.
 3. Prepare the existing content-addressed assets, Markdown shards, and index.
 4. Upload all immutable objects to R2. Only after that succeeds, write
    `published/current.json` with the revision, Taelgar commit, repository identity,
@@ -47,6 +47,33 @@ publisher run rebuilds to restore its checkpoint.
 No Worker redeploy is needed for content updates when using the Worker that reads
 `published/current.json`. Deploy Worker code separately with `npm run cf:deploy`
 when application code changes. Old immutable objects remain available in R2.
+
+## Publication and request filtering
+
+Dynamic publication includes all supported pages and assets except those inside
+underscore-prefixed folders or folders named Worldbuilding, at any depth and
+with case-insensitive Worldbuilding matching. Hidden tooling paths, AGENTS.md,
+and symlinks are also omitted. Underscore-prefixed files outside those folders
+are included. The dynamic Obsidian exporter applies these same folder rules,
+omitting assets/dm (also asset/dm) and all descendants, as well as
+assets/worldbuilding. DM asset paths match case-insensitively; neighboring paths
+such as assets/dm-map.png and assets/dm-reference remain eligible.
+
+Legacy ignore_file settings, tags such as excalidraw, and excludePublish no longer
+remove content from the uploaded snapshot. The website uses the retained metadata
+to return 404 for excludePublish: all, an exclusion matching the chosen campaign,
+or a future born/created date or activeYear. Search and navigation use the same
+availability rules. Modern and Custom have no campaign-specific exclusions, and
+See Behind the Curtain does not bypass page availability. Assets remain accessible
+independently of page exclusions.
+
+Deploy the updated Worker and publish a fresh snapshot to activate this change.
+Reload the updated Taelgar Dataview Materializer plugin in Obsidian before the
+first export. The publisher requires publicationPolicy: context-v1 in its report
+and rejects older exporters. The changed build fingerprint triggers a new export
+even when the vault commit is unchanged.
+
+## Query handling
 
 The default query policy is strict: a query error or unsupported query stops
 publication. `--no-strict` permits partial output and prints each issue. The

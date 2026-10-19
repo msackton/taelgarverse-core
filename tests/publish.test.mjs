@@ -4,7 +4,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {publishContent, parseOptions, repositoryIdentity, findObsidianCommand,
-  createStorage, CHECKPOINT_KEY, validateCheckpoint, isMissingCheckpoint, runCommand, buildFingerprint} from '../scripts/publish-content.mjs';
+  createStorage, CHECKPOINT_KEY, validateCheckpoint, isMissingCheckpoint, runCommand, buildFingerprint,
+  validateMaterializationReport} from '../scripts/publish-content.mjs';
 
 const state = {repository: 'github.com/tsackton/taelgar', commit: 'a'.repeat(40), dirty: false};
 const fingerprint = 'b'.repeat(64), revision = 'c'.repeat(64);
@@ -107,6 +108,18 @@ test('subprocess arguments containing spaces and shell characters remain literal
   assert.equal(result.stdout.trim(), value);
 });
 
+test('publisher requires a complete export using the current publication policy',()=>{
+  const output=path.resolve('.cache/export-fixture');
+  const report={status:'ok',outputComplete:true,dynamicWebsite:true,outputPath:output,publicationPolicy:'context-v1'};
+  assert.doesNotThrow(()=>validateMaterializationReport(report,output));
+  for (const changes of [{status:'failed'},{outputComplete:false},{dynamicWebsite:false},{outputPath:undefined},{outputPath:output+'-other'}]) {
+    assert.throws(()=>validateMaterializationReport({...report,...changes},output),/complete dynamic website export/);
+  }
+  for (const publicationPolicy of [undefined,'static']) {
+    assert.throws(()=>validateMaterializationReport({...report,publicationPolicy},output),/reload its Obsidian plugin/);
+  }
+});
+
 test('build fingerprints tolerate Windows line endings and machine paths, but notice image and publication settings', async t => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'taelgar-publish-test-'));
   t.after(async () => {
@@ -114,13 +127,14 @@ test('build fingerprints tolerate Windows line endings and machine paths, but no
     assert.ok(path.basename(directory).startsWith('taelgar-publish-test-'));
     await fs.rm(directory, {recursive: true});
   });
-  const ignore = path.join(directory, 'windows-ignore.txt'), other = path.join(directory, 'mac-ignore.txt');
-  await fs.writeFile(ignore, 'assets/dm/\r\n');
-  await fs.writeFile(other, 'assets/dm/\n');
-  const settings = {ignore_file: ignore, nav_source: null, default_date: '1750-01-01', campaigns: ['dufr']};
+  const navigation = path.join(directory, 'windows-nav.md'), other = path.join(directory, 'mac-nav.md');
+  await fs.writeFile(navigation, '- People\r\n');
+  await fs.writeFile(other, '- People\n');
+  const settings = {nav_source: navigation, default_date: '1750-01-01', campaigns: ['dufr']};
   const options = parseOptions([]);
   const value = buildFingerprint(settings, options);
-  assert.equal(value, buildFingerprint({...settings, ignore_file: other}, options));
+  assert.equal(value, buildFingerprint({...settings, nav_source: other}, options));
+  assert.equal(value, buildFingerprint({...settings, ignore_file: 'missing-legacy-ignore.txt', campaigns: ['adma']}, options));
   assert.notEqual(value, buildFingerprint(settings, {...options, maxSize: 4096}));
   assert.notEqual(value, buildFingerprint(settings, {...options, noStrict: true}));
 });

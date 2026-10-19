@@ -47,7 +47,7 @@ npm start
 
 ## Configuration
 
-config.example.json uses the sibling vault and website ignore file. Copy it to
+config.example.json uses the sibling vault. Copy it to
 ignored config.local.json to customize it, then set:
 
 ~~~powershell
@@ -61,14 +61,13 @@ Paths are relative to the configuration file:
 | --- | --- |
 | source_dir | Original vault Markdown and assets, not already-exported docs/ |
 | runtime_dir | Vault containing _scripts/customJS, .obsidian/metadata.json, and _scripts/session_note_campaigns.json |
-| ignore_file | Existing public-export ignore rules |
 | nav_source | Curated navigation template; defaults to bundled navigation.md. Set null to use the content directory tree. |
 | default_date | Fallback when no dated campaign exists; initially 1750-01-01 |
-| campaigns | Baseline publication policy; initially dufr, adma. This does not select visible campaign blocks. |
 
 The source and runtime directories may differ. Runtime scripts are trusted server
 code; Markdown body queries are not executed. The earlier utils_dir and
-node_command settings are no longer used.
+node_command settings are no longer used. Legacy ignore_file and campaigns
+settings no longer restrict publication; campaign selection comes from each request.
 
 For prepared Markdown, run the vault materializer with `--dynamic-website`, set
 `source_dir` to its output directory (for example, `../taelgar-dynamic`), and keep
@@ -201,7 +200,7 @@ A reverse affiliation index narrows leadership candidates; the original code
 evaluates dates and display text.
 
 Node modules implement public comment/campaign/date filtering, publish flags,
-activeYear, links, images, Obsidian callouts, tables, footnotes, definition lists,
+birth/creation dates, activeYear, links, images, Obsidian callouts, tables, footnotes, definition lists,
 attributes, inline date fields, headings, and TOC generation.
 
 Rendering uses markdown-it rather than Python-Markdown. HTML serialization and
@@ -221,12 +220,17 @@ Campaign presets show only matching campaign blocks, using their canonical
 registry codes (case-insensitive). Modern and Custom show no campaign-specific blocks.
 For example, content inside %%^Campaign:dufr%% ... %%^End%% appears only when
 the context includes dufr. Campaign:none is removed unless See Behind the Curtain is enabled.
-The baseline source snapshot still follows the server's
-publication policy. Explicit campaign/date markers are filtered, but knownTo,
-POV, inferred spoilers, viewer permissions, and the
-chronology of ordinary prose are not interpreted. Ignore rules, internal
-directories, Worldbuilding, excluded tags, and publish flags restrict the index;
-this is not yet a vetted public content package or access system.
+The snapshot includes all supported notes and assets outside underscore-prefixed
+and Worldbuilding folders, at any depth, and excludes assets/dm (also asset/dm)
+with all descendants. Worldbuilding and DM asset paths match case-insensitively;
+hidden tooling paths and AGENTS.md are also omitted. Tags and legacy ignore files
+do not restrict publication. excludePublish and date metadata remain in the snapshot.
+The website and API return 404 for excludePublish: all, a matching campaign
+exclusion, or a subject whose born/created date or activeYear is still in the
+future. Search and navigation apply the same check. Modern and Custom apply no
+campaign-specific exclusions. See Behind the Curtain does not bypass page availability.
+Explicit campaign/date markers are filtered, but knownTo, POV, inferred spoilers,
+viewer permissions, and the chronology of ordinary prose are not interpreted.
 
 General Dataview/DataviewJS body queries and Leaflet blocks show placeholders
 and warnings. Mermaid stays a code block. Search ranking,

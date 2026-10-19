@@ -28,9 +28,15 @@ before(async()=>{
     const file=path.join(source,relative);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,text);
   }
   fs.writeFileSync(path.join(source,'tiny.png'),'fixture asset');
+  for (const relative of ['assets/dm/map.png','assets/dm/nested/secret.png','asset/dm/map.png',
+    'assets/dm-map.png','assets/dm-reference/map.png','assets/_portrait.png','assets/worldbuilding/hidden.png','assets/_internal/hidden.png']) {
+    const file=path.join(source,relative);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,'fixture asset');
+  }
+  fs.writeFileSync(path.join(source,'Session.md'),'---\ntags: [session-note]\ncampaign: dufr\nDR: 1720-01-01\n---\nSession.\n');
+  fs.writeFileSync(path.join(source,'AdderSession.md'),'---\ntags: [session-note]\ncampaign: adma\nDR: 1720-01-01\n---\nSession.\n');
   fs.writeFileSync(path.join(source,'_ignore.txt'),'Ignored/\n');
   fs.writeFileSync(path.join(source,'_nav.md'),'- [Home](index.md)\n- People\n    - {glob: people/}\n- Places\n    - {glob: places/}\n');
-  const settings={...loadSettings(),source_dir:source,ignore_file:path.join(source,'_ignore.txt'),nav_source:path.join(source,'_nav.md')};
+  const settings={...loadSettings(),source_dir:source,ignore_file:path.join(source,'_ignore.txt'),nav_source:path.join(source,'_nav.md'),campaigns:['dufr','adma']};
   report=await prepareContent(settings,path.join(directory,'package'));
   bucket=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
     {key:'published/current.json',file:report.pointerFile}]);
@@ -42,9 +48,43 @@ after(()=>{if(directory && isInside(path.join(ROOT,'.cache'),directory))fs.rmSyn
 test('packaged snapshot has no machine paths or raw note bodies in the metadata index',()=>{
   const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
   assert.equal(index.entries.filter(e=>e.note).length,engine.store.bySlug.size);
-  assert.equal(index.entries.some(e=>e.id.startsWith('_') || e.id==='Hidden.md'),false);
+  const ids=new Set(index.entries.map(e=>e.id));
+  for (const id of ['Hidden.md','CampaignHidden.md','Unborn.md','Unbuilt.md','Ignored/Invisible.md','Drawing.md','_Loose.md','assets/dm-map.png','assets/dm-reference/map.png','assets/_portrait.png']) {
+    assert.ok(ids.has(id),id);
+  }
+  for (const id of ['_dm_notes/Secret.md','Worldbuilding/Hidden World.md','Nested/worldbuilding/Hidden World.md','Nested/_private/Hidden Nested.md','assets/worldbuilding/hidden.png','assets/_internal/hidden.png','assets/dm/map.png','assets/dm/nested/secret.png','asset/dm/map.png']) {
+    assert.equal(ids.has(id),false,id);
+  }
+  assert.equal(index.entries.find(e=>e.id==='Hidden.md').note.metadata.excludePublish,'all');
   assert.doesNotMatch(JSON.stringify(index),/source_dir|runtime_dir|Fixture biography|private ordinary comment/);
   assert.equal(index.entries.every(e=>!('filename' in e)),true);
+});
+
+test('Worker rejects unavailable pages before reading any note body and permits them in other contexts',async()=>{
+  const isolated=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
+    {key:'published/current.json',file:report.pointerFile}]);
+  const app=createWorker(instantiate), environment={...env,CONTENT:isolated};
+  const fetch=path=>app.fetch(new Request('https://example.test'+path),environment);
+  for (const [page,query] of [
+    ['Hidden','context=modern'],['Hidden','date=1800-01-01'],
+    ['CampaignHidden','context=dunmar-frontier'],['Unborn','date=1730-04-01'],['Unbuilt','date=1730-04-01'],
+  ]) {
+    for (const dm of ['0','1']) for (const route of ['/api/page?page='+page+'&','/page/'+page+'?']) {
+      const response=await fetch(route+query+'&dm='+dm);
+      assert.equal(response.status,404,route+query);
+      assert.doesNotMatch(await response.text(),/Private page\.|Unborn biography\.|Unbuilt history\./);
+    }
+  }
+  assert.equal([...isolated.calls.keys()].some(key=>key.includes('/notes/')),false);
+  for (const [page,query] of [
+    ['CampaignHidden','context=modern'],['CampaignHidden','context=addermarch'],
+    ['Unborn','date=1730-04-02'],['Unbuilt','date=1730-04-02'],['Invisible','context=modern'],['Drawing','context=modern'],
+  ]) assert.equal((await fetch('/api/page?page='+page+'&'+query)).status,200,page);
+  assert.equal((await fetch('/assets/assets/dm/map.png')).status,404);
+  assert.equal((await fetch('/assets/asset/dm/map.png')).status,404);
+  assert.equal((await fetch('/assets/assets/dm-map.png')).status,200);
+  assert.equal((await fetch('/assets/assets/dm-reference/map.png')).status,200);
+  assert.equal((await fetch('/assets/assets/worldbuilding/hidden.png')).status,404);
 });
 
 test('Worker renders the same article as the VM reference and isolates request preferences',async()=>{

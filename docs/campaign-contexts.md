@@ -8,7 +8,9 @@ campaign landing pages.
 
 The engine reads _scripts/session_note_campaigns.json for campaign IDs, labels,
 codes and aliases. It joins that registry to published Markdown notes tagged
-session-note using their campaign field.
+session-note using their campaign field. Before selecting a campaign's latest
+session, it omits notes with excludePublish: all or an exclusion for that
+campaign's code. An exclusion for another campaign does not affect selection.
 
 Each campaign uses its latest published session: realWorldDate first, then
 sessionNumber, then in-world date/path as deterministic fallback/tiebreak.

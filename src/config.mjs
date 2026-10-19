@@ -10,7 +10,7 @@ export function loadSettings(filename = process.env.TAELGARVERSE_CONFIG || path.
   filename = path.resolve(filename);
   const input = JSON.parse(fs.readFileSync(filename, 'utf8'));
   const settings = {...input, default_date: input.default_date ?? '1750-01-01', campaigns: input.campaigns ?? []};
-  for (const key of ['source_dir', 'runtime_dir', 'ignore_file']) {
+  for (const key of ['source_dir', 'runtime_dir']) {
     if (typeof input[key] !== 'string') throw new Error('Missing configuration: ' + key);
     settings[key] = fs.realpathSync(path.resolve(path.dirname(filename), input[key]));
   }

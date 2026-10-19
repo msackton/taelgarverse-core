@@ -1,8 +1,6 @@
 {
   "source_dir": "../taelgar",
   "runtime_dir": "../taelgar",
-  "ignore_file": "../taelgarverse/ignore_spec.txt",
   "nav_source": "navigation.md",
-  "default_date": "1750-01-01",
-  "campaigns": ["dufr", "adma"]
+  "default_date": "1750-01-01"
 }

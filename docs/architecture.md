@@ -47,7 +47,7 @@ indexed Markdown as the renderer. Note titles, directory indexes, and curated
 labels form a tree; uncovered pages appear under More pages. The nav_source
 setting can select another template, or null for a directory-based tree.
 
-Each request filters the tree by campaign exclusions and activeYear. The HTML
+Each request filters the tree by campaign exclusions, born/created, and activeYear. The HTML
 shell renders the selected page's ancestors and immediate siblings, opens its
 branch, marks the active link, and supplies breadcrumbs. Collapsed branches load
 one level at a time through /api/navigation. Native details, server-rendered
@@ -134,7 +134,7 @@ is not promised across engines. The same 2,685 pages index without warnings.
 Campaign context selects a date and marker-filter campaign set. Modern follows
 the latest campaign date; Custom supplies a manual date. Both select no
 campaigns, so campaign-specific blocks stay hidden. Campaign presets use their own campaign
-codes. Source publication policy remains server-side. Dates are in-world DR.
+codes. Page availability is checked server-side for every request. Dates are in-world DR.
 knownTo, POV, inferred historical coverage, viewer knowledge, and player
 authorization remain future design work.
 
@@ -144,10 +144,26 @@ DR) supplies the date. See [campaign date derivation](campaign-contexts.md) for
 ordering and missing-date behavior. No separate website metadata or landing-page
 date overrides are used.
 
-The index excludes dot/underscore directories, Worldbuilding, ignored paths,
-excluded tags, and excludePublish pages. Public hosting needs an approved
-content package and consistent authorization for text, metadata, assets,
-search, links, errors, and backlinks.
+The snapshot includes all supported Markdown and assets except those under
+underscore-prefixed or Worldbuilding folders, at any depth (Worldbuilding is
+case-insensitive). Dot-prefixed tooling paths, AGENTS.md, and symlinks are also
+omitted, as are assets/dm and asset/dm with all descendants (case-insensitive).
+Legacy ignore-file rules, tags, and excludePublish do not prune the index.
+
+One availability check handles page rendering, search, and navigation. It rejects
+excludePublish: all, exclusions matching the request's campaign code, and future
+born/created or activeYear dates. Website and API requests return 404; the Worker
+checks indexed metadata before fetching Markdown. DM mode does not bypass this
+check. Modern and Custom have no campaign-specific exclusions. Birth/creation
+dates follow CustomJS's existing partial-date conventions: numeric years start
+January 1, quoted years and year-month strings use the period's last day. Unknown
+birth/creation dates do not establish a future date. Death/destruction dates do
+not hide historical subjects.
+
+Links may reference an unavailable page; following them still applies the same
+404 check. The full metadata index remains available to header calculations.
+Assets are served independently of referring pages; page exclusions do not act
+as asset permissions.
 
 The raw vault has an unterminated comment in
 Groups/Cultures/Deno'qai Tribes/Deno'qai.md. Full export scans fail there. The API

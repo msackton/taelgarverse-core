@@ -29,7 +29,7 @@ export function createWorker(instantiate) {
       return await handleRequest(request,engine,{
         runtime:'cloudflare-worker',revision,
         async renderPage(page,date,context,dm) {
-          const entry=store.resolve(page), note=await store.getNote(entry);
+          const {entry}=engine.resolvePage(page,date,context,dm), note=await store.getNote(entry);
           return engine.render(page,date,context,dm,note);
         },
         assets(entry,request) {

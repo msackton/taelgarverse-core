@@ -23,14 +23,29 @@ export function parseNote(source) {
 export function excluded(metadata, settings) {
   const raw = metadata.excludePublish;
   const exclusions = (typeof raw === 'string' ? raw.split(',') : Array.isArray(raw) ? raw : []).map(x => String(x).trim().toLowerCase());
-  const tags = typeof metadata.tags === 'string' ? [metadata.tags] : metadata.tags ?? [];
-  return exclusions.includes('all') || settings.campaigns.some(c => exclusions.includes(c.toLowerCase())) ||
-    (Array.isArray(tags) && tags.some(t => String(t).split('/').includes('excalidraw')));
+  return exclusions.includes('all') || settings.campaigns.some(c => exclusions.includes(c.toLowerCase()));
+}
+// Match CustomJS DateManager's start dates: numeric years start on January 1;
+// quoted years and year-month strings use the last day of the stated period.
+// Missing/unknown dates cannot establish that a subject is in the future.
+function creationDateKey(value) {
+  if (!value) return null;
+  let date = String(value);
+  if (typeof value === 'string') {
+    if (/^[0-9]{1,4}$/.test(date)) date += '-12-31';
+    else if (/^[0-9]{1,4}-[0-9]{1,2}$/.test(date)) {
+      const month = Number(date.split('-')[1]);
+      date += '-' + [31,28,31,30,31,30,31,31,30,31,30,31][month - 1];
+    }
+  }
+  try { return dateKey(date,true); } catch { return null; }
 }
 export function availableInContext(entry, context) {
   if (!entry?.note || excluded(entry.note.metadata,{campaigns:context.campaigns})) return false;
-  const active = entry.note.metadata.activeYear;
-  return !active || dateKey(String(active),true) <= dateKey(context.date);
+  const metadata = entry.note.metadata, target = dateKey(context.date);
+  const start = creationDateKey(metadata.born || metadata.created);
+  return (start === null || start <= target) &&
+    (!metadata.activeYear || dateKey(String(metadata.activeYear),true) <= target);
 }
 function addAlias(map, alias, entry) {
   if (!alias) return;

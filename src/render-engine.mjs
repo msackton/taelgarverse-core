@@ -1,5 +1,5 @@
-import {RenderError, dateKey, escapeHtml, parseDM} from './common.mjs';
-import {parseNote, excluded} from './content-store.mjs';
+import {RenderError, escapeHtml, parseDM} from './common.mjs';
+import {parseNote, availableInContext} from './content-store.mjs';
 import {filterComments} from './comments.mjs';
 import {createMarkdown, renderMarkdown} from './markdown.mjs';
 import {Contexts} from './contexts.mjs';
@@ -18,16 +18,19 @@ export class RenderEngine {
     this.navigation = new Navigation(this.store,navigationSource);
   }
 
-  render(page, date, contextId, dm = false, loadedNote) {
+  resolvePage(page, date, contextId, dm = false) {
     dm = parseDM(dm);
     const context = {...this.contexts.resolve(contextId,date), dm};
-    date = context.date;
     const entry = this.store.resolve(page);
+    if (!availableInContext(entry,context)) throw new RenderError(404,'Page is not available in this context');
+    return {entry,context};
+  }
+
+  render(page, date, contextId, dm = false, loadedNote) {
+    const {entry,context} = this.resolvePage(page,date,contextId,dm);
+    date = context.date;
+    dm = context.dm;
     const metadata = entry.note.metadata;
-    if (excluded(metadata,{campaigns:context.campaigns})) throw new RenderError(404,'Page is not available in this context');
-    if (metadata.activeYear && dateKey(String(metadata.activeYear), true) > dateKey(date)) {
-      throw new RenderError(404, 'Page is not available at this date');
-    }
     const note = loadedNote || entry.note;
     let body = note.body;
     // Prepared Markdown places this marker at the start of the body. A leading

@@ -9,6 +9,8 @@ const entries = [
   entry('people/people.md','People'), entry('people/humans/zora.md','Zora'), entry('people/humans/anna.md','Anna'),
   entry('places/region/region.md','The Region'),entry('places/region/town.md','Town'),
   entry('places/future.md','Future',{activeYear:1740}), entry('places/campaign.md','Campaign',{excludePublish:['one']}),
+  entry('places/unborn.md','Unborn',{born:'1740-04-02'}),entry('places/unbuilt.md','Unbuilt',{created:'1740-04-02'}),
+  entry('places/hidden.md','Hidden',{excludePublish:'all'}),
   entry('extra/other.md','Other'),
 ];
 const source = '- [Home](index.md)\n- [People](people/people.md)\n    - {glob: people/, exclude: people.md}\n' +
@@ -48,9 +50,11 @@ test('sidebar opens only the current path, with active page and breadcrumbs',()=
 test('date and campaign visibility apply to lazy branches and remove missing leaves',()=>{
   const nav = navigation(), places = nav.roots[2];
   const early = nav.branch({...context,campaigns:['one']},places.id);
-  assert.doesNotMatch(early.html,/>Future<|>Campaign</);
+  assert.doesNotMatch(early.html,/>Future<|>Campaign<|>Unborn<|>Unbuilt<|>Hidden</);
   const later = nav.branch({...context,date:'1750-01-01'},places.id);
   assert.match(later.html,/>Future</); assert.match(later.html,/>Campaign</);
+  assert.match(later.html,/>Unborn</); assert.match(later.html,/>Unbuilt</);
+  assert.doesNotMatch(later.html,/>Hidden</);
   const sidebar = nav.sidebar(nav.view(context));
   assert.doesNotMatch(sidebar,/Unpublished/);
   assert.throws(()=>nav.branch(context,'missing'),{status:404});

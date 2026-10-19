@@ -28,7 +28,7 @@ before(async () => {
   fs.writeFileSync(path.join(directory,'ignore.txt'),'Ignored/\n');
   const navSource = path.join(directory,'_navigation.md');
   fs.writeFileSync(navSource,'- [Home](index.md)\n- People\n    - {glob: people/}\n- Places\n    - {glob: places/}\n- [Future](future.md)\n');
-  engine = new Engine({...loadSettings(),source_dir:directory,ignore_file:path.join(directory,'ignore.txt'),nav_source:navSource});
+  engine = new Engine({...loadSettings(),source_dir:directory,ignore_file:path.join(directory,'ignore.txt'),nav_source:navSource,campaigns:['dufr','adma']});
   server = createServer(engine);
   await new Promise((resolve,reject) => { server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
   base = 'http://127.0.0.1:' + server.address().port;
@@ -70,9 +70,37 @@ test('links, callouts, tables, headings, HTML cards and footnotes',() => {
   assert.equal($('.grid.cards .bio').length,1); assert.equal($('h2#details').length,1);
   assert.doesNotMatch(result.html,/\[\[|markdown>|:octicons-info-24:/);
 });
-for (const page of ['Hidden','CampaignHidden','Invisible','Secret','../README','A/../../Hidden','C:\\secret']) {
+for (const page of ['Hidden','Secret','Hidden World','Hidden Nested','../README','A/../../Hidden','C:\\secret']) {
   test('unavailable page: ' + page,() => assert.throws(() => render(page),{status:404}));
 }
+
+test('publication retains exclusions, formerly ignored paths, excluded tags and underscore-prefixed files',() => {
+  assert.equal(engine.store.resolve('Hidden').note.metadata.excludePublish,'all');
+  for (const page of ['CampaignHidden','Invisible','Drawing','_Loose']) assert.ok(render(page).html,page);
+  assert.throws(()=>engine.render('CampaignHidden',undefined,'dunmar-frontier'),{status:404});
+  assert.ok(engine.render('CampaignHidden',undefined,'addermarch').html);
+});
+
+test('website and API apply exclusions and birth/creation dates consistently, including Behind the Curtain',async()=>{
+  for (const dm of ['0','1']) {
+    for (const [page,query,status] of [
+      ['Hidden','context=modern',404], ['Hidden','date=1800-01-01',404],
+      ['CampaignHidden','context=dunmar-frontier',404], ['CampaignHidden','context=addermarch',200],
+      ['CampaignHidden','context=modern',200], ['CampaignHidden','date=1730-01-01',200],
+      ['Unborn','date=1730-04-01',404], ['Unborn','date=1730-04-02',200],
+      ['Unbuilt','date=1730-04-01',404], ['Unbuilt','date=1730-04-02',200],
+    ]) {
+      for (const route of ['/api/page?page='+page+'&','/page/'+page+'?']) {
+        const response=await fetch(base+route+query+'&dm='+dm);
+        assert.equal(response.status,status,route+query);
+        if (status===404) assert.doesNotMatch(await response.text(),/Private page\.|Unborn biography\.|Unbuilt history\./);
+      }
+      const $=load(await (await fetch(base+'/?q='+page+'&'+query+'&dm='+dm)).text(),{},false);
+      assert.equal($('main li a[href*="/page/'+page.toLowerCase()+'?"]').length,status===200 ? 1 : 0,page+' in finder: '+query);
+      if (status===404) assert.equal($('.site-sidebar a[href*="/page/'+page.toLowerCase()+'?"]').length,0);
+    }
+  }
+});
 test('future pages, ambiguous names and full paths',() => {
   assert.throws(() => render('Future','1730-01-01'),{status:404});
   assert.equal(render('Future','1741-01-01').page,'future');
