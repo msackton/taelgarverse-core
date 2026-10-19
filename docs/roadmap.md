@@ -58,11 +58,15 @@ links remains unspecified.
 
 ### MVP-03: Basic full-text search
 
-**Status:** Agreed scope; detailed behavior remains open.
+**Status:** Cloudflare AI Search hybrid pilot agreed; implementation pending.
 
 Restore basic full-text search across article content, beyond the current
-title/path finder. More advanced search improvements can follow under
-Presentation improvements.
+title/path finder. Use Cloudflare AI Search to explore both exact names/phrases
+and meaning-based questions. Begin with an isolated, explicitly selected subset
+of Markdown and compare retrieval quality, chunking, context visibility, updates,
+and costs before full-corpus indexing or production integration. See the
+[search pilot plan](search-pilot.md). Further presentation improvements remain
+under P-04.
 
 ### MVP-04: Backlinks
 
@@ -285,10 +289,13 @@ and navigation between world and regional maps.
 
 ### P-04: Better search
 
-**Status:** Agreed direction; detailed design remains open.
+**Status:** Cloudflare AI Search selected for a small-subset hybrid experiment;
+ranking and presentation details remain open.
 
 Improve ranking and snippets beyond basic MVP full-text search, with optional
-filters for types of content.
+filters for types of content. Evaluate keyword, vector, and hybrid retrieval in
+the [search pilot](search-pilot.md) before choosing production settings or
+integrating with the redesigned UI.
 
 ### P-05: More informative backlinks
 
