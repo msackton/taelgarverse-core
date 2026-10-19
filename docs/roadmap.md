@@ -72,6 +72,8 @@ existing Taelgarverse. Richer backlink presentation can follow later.
 Articles show **Linked from** in the right-hand page navigation, with a sorted,
 deduplicated list of referring pages. Authored article links respect source-page
 availability and occurrence-level campaign/date/Behind the Curtain visibility.
+Campaign session notes and other campaign-owned sources appear only when that
+campaign is selected; Modern and Custom retain shared reference sources.
 Publication builds a reverse index so the Worker can display backlinks without
 fetching referring article bodies. The feature needs the updated renderer and
 a fresh content publication. See [backlink behavior and indexing](backlinks.md).

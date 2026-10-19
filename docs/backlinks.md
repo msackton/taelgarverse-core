@@ -20,6 +20,17 @@ cards are computed presentation rather than authored article references.
 Materialized query output in the exported article is included.
 
 Both the source page and target page must be available in the selected context.
+Campaign-specific source pages appear only in their own campaign context.
+Ownership comes from the source's `campaign` field (registry name, code, ID, or
+alias; lists may name multiple campaigns), falling back to the registry's
+`campaignRoot` folder. Handouts and timelines inside that folder follow the same
+rule as session notes. Unregistered campaign folders and sessions without an
+identifiable campaign have no matching context, so they do not add backlinks.
+Modern and Custom show only shared reference sources. Behind the Curtain does
+not bypass campaign ownership. `knownTo` and `campaignInfo` do not establish
+ownership of a general world-reference page. This filter applies to backlinks;
+direct article access and the shared site navigation retain their own rules.
+
 Each occurrence also follows campaign/date blocks and Behind the Curtain rules.
 Ordinary comment links count only when their DM note is visible; administrative
 comments never count. An unsafe comment source contributes no backlinks and
@@ -41,7 +52,9 @@ the whole article preserves reference definitions across blocks. Equal states
 reuse parsed references, and adjacent date intervals are merged.
 
 At request time, the Worker looks up the target's incoming entries and filters
-their rules and source metadata. It does not fetch or render the referring
+their rules, campaign ownership, and source metadata. Ownership is resolved once
+from the existing metadata and campaign registry; it needs no additional index
+fields or R2 reads. It does not fetch or render the referring
 articles, or scan all note bodies. The Node preview builds the same index once
 at startup. New content revisions replace the index along with the article
 snapshot, so removed links disappear without redeploying the Worker.
