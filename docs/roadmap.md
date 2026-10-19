@@ -96,7 +96,25 @@ Work that may affect vault organization or the underlying information model to
 support a better experience. Discussion areas include temporal POV, campaign
 knowledge, and how relationships are represented in data.
 
-No individual backlog items have been agreed yet.
+### IA-01: Temporal POV and multi-POV pages
+
+**Status:** Agreed direction; metadata and authoring design remain open.
+
+The intended reader experience is:
+
+- When a page's POV is earlier than the selected date, keep it available and
+  highlight its POV.
+- When a page's POV is later than the selected date, hide the page.
+- Support appropriate POVs for each campaign without making authoring and
+  maintenance burdensome.
+
+Multi-POV pages need further design: how to represent their content, select the
+appropriate POV, and apply the availability and highlighting rules.
+
+The existing vault specification, `_MoC/Temporal POV Metadata.md`, defines POV
+as an editorial reading position rather than a validity interval. Comparison
+rules for years, decades, `modern`, and `undated`, along with the relationship
+to authored date blocks, remain to be worked out before implementation.
 
 ## Presentation improvements
 
