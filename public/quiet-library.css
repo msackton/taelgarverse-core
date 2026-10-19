@@ -1,20 +1,23 @@
-/* Quiet Library: neutral stone surfaces, sage accents, and readable serif prose. */
+/* Quiet Library: neutral stone surfaces, muted plum and sage, and serif prose. */
 :root {
   color-scheme: light;
   --bg: #f8f8f6; --surface: #efefeb; --text: #303532; --muted: #60665f;
-  --line: #d9ddd7; --link: #4e6657; --accent: #7b8d7b; --soft: #e8ece6;
+  --line: #d9ddd7; --link: #38634f; --accent: #718e79; --soft: #e8ece6;
+  --plum: #70506e; --plum-soft: #f0eaf0; --plum-line: #a17d9c;
   --layout-width: 1600px; --layout-gutter: 32px; --header-height: 132px;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
   --bg: #202122; --surface: #292b2c; --text: #e5e5e0; --muted: #b3b7b1;
-  --line: #414544; --link: #b0c3ad; --accent: #93a48f; --soft: #323735;
+  --line: #414544; --link: #a9cbb5; --accent: #93ad9a; --soft: #323735;
+  --plum: #d0b0cf; --plum-soft: #302a32; --plum-line: #9e7d9c;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     color-scheme: dark;
     --bg: #202122; --surface: #292b2c; --text: #e5e5e0; --muted: #b3b7b1;
-    --line: #414544; --link: #b0c3ad; --accent: #93a48f; --soft: #323735;
+    --line: #414544; --link: #a9cbb5; --accent: #93ad9a; --soft: #323735;
+    --plum: #d0b0cf; --plum-soft: #302a32; --plum-line: #9e7d9c;
   }
 }
 body {
@@ -43,6 +46,7 @@ form { background: var(--surface); }
   gap: 12px 16px; justify-content: flex-start;
 }
 .site-header .site-brand {
+  color: var(--plum);
   display: block; flex: 0 1 240px; width: 240px; min-width: 0; height: 34px;
   font: 600 27px/34px Georgia, serif; letter-spacing: -.6px;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -94,7 +98,7 @@ form { background: var(--surface); }
 .breadcrumbs li + li::before { color: var(--accent); }
 .md-typeset { font: 18px/1.8 Georgia, 'Times New Roman', serif; overflow-wrap: break-word; }
 .article-main { display: flow-root; }
-.md-typeset :is(h1,h2,h3,h4,h5,h6) { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; color: var(--text); scroll-margin-top: calc(var(--header-height) + 24px); }
+.md-typeset :is(h1,h2,h3,h4,h5,h6) { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; color: var(--plum); scroll-margin-top: calc(var(--header-height) + 24px); }
 .md-typeset h1 { font-size: 40px; line-height: 1.25; letter-spacing: -.35px; margin: 0 0 23px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .md-typeset h2 { font-size: 28px; line-height: 1.25; margin: 2em 0 .7em; padding-bottom: 8px; border-bottom: 1px solid var(--line); clear: both; }
 .md-typeset h3 { font-size: 22px; line-height: 1.4; }
@@ -108,14 +112,14 @@ form { background: var(--surface); }
 .md-typeset .admonition-title { background: var(--soft); font: 600 14px/1.6 system-ui,sans-serif; }
 /* Literary quotes use the article's typography, without an alert-style title bar. */
 html .md-typeset blockquote,
-html .md-typeset .admonition.quote,
+html .md-typeset .admonition.quote:not(.image),
 html .md-typeset details.quote {
-  color: var(--text); background: var(--surface); border: 0; border-inline-start: 3px solid var(--accent);
+  color: var(--text); background: var(--plum-soft); border: 0; border-inline-start: 3px solid var(--plum-line);
   border-radius: 0; box-shadow: none; font: inherit; margin: 1.5em 0; padding: 1em 1.25em;
 }
 html .md-typeset .quote > .admonition-title,
 html .md-typeset details.quote > summary {
-  background: transparent; color: var(--muted); border: 0; border-radius: 0;
+  background: transparent; color: var(--plum); border: 0; border-radius: 0;
   font: 400 .9em/1.6 Georgia, 'Times New Roman', serif; margin: 0 0 .8em; padding: 0;
 }
 html .md-typeset .quote > .admonition-title::before,
@@ -204,7 +208,7 @@ html .md-typeset :is(blockquote,.admonition.quote,details.quote) > :last-child {
   .site-interactive .site-brand { font-size: 20px; }
 }
 @media print {
-  :root { color-scheme: light; --bg: #fff; --text: #222; --muted: #555; --surface: #eee; --line: #ccc; --link: #34513e; }
+  :root { color-scheme: light; --bg: #fff; --text: #222; --muted: #555; --surface: #eee; --line: #ccc; --link: #34513e; --plum: #70506e; --plum-soft: #f0eaf0; --plum-line: #a17d9c; }
   .site-header, .site-sidebar, .page-toc, .site-dialog, .back-to-top, .site-footer { display: none !important; }
   .layout { display: block; padding: 0; } .layout .article-main { max-width: none; }
 }
