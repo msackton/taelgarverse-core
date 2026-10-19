@@ -111,6 +111,11 @@ The intended reader experience is:
 Multi-POV pages need further design: how to represent their content, select the
 appropriate POV, and apply the availability and highlighting rules.
 
+The central design question is whether to reuse the existing campaign and date
+blocks, with POV adding an effective whole-page date gate, or adopt a different
+representation for multi-POV content. Neither approach is selected. Evaluate
+them against the intended reader behavior and the authoring burden above.
+
 The existing vault specification, `_MoC/Temporal POV Metadata.md`, defines POV
 as an editorial reading position rather than a validity interval. Comparison
 rules for years, decades, `modern`, and `undated`, along with the relationship
