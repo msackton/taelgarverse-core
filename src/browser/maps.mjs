@@ -1,4 +1,5 @@
 import L from 'leaflet';
+import {addMeasurement} from './map-measurement.mjs';
 
 const blank = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
@@ -37,7 +38,9 @@ for (const figure of document.querySelectorAll('.leaflet-map[data-map]')) {
     const fit = document.createElement('button');
     fit.type = 'button';fit.textContent = 'Fit map';fit.addEventListener('click',() => map.fitBounds(bounds));
     figure.querySelector('figcaption').prepend(fit);
+    addMeasurement(L,map,canvas,figure,config.measurement,bounds);
     status.textContent = 'Drag to pan; use +/− or pinch to zoom. ';
+    if(config.measurement===null)status.textContent+='Distance measurement unavailable for this map. ';
     // Maps inside closed callouts or note previews need their first visible size.
     let visible = canvas.clientWidth > 0 && canvas.clientHeight > 0;
     const observer = new ResizeObserver(() => {

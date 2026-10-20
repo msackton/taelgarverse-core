@@ -278,6 +278,13 @@ zooming, and touch gestures. **Fit map** shows the complete map; **Open map imag
 also works without JavaScript or if the interactive viewer fails. Mouse-wheel
 scrolling continues to scroll the article.
 
+**Measure distance** adds a temporary route ruler. Click or tap successive
+points for a total; Undo, Clear, and Done controls appear as needed. The current
+Taelgar maps use a verified **24-mile hex** calibration tied to each source
+image, independent of zoom and the older display bounds. A known image that
+changes needs its calibration rechecked. Other maps use authored `unit`/`scale`,
+or show map units if no unit is supplied. See [map calibration and controls](maps.md).
+
 Large maps use generated WebP tiles, so viewing a map does not fetch its entire
 original image. Smaller regional maps use image overlays. On narrow screens,
 maps allow extra zooming out so **Fit map** can show the complete image. Map images retain
@@ -286,7 +293,7 @@ and loaded only on pages with maps. Campaign/date and Behind the Curtain blocks
 filter maps like other article content, including inside note embeds. Missing
 images or invalid definitions produce a map warning without breaking the article.
 
-Distance tools, markers, switchable overlays, and navigation between maps remain
+Markers, switchable overlays, and navigation between maps remain
 future work; the website does not execute Obsidian Leaflet plugin scripts.
 
 Other images may be made smaller during publication. See

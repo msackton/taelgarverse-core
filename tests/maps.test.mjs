@@ -31,6 +31,7 @@ test('Leaflet definitions resolve vault and relative images, preserve coordinate
     assert.deepEqual(config.center,[32,2050]);
     assert.equal(config.defaultZoom,-1);assert.equal(config.minZoom,-3);assert.equal(config.maxZoom,2);
     assert.equal(config.height,'700px');assert.equal(config.width,'900px');
+    assert.deepEqual(config.measurement,{xScale:1,yScale:1,unit:'map units'});
     assert.equal($('.map-canvas[hidden][role="region"]').length,1);
     assert.equal($('figcaption a').attr('href'),'/assets/assets/map-with-spaces.png');
     assert.deepEqual(result.warnings,[]);
@@ -45,6 +46,18 @@ test('Leaflet definitions resolve vault and relative images, preserve coordinate
     assert.equal($('script,img').length,0);
   }
   assert.throws(()=>parseMap(definition.replace('[[map with spaces.png]]','javascript:alert(1)'),store,author));
+});
+
+test('map measurement preserves authored scale and unit; invalid calibration leaves the map available',()=>{
+  const {store,author}=fixture();
+  const parsed=parseMap(definition+'unit: miles\nscale: 0.5\n',store,author);
+  assert.deepEqual(parsed.config.measurement,{xScale:0.5,yScale:0.5,unit:'miles'});
+  for(const settings of ['unit: []','unit: ""','scale: 0','scale: -1','scale: .inf','scale: "0.5"']){
+    const result=render('```leaflet\n'+definition+settings+'\n```',store,author),$=load(result.html);
+    assert.equal($('.leaflet-map').length,1);
+    assert.equal(JSON.parse($('.leaflet-map').attr('data-map')).measurement,null);
+    assert.match(result.warnings[0],/distance measurement disabled/);
+  }
 });
 
 test('map images retain full resolution and tiled maps include aligned edge tiles, native zooms and a reusable cache',async t=>{

@@ -3,6 +3,7 @@ import {parse} from 'yaml';
 import MarkdownIt from 'markdown-it';
 import {IMAGE_TYPES} from './content-store.mjs';
 import {escapeHtml} from './common.mjs';
+import {measurementOptions} from './map-distance.mjs';
 
 const point = value => Array.isArray(value) && value.length === 2 && value.every(v => Number.isFinite(v) && Math.abs(v) <= 10_000_000);
 function number(value, fallback, name) {
@@ -43,12 +44,14 @@ export function parseMap(source, store, author) {
   const center = hasCenter ? [number(data.lat,0,'lat'),number(data.long,0,'long')] : undefined;
   return {entry,config:{bounds,minZoom,maxZoom,defaultZoom,center,fitBounds:data.fitBounds === true || !center,
     height:dimension(data.height,'600px'),width:dimension(data.width,'100%'),
+    measurement:measurementOptions(data,entry,bounds),
     image:'/assets/' + entry.target.split('/').map(encodeURIComponent).join('/')}};
 }
 
 export function renderMap(source, env) {
   try {
     const {entry,config} = parseMap(source,env.store,env.entry);
+    if(!config.measurement)env.warnings.push('Leaflet map: distance measurement disabled; verify image calibration, unit, and scale');
     const tile = entry.mapTiles?.find(tile => JSON.stringify(tile.bounds) === JSON.stringify(config.bounds));
     if (tile) config.tile = tile;
     const label = 'Map: ' + path.posix.basename(entry.id,path.posix.extname(entry.id)).replace(/[-_]/g,' ');
