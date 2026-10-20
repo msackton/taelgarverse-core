@@ -11,10 +11,12 @@ import {serveAsset,themeFiles,contentTypes} from './http-assets.mjs';
 import {prepareMaps} from '../scripts/build-maps.mjs';
 import {prepareImages} from '../scripts/build-images.mjs';
 import {imageEntries} from './images.mjs';
+import {collectImageUsages} from '../scripts/image-usage.mjs';
 
 export function createServer(engine) {
   const mapCache = path.join(ROOT,'.cache/maps');
   const imageCache = path.join(ROOT,'.cache/images');
+  const imageUsages = collectImageUsages(engine.store,{homeSource:engine.home});
   let mapsReady;
   const ready = () => mapsReady ??= prepareMaps(engine.store,mapCache).catch(error=>{mapsReady=undefined;throw error;});
   const server=http.createServer(async(req,res)=>{
@@ -26,14 +28,14 @@ export function createServer(engine) {
           const render = ()=>engine.render(page,date,context,dm,undefined,campaigns);
           const result = render(), entries = imageEntries(engine.store,result.html);
           if (!entries.length) return result;
-          await prepareImages(engine.store,imageCache,{},entries);
+          await prepareImages(engine.store,imageCache,{usages:imageUsages},entries);
           return render();
         },
         async renderHome(context) {
           await ready();
           const result = engine.renderHome(context), entries = imageEntries(engine.store,result?.html || '');
           if (!entries.length) return result;
-          await prepareImages(engine.store,imageCache,{},entries);
+          await prepareImages(engine.store,imageCache,{usages:imageUsages},entries);
           return engine.renderHome(context);
         },
         assets(entry,request) {

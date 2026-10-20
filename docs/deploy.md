@@ -113,11 +113,17 @@ The account ID identifies the account; your login provides permission to use it.
 ## Image settings
 
 Original exported images are retained at full resolution for download and
-detailed pan/zoom. Publication also generates cached WebP variants, normally at
-96, 192, 320, 480, 640, 960, 1440, 1920 and 2560 pixels wide, bounded by the source
-dimensions and a **2,560-pixel longest edge**. Variants are never cropped or
-enlarged. Smaller derivatives that cost more bytes than a sharper alternative
-are omitted from the choices sent to browsers.
+detailed pan/zoom. Publication inspects image uses in the exported notes and
+homepage, then generates the needed WebP widths. A fixed 300px image normally
+gets 300px and 600px inline copies plus a popup version. Reused images share the
+combined set of widths. Layout roles, table limits and mobile behavior provide
+bounds where a note does not declare a width. Wide layouts also get a phone-sized
+choice; nearby widths are combined. Images not displayed inline get no inline
+derivatives. Originals remain indexed for ordinary asset links.
+
+The largest popup derivative defaults to a **2,560-pixel longest edge**. Nothing
+is cropped or enlarged. Smaller derivatives that cost more bytes than a sharper
+alternative are omitted from the choices sent to browsers.
 
 JPEG/WebP derivatives use quality **82**. PNG derivatives use lossless WebP
 encoding and retain transparency. Animation, unsupported formats and audio keep

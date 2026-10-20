@@ -4,7 +4,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {load} from 'cheerio';
 import sharp from 'sharp';
-import {prepareImages} from '../scripts/build-images.mjs';
+import {prepareImages,usedImageWidths} from '../scripts/build-images.mjs';
+import {collectImageUsages} from '../scripts/image-usage.mjs';
 import {ContentStore} from '../src/content-store.mjs';
 import {responsiveImages} from '../src/images.mjs';
 import {ROOT,loadSettings,isInside} from '../src/config.mjs';
@@ -27,14 +28,16 @@ async function fixture(t) {
   for (let i=0;i<pixels.length;i++) pixels[i] = (i*37+(i>>>9)*19)%256;
   await sharp(pixels,{raw:{width:1800,height:1200,channels:3}}).jpeg({quality:95}).toFile(filename);
   const entry = {id:'portrait.jpg',target:'portrait.jpg',extension:'.jpg',filename,note:null};
-  return {directory,entry,store:new ContentStore([entry],[])};
+  const body='![[portrait.jpg|320]]';
+  const gallery={id:'Gallery.md',target:'gallery.md',slug:'gallery',name:'Gallery',title:'Gallery',note:{metadata:{},body,source:body}};
+  return {directory,entry,store:new ContentStore([entry,gallery],[])};
 }
 
 test('responsive derivatives retain original bytes, cache safely, never upscale, and keep full size out of inline candidates',async t=>{
   const {directory,entry,store} = await fixture(t), original = await fs.readFile(entry.filename);
   const cache = path.join(directory,'cache');
   const stats = await prepareImages(store,cache);
-  assert.equal(stats.images,1);assert.ok(stats.variants>=7);
+  assert.equal(stats.images,1);assert.equal(stats.variants,3);
   assert.deepEqual(await fs.readFile(entry.filename),original);
   assert.equal(entry.image.width,1800);assert.equal(entry.image.variants.at(-1).width,1800);
   const small = entry.image.variants.find(item=>item.width===320);
@@ -61,11 +64,14 @@ test('PNG transparency and pixels survive lossless conversion; animations and au
   await fs.writeFile(png,bytes);
   const drawing = {id:'drawing.png',target:'drawing.png',extension:'.png',filename:png,note:null};
   store.entries.push(drawing);store.assets.set(drawing.target,drawing);
+  store.canonical.set(drawing.id,new Set([drawing]));
   const animation = path.join(directory,'animated.webp');
   const frames = Buffer.alloc(8*16*3,180);frames.fill(230,frames.length/2);
   await sharp(frames,{raw:{width:8,height:16,channels:3,pageHeight:8}}).webp({loop:0,delay:[100,100]}).toFile(animation);
   const animated = {id:'animated.webp',target:'animated.webp',extension:'.webp',filename:animation,note:null};
   store.entries.push(animated);store.assets.set(animated.target,animated);
+  store.canonical.set(animated.id,new Set([animated]));
+  store.bySlug.get('gallery').note.body+='\n![[drawing.png|80]]\n![[animated.webp]]\n';
   await prepareImages(store,path.join(directory,'cache'));
   assert.equal(animated.image,undefined);
   const converted = store.assets.get(drawing.image.variants[0].url.slice(8));
@@ -74,6 +80,42 @@ test('PNG transparency and pixels survive lossless conversion; animations and au
   const $ = load(responsiveImages('<details><summary>Hidden</summary><img src="/assets/drawing.png"></details><img src="/assets/drawing.png" loading="lazy" srcset="custom.webp 2x"><span class="twemoji"><img src="emoji.png"></span>',store));
   assert.equal($('details img').attr('loading'),'lazy');assert.equal($('img').eq(1).attr('srcset'),'custom.webp 2x');
   assert.equal($('.twemoji img').attr('loading'),undefined);
+});
+
+test('fixed declared widths generate only used 1x/2x sizes and a popup; nearby/reused widths combine without upscaling',()=>{
+  assert.deepEqual(usedImageWidths(1800,1200,[[{width:300}]]),[
+    {width:300,inline:true},{width:600,inline:true},{width:1800,inline:false},
+  ]);
+  assert.deepEqual(usedImageWidths(1800,1200,[[{width:240}],[{width:300}]]).filter(item=>item.inline).map(item=>item.width),[300,600]);
+  assert.deepEqual(usedImageWidths(200,100,[[{width:300}]]),[{width:200,inline:true}]);
+  assert.deepEqual(usedImageWidths(1800,1200,[[{height:200}]]).filter(item=>item.inline).map(item=>item.width),[300,600]);
+  const chain=usedImageWidths(1800,1200,[[{width:300}],[{width:375}],[{width:468}]]).filter(item=>item.inline);
+  for (const required of [300,375,468,600,750,936]) assert.ok(chain.some(item=>item.width>=required && item.width<=required*1.25),'merged size stays within 25% of '+required);
+});
+
+test('usage planning finds alternative reference definitions, DM images, HTML, tables and homepage images while omitting unused/literal/administrative references',async t=>{
+  const {directory,entry} = await fixture(t);
+  const media = ['portrait.jpg','public.jpg','dm.jpg','unused.jpg','code.jpg','admin.jpg','home.jpg','html.jpg','table.jpg'].map(name=>({...entry,id:name,target:name,filename:path.join(directory,name)}));
+  const body=[
+    '![[portrait.jpg|300]]','![Alternative][view]',
+    '%%^Date:1750%%','[view]: dm.jpg','%%^End%%',
+    '%%^Date:1750b%%','[view]: public.jpg','%%^End%%',
+    '%%DM ![[dm.jpg|400]]%%',
+    '%%^Metadata:images%%','![[admin.jpg]]','%%^End%%',
+    '```markdown','![[code.jpg]]','```',
+    '<img src="html.jpg" width="200">','',
+    '| Image |','| --- |','| ![[table.jpg]] |',
+  ].join('\n');
+  const page={id:'Gallery.md',target:'gallery.md',slug:'gallery',name:'Gallery',title:'Gallery',note:{metadata:{},body,source:body}};
+  const store=new ContentStore([...media,page],[]), plan=collectImageUsages(store,{homeSource:'![[home.jpg|240]]'});
+  for (const name of ['portrait.jpg','public.jpg','dm.jpg','home.jpg','html.jpg','table.jpg']) assert.ok(plan.has(name),name);
+  for (const name of ['unused.jpg','code.jpg','admin.jpg']) assert.equal(plan.has(name),false,name);
+  assert.deepEqual(plan.get('portrait.jpg'),[[{width:300}]]);
+  assert.deepEqual(plan.get('table.jpg'),[[{width:90,height:90}]]);
+  assert.deepEqual(plan.get('html.jpg'),[[{width:200}]]);
+  await prepareImages(store,path.join(directory,'cache'),{usages:new Map([['portrait.jpg',plan.get('portrait.jpg')]])});
+  assert.ok(store.assets.get('portrait.jpg').image);
+  assert.equal(store.assets.get('unused.jpg').image,undefined);
 });
 
 test('Node and Worker serve small image variants with original downloads, ranges, cache validation and context filtering',async t=>{

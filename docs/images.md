@@ -12,11 +12,28 @@ their destinations. Native inline images remain usable without JavaScript.
 
 `scripts/build-images.mjs` creates WebP derivatives of static JPEG, PNG and WebP
 files without rewriting their source files. The normal publication path keeps
-the full-resolution export. Candidate widths are 96, 192, 320, 480, 640, 960,
-1440, 1920 and 2560 pixels, plus a final source-limited size; the longest derivative
-edge defaults to 2560. Nothing is enlarged or cropped. JPEG/WebP use quality 82;
+the full-resolution export. Candidate widths come from the actual uses, with
+one additional popup version; its longest edge defaults to 2560. Nothing is
+enlarged or cropped. JPEG/WebP use quality 82;
 PNG uses lossless WebP encoding to retain transparency, lettering and fine lines.
 Settings are described in [deployment](deploy.md#image-settings).
+
+`scripts/image-usage.mjs` renders the distinct date/campaign/DM states of each
+prepared note and the homepage using the normal Markdown/comment rules. This
+captures numeric widths, HTML images, role-based sizes, table thumbnails, comment
+popups and alternative reference-style image definitions. Saved generated headers
+are omitted as in the other publication compilers; the current generated headers
+do not emit images. Literal code, administrative comments, unsafe notes, and
+pages excluded from all publication views contribute no uses. Embedded note bodies
+are inspected through their source notes. Materialized queries are ordinary
+exported content and participate automatically.
+
+The planner uses the widest desktop/mobile bounds for each occurrence. Each use
+requests a 1× and 2× inline size, capped at 1440px and native dimensions. Wide
+layouts also request a phone-sized choice. Multiple uses combine into one set;
+widths within 25% merge upward. For example, a single fixed 300px image needs
+300px and 600px inline copies, plus the popup version. Images with no inline use
+get no derivatives, while originals remain indexed for direct asset links.
 
 Resampled line drawings sometimes compress worse than sharper versions. Choices
 dominated by a sharper, cheaper variant are omitted within the inline and popup
@@ -24,15 +41,16 @@ groups. Animated PNG/WebP and other formats retain their existing delivery.
 Undecodable images retain the original URL and add a publication warning.
 Filesystem and processing failures still stop preparation.
 
-The cache recipe includes source content, size/quality and Sharp/libvips versions.
+The cache recipe includes source content, planned widths, size/quality and Sharp/libvips versions.
 Missing cached files trigger rebuilding. Every published derivative is an asset
 entry with the existing content-hashed R2 object key. Derivatives therefore
 participate in normal upload deduplication, snapshot retention, cleanup and
 rollback. Their content-addressed browser URLs receive immutable cache headers.
 No on-demand image transformation service or additional binding is required.
 
-`prepareContent` generates variants before packaging. Local Node previews generate
-them only for images in the rendered page, with the same cache and renderer.
+`prepareContent` plans and generates variants before packaging. Local Node previews
+use the same complete usage plan, generating files only for images in the rendered
+page. Thus a reused image gets the same widths regardless of which page opens first.
 Leaflet overlays and tiles keep their separate interactive-map delivery.
 
 ## Browser loading
@@ -44,7 +62,8 @@ The first visible-content image is eager; subsequent images and images inside
 closed details/popovers are lazy. Browsers can fetch lazy images near the viewport
 before they become visible. Lazy images use `sizes="auto"` with layout fallbacks.
 
-Inline choices stop at 1440 pixels wide. Larger popup choices and the original URL
+Inline choices use only the planned inline sizes and stop at 1440 pixels wide.
+The popup-only choice and the original URL
 appear only as inert metadata, which does not fetch their bytes. Opening the viewer
 shows the inline image immediately, then selects a screen-sized derivative from
 the fitted dimensions with density capped at 2×. Pan/zoom loads the original;
@@ -90,5 +109,16 @@ scene original. The downloaded file was checked against the original export.
 These are response-body bytes, excluding HTML, scripts, styles, protocol overhead
 and cache reuse; they do not establish page-load timing or a full-site reduction.
 
-The full Node test suite passed 222 tests; affected image tests were rerun after
-the final candidate-size refinements. No content was published or core deployed.
+The earlier generic size ladder stored 12 derivatives (570,804 bytes) for these
+same three sample assets. Usage-based planning stores 8 derivatives (423,618
+bytes), about 26% less derivative storage. Including unchanged originals, the
+total falls from 1,058,024 to 910,838 bytes, about 14% less. The scene has several
+sizes in this test page, so its combined set is larger than a single-use image's.
+These storage figures do not include metadata-index overhead or establish a
+full-vault estimate. Download measurements above describe the initial browser
+verification; the fitted viewer behavior is unchanged.
+
+The full Node test suite passed 224 tests after usage-based planning, including
+new checks for precise widths, reused sizes, omitted unused files, homepage,
+HTML/table images, and visibility-specific reference definitions. No content was
+published or core deployed.

@@ -226,8 +226,9 @@ focus stays within the viewer and returns to the expand button when closed.
 Images with authored links retain their destinations; inline images still
 render without JavaScript. Exported Excalidraw PNGs use the same presentation.
 
-Publication preserves originals and generates cached WebP sizes for articles and
-popups. Articles use responsive small images and defer offscreen loading;
+Publication preserves originals and generates cached WebP sizes from actual
+authored widths and layout roles, plus a popup version. Reused images share their
+needed sizes; unused assets get no derivatives. Articles use responsive small images and defer offscreen loading;
 screen-sized images load on opening the viewer, and originals load only for
 pan/zoom or download. See [image delivery and verification](docs/images.md) and
 [publication settings](docs/deploy.md#image-settings).

@@ -403,7 +403,8 @@ unnecessary bandwidth costs when displayed at small or fixed sizes on the page.
 
 Measure image bytes transferred on representative image-heavy pages, including
 mobile views, and compare before/after results alongside visual quality. The
-implementation preserves full-resolution exports, produces cached WebP sizes,
+implementation preserves full-resolution exports, produces cached WebP sizes
+from actual authored widths and layout roles (combining reused image sizes),
 and uses small responsive images with offscreen loading deferred. An expand
 icon opens a fitted screen-sized image; Download and Pan / zoom request the
 original on demand. PNG derivatives retain transparency and use lossless encoding.

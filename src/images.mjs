@@ -2,6 +2,41 @@ import {load} from 'cheerio';
 
 export const imageUrl = entry=>'/assets/'+entry.target.split('/').map(encodeURIComponent).join('/');
 
+// Match the site's rem-based image roles (the Material root is 20px), table
+// limits, and mobile overrides. Bounds in one usage describe its widest layout.
+export function imageDisplayBounds(image) {
+  const inClass = name=>image.hasClass(name) || image.closest('.'+name).length;
+  if (image.closest('table').length) return [{width:90,height:90}];
+  const size = ['small','large'].find(size=>inClass('taelgar-image--size-'+size)) || 'standard';
+  const aside = inClass('taelgar-image--aside'), figure = inClass('taelgar-image--figure');
+  const width = Number(image.attr('width')), height = Number(image.attr('height'));
+  const bounds = [{width:aside ? {small:250,standard:400,large:520}[size]
+    : figure ? {small:480,standard:720,large:960}[size] : width || (height ? undefined : 1040),
+    ...(!aside && !figure && height ? {height} : {})}];
+  if (aside || image.attr('align')) bounds.push({width:764,height:480});
+  else if (image.closest('.admonition.image.inline,details.image.inline').length) {
+    bounds[0].width = Math.min(bounds[0].width,234);
+    bounds.push({width:width || 764,...(height ? {height} : {})});
+  }
+  return bounds;
+}
+
+export function collectHtmlImageUsages(store,html,usages=new Map()) {
+  const $ = load(html,{},false);
+  $('img[src^="/assets/"]').each((_,element)=>{
+    const image = $(element);
+    if (image.attr('srcset') || image.closest('.twemoji,.leaflet-map,.leaflet-container').length) return;
+    let target;
+    try { target = decodeURIComponent(image.attr('src').split(/[?#]/)[0].slice(8)); } catch { return; }
+    const entry = store.assets.get(target);
+    if (!entry || entry.generatedImageVariant || entry.generatedMapTile) return;
+    const bounds = imageDisplayBounds(image), found = usages.get(entry.id) || [];
+    if (!found.some(item=>JSON.stringify(item)===JSON.stringify(bounds))) found.push(bounds);
+    usages.set(entry.id,found);
+  });
+  return usages;
+}
+
 export function imageEntries(store,html) {
   const $ = load(html,{},false), entries = new Set();
   $('img[src^="/assets/"]').each((_,element)=>{
@@ -46,7 +81,7 @@ export function responsiveImages(html,store) {
     // Retain authored layout dimensions, and supply the missing aspect ratio.
     if (!authoredWidth) image.attr('width',String(authoredHeight ? Math.round(authoredHeight*info.width/info.height) : info.width));
     if (!authoredHeight) image.attr('height',String(authoredWidth ? Math.round(authoredWidth*info.height/info.width) : info.height));
-    const inline = info.variants.filter(item=>item.width<=1440);
+    const inline = info.variants.filter(item=>item.inline===true || (item.inline===undefined && item.width<=1440));
     const candidates = inline.length ? inline : info.variants.slice(0,1);
     image.attr('src',candidates.find(item=>item.width>=320)?.url || candidates.at(-1).url);
     image.attr('srcset',candidates.map(item=>item.url+' '+item.width+'w').join(', '));
