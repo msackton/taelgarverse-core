@@ -8,6 +8,7 @@ import {pathToFileURL} from 'node:url';
 import {ROOT, loadSettings, isInside} from '../src/config.mjs';
 import {prepareContent, loadCloudflareConfig} from './prepare-cloudflare.mjs';
 import {DerivativeCache} from './derivative-cache.mjs';
+import {withPublicationProgress} from './publication-progress.mjs';
 import {readCampaignHomes} from '../src/website-sources.mjs';
 import {readFolderExclusions} from '../src/folder-exclusions.mjs';
 import {IMAGE_DEFAULTS, IMAGE_VERSION} from './optimize-images.mjs';
@@ -136,7 +137,7 @@ export async function publishContent(options, deps) {
       previous.repository === before.repository && previous.fingerprint === options.fingerprint) {
     if(previous.search){
       if(!deps.verifySearch)throw new Error('Search readiness verification is required before skipping this publication');
-      await deps.verifySearch(previous);
+      await withPublicationProgress('Verifying the published search index',()=>deps.verifySearch(previous),deps.log);
     }
     await deps.prune?.(previous);
     deps.log(`Taelgar ${before.commit.slice(0, 12)} is already in R2; skipping export, images, and upload.`);
@@ -166,15 +167,18 @@ export async function publishContent(options, deps) {
     if(build.search){
       if(!deps.stageSearch || !deps.verifySearch)throw new Error('Search indexing and readiness verification are required before activation');
       await deps.stageSearch(build);
-      await deps.verifySearch(build);
+      await withPublicationProgress('Verifying search readiness before activation',()=>deps.verifySearch(build),deps.log);
       result.search=validateSearchDescriptor(build.search);
     }
-    await unchanged();
+    await withPublicationProgress('Checking source files and publishing settings before activation',unchanged,deps.log);
     result.completedAt = new Date().toISOString();
     // Manual pointers identify the previous good snapshot even without a
     // publisher fingerprint that could justify skipping this build.
-    result=activationPointer(deps.readPointer?await deps.readPointer():previous,result);
-    await deps.writeCheckpoint(result);
+    await withPublicationProgress('Activating the new content revision',async()=>{
+      result=activationPointer(deps.readPointer?await deps.readPointer():previous,result);
+      await deps.writeCheckpoint(result);
+    },deps.log);
+    deps.log('New content is live. Finishing publication cleanup…');
     if(deps.prune){
       try{await deps.prune(result);}catch(error){throw new Error('Content is published, but retention cleanup failed. Rerun to retry cleanup: '+error.message);}
     }
@@ -216,7 +220,7 @@ export function buildFingerprint(settings, options, config={}) {
     // invalidate the shared R2 checkpoint for an otherwise identical build.
     hash.update(filename ? readFileSync(filename, 'utf8').replace(/\r\n/g, '\n') : '<no-website-source>');
   }
-  for(const filename of ['./compile-search.mjs','./search-index.mjs','./search-database.mjs','./content-retention.mjs','./cloudflare-client.mjs','./upload-content.mjs','../src/search-text.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
+  for(const filename of ['./compile-search.mjs','./search-index.mjs','./search-database.mjs','./content-retention.mjs','./cloudflare-client.mjs','./upload-content.mjs','./publication-progress.mjs','../src/search-text.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
   return hash.digest('hex');
 }
 
@@ -319,7 +323,7 @@ export async function main(options) {
         });
       },
     });
-    if (working) { await removeWorkingDirectory(working); working = undefined; }
+    if (working) { await withPublicationProgress('Removing temporary export files',()=>removeWorkingDirectory(working),console.log); working = undefined; }
     if(result.assetsOnly)console.log('Assets staged. Published notes and search are unchanged; run the normal publish command to activate them.');
     else if (!result.skipped) console.log(options.buildOnly ?
       'Prepared content and search locally; no R2/D1 reads or writes. Run node scripts/cloudflare.mjs check to verify the Worker package.' :

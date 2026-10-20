@@ -6,6 +6,7 @@ import {loadCloudflareConfig} from './prepare-cloudflare.mjs';
 import {buildBrowser} from './build-browser.mjs';
 import {uploadContent} from './upload-content.mjs';
 import {createCloudflareClient} from './cloudflare-client.mjs';
+import {withPublicationProgress} from './publication-progress.mjs';
 import {createSearchDatabase} from './search-database.mjs';
 import {SearchIndex,readPreparedSearch} from './search-index.mjs';
 import {activationPointer,validatePublicationUploads,createRetentionStorage,prunePublication,POINTER_KEY} from './content-retention.mjs';
@@ -55,10 +56,13 @@ async function uploadPrepared(report,config,{local=false,activate=false}={}) {
       await uploadContent(report,retention,{log:console.log});
       if(!activate)return;
       if(manifest)await index.stage(report.revision,manifest);
-      const pointer=activationPointer(await retention.getJSON(POINTER_KEY),{revision:report.revision,
-        completedAt:new Date().toISOString(),...(report.search?{search:report.search}:{})});
-      fs.writeFileSync(report.pointerFile,JSON.stringify(pointer)+'\n');
-      await retention.putPointer(pointer);
+      const pointer=await withPublicationProgress('Activating the new content revision',async()=>{
+        const next=activationPointer(await retention.getJSON(POINTER_KEY),{revision:report.revision,
+          completedAt:new Date().toISOString(),...(report.search?{search:report.search}:{})});
+        fs.writeFileSync(report.pointerFile,JSON.stringify(next)+'\n');
+        await retention.putPointer(next);return next;
+      },console.log);
+      console.log('New content is live. Finishing publication cleanup…');
       try{await prunePublication(retention,index,pointer,{log:console.log});}
       catch(error){throw new Error('Content is published, but cleanup failed; retry node scripts/cloudflare.mjs publish: '+error.message);}
     });

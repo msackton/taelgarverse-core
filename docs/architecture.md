@@ -52,6 +52,7 @@ flowchart LR
 | Code | Responsibility |
 | --- | --- |
 | `scripts/publish-content.mjs` | Git checkpoint, Obsidian export, image optimization, upload, then activation. |
+| `scripts/publication-progress.mjs` | Phase status, elapsed time, and ten-second progress reminders around long publishing operations; timers stop on success or failure. |
 | `scripts/upload-content.mjs`, `scripts/cloudflare-client.mjs` | Separate incremental asset and snapshot transfers, bounded retries, request pacing, and shared refreshable Cloudflare credentials. Used by full and manual publication. |
 | `scripts/dev.mjs`, `scripts/test.mjs`, `.github/workflows/tests.yml` | Public development/test entry points, live-vault watching, full local publication preview, plugin installation, and GitHub test/package gates. |
 | `.github/workflows/website.yml` | Reuse CI tests, then deploy Worker/static assets on `main`. Serialize production pipelines; deployment credentials are available only in the deployment step. See the one-time cutover in [Deploy](deploy.md#one-time-github-website-deployment-setup). |

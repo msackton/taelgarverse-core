@@ -222,6 +222,12 @@ that the displayed database file size immediately shrinks.
 
 ## Verification and measured scope
 
+Publisher progress reports count staged/reused text versions, staged visibility
+rules, and read-back verification batches. The integrity check, activation, and
+retention phases have explicit status messages, with ten-second reminders during
+long requests. A completed upload does not imply activation; `New content is live`
+is emitted only after the publication pointer write succeeds.
+
 Image/map recipe records in `build-cache/derivatives-v1.json` are build hints,
 not retained content roots. They are saved after successful asset transfers under
 the same publication lock; this neither stages search nor activates a revision.

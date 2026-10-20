@@ -74,6 +74,12 @@ existing derivatives without encoding or downloading them. Catalog writes follow
 successful asset uploads under the publication lock; the Worker does not read it.
 This is publisher behavior in this checkout, not evidence of a production rollout.
 
+Publication logs identify search staging/read-back verification, activation,
+retained-snapshot checks, R2 inventory/deletion, and D1 cleanup. Long operations
+repeat their latest status every ten seconds with elapsed time. Activation is
+reported before cleanup so a wait during retention is distinguishable from a
+revision that has not yet gone live.
+
 The publisher uses your local Cloudflare login or API token. The GitHub build
 has its own Cloudflare authorization. These are separate from how visitors
 read the site.

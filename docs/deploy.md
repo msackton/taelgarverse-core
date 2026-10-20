@@ -265,6 +265,14 @@ the note shards and index. Only after those transfers and D1 verification does
 the publisher activate the revision. No local upload receipt is trusted as proof
 that an asset still exists in the bucket.
 
+After the notes/index upload, progress reports show search text staging and reuse,
+visibility-rule staging, read-back verification, activation, and retention cleanup.
+Longer steps print a status message every ten seconds with elapsed time and the
+last completed batch count where available. `New content is live` confirms
+activation; cleanup may still be deleting obsolete R2 objects or compacting D1.
+The final completion message follows cleanup and removal of temporary export
+files. These are phase counts, not an estimated overall completion percentage.
+
 Normal publication automatically uses this behavior:
 
 ```sh

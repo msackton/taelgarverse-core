@@ -5,6 +5,7 @@ import {ROOT} from '../src/config.mjs';
 import {createCloudflareClient,searchCredentials} from './cloudflare-client.mjs';
 import {validateSearchDescriptor} from './search-index.mjs';
 import {DERIVATIVE_MANIFEST_KEY,manifestRecords} from './derivative-cache.mjs';
+import {withPublicationProgress} from './publication-progress.mjs';
 
 export const POINTER_KEY='published/current.json';
 const revisionPattern=/^[a-f0-9]{64}$/;
@@ -115,40 +116,52 @@ export async function createRetentionStorage(config,{local=false,persistTo=path.
 // Only a recorded successful pointer supplies rollback history; timestamps on
 // unactivated uploads are never evidence that a snapshot was good.
 export async function prunePublication(storage,index,pointer,{log=()=>{},dryRun=false}={}){
-  validatePointer(pointer);
-  if(pointer.retentionVersion!==1)throw new Error('Publish once with retention enabled before pruning legacy history');
-  const assertCurrent=async()=>{if(JSON.stringify(await storage.getJSON(POINTER_KEY))!==JSON.stringify(pointer))throw new Error('Publication pointer changed; retention stopped');};
-  await assertCurrent();
-  const retained=[pointer,...(pointer.previous?[pointer.previous]:[])],keep=new Set();
-  for(const snapshot of retained){
-    const key=`revisions/${snapshot.revision}/index.json`,content=await storage.getJSON(key);
-    if(content?.schemaVersion!==1 || content.revision!==snapshot.revision || !Array.isArray(content.entries))throw new Error('Retained R2 snapshot is missing or invalid; cleanup stopped');
-    keep.add(key);
-    for(const entry of content.entries){
-      if(entry.note){
-        if(!/^[a-f0-9]{2}$/.test(entry.note.shard || ''))throw new Error('Invalid retained note shard');
-        keep.add(`revisions/${snapshot.revision}/notes/${entry.note.shard}.json`);
-      }else{
-        if(!assetPattern.test(entry.objectKey || ''))throw new Error('Invalid retained asset key');
-        keep.add(entry.objectKey);
+  return withPublicationProgress(dryRun?'Retention inspection':'Retention cleanup',async progress=>{
+    validatePointer(pointer);
+    if(pointer.retentionVersion!==1)throw new Error('Publish once with retention enabled before pruning legacy history');
+    const assertCurrent=async()=>{if(JSON.stringify(await storage.getJSON(POINTER_KEY))!==JSON.stringify(pointer))throw new Error('Publication pointer changed; retention stopped');};
+    await assertCurrent();
+    const retained=[pointer,...(pointer.previous?[pointer.previous]:[])],keep=new Set();
+    progress(`Retention: verifying ${retained.length} retained snapshot(s).`);
+    for(const snapshot of retained){
+      const key=`revisions/${snapshot.revision}/index.json`,content=await storage.getJSON(key);
+      if(content?.schemaVersion!==1 || content.revision!==snapshot.revision || !Array.isArray(content.entries))throw new Error('Retained R2 snapshot is missing or invalid; cleanup stopped');
+      keep.add(key);
+      for(const entry of content.entries){
+        if(entry.note){
+          if(!/^[a-f0-9]{2}$/.test(entry.note.shard || ''))throw new Error('Invalid retained note shard');
+          keep.add(`revisions/${snapshot.revision}/notes/${entry.note.shard}.json`);
+        }else{
+          if(!assetPattern.test(entry.objectKey || ''))throw new Error('Invalid retained asset key');
+          keep.add(entry.objectKey);
+        }
       }
+      if(snapshot.search && JSON.stringify(snapshot.search)!==JSON.stringify(content.search))throw new Error('Retained search descriptor does not match R2');
+      if(content.search)await index.verify(snapshot.revision,content.search);
     }
-    if(snapshot.search && JSON.stringify(snapshot.search)!==JSON.stringify(content.search))throw new Error('Retained search descriptor does not match R2');
-    if(content.search)await index.verify(snapshot.revision,content.search);
-  }
-  const objects=[...await storage.list('revisions/'),...await storage.list('assets/')],present=new Set(objects.map(o=>o.key));
-  for(const key of keep)if(!present.has(key))throw new Error('Retained R2 object is missing; cleanup stopped');
-  const revisions=new Set(retained.map(s=>s.revision));
-  const removed=objects.filter(o=>{const match=o.key.match(snapshotPattern);return match?!revisions.has(match[1]):assetPattern.test(o.key) && !keep.has(o.key);});
-  const result={retained:[...revisions],deletedObjects:removed.length,deletedBytes:removed.reduce((sum,o)=>sum+(o.size || 0),0)};
-  await assertCurrent();
-  if(dryRun)return {...result,dryRun:true};
-  // Delete D1 first. If R2 deletion fails the same two good snapshots survive
-  // and the next unchanged publish retries the remaining object cleanup.
-  await index.prune([...revisions]);
-  for(let offset=0;offset<removed.length;offset+=500){await assertCurrent();await storage.delete(removed.slice(offset,offset+500).map(o=>o.key));}
-  log(`Retention: ${retained.length} good snapshot(s); removed ${result.deletedObjects} R2 objects (${(result.deletedBytes/1048576).toFixed(1)} MiB).`);
-  return result;
+    progress('Retention: listing stored revisions.');
+    const objects=await storage.list('revisions/');
+    progress(`Retention: found ${objects.length} revision objects; listing assets.`);
+    objects.push(...await storage.list('assets/'));
+    const present=new Set(objects.map(o=>o.key));
+    for(const key of keep)if(!present.has(key))throw new Error('Retained R2 object is missing; cleanup stopped');
+    const revisions=new Set(retained.map(s=>s.revision));
+    const removed=objects.filter(o=>{const match=o.key.match(snapshotPattern);return match?!revisions.has(match[1]):assetPattern.test(o.key) && !keep.has(o.key);});
+    const result={retained:[...revisions],deletedObjects:removed.length,deletedBytes:removed.reduce((sum,o)=>sum+(o.size || 0),0)};
+    await assertCurrent();
+    if(dryRun)return {...result,dryRun:true};
+    // Delete D1 first. If R2 deletion fails the same two good snapshots survive
+    // and the next unchanged publish retries the remaining object cleanup.
+    progress(`Retention: ${removed.length} obsolete R2 objects (${(result.deletedBytes/1048576).toFixed(1)} MiB); pruning old D1 search data and compacting its index.`);
+    await index.prune([...revisions]);
+    progress(`Retention R2 cleanup: 0/${removed.length} objects deleted.`);
+    for(let offset=0;offset<removed.length;offset+=500){
+      await assertCurrent();await storage.delete(removed.slice(offset,offset+500).map(o=>o.key));
+      progress(`Retention R2 cleanup: ${Math.min(offset+500,removed.length)}/${removed.length} objects deleted.`);
+    }
+    log(`Retention: ${retained.length} good snapshot(s); removed ${result.deletedObjects} R2 objects (${(result.deletedBytes/1048576).toFixed(1)} MiB).`);
+    return result;
+  },log);
 }
 
 export async function rollbackPublication(storage,index,{log=()=>{}}={}){
