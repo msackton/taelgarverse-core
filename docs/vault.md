@@ -72,7 +72,7 @@ The website reads the properties at the top of each note—the YAML section betw
 | --- | --- |
 | `name`, `title` | Displayed names and search labels. The website address comes from the filename and folder, so changing `name` does not change the address. |
 | `aliases` | Alternative names the website can use to find a linked note. Filenames and paths are checked first. |
-| `headerVersion`, `tags` | Whether and how the usual note header is generated. Keep these from the appropriate vault template. |
+| `headerVersion`, `tags` | Whether and how the usual note header is generated. Existing type tags also supply the website's [search content-type filters](search.md#app-search). Keep these from the appropriate vault template. |
 | `species`, `ancestry`, `typeOf`, `pronunciation` | Descriptions and pronunciation in the header. |
 | `displayDefaults`, `ddbLink` | Header formatting and a link to game mechanics. |
 | `born`, `created`, `died`, `destroyed`, `DR`, `DR_end` | Ages, lifespans, and event dates. |

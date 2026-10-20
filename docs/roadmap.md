@@ -283,10 +283,11 @@ zoom and popups, and backlink generation.
 
 ### P-01: Reading experience
 
-**Status:** Agreed direction; detailed design remains open.
+**Status:** Completed in core.
 
-Improve typography, spacing, mobile layouts, and theme choices, informed by
-the existing UI design work.
+Quiet Library provides the typography, spacing, responsive layouts, and
+System/Light/Dark appearance choices. Further reading polish can be scoped from
+specific feedback rather than remaining an open implementation requirement.
 
 ### P-02: Tables and cards
 
@@ -304,21 +305,24 @@ and navigation between world and regional maps.
 
 ### P-04: Better search
 
-**Status:** Isolated Cloudflare AI Search pilot implemented and measured; optional
-production AI integration and further search presentation remain open.
+**Status:** Full-text search and content-type filters implemented; production AI
+integration deferred.
 
 Build on the completed D1 full-text search from MVP-03. Basic ranking, highlighted
-excerpts, and pagination are already implemented. Further presentation work
-includes optional filters for types of content and refinements to ranking and
-snippets.
+excerpts, and pagination are implemented. Content-type filters use existing vault
+tags and work in full-text search, page-name fallback, and browsing. Exact page
+filenames, display titles, and metadata names precede exact aliases and partial
+matches, with normalized comparison and ranking applied before pagination. See
+[production search](search.md). Further ranking and snippet changes can follow
+specific feedback.
 
-AI Search belongs to this phase. The isolated, explicitly selected 22-note pilot
+AI Search is deferred because its current benefit does not justify production
+integration. The isolated, explicitly selected 22-note pilot
 compares exact names/phrases and meaning-based questions, keyword/vector/hybrid
 retrieval, chunking, context visibility, updates, latency, and costs. See the
 [search pilot plan](search-pilot.md) and [measured results](search-pilot-results.md).
-Evaluate those results before full-corpus AI indexing or production integration.
-AI enrichment remains optional; full-text search must stay usable when AI is
-disabled or unavailable.
+Keep those results as a reference if AI Search is reconsidered. Full-corpus AI
+indexing and production integration are outside the current work.
 
 ### P-05: More informative backlinks
 

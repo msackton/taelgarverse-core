@@ -3,7 +3,7 @@ export {contextQuery};
 const icon = paths => '<svg viewBox="0 0 24 24" aria-hidden="true">' + paths + '</svg>';
 const searchIcon = icon('<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>');
 const control = (id,label,svg) => '<button type="button" class="icon-button" id="' + id + '-toggle" aria-label="' + label + '" aria-haspopup="dialog" aria-controls="' + id + '-dialog" hidden>' + svg + '</button>';
-export function siteHeader(context, options, {query,sections = '',navigation = true} = {}) {
+export function siteHeader(context, options, {query,searchType='',sections = '',navigation = true} = {}) {
   const custom = context.kind === 'custom';
   const choices = options.map(option => '<option value="' + escapeHtml(option.id) + '"' +
     (option.id === context.id ? ' selected' : '') + (!option.available ? ' disabled' : '') + '>' +
@@ -21,13 +21,15 @@ export function siteHeader(context, options, {query,sections = '',navigation = t
       (all || selected.has(option.campaigns[0]) ? ' checked' : '') + (custom ? '' : ' disabled') + '> ' + escapeHtml(option.label) + '</label>').join('') +
     '</fieldset></details>';
   const searchFields = [...contextQuery(context)].map(([key,value])=>'<input type="hidden" name="' + key + '" value="' + escapeHtml(value) + '">').join('');
+  const typeField = searchType ? '<input type="hidden" name="type" value="' + escapeHtml(searchType) + '">' : '';
   return '<header class="site-header" id="site-header">' +
     (navigation ? control('navigation','Open navigation',icon('<path d="M3 6h18M3 12h18M3 18h18"/>')) : '') +
     '<a class="site-brand" href="/?' + escapeHtml(contextQuery(context).toString()) + '">TaelgarVerse</a>' +
-    '<div id="header-search-slot"><form class="header-search" id="header-search" role="search" action="/">' + searchFields +
+    '<div id="header-search-slot"><form class="header-search" id="header-search" role="search" action="/">' + searchFields + typeField +
     '<label class="sr-only" for="site-search">Search TaelgarVerse</label><input id="site-search" type="search" name="q" maxlength="256" value="' + escapeHtml(query || '') + '" placeholder="Search TaelgarVerse"><button aria-label="Search">' + searchIcon + '</button></form></div>' +
     '<div id="header-context-slot"><form id="context-controls" class="context-form" method="get" data-context-form>' +
     (query !== undefined ? '<input type="hidden" name="q" value="' + escapeHtml(query) + '">' : '') +
+    typeField +
     '<label class="context-label" for="site-context">Context:</label><select id="site-context" name="context" aria-label="Context">' + choices + '</select>' +
     '<div class="custom-date-controls" data-custom-date' + (custom ? '' : ' hidden') + '>' +
     '<label class="sr-only" for="context-date">Custom date (DR)</label><input id="context-date" type="date" name="date" aria-label="Custom date (DR)" value="' +

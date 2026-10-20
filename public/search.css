@@ -3,6 +3,9 @@
 .search-input-row { display: flex; align-items: stretch; gap: .5rem; }
 .search-input-row input { min-width: 0; flex: 1; width: 100%; }
 .search-input-row button { margin: 0; }
+.search-filters { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; margin-top: .75rem; }
+.search-filters label { font-size: .85rem; font-weight: 650; }
+.search-filters select { max-width: 100%; }
 .search-form #search-help { margin: .5rem 0 0; font-size: .8rem; color: var(--muted, #526a63); }
 .search-notice { padding: .75rem 1rem; border-left: 3px solid var(--accent, #a8752b); background: var(--surface, #fff8e9); }
 .search-summary { color: var(--muted, #526a63); font-size: .85rem; }
