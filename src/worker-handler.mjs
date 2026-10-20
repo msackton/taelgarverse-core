@@ -35,7 +35,7 @@ export function createWorker(instantiate,coreRelease = {}) {
         async renderPage(page,date,context,dm,campaigns) {
           return engine.renderAsync(page,date,context,dm,campaigns,entry=>store.getNote(entry));
         },
-        renderHome:context=>engine.renderHomeAsync(context,entry=>store.getNote(entry)),
+        renderHome:(context,siteHost)=>engine.renderHomeAsync(context,entry=>store.getNote(entry),siteHost),
         assets(entry,request) {
           return serveAsset(request,entry,async range=>{
             const object=await env.CONTENT.get(entry.objectKey,{range});

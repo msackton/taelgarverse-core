@@ -7,6 +7,8 @@ import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {ROOT, loadSettings, isInside} from '../src/config.mjs';
 import {prepareContent, loadCloudflareConfig} from './prepare-cloudflare.mjs';
+import {readCampaignHomes} from '../src/website-sources.mjs';
+import {readFolderExclusions} from '../src/folder-exclusions.mjs';
 import {IMAGE_DEFAULTS, IMAGE_VERSION} from './optimize-images.mjs';
 import {createSearchDatabase,searchBinding} from './search-database.mjs';
 import {SearchIndex,readPreparedSearch,validateSearchDescriptor} from './search-index.mjs';
@@ -200,12 +202,16 @@ export function validateMaterializationReport(report, output) {
 
 export function buildFingerprint(settings, options, config={}) {
   const hash = createHash('sha256');
+  hash.update(JSON.stringify({excludedFolders:readFolderExclusions(settings.vault_dir)}));
+  for (const [host,source] of Object.entries(readCampaignHomes(settings))) hash.update(JSON.stringify([host,source.replace(/\r\n/g,'\n')]));
   hash.update(JSON.stringify({version: 1, image: {maxSize: options.maxSize, quality: options.quality, ...IMAGE_VERSION},
     strict: !options.noStrict, default_date: settings.default_date,searchDestination:{account:config.account_id,databases:config.d1_databases || []}}));
   for (const filename of [settings.nav_source, settings.home_source,
     new URL('./publish-content.mjs', import.meta.url), new URL('./optimize-images.mjs', import.meta.url),
     new URL('./build-images.mjs', import.meta.url), new URL('../src/images.mjs', import.meta.url),
     new URL('./image-usage.mjs', import.meta.url),
+    new URL('../src/website-sources.mjs', import.meta.url), new URL('../src/campaign-sites.mjs', import.meta.url),
+    new URL('../src/folder-exclusions.mjs', import.meta.url),
     new URL('./build-maps.mjs', import.meta.url), new URL('../src/maps.mjs', import.meta.url),
     new URL('../src/map-distance.mjs', import.meta.url),
     new URL('./prepare-cloudflare.mjs', import.meta.url), new URL('../src/store.mjs', import.meta.url),

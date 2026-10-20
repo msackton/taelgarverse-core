@@ -11,6 +11,9 @@ import {compileSearch,searchDescriptor} from './compile-search.mjs';
 import {prepareMaps} from './build-maps.mjs';
 import {prepareImages} from './build-images.mjs';
 import {collectImageUsages} from './image-usage.mjs';
+import {readCampaignHomes} from '../src/website-sources.mjs';
+import {CampaignSites} from '../src/campaign-sites.mjs';
+import {Contexts} from '../src/contexts.mjs';
 
 const sha = value=>createHash('sha256').update(value).digest('hex');
 const writeJSON = (file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value)+'\n');};
@@ -32,7 +35,10 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   if (!isInside(ROOT,output) || output===ROOT) throw new Error('Content staging directory must be inside this project');
   const store=new Store(settings), shards=new Map(), uploads=[];
   const homeSource=settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null;
-  const usages=collectImageUsages(store,{homeSource});
+  const registry=JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'_scripts/session_note_campaigns.json'),'utf8'));
+  const campaignHomes=readCampaignHomes(settings);
+  new CampaignSites(campaignHomes,new Contexts(store,registry,settings));
+  const usages=collectImageUsages(store,{homeSource,campaignHomes});
   const images=await prepareImages(store,path.join(ROOT,'.cache/images'),{...imageOptions,usages},undefined,imageProgress);
   await prepareMaps(store,path.join(ROOT,'.cache/maps'));
   const entries=[];
@@ -60,10 +66,11 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   }
   const backlinks=buildBacklinkIndex(store),searchManifest=compileSearch(store),search=searchDescriptor(searchManifest);
   const base={schemaVersion:1,sourceVersion:{commit:sourceVersion.commit,dirty:sourceVersion.dirty},settings:{default_date:settings.default_date,campaigns:settings.campaigns},backlinks,
-    registry:JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'_scripts/session_note_campaigns.json'),'utf8')),
+    registry,
     coreMeta:JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'.obsidian/metadata.json'),'utf8')),
     navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,
     homeSource,
+    campaignHomes,
     search,warnings:[...store.warnings,...backlinks.warnings,...searchManifest.warnings],entries};
   const revision=sha(JSON.stringify(base)), prefix='revisions/'+revision;
   const directory=path.join(output,'revisions',revision);

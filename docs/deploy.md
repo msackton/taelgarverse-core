@@ -4,6 +4,10 @@ The site is [taelgarverse.msackton.workers.dev](https://taelgarverse.msackton.wo
 
 - **Notes, images, audio, homepage, and menu in `taelgar`:** run the publishing command below.
   Saving them to GitHub alone does not update the website.
+  This includes opted-in `_website/<subdomain>.md` campaign landing pages;
+  see [campaign landing pages](campaign-sites.md) for the format and DNS setup.
+  Folder exclusions use a `.nopublish` marker in the original vault; adding or
+  removing one also requires content publication. See [folder exclusions](vault.md#exclude-a-folder).
 - **Website code in `taelgarverse-core`:** merging changes into `main` on
   GitHub runs tests, then deploys to Cloudflare only if they pass (after the
   one-time GitHub deployment setup below).

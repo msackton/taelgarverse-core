@@ -68,6 +68,7 @@ form { background: var(--surface); }
 .header-search svg, .icon-button svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; }
 #header-context-slot { margin-left: auto; flex: 0 1 auto; }
 .site-header .context-form { font-size: 12px; gap: 8px 12px; }
+.context-form .full-site-link { font: inherit; color: var(--link); text-decoration: underline; }
 .context-form select, .context-form select option, .context-form input, .context-form button { color: var(--text); background: var(--bg); border-color: var(--line); color-scheme: inherit; }
 .context-form select { max-width: 240px; padding: 7px; }
 .context-form select option:disabled { color: var(--muted); }

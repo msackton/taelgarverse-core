@@ -8,6 +8,7 @@ import {buildBrowser} from './build-browser.mjs';
 import {installObsidian} from './install-obsidian.mjs';
 import {main as publishContent,parseOptions,findObsidianCommand,runCommand} from './publish-content.mjs';
 import {loadCloudflareConfig} from './prepare-cloudflare.mjs';
+import {NO_PUBLISH_MARKER} from '../src/folder-exclusions.mjs';
 
 export const help=`Usage: npm run dev -- [options]
   (no options)             Preview the live vault at http://127.0.0.1:8765; no Obsidian required
@@ -57,6 +58,7 @@ function foreground(args,env={}){
 
 export function shouldRefreshVault(filename){
   const file=String(filename || '').replaceAll('\\','/'),first=file.split('/')[0];
+  if(file===NO_PUBLISH_MARKER)return true;
   if(first==='.obsidian')return file==='.obsidian/metadata.json';
   if(first==='_scripts')return file.startsWith('_scripts/customJS/') || file==='_scripts/session_note_campaigns.json';
   return !first.startsWith('.') && !['_DM_','node_modules'].includes(first) && !file.endsWith('AGENTS.md');

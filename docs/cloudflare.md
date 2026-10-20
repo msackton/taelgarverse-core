@@ -6,6 +6,11 @@ The live site is [taelgar.org](https://taelgar.org/), also available at
 Cloudflare runs the website and stores the published copies of the vault.
 Your local Obsidian vault is where you edit the content.
 
+Campaign subdomains use this same Worker. The wildcard route is declared in
+`wrangler.json`; wildcard DNS and HTTPS coverage must also be configured before
+Markdown-only campaign activation works. See [campaign landing pages](campaign-sites.md)
+for setup, the Cleenseau opt-in, and checks for existing subdomains.
+
 Both custom domains are attached to the `taelgarverse` Worker and declared in
 `wrangler.json`. Cloudflare manages their DNS records and HTTPS certificates.
 On **2026-10-20**, both domains returned HTTP 200 over HTTPS for the homepage

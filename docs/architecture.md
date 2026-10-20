@@ -60,6 +60,7 @@ flowchart LR
 | `scripts/content-retention.mjs`, `scripts/maintain-content.mjs` | Coordinated R2/D1 retention of active plus one previous good snapshot; shared publication lock, orphan cleanup and verified rollback. |
 | `src/search.mjs`, `src/search-types.mjs`, `src/local-search.mjs`, `src/search-view.mjs` | Read-only context/revision/type-filtered D1 queries, metadata-based exact-name ranking and type classification, identical local SQLite search, page-name fallback, and escaped result/excerpt rendering. See [search](search.md). |
 | `src/store.mjs`, `src/content-store.mjs` | Local filesystem scan, YAML parsing, page/asset lookup, shared availability rules. |
+| `src/folder-exclusions.mjs` | Discover original-vault `.nopublish` folder markers for local indexing, export packaging, and publication fingerprints. |
 | `src/snapshot.mjs` | Load the R2 index and fetch/cache Markdown shards on demand. |
 | `src/application.mjs` | Shared Fetch API router: homepage, articles, search HTML/JSON, contexts, navigation, assets, health. |
 | `src/render-engine.mjs` | Resolve context/page, generate header, filter comments, render Markdown and page shell. |
@@ -125,6 +126,12 @@ vault, including during export packaging. Explicit overrides resolve relative
 to their settings file; missing files fail configuration loading. Explicit null
 selects directory navigation or the old page-finder homepage, respectively.
 The publisher fingerprints both files so changes cannot be skipped as unchanged.
+`src/website-sources.mjs` also discovers opted-in `_website/<subdomain>.md` files
+from the original vault. `src/campaign-sites.mjs` validates their campaign IDs and
+selects sites by hostname. Sources enter the publication fingerprint, image-usage
+scan, and optional `campaignHomes` revision-index field. The shared application
+enforces the hostname's context per request without mutating the cached engine.
+See [campaign landing pages](campaign-sites.md) for authoring and routing.
 
 Cloudflare account/resource settings remain in `wrangler.json` and the optional
 `wrangler.local.json`; they are independent of the vault settings. The supported
@@ -173,6 +180,7 @@ uses a prepared snapshot and must be rerun after vault edits.
 | Change | Required release action |
 | --- | --- |
 | Vault Markdown/media, session notes, registry, `.obsidian/metadata.json` | Run the content publisher. |
+| Add or remove a folder's `.nopublish` marker | Republish content; the publisher fingerprints the original-vault markers and excludes matching exported subtrees before packaging and search compilation. |
 | `_website/home.md`, `_website/navigation.md`, `home_source`, `nav_source`, `default_date`, materializer, packaging, image settings | Republish content; use `--force` if the change is outside the publisher's fingerprint. A core merge alone does not refresh the published homepage or menu. |
 | Renderer, routes, CSS/browser scripts, dependencies, Worker configuration | Merge core changes to `main`; GitHub deploys to Cloudflare after CI passes. |
 | Taelgarverse plugin or shared map code used by it | Test both consumers, bump the plugin's own version, then explicitly release to the BRAT distribution repository. A website deployment does not release the plugin. |

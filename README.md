@@ -156,6 +156,10 @@ GET /page/people/zimkovans/zahara?context=dunmar-frontier&dm=1
 
 ## Homepage
 
+Campaigns can opt into their own subdomain and locked context with a Markdown
+file such as `_website/cleenseau.md`. See [campaign landing pages](docs/campaign-sites.md)
+for the format, local preview, and one-time Cloudflare setup.
+
 Edit `_website/home.md` in the `taelgar` vault to change the homepage text and
 links within the introduction. Core owns the dedicated Quiet Library homepage
 template, decorative map, and prominent Current Games, Gazetteer, and World Map

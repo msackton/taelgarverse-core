@@ -32,6 +32,6 @@ test('plugin development installs into the selected vault and succeeds even when
 test('preview rejects remote options and watches note/runtime changes without restarting for Git or plugin state',()=>{
   assert.throws(()=>parseDevOptions(['--remote']),/Unknown/);
   assert.throws(()=>parseDevOptions(['--port','0']),/Port/);
-  for(const file of ['People/Person.md','assets/map.png','_scripts/customJS/outputs.js','.obsidian/metadata.json'])assert.equal(shouldRefreshVault(file),true,file);
+  for(const file of ['People/Person.md','assets/map.png','_scripts/customJS/outputs.js','.obsidian/metadata.json','.nopublish','Campaigns/Cleenseau Campaign/Chats/.nopublish'])assert.equal(shouldRefreshVault(file),true,file);
   for(const file of ['.git/index','.obsidian/plugins/taelgarverse/main.js','.secrets-v2/store','_scripts/research-cache.json'])assert.equal(shouldRefreshVault(file),false,file);
 });

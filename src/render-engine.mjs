@@ -9,14 +9,16 @@ import {Navigation} from './navigation.mjs';
 import {expandNoteEmbeds} from './embeds.mjs';
 import {releaseFooter} from './release-footer.mjs';
 import {responsiveImages} from './images.mjs';
+import {CampaignSites} from './campaign-sites.mjs';
 
 export class RenderEngine {
-  constructor({settings,store,headers,renderHeader,navigationSource,homeSource = null,backlinkIndex}) {
+  constructor({settings,store,headers,renderHeader,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex}) {
     this.settings = settings;
     this.store = store;
     this.headers = headers;
     this.renderHeader = renderHeader;
     this.contexts = new Contexts(this.store,this.headers.registry,settings);
+    this.campaignSites = new CampaignSites(campaignHomes,this.contexts);
     this.markdown = createMarkdown();
     this.notesMarkdown = createMarkdown({html:false});
     this.navigation = new Navigation(this.store,navigationSource);
@@ -79,13 +81,15 @@ export class RenderEngine {
     }
   }
 
-  renderHome(context,embedLoading) {
+  renderHome(context,embedLoading,siteHost) {
     // This is website content, not a searchable vault article or a header input.
-    return this.home === null ? null : {...this.renderBody(this.home.body,{id:'_website/home.md',target:'index.md'},context,embedLoading),hide:Array.isArray(this.home.metadata.hide) ? this.home.metadata.hide : []};
+    const home = siteHost ? this.campaignSites.byHost.get(siteHost)?.note : this.home;
+    if (!home) return null;
+    return {...this.renderBody(home.body,{id:'_website/'+(siteHost || 'home')+'.md',target:'index.md'},context,embedLoading),hide:Array.isArray(home.metadata.hide) ? home.metadata.hide : []};
   }
 
-  async renderHomeAsync(context,loadNote) {
-    return this.loadEmbeds(loading=>this.renderHome(context,loading),loadNote);
+  async renderHomeAsync(context,loadNote,siteHost) {
+    return this.loadEmbeds(loading=>this.renderHome(context,loading,siteHost),loadNote);
   }
 
   renderBody(body, entry, context, embedLoading) {

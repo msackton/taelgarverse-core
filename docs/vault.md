@@ -27,6 +27,7 @@ The following are left out of the article and media collection:
   regardless of capitalization.
 - Files and folders beginning with `.`, files named `AGENTS.md`, and symbolic links
   (filesystem links to another location).
+- Folders containing a `.nopublish` marker, including every descendant.
 
 The underscore rule applies to **folders**: a file named `_example.md` can still
 be included. Likewise, `assets/dm-map.png` is included; it is outside `assets/dm/`.
@@ -35,6 +36,28 @@ Tags such as `excalidraw` or `status/check/ai` do not prevent publication.
 Notes with unreadable text or invalid properties are skipped with a warning.
 Two notes that produce the same website address stop publication until the
 conflict is resolved.
+
+### Exclude a folder
+
+Create a file named **`.nopublish`** inside any folder you want omitted from the
+article and media collection. It can be empty or contain an explanatory note;
+only its presence matters. For example:
+
+```text
+Campaigns/Cleenseau Campaign/Chats/.nopublish
+```
+
+The folder and all descendants are excluded in every campaign/date view,
+including Behind the Curtain. Their notes, metadata, aliases, backlinks, search
+documents, and contained media are not packaged for publication. A child folder
+cannot override an excluded parent. Removing the marker opts the folder back in
+on the next preview refresh or content publication.
+
+The publisher reads markers from the original vault even when preparing a
+materialized export that omits dotfiles. Marker additions and removals invalidate
+the unchanged-publication check. A marker does not remove files from an already
+active publication: republish the content through the normal approved workflow.
+It also does not remove text already copied or quoted into other notes.
 
 ## Homepage and menu
 

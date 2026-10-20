@@ -1,3 +1,6 @@
+for (const form of document.querySelectorAll('[data-context-locked]')) {
+  form.querySelector('[name="dm"]').addEventListener('change',()=>form.requestSubmit());
+}
 for (const form of document.querySelectorAll('[data-context-form]')) {
   const select = form.querySelector('[name="context"]');
   const controls = form.querySelector('[data-custom-date]');

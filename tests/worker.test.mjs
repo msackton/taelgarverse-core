@@ -68,6 +68,26 @@ before(async()=>{
 });
 after(()=>{if(directory && isInside(path.join(ROOT,'.cache'),directory))fs.rmSync(directory,{recursive:true});});
 
+test('published campaign homes select per-host content and lock Worker APIs without shared state',async()=>{
+  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  index.campaignHomes={dunmar:'---\ncontext: dunmar-frontier\n---\n# Dunmar home\n\nHello Dunmar.\n\n![[Nested Embed]]',addermarch:'---\ncontext: addermarch\n---\n# Addermarch home\n\nHello Addermarch.'};
+  const indexFile=path.join(directory,'campaign-index.json');fs.writeFileSync(indexFile,JSON.stringify(index));
+  const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
+  const storage=new LocalBucket([...uploads,{key:'revisions/'+report.revision+'/index.json',file:indexFile},{key:'published/current.json',file:report.pointerFile}]);
+  const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+  for(const [host,id,title] of [['dunmar','dunmar-frontier','Dunmar home'],['addermarch','addermarch','Addermarch home'],['www','modern','Welcome to the fixture site'],['dunmar','dunmar-frontier','Dunmar home']]) {
+    const home=await app.fetch(new Request('https://'+host+'.taelgar.org/'),environment);
+    assert.equal(home.status,200);const $=load(await home.text());assert.equal($('main h1').first().text(),title);
+    const response=await app.fetch(new Request('https://'+host+'.taelgar.org/api/page?page=Example'+(host==='www'?'':'&context=modern&date=9999-01-01&campaigns=all')),environment);
+    assert.equal(response.status,200);const page=await response.json();assert.equal(page.context.id,id);
+    assert.equal(page.context.locked,host==='www'?undefined:true);
+    if(host!=='www')assert.deepEqual(page.campaigns,[host==='dunmar'?'dufr':'adma']);
+  }
+  assert.equal(storage.calls.get('revisions/'+report.revision+'/index.json'),1);
+  index.campaignHomes={dunmar:'---\ncontext: unknown\n---\n# Invalid'};fs.writeFileSync(indexFile,JSON.stringify(index));
+  await assert.rejects(loadSnapshot(storage,report.revision,instantiate),error=>error.status===503);
+});
+
 test('Worker renders context-filtered maps and serves packaged tile assets without fetching the original image',async()=>{
   for (const [context,dm,count] of [['modern','0',1],['dunmar-frontier','0',2],['modern','1',2]]) {
     const $ = load(await (await request('/page/maps?context='+context+'&dm='+dm)).text());

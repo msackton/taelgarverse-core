@@ -8,10 +8,11 @@ const dateString = key=>String(Math.floor(key/10000)).padStart(4,'0')+'-'+String
 // Inspect the same finite visibility states used by publication/search. This
 // captures DM/date/campaign alternatives and reference-style image definitions,
 // while excluding literal code, administrative comments and unsafe notes.
-export function collectImageUsages(store,{homeSource=null,maxStatesPerNote=4096}={}) {
+export function collectImageUsages(store,{homeSource=null,campaignHomes={},maxStatesPerNote=4096}={}) {
   const usages = new Map(), md = createMarkdown(), notesMarkdown = createMarkdown({html:false});
   const entries = [...store.bySlug.values()];
   if (homeSource!==null) entries.push({id:'_website/home.md',target:'index.md',note:typeof homeSource==='string' ? parseNote(homeSource) : homeSource,website:true});
+  for (const [host,source] of Object.entries(campaignHomes)) entries.push({id:'_website/'+host+'.md',target:'index.md',note:typeof source==='string' ? parseNote(source) : source,website:true});
   for (const entry of entries) {
     if (publicationExclusions(entry.note.metadata).includes('all')) continue;
     const source = authoredBody(entry.note);

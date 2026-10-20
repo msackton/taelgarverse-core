@@ -25,6 +25,7 @@
 .home-introduction { display: grid; grid-template-columns: minmax(170px,1fr) minmax(0,790px); column-gap: 60px; padding: 14px 0 24px; }
 .home-section-label { padding-top: 6px; color: var(--muted); font: 400 24px/1.4 Georgia,serif; }
 .home-prose { min-width: 0; }
+.home-introduction--campaign { margin-top: 28px; }
 .home-prose > :last-child { margin-bottom: 0; }
 @media (max-width:1100px) {
   .home-hero-copy { max-width: 570px; }

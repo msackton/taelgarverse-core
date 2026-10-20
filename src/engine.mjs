@@ -6,6 +6,7 @@ import {RenderEngine} from './render-engine.mjs';
 import {ROOT} from './config.mjs';
 import {repositoryVersion} from '../scripts/repository-version.mjs';
 import {LocalSearch} from './local-search.mjs';
+import {readCampaignHomes} from './website-sources.mjs';
 export {document} from './render-engine.mjs';
 
 export class Engine extends RenderEngine {
@@ -19,7 +20,8 @@ export class Engine extends RenderEngine {
     });
     super({settings,store,headers,renderHeader,
       navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,
-      homeSource:settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null});
+      homeSource:settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null,
+      campaignHomes:readCampaignHomes(settings)});
     this.releases = {core:repositoryVersion(ROOT),content:repositoryVersion(settings.vault_dir),local:true};
   }
   search(input,context){this.localSearch ??= new LocalSearch(this.store);return this.localSearch.search(input,context);}
