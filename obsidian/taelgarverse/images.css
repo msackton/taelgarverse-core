@@ -1,0 +1,185 @@
+/* Inline image layout belongs to the optional Images feature, not a vault snippet.
+   Match whole pipe-delimited embed tokens; float the embed wrapper only once. */
+.taelgar-images-enabled {
+  --taelgar-aside-small: 12.5rem;
+  --taelgar-aside-standard: 20rem;
+  --taelgar-aside-large: 26rem;
+  --taelgar-figure-small: 24rem;
+  --taelgar-figure-standard: 36rem;
+  --taelgar-figure-large: 48rem;
+}
+
+.taelgar-images-enabled .callout[data-callout="image"],
+.taelgar-images-enabled .callout[data-callout="gallery"] {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.taelgar-images-enabled .callout[data-callout="image"] {
+  width: fit-content;
+  max-width: 100%;
+  margin: 0.75rem auto;
+}
+
+.taelgar-images-enabled .callout[data-callout="image"] > .callout-title,
+.taelgar-images-enabled .callout[data-callout="gallery"] > .callout-title {
+  display: none;
+}
+
+.taelgar-images-enabled .callout[data-callout="image"] > .callout-content,
+.taelgar-images-enabled .callout[data-callout="gallery"] > .callout-content {
+  margin: 0;
+  overflow: visible;
+}
+
+.taelgar-images-enabled .callout[data-callout="image"] > .callout-content p,
+.taelgar-images-enabled .callout[data-callout="gallery"] .callout-content p {
+  color: var(--text-muted);
+  font-size: var(--font-small);
+  line-height: 1.35;
+  margin: 0.25rem 0 0;
+}
+
+.taelgar-images-enabled .callout[data-callout="image"] > .callout-content > p:first-child {
+  margin-top: 0;
+}
+
+.taelgar-images-enabled .callout[data-callout="image"] img,
+.taelgar-images-enabled .callout[data-callout="gallery"] img {
+  display: block;
+  height: auto;
+  max-width: 100%;
+}
+
+/* Bare left/right preserve numeric image widths; named asides use role sizes. */
+.taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="aside"],
+.taelgar-images-enabled :is(.image-embed, img:not(.image-embed img)):is([alt="aside"], [alt^="aside|"], [alt$="|aside"], [alt*="|aside|"]),
+.taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="right"],
+.taelgar-images-enabled :is(.image-embed, img:not(.image-embed img)):is([alt="right"], [alt^="right|"], [alt$="|right"], [alt*="|right|"]),
+.taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="left"],
+.taelgar-images-enabled :is(.image-embed, img:not(.image-embed img)):is([alt="left"], [alt^="left|"], [alt$="|left"], [alt*="|left|"]) {
+  --taelgar-image-small: var(--taelgar-aside-small);
+  --taelgar-image-standard: var(--taelgar-aside-standard);
+  --taelgar-image-large: var(--taelgar-aside-large);
+  float: right;
+  clear: right;
+  width: fit-content;
+  max-width: 45%;
+  margin: 0.15rem 0 0.75rem 1rem;
+}
+
+.taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="aside"],
+.taelgar-images-enabled :is(.image-embed, img:not(.image-embed img)):is([alt="aside"], [alt^="aside|"], [alt$="|aside"], [alt*="|aside|"]) {
+  width: var(--taelgar-aside-standard);
+}
+
+.taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="left"],
+.taelgar-images-enabled :is(.image-embed, img:not(.image-embed img)):is([alt="left"], [alt^="left|"], [alt$="|left"], [alt*="|left|"]) {
+  float: left;
+  clear: left;
+  margin-left: 0;
+  margin-right: 1rem;
+}
+
+.taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="figure"],
+.taelgar-images-enabled :is(.image-embed, img:not(.image-embed img)):is([alt="figure"], [alt^="figure|"], [alt$="|figure"], [alt*="|figure|"]) {
+  --taelgar-image-small: var(--taelgar-figure-small);
+  --taelgar-image-standard: var(--taelgar-figure-standard);
+  --taelgar-image-large: var(--taelgar-figure-large);
+  display: block;
+  float: none;
+  clear: both;
+  width: var(--taelgar-figure-standard);
+  max-width: 100%;
+  margin: 1rem auto;
+}
+
+.taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="small"],
+.taelgar-images-enabled :is(.image-embed, img:not(.image-embed img)):is([alt="small"], [alt^="small|"], [alt$="|small"], [alt*="|small|"]) {
+  width: var(--taelgar-image-small, var(--taelgar-figure-small));
+}
+
+.taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="standard"],
+.taelgar-images-enabled :is(.image-embed, img:not(.image-embed img)):is([alt="standard"], [alt^="standard|"], [alt$="|standard"], [alt*="|standard|"]) {
+  width: var(--taelgar-image-standard, var(--taelgar-figure-standard));
+}
+
+.taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="large"],
+.taelgar-images-enabled :is(.image-embed, img:not(.image-embed img)):is([alt="large"], [alt^="large|"], [alt$="|large"], [alt*="|large|"]) {
+  width: var(--taelgar-image-large, var(--taelgar-figure-large));
+}
+
+.taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="hero"],
+.taelgar-images-enabled :is(.image-embed, img:not(.image-embed img)):is([alt="hero"], [alt^="hero|"], [alt$="|hero"], [alt*="|hero|"]) {
+  display: block;
+  float: none;
+  clear: both;
+  width: 100%;
+  max-width: 100%;
+  margin: 1rem auto;
+}
+
+.taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="exact"] {
+  width: fit-content;
+}
+
+.taelgar-images-enabled .image-embed img {
+  float: none;
+  margin: 0;
+  max-width: 100%;
+  height: auto;
+}
+
+.taelgar-images-enabled .image-embed:is([alt="hero"], [alt^="hero|"], [alt$="|hero"], [alt*="|hero|"]) img {
+  width: 100%;
+}
+
+.taelgar-images-enabled .callout[data-callout="image"]:is([data-callout-metadata~="aside"], [data-callout-metadata~="figure"], [data-callout-metadata~="hero"], [data-callout-metadata~="small"], [data-callout-metadata~="standard"], [data-callout-metadata~="large"]):not([data-callout-metadata~="exact"]) .image-embed,
+.taelgar-images-enabled .callout[data-callout="image"]:is([data-callout-metadata~="aside"], [data-callout-metadata~="figure"], [data-callout-metadata~="hero"], [data-callout-metadata~="small"], [data-callout-metadata~="standard"], [data-callout-metadata~="large"]):not([data-callout-metadata~="exact"]) img,
+.taelgar-images-enabled .callout[data-callout="gallery"] .image-embed,
+.taelgar-images-enabled .callout[data-callout="gallery"] img {
+  display: block;
+  float: none;
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+
+.taelgar-images-enabled .callout[data-callout="gallery"] .callout-content > ul {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(15rem, 100%), 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.taelgar-images-enabled .callout[data-callout="gallery"] .callout-content > ul > li,
+.taelgar-images-enabled .callout[data-callout="gallery"] .callout-content > ul > li > p {
+  margin: 0;
+}
+
+/* Let a rendered Live Preview callout float beside following editor lines.
+   CSS only: CodeMirror retains ownership of its widget DOM. */
+@media (min-width: 700px) {
+  .taelgar-images-enabled .markdown-source-view.is-live-preview .cm-embed-block.cm-callout:has(.callout[data-callout="image"]:is([data-callout-metadata~="aside"], [data-callout-metadata~="left"], [data-callout-metadata~="right"]):not([data-callout-metadata~="figure"]):not([data-callout-metadata~="hero"])) {
+    display: inline;
+  }
+}
+
+@media (max-width: 699px) {
+  .taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="aside"],
+  .taelgar-images-enabled :is(.image-embed, img:not(.image-embed img)):is([alt="aside"], [alt^="aside|"], [alt$="|aside"], [alt*="|aside|"]),
+  .taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="right"],
+  .taelgar-images-enabled :is(.image-embed, img:not(.image-embed img)):is([alt="right"], [alt^="right|"], [alt$="|right"], [alt*="|right|"]),
+  .taelgar-images-enabled .callout[data-callout="image"][data-callout-metadata~="left"],
+  .taelgar-images-enabled :is(.image-embed, img:not(.image-embed img)):is([alt="left"], [alt^="left|"], [alt$="|left"], [alt*="|left|"]) {
+    float: none;
+    clear: both;
+    max-width: 100%;
+    margin: 0.75rem auto;
+  }
+}

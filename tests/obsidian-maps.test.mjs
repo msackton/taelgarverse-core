@@ -13,7 +13,7 @@ import {ROOT} from '../src/config.mjs';
 const require=createRequire(import.meta.url);
 await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
 const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export {default} from './obsidian/taelgarverse/main.mjs'; export {obsidianMapConfig} from './obsidian/taelgarverse/features/maps.mjs';",resolveDir:ROOT},write:false,bundle:true,
-  platform:'node',format:'cjs',external:['obsidian','leaflet'],logLevel:'silent'});
+  platform:'node',format:'cjs',external:['obsidian','leaflet','@codemirror/view'],logLevel:'silent'});
 
 function host(){
   let maps=0,removed=0,disconnected=0;
@@ -35,12 +35,14 @@ function host(){
   class Component {
     constructor(){this.children=[];}
     addChild(child){this.children.push(child);child.onload?.();return child;}
+    registerEvent(){}
     unload(){this.onunload?.();for(const child of [...this.children])child.unload();}
   }
   class Plugin extends Component {
     async loadData(){return this.savedData || {};}
     async saveData(data){this.savedData=data;}
     addSettingTab(){}
+    registerEditorExtension(){}
     registerMarkdownCodeBlockProcessor(language,processor){(this.processors ??= new Map()).set(language,processor);this.language=language;this.processor=processor;}
   }
   class MarkdownRenderChild {constructor(container){this.containerEl=container;}unload(){this.onunload();}}
@@ -50,10 +52,12 @@ function host(){
     imageOverlay(){return {on(){return this;},addTo(){return this;}};},layerGroup(){return {addTo(){return this;},clearLayers(){}};}};
   const module={exports:{}},context={module,exports:module.exports,Buffer,TextDecoder,TextEncoder,console,
     ResizeObserver:class{observe(){}disconnect(){disconnected++;}},
-    require:name=>name==='obsidian'?{Plugin,Component,PluginSettingTab:class{},Setting:class{},Notice:class{},MarkdownRenderChild,TFile}:name==='leaflet'?L:require(name)};
+    require:name=>name==='obsidian'?{Plugin,Component,PluginSettingTab:class{},Setting:class{},Notice:class{},MarkdownRenderChild,TFile}:name==='leaflet'?L:
+      name==='@codemirror/view'?{ViewPlugin:{fromClass:value=>value}}:require(name)};
   vm.runInNewContext(compiled.outputFiles[0].text,context);
   const file=new TFile('assets/local map.png');let reads=0,fail=false,resolve;
-  const app={metadataCache:{getFirstLinkpathDest:(image,source)=>{assert.equal(image,'local map.png');assert.equal(source,'Places/Map.md');return file;}},
+  const app={workspace:{on(){return {};},onLayoutReady(fn){fn();},iterateAllLeaves(){}},
+    metadataCache:{getFirstLinkpathDest:(image,source)=>{assert.equal(image,'local map.png');assert.equal(source,'Places/Map.md');return file;}},
     vault:{readBinary:async()=>{reads++;if(fail)throw new Error('read failed');if(resolve)return await new Promise(r=>{resolve=r;});return Uint8Array.from([1,2,3,4]).buffer;},getResourcePath:()=> 'app://local/assets/local%20map.png'}};
   return {...module.exports,doc,app,file,get reads(){return reads;},set fail(value){fail=value;},
     defer(){resolve=true;},release(){resolve(Uint8Array.from([1,2,3,4]).buffer);},get counts(){return {maps,removed,disconnected};}};
@@ -70,6 +74,15 @@ test('Obsidian adapter resolves authored image links, hashes original bytes, cac
   h.file.stat.mtime++;await h.obsidianMapConfig(h.app,source,'Places/Map.md',cache);assert.equal(h.reads,2);
   h.file.stat.mtime++;h.fail=true;await assert.rejects(h.obsidianMapConfig(h.app,source,'Places/Map.md',cache),/read failed/);
   h.fail=false;await h.obsidianMapConfig(h.app,source,'Places/Map.md',cache);assert.equal(h.reads,4);
+});
+
+test('Taelgarverse keeps Images opt-in within the existing plugin and preserves existing settings',async()=>{
+  for(const enabled of [undefined,true]){
+    const h=host(),plugin=new h.default();plugin.app=h.app;plugin.savedData={legacyLeafletBlocks:true,...(enabled===undefined?{}:{imageViewer:enabled})};
+    await plugin.onload();assert.equal(plugin.settings.imageViewer,enabled===true);
+    assert.equal(plugin.images.enabled,enabled===true);assert.equal(plugin.settings.legacyLeafletBlocks,true);
+    assert.deepEqual([...plugin.processors.keys()],['taelgar-map','leaflet']);plugin.unload();
+  }
 });
 
 test('Obsidian reads calibration from the note block, applies edits without rebuilding, and checks the image fingerprint',async()=>{

@@ -1,7 +1,7 @@
 # Taelgarverse for Obsidian
 
-Taelgarverse tools for desktop Obsidian. Version 0.1.0 includes interactive maps,
-distance measurement, freehand tracing, and enclosed-area measurement.
+Taelgarverse tools for desktop Obsidian: interactive maps, distance measurement,
+freehand tracing, enclosed-area measurement, and an optional image viewer.
 
 ## Install with BRAT
 
@@ -37,6 +37,25 @@ Obsidian. Disable the former **Taelgar Map Tools** plugin during migration.
 The plugin reads local images and does not rewrite notes. Measurements are
 temporary and are cleared when the rendered map closes. Requires desktop
 Obsidian 1.8.0 or newer.
+
+## Images
+
+Turn on **Image viewer** in Taelgarverse settings to add the website's image
+viewer to Reading View and Live Preview. It is off by default and applies
+immediately. Click an image or its expand icon to view it fitted to the window,
+then choose **Pan / zoom** for dragging, +/−, keyboard, wheel, and pinch controls.
+**Fit to screen**, **Download**, Close, and Escape work as on the website.
+Captions in image callouts, gallery items, and HTML figures appear in the viewer.
+Images without captions use their alt text.
+
+Inline image callouts and embeds honor left/right placement and named sizes.
+Figures center, heroes span the note, and galleries use a responsive grid.
+Captions stay with images, and asides stack on narrow displays. No extra vault
+CSS snippet is required; these styles use the same Image viewer switch.
+
+Linked images and modified clicks keep their existing behavior. The feature uses
+local original images and preserves notes; it generates no thumbnails or map
+tiles. Disable the setting to remove its controls without changing map features.
 
 ## Development
 

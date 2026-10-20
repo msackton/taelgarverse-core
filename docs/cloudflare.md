@@ -149,8 +149,13 @@ opens search at `/?q=...`. An older publication without homepage text
 shows the search/browse page until content is published again.
 
 The Worker reuses loaded note data to keep this fast, but checks for a new
-publication on content requests. Page responses are marked not to be cached;
-browsers can reuse images and audio after checking whether they have changed.
+publication on content requests. Page responses are marked not to be cached.
+In `src/http-assets.mjs`, generated map tiles and responsive image variants use
+`Cache-Control: public, max-age=31536000, immutable`; their URLs include a source
+and recipe hash, so a changed image gets a new URL. Original images and audio
+still revalidate before reuse. This describes the configured policy; deploying
+core is required to apply a changed policy to the live site. See
+[map delivery](maps.md#delivery-and-maintenance) for tile selection and publication.
 
 Readers do not need a login. **Behind the Curtain is also available to everyone.**
 Hiding a note from a campaign view does not make its media private, and its

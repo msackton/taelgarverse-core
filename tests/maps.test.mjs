@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import {createHash} from 'node:crypto';
+import {createHash,randomBytes} from 'node:crypto';
 import sharp from 'sharp';
 import {load} from 'cheerio';
 import {ContentStore,parseNote} from '../src/content-store.mjs';
@@ -131,4 +131,60 @@ test('map images retain full resolution and tiled maps include aligned edge tile
   await fs.unlink(edge.filename);
   await prepareMaps(store,path.join(directory,'tiles'));
   assert.ok((await fs.stat(edge.filename)).size>0,'incomplete cache is repaired');
+});
+
+test('tiling follows source pixels and bytes rather than authored coordinate size, preserving calibration and originals',async t=>{
+  const directory = await fs.mkdtemp(path.join(ROOT,'.cache','map-selection-test-'));
+  t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+  for (const [name,width,height,bounds,tiled,noisy] of [
+    ['regional',2308,2468,[[0,0],[2468,2308]],true,false],
+    ['large-download',1024,512,[[0,0],[512,1024]],true,true],
+    ['small-stretched',200,100,[[0,0],[5000,5000]],false,false],
+    ['offset',2308,64,[[10,20],[74,2328]],false,false],
+  ]) {
+    const filename = path.join(directory,name+'.png');
+    const image = noisy ? sharp(randomBytes(width*height*3),{raw:{width,height,channels:3}}) :
+      sharp({create:{width,height,channels:3,background:'#ef2020'}});
+    await image.png().toFile(filename);
+    const original = await fs.readFile(filename), fingerprint = createHash('sha256').update(original).digest('hex');
+    if (noisy) assert.ok(original.length >= 1024*1024,'fixture exercises the file-size threshold');
+    const {entry,author,store} = fixture(filename);
+    author.note.body='```taelgar-map\nimage: [[map with spaces.png]]\nbounds: '+JSON.stringify(bounds)+
+      '\ncalibration:\n  hexMiles: 24\n  hexPixels: 40\n  imageSize: ['+width+','+height+']\n  imageSha256: '+fingerprint+'\n```';
+    const files = await prepareMaps(store,path.join(directory,'tiles'));
+    const config = JSON.parse(load(render(author.note.body,store,author).html)('.leaflet-map').attr('data-map'));
+    assert.equal(!!config.tile,tiled,name);assert.equal(files.length>0,tiled,name);
+    assert.deepEqual(config.measurement,{unit:'miles',hexMiles:24,
+      xScale:width/(bounds[1][1]-bounds[0][1])*0.6,yScale:height/(bounds[1][0]-bounds[0][0])*0.6});
+    assert.deepEqual(await fs.readFile(filename),original,name+' original is unchanged');
+    if (name==='regional') {
+      const firstURL = config.tile.baseUrl, oldTile = files[0], oldBytes = await fs.readFile(oldTile.filename);
+      await sharp({create:{width,height,channels:3,background:'#2020ef'}}).png().toFile(filename);
+      const next = fixture(filename);next.author.note.body=author.note.body;
+      await prepareMaps(next.store,path.join(directory,'tiles'));
+      assert.notEqual(next.entry.mapTiles[0].baseUrl,firstURL,'changed source gets a new immutable URL');
+      assert.deepEqual(await fs.readFile(oldTile.filename),oldBytes,'old immutable tiles are untouched');
+      assert.equal(JSON.parse(load(render(next.author.note.body,next.store,next.author).html)('.leaflet-map').attr('data-map')).measurement,null,
+        'changed originals still require calibration verification');
+    }
+  }
+});
+
+test('large animated maps remain original image overlays and undecodable maps warn without failing preparation',async t=>{
+  const directory = await fs.mkdtemp(path.join(ROOT,'.cache','map-fallback-test-'));
+  t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+  const filename = path.join(directory,'animated.webp'), frames = Buffer.alloc(2048*32*3,140);
+  frames.fill(230,frames.length/2);
+  await sharp(frames,{raw:{width:2048,height:32,channels:3,pageHeight:16}}).webp({loop:0,delay:[100,100]}).toFile(filename);
+  const original = await fs.readFile(filename), {entry,author,store} = fixture(filename);
+  assert.equal((await sharp(original).metadata()).pages,2);
+  assert.deepEqual(await prepareMaps(store,path.join(directory,'tiles')),[]);
+  assert.equal(entry.mapTiles,undefined);assert.deepEqual(await fs.readFile(filename),original);
+  await fs.writeFile(filename,'not an image');
+  const bad = fixture(filename);
+  assert.deepEqual(await prepareMaps(bad.store,path.join(directory,'tiles')),[]);
+  assert.equal(bad.store.warnings.length,1);assert.match(bad.store.warnings[0],/undecodable image/);
+  await prepareMaps(bad.store,path.join(directory,'tiles'));
+  assert.equal(bad.store.warnings.length,1,'repeated preparation does not duplicate warnings');
+  assert.ok(load(render(author.note.body,bad.store,bad.author).html)('.leaflet-map').length,'original URL remains renderable');
 });

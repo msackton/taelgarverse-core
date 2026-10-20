@@ -65,7 +65,12 @@ test('Node renders maps in context and repeated note embeds, loads local map ass
   assert.ok(config.tile);
   const tile = await fetch(base+config.tile.baseUrl+'/0/8/0.webp');
   assert.equal(tile.status,200);assert.match(tile.headers.get('content-type'),/image\/webp/);
+  assert.equal(tile.headers.get('cache-control'),'public, max-age=31536000, immutable');
   assert.equal((await sharp(Buffer.from(await tile.arrayBuffer())).metadata()).width,512);
+  const cachedTile = await fetch(base+config.tile.baseUrl+'/0/8/0.webp',{headers:{'If-None-Match':tile.headers.get('etag')}});
+  assert.equal(cachedTile.status,304);assert.equal(cachedTile.headers.get('cache-control'),tile.headers.get('cache-control'));
+  const original = await fetch(base+config.image,{method:'HEAD'});
+  assert.equal(original.headers.get('cache-control'),'public, max-age=0, must-revalidate');
   for (const [url,mime] of [['maps.js','javascript'],['leaflet.css','css'],['maps.css','css']]) {
     const response = await fetch(base+'/theme/'+url);assert.equal(response.status,200);assert.match(response.headers.get('content-type'),new RegExp(mime));
   }

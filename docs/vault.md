@@ -329,6 +329,17 @@ campaign, and **See Behind the Curtain** controls.
 | An Excalidraw drawing | Use an exported PNG or another supported image; the website does not draw it from Excalidraw data. |
 | A Mermaid code block | A diagram, with its source text available as a fallback. |
 
+Captions below images in `[!image|...]` callouts, captions in each `[!gallery]`
+list item, and HTML `figcaption` text also appear in the enlarged image viewer.
+The viewer uses the image's alt text when no caption is authored; alt text itself
+remains unchanged for accessibility. For example:
+
+```markdown
+> [!image|right standard]
+> ![[portrait.jpg]]
+> *A short contextual caption.*
+```
+
 Mermaid flowchart nodes marked `internal-link` resolve their visible labels to
 notes, including filenames and aliases, as in the existing family trees. Explicit
 Mermaid destinations such as `click A href "../People/Example.md"` also work.

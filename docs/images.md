@@ -8,6 +8,42 @@ then offers dragging, +/−, arrow-key panning, mouse-wheel and pinch zoom.
 dismiss it and restore focus to the expand button. Authored image links keep
 their destinations. Native inline images remain usable without JavaScript.
 
+The viewer prefers an authored caption from an image callout, the image's own
+gallery list item, or a figure's `figcaption` (including generated session
+images). Captions stay formatted in the article and appear as plain text in the
+viewer. Callout titles and Behind the Curtain controls are excluded. Images
+without captions retain the alt-text fallback, and the image's accessible alt
+text is preserved independently. Caption selection happens after visibility
+filtering and note expansion; repeated uses of one image can have different
+captions. Existing published Markdown supports this after a core deployment;
+no new image derivatives or content republication are needed for captions.
+
+## Obsidian
+
+The existing Taelgarverse plugin has an **Image viewer** setting, off by default.
+Enabling it adds the same viewer and controls to Reading View and rendered Live
+Preview images, including notes already open. Disabling it immediately removes
+its controls and closes its viewers. Images use Obsidian's existing resource URLs
+and original files; the feature generates no responsive derivatives or tiles.
+Image callout, gallery-item, and HTML figure captions are read from rendered DOM.
+Linked images and modified clicks retain native behavior; map imagery is excluded.
+
+The same switch enables inline image layout from the vault's image conventions:
+left/right callouts and pipe-delimited embeds float beside text, named sizes use
+aside/figure widths, figures center, heroes fill the note, and galleries form a
+responsive grid. Captions stay with their image. Asides stack below 700px.
+Legacy numeric image widths remain available. These rules ship in the plugin's
+`images.css`, scoped to open Markdown leaves while Images is enabled; a separate
+vault CSS snippet is not required. Disabling or unloading removes that scope.
+
+The shared controller and stylesheet live in `src/browser/image-viewer.mjs`,
+`src/browser/image-controls.mjs`, and `public/image-viewer.css`. The website uses
+the generated `image-viewer.js` bundle; the plugin includes these modules in its
+own bundle and uses Obsidian's CodeMirror API to manage Live Preview lifetimes.
+Window-specific documents own their dialogs and observers, including pop-outs.
+Enabling, disabling, rerendering, and unloading never writes note content.
+The plugin requires a separate release; deploying the website does not install it.
+
 ## Publication and caching
 
 `scripts/build-images.mjs` creates WebP derivatives of static JPEG, PNG and WebP
@@ -81,6 +117,14 @@ using their existing image. New delivery requires both a core deployment and a
 fresh content publication. Neither operation is performed by local verification.
 
 ## Verification
+
+`tests/image-viewer.test.mjs` checks native Obsidian caption markup, fitting,
+pan/zoom, stale asynchronous loads, dynamic controls, exclusions, focus return,
+and disposal. `tests/obsidian-images.test.mjs` checks the default-off feature,
+immediate enable/disable, Reading View and Live Preview ownership, source-mode
+exclusion, inline-style scope cleanup, editor rerenders, pop-out document cleanup, and unload races. Live
+Preview controls are outside CodeMirror's widget DOM. These automated host checks
+do not replace a live Obsidian check before releasing the plugin.
 
 `tests/images.test.mjs` checks source preservation, cached-file recovery, bounded
 dimensions, lossless transparency, animation preservation, responsive markup,

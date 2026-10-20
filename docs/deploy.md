@@ -11,8 +11,8 @@ The site is [taelgarverse.msackton.workers.dev](https://taelgarverse.msackton.wo
 - **Website code in `taelgarverse-core`:** merging changes into `main` on
   GitHub runs tests, then deploys to Cloudflare only if they pass (after the
   one-time GitHub deployment setup below).
-- **Taelgarverse Obsidian plugin:** publish a separate BRAT release. Its first
-  version includes Maps only; the materializer still follows the existing vault
+- **Taelgarverse Obsidian plugin:** publish a separate BRAT release for Maps and
+  the optional Images feature; the materializer still follows the existing vault
   workflow. See [plugin development and releases](../obsidian/taelgarverse/README.md).
 
 Start with [publishing](#publish-your-latest-notes) for a normal update.
@@ -210,7 +210,11 @@ alternative are omitted from the choices sent to browsers.
 JPEG/WebP derivatives use quality **82**. PNG derivatives use lossless WebP
 encoding and retain transparency. Animation, unsupported formats and audio keep
 their existing delivery. Leaflet maps retain full-resolution imagery and their
-separate WebP tile pipeline. Vault originals remain untouched.
+separate WebP tile pipeline. Maps with an original edge of at least 2,048 pixels
+or a file size of at least 1 MiB get tiles when their bounds start at zero. A
+core deployment applies long-lived caching to existing tiles; republish content
+to generate tiles for newly eligible maps. Either order is compatible. See
+[map delivery](maps.md#delivery-and-maintenance). Vault originals remain untouched.
 
 Article images select a small variant for their actual layout and screen density;
 offscreen images are deferred. The popup loads a screen-sized version only when

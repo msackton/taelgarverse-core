@@ -1,15 +1,15 @@
 import fs from 'node:fs/promises';
-import {createReadStream} from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import sharp from 'sharp';
 import {mapImages} from '../src/maps.mjs';
+import {animatedPNG} from './optimize-images.mjs';
 
 const tileSize = 512, quality = 85;
+const tileMinEdge = 2048, tileMinBytes = 1024 * 1024;
 const pending = new Map();
 
-async function pyramid(entry, bounds, cacheDir, derivativeCache) {
-  const input = await fs.readFile(entry.filename), metadata = await sharp(input).metadata();
+async function pyramid(input, metadata, bounds, cacheDir, derivativeCache) {
   const height = bounds[1][0], width = bounds[1][1];
   const minNativeZoom = Math.min(0,Math.floor(Math.log2(tileSize / Math.max(width,height))));
   let maxNativeZoom = Math.max(0,Math.ceil(Math.log2(Math.max(metadata.width/width,metadata.height/height))));
@@ -60,18 +60,26 @@ async function pyramid(entry, bounds, cacheDir, derivativeCache) {
 export async function prepareMaps(store, cacheDir, derivativeCache) {
   const generated = [];
   for (const {entry,config} of mapImages(store)) {
-    if(!entry.sha256){
-      const hash=createHash('sha256');
-      for await(const chunk of createReadStream(entry.filename))hash.update(chunk);
-      entry.sha256=hash.digest('hex');
+    const input = await fs.readFile(entry.filename);
+    if (!entry.sha256) entry.sha256 = createHash('sha256').update(input).digest('hex');
+    // Bounds describe display coordinates, not the download or decoded size.
+    // Keep arbitrary nonzero-origin bounds as image overlays.
+    if (config.bounds[0].some(Boolean)) continue;
+    let metadata;
+    try { metadata = await sharp(input).metadata(); }
+    catch (error) {
+      if (!/unsupported image format|corrupt|invalid.*header|bad.*header|premature end/i.test(error.message)) throw error;
+      const warning = 'Map tiles omitted for undecodable image: ' + entry.id;
+      if (!store.warnings.includes(warning)) store.warnings.push(warning);
+      continue;
     }
-    // Small regional maps remain image overlays. Tiling covers the large
-    // world maps; arbitrary nonzero-origin bounds still work as overlays.
-    if (Math.max(...config.bounds[1]) < 4096 || config.bounds[0].some(Boolean)) continue;
+    // A static tile pyramid must not replace an animated map with one frame.
+    if ((metadata.pages || 1) > 1 || animatedPNG(input)) continue;
+    if (Math.max(metadata.width,metadata.height) < tileMinEdge && input.length < tileMinBytes) continue;
     const cacheKey = cacheDir + entry.filename + JSON.stringify(config.bounds);
     let task = derivativeCache ? undefined : pending.get(cacheKey);
     if (!task) {
-      task = pyramid(entry,config.bounds,cacheDir,derivativeCache);
+      task = pyramid(input,metadata,config.bounds,cacheDir,derivativeCache);
       if(!derivativeCache){pending.set(cacheKey,task);task.finally(()=>pending.delete(cacheKey)).catch(()=>{});}
     }
     const {files,tile} = await task;

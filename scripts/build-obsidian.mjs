@@ -15,14 +15,14 @@ export async function buildObsidian(output=path.join(root,'dist/obsidian/taelgar
   }
   await fs.mkdir(output,{recursive:true});
   await build({absWorkingDir:root,entryPoints:['obsidian/taelgarverse/main.mjs'],outfile:path.join(output,'main.js'),
-    bundle:true,platform:'node',format:'cjs',target:'es2022',external:['obsidian'],legalComments:'inline',
+    bundle:true,platform:'node',format:'cjs',target:'es2022',external:['obsidian','@codemirror/view'],legalComments:'inline',
     footer:{js:'module.exports = module.exports.default;'},logLevel:'silent'});
   let leaflet=await fs.readFile(path.join(root,'node_modules/leaflet/dist/leaflet.css'),'utf8');
   for(const match of [...leaflet.matchAll(/url\(images\/([^)]+)\)/g)]){
     const bytes=await fs.readFile(path.join(root,'node_modules/leaflet/dist/images',match[1]));
     leaflet=leaflet.replace(match[0],'url(data:image/png;base64,'+bytes.toString('base64')+')');
   }
-  const styles=await Promise.all(['public/maps.css','obsidian/taelgarverse/styles.css'].map(file=>fs.readFile(path.join(root,file),'utf8')));
+  const styles=await Promise.all(['public/maps.css','public/image-viewer.css','obsidian/taelgarverse/images.css','obsidian/taelgarverse/styles.css'].map(file=>fs.readFile(path.join(root,file),'utf8')));
   await fs.writeFile(path.join(output,'styles.css'),[leaflet,...styles].join('\n'));
   for(const file of ['manifest.json','versions.json'])await fs.copyFile(path.join(pluginSource,file),path.join(output,file));
   await fs.copyFile(path.join(root,'LICENSE'),path.join(output,'LICENSE'));

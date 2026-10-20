@@ -9,7 +9,7 @@ export function mountMap(figure) {
   try {
     const config = JSON.parse(figure.dataset.map), bounds = L.latLngBounds(config.bounds);
     canvas.hidden = false;
-    map = L.map(canvas,{crs:L.CRS.Simple,minZoom:config.minZoom,maxZoom:config.maxZoom,
+    map = L.map(canvas,{crs:L.CRS.Simple,attributionControl:false,minZoom:config.minZoom,maxZoom:config.maxZoom,
       scrollWheelZoom:false,maxBounds:bounds.pad(0.1),maxBoundsViscosity:0.8});
     const sizeMap = () => {
       map.invalidateSize({pan:false});

@@ -36,6 +36,8 @@ before(async()=>{
   fs.writeFileSync(path.join(source,'tiny.png'),'fixture asset');
   fs.writeFileSync(path.join(source,'Tiled Map.md'),'```leaflet\nimage: [[world.png]]\nbounds: [[0,0],[64,4100]]\n```');
   await sharp({create:{width:4100,height:64,channels:3,background:'red'}}).png().toFile(path.join(source,'world.png'));
+  fs.writeFileSync(path.join(source,'Regional Map.md'),'```taelgar-map\nimage: [[regional.png]]\nbounds: [[0,0],[64,2308]]\n```');
+  await sharp({create:{width:2308,height:64,channels:3,background:'blue'}}).png().toFile(path.join(source,'regional.png'));
   for (const relative of ['assets/audio/song.mp3','assets/session-audio/session/clip.m4a','assets/excalidraw/drawing.png']) {
     const file=path.join(source,relative);fs.mkdirSync(path.dirname(file),{recursive:true});
     fs.writeFileSync(file,'media fixture: ' + relative);
@@ -113,9 +115,28 @@ test('Worker renders context-filtered maps and serves packaged tile assets witho
   const previousImageReads = bucket.calls.get(image.objectKey) || 0;
   const tile = await request(config.tile.baseUrl+'/0/8/0.webp');
   assert.equal(tile.status,200);assert.match(tile.headers.get('content-type'),/image\/webp/);
-  assert.equal((await sharp(Buffer.from(await tile.arrayBuffer())).metadata()).width,512);
+  assert.equal(tile.headers.get('cache-control'),'public, max-age=31536000, immutable');
+  const tileBytes = Buffer.from(await tile.arrayBuffer());
+  assert.equal((await sharp(tileBytes).metadata()).width,512);
   assert.equal(bucket.calls.get(image.objectKey) || 0,previousImageReads);
-  assert.equal((await request(config.tile.baseUrl+'/0/8/0.webp',{method:'HEAD'})).status,200);
+  const head = await request(config.tile.baseUrl+'/0/8/0.webp',{method:'HEAD'});
+  assert.equal(head.status,200);assert.equal(head.headers.get('cache-control'),tile.headers.get('cache-control'));
+  assert.equal(head.headers.get('content-length'),String(tileBytes.length));
+  const cached = await request(config.tile.baseUrl+'/0/8/0.webp',{headers:{'If-None-Match':tile.headers.get('etag')}});
+  assert.equal(cached.status,304);assert.equal(cached.headers.get('cache-control'),tile.headers.get('cache-control'));
+  const range = await request(config.tile.baseUrl+'/0/8/0.webp',{headers:{Range:'bytes=0-15'}});
+  assert.equal(range.status,206);assert.equal(range.headers.get('cache-control'),tile.headers.get('cache-control'));
+  assert.deepEqual(Buffer.from(await range.arrayBuffer()),tileBytes.subarray(0,16));
+  const original = await request(config.image,{method:'HEAD'});
+  assert.equal(original.headers.get('cache-control'),'public, max-age=0, must-revalidate');
+  const regionalPage = await (await request('/api/page?page=Regional%20Map')).json();
+  const regionalConfig = JSON.parse(load(regionalPage.html)('.leaflet-map').attr('data-map'));
+  assert.ok(regionalConfig.tile,'regional maps receive tiles in a packaged snapshot');
+  const regionalImage = index.entries.find(entry=>entry.id==='regional.png');
+  assert.equal(bucket.calls.get(regionalImage.objectKey) || 0,0);
+  const regionalTile = await request(regionalConfig.tile.baseUrl+'/0/0/0.webp');
+  assert.equal(regionalTile.status,200);assert.equal(regionalTile.headers.get('cache-control'),tile.headers.get('cache-control'));
+  assert.equal(bucket.calls.get(regionalImage.objectKey) || 0,0);
   assert.equal((await request(config.tile.baseUrl+'/0/999/999.webp')).status,404);
   assert.equal(await (await request('/theme/maps.js')).text(),'/generated/maps.js');
   assert.equal(await (await request('/theme/leaflet.css')).text(),'/generated/leaflet.css');
@@ -408,7 +429,7 @@ test('published snapshots retain audio and exported drawings and Worker serves m
   }
   const html=await(await request('/page/media')).text();
   assert.match(html,/<script src="\/theme\/image-viewer.js" defer>/);
-  assert.equal(await(await request('/theme/image-viewer.js')).text(),'/image-viewer.js');
+  assert.equal(await(await request('/theme/image-viewer.js')).text(),'/generated/image-viewer.js');
 });
 
 test('snapshot load failures recover and publication can change without redeploying Worker',async()=>{

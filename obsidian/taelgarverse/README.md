@@ -1,7 +1,7 @@
 # Taelgarverse for Obsidian
 
-The unified desktop Taelgarverse plugin. Version **0.1.0 contains Maps only**:
-local image maps, calibrated distances, freehand tracing, and enclosed areas.
+The unified desktop Taelgarverse plugin: local image maps, calibrated distances,
+freehand tracing, enclosed areas, and an optional image viewer.
 Name Explorer and the materializer remain separate. Requires Obsidian 1.8.0+.
 
 ## Install and update
@@ -39,7 +39,7 @@ test vault. Use `npm test` for the full suite, also run automatically in GitHub.
 The build produces
 `dist/obsidian/taelgarverse/`, including `main.js`, `manifest.json`, and
 `styles.css`. All application dependencies and Leaflet icons are bundled;
-only Obsidian and Node's desktop built-ins remain external. `release.json` records
+only Obsidian, its CodeMirror editor API, and Node's desktop built-ins remain external. `release.json` records
 the source revision and whether local changes were present. Users need neither
 Node nor a core checkout. The installer copies only plugin runtime files and
 preserves `data.json`, notes, and unrelated plugins. The development command
@@ -53,6 +53,14 @@ owns map-component state, image hashing, and cleanup through Obsidian's Componen
 lifecycle. It uses core's `src/maps.mjs`, `src/browser/map-view.mjs`, and shared
 measurement modules. The map CSS scope retains `taelgar-map-tools` as an internal
 style class. Calibration belongs in the authored block, not in plugin source.
+
+`features/images.mjs` owns the opt-in image feature, Reading View roots,
+CodeMirror Live Preview lifecycle, and one shared viewer per document (including
+pop-out windows). It uses `src/browser/image-controls.mjs`,
+`src/browser/image-viewer.mjs`, and `public/image-viewer.css`, also used by the
+website. Controllers release observers, buttons, event handlers, and open dialogs
+when disabled, rerendered, or unloaded. Caption extraction understands native
+Obsidian image callouts and per-item galleries, as well as HTML figures.
 
 Future features should be separate modules owned by the parent plugin. Add
 dependencies only where a feature needs them. Website and plugin versions are
@@ -117,3 +125,26 @@ area. Multiple outlines have separate readings; crossed or retraced outlines
 report that area is unavailable. All measurements are temporary. The plugin
 reads local images, makes no network requests, and does not rewrite notes.
 See [map definitions and calibration](../../docs/maps.md).
+
+## Image viewer
+
+Turn on **Settings → Taelgarverse → Image viewer** to enable the website-style
+image controls. It is **off by default** and takes effect immediately, including
+notes already open in Reading View and Live Preview. Click a rendered image or
+its expand icon for a fitted view with **Download**, **Pan / zoom**, +/−, dragging,
+arrow-key panning, mouse-wheel/pinch zoom, and **Fit to screen**. Escape or Close
+returns focus to the expand icon. Ordinary source mode keeps its normal editing
+behavior. Linked images and modified clicks retain their existing actions.
+
+The same switch styles inline images without requiring a vault snippet.
+`[!image|right standard]` and `[!image|left small]` wrap text around the image and
+caption; direct embeds such as `![[portrait.jpg|left|small]]` also respect placement
+and sizes. Figures center, heroes fill the note, and galleries use a responsive
+grid. Asides stack on narrow displays. Legacy numeric widths remain supported.
+
+Captions come from `[!image|...]` callout text, the image's own `[!gallery]` item,
+or HTML `figcaption`; alt text is a fallback and remains separate for accessibility.
+This feature uses Obsidian's existing image resource URLs. It does not create
+thumbnails or tiles, write to the vault, or download remote images in the
+background. Maps keep their own controls. Turn the setting off to remove the
+image controls and inline styling and close open viewers; map functionality is independent.

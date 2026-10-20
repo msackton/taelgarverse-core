@@ -66,6 +66,17 @@ function imageSizes(image,options) {
   return '(max-width: 800px) min(calc(100vw - 40px), '+width+'), min('+width+', 100vw)';
 }
 
+function imageCaption(image) {
+  const host = image.closest('figure,.admonition.image,details.image,.admonition.gallery li,details.gallery li');
+  // A gallery caption belongs to its item, never to a neighbouring image.
+  if (!host.length || host.find('img').length !== 1) return '';
+  const caption = (host.is('figure') ? host.children('figcaption').first() : host).clone();
+  caption.find('.admonition-title,summary,img,script,style,button,[hidden],[popover],.dm-note-ref').remove();
+  caption.find('br').replaceWith(' ');
+  caption.find('p,li').append(' ');
+  return caption.text().replace(/\s+/g,' ').trim();
+}
+
 // Run after embeds and generated headers have been included. It covers both
 // Markdown images and authored HTML without requiring changes to vault notes.
 export function responsiveImages(html,store,options) {
@@ -74,6 +85,8 @@ export function responsiveImages(html,store,options) {
   $('img[src]').each((_,element)=>{
     const image = $(element);
     if (image.closest('.twemoji,.leaflet-map,.leaflet-container').length) return;
+    const caption = imageCaption(image);
+    if (caption && !image.attr('data-image-caption')) image.attr('data-image-caption',caption);
     const hidden = image.closest('[hidden],[popover],details:not([open])').length>0;
     if (!image.attr('loading')) image.attr('loading',lead && !hidden ? 'eager' : 'lazy');
     if (!image.attr('decoding')) image.attr('decoding','async');

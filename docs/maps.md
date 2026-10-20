@@ -6,6 +6,8 @@ Earth-radius calculation, spherical distance, latitude correction, or geographic
 projection. Zoom, viewport size, source resolution, and tile resolution do not
 change a route's measured distance.
 
+The shared website and Obsidian viewer hides Leaflet's default attribution badge.
+
 Choose **Measure distance**, then click or tap points along a route. **Undo**
 removes the last point, **Clear** removes the route and exits tracing mode, and **Done measuring** leaves
 the result visible while returning to ordinary navigation. Maps remain draggable
@@ -132,6 +134,25 @@ Obsidian adapter hash the source bytes before rendering calibrated measurements.
 The same block therefore produces the same physical distance on both surfaces.
 
 ## Delivery and maintenance
+
+The website and local Node preview generate 512-pixel WebP tiles at multiple
+zoom levels for map images with an original edge of at least 2,048 pixels or a
+file size of at least 1 MiB. Selection uses the actual image rather than its
+authored display bounds. Smaller images, animations, and maps with nonzero-origin
+bounds remain image overlays. Undecodable images remain available through their
+original URLs, with a preparation warning instead of a tile pyramid.
+
+The viewer requests tiles for the visible area and zoom level. Generated tile
+URLs include a hash of the source bytes and tile recipe, so changed imagery gets
+new URLs. Tiles use a one-year immutable cache policy; original image URLs still
+revalidate. Tile generation preserves the original download and calibration.
+The Obsidian adapter continues to use local original images without generated
+tiles.
+
+Deploying core enables the cache policy for existing published tiles. Republish
+content to generate tiles for newly eligible maps; the existing viewer can read
+the same tile metadata, so either deployment order works. These are separate
+release actions and neither is performed by local preparation or tests.
 
 The controller is bundled into the existing map-only browser asset. The Worker
 uses source hashes already present in published snapshots. For migration from

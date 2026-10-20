@@ -130,7 +130,7 @@ export function document(result,contextOptions,navigation,releases) {
   const maps = result.html.includes('class="leaflet-map"');
   return '<!doctype html><html lang="en" dir="ltr" data-appearance="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><script src="/theme/appearance.js"></script>' +
     '<title>' + escapeHtml(result.title) + ' — TaelgarVerse</title><link rel="stylesheet" href="/theme/material.css">' +
-    '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"><link rel="stylesheet" href="/theme/quiet-library.css">' +
+    '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"><link rel="stylesheet" href="/theme/image-viewer.css"><link rel="stylesheet" href="/theme/quiet-library.css">' +
     (maps ? '<link rel="stylesheet" href="/theme/leaflet.css"><link rel="stylesheet" href="/theme/maps.css">' : '') +
     (result.search ? '<link rel="stylesheet" href="/theme/search.css">' : '') +
     (result.homepage ? '<link rel="stylesheet" href="/theme/homepage.css">' : '') + '</head>' +
