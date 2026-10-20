@@ -34,7 +34,7 @@ function readSettings(filename) {
   return input;
 }
 
-export function loadSettings(filename, {root = ROOT, env = process.env, vault} = {}) {
+export function loadSettings(filename, {root = ROOT, env = process.env, vault, vaultOnly = false, liveVault = false} = {}) {
   const defaultsFile = path.resolve(root, 'config.json');
   const localFile = path.resolve(root, 'config.local.json');
   // Explicit selection replaces the automatic local file, not the shared
@@ -45,6 +45,8 @@ export function loadSettings(filename, {root = ROOT, env = process.env, vault} =
   if (vault) settings.vault_dir = path.resolve(vault);
   if (typeof settings.vault_dir !== 'string') throw new Error('Missing configuration: vault_dir');
   settings.vault_dir = fs.realpathSync(settings.vault_dir);
+  if(vaultOnly)return settings; // Plugin installation needs no website inputs.
+  if(liveVault)settings.source_dir=settings.vault_dir;
   settings.source_dir = fs.realpathSync(settings.source_dir ?? settings.vault_dir);
   for (const [key, name] of [['nav_source', 'navigation.md'], ['home_source', 'home.md']]) {
     settings[key] = settings[key] === null ? null : fs.realpathSync(settings[key] ?? path.join(settings.vault_dir, '_website', name));

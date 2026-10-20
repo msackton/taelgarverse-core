@@ -30,23 +30,21 @@ From `taelgarverse-core`:
 
 ```sh
 npm ci
-npm run test:obsidian
-npm run build:obsidian
-npm run obsidian:install -- --vault ../test-vault --enable
+npm run dev -- --plugin --vault ../test-vault
 ```
 
-Create and open a disposable test vault first. The build produces
+Create and open a disposable test vault first. The command builds, installs,
+enables, and tries to reload the plugin. No website metadata is required in that
+test vault. Use `npm test` for the full suite, also run automatically in GitHub.
+The build produces
 `dist/obsidian/taelgarverse/`, including `main.js`, `manifest.json`, and
 `styles.css`. All application dependencies and Leaflet icons are bundled;
 only Obsidian and Node's desktop built-ins remain external. `release.json` records
 the source revision and whether local changes were present. Users need neither
 Node nor a core checkout. The installer copies only plugin runtime files and
-preserves `data.json`, notes, and unrelated plugins. `--enable` removes the old
-`taelgar-map-tools` ID from the enabled list and adds `taelgarverse`; restart
-Obsidian to apply this. Without `--enable`, it only installs files.
-
-The former `build:obsidian-maps` and `maps:install` commands are compatibility
-aliases which now build/install Taelgarverse.
+preserves `data.json`, notes, and unrelated plugins. The development command
+removes the old `taelgar-map-tools` ID from the enabled list and adds
+`taelgarverse`. Restart Obsidian if automatic reload is unavailable.
 
 ## Source ownership
 
@@ -70,35 +68,32 @@ releasing each affected consumer.
    stays independent. Use `x.y.z` versions; do not publish experimental builds
    to this repository, because BRAT's latest also includes prereleases.
 3. Commit and push the reviewed source to `msackton/taelgarverse-core`.
-4. Create a release draft:
+4. In GitHub Actions, run **Release Taelgarverse for Obsidian** against that
+   committed revision. It publishes by default; uncheck `publish` to leave a draft.
+   Alternatively, push a core tag named `obsidian/<version>` (for example
+   `obsidian/0.1.1`). A tag must match the plugin manifest exactly and publishes
+   automatically after the CI checks pass.
 
-   ```sh
-   npm run obsidian:release -- --notes obsidian/taelgarverse/release-notes.md
-   ```
+The GitHub workflow runs the full test suite, local R2/D1 integration tests, and
+Worker packaging checks before releasing. It then builds the plugin and uploads
+all assets to a draft before publishing. `release.json` records the source commit.
+Users get the release through BRAT; your laptop needs no release credentials or
+build/upload step. Website deployments do not release the plugin.
 
-5. Review the draft's assets and source link on GitHub, then publish it. BRAT
-   can now install it. Add `--publish` on the initial release command to publish
-   directly after all uploads succeed. Do not rerun the command to promote an
-   existing draft: it intentionally refuses to overwrite existing versions.
+A failed upload leaves an unpublished draft to inspect; delete an incomplete
+draft before retrying. Existing versions are never overwritten. To promote an
+intentional draft, use its GitHub page rather than rerunning the workflow for the
+same version. Never replace published assets; bump the plugin version instead.
 
-The command requires a clean checkout, runs the map/plugin tests, builds the
-bundle, verifies the source commit exists on GitHub, and uploads all assets to a
-draft before publishing. `release.json` records the source commit. A failed upload
-leaves an unpublished draft to inspect; delete the incomplete draft before retrying.
-Never replace an already published version's assets; bump the plugin version.
-
-Authentication uses `GH_TOKEN`/`GITHUB_TOKEN` or the configured Git Credential
-Manager sign-in. For automated releases, give a fine-grained token Contents write
+For one-time setup, give a fine-grained token Contents write
 access to **only** `msackton/taelgarverse-obsidian`, save it as
-`TAELGARVERSE_RELEASE_TOKEN` in core's Actions secrets, and manually dispatch
-**Release Taelgarverse for Obsidian** from the desired committed source revision.
-The workflow defaults to creating a draft. It does not run on website deployments.
+`TAELGARVERSE_RELEASE_TOKEN` in core's Actions secrets. This secret is required
+because the workflow publishes to a separate distribution repository.
 
-For initial setup only, add `--init-repository` to create the public distribution
-repository with its installation README and license. This requires the msackton
-account with repository creation rights; normal release tokens need only Contents
-write. Source stays in core; the distribution repository contains documentation
-and release artifacts, with no manually maintained source copy.
+The distribution repository already exists. Source stays in core; the distribution
+repository contains documentation and release artifacts. The internal
+`scripts/release-obsidian.mjs` program is the workflow's uploader, rather than an
+everyday laptop command.
 
 ## Measure maps
 

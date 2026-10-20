@@ -61,7 +61,7 @@ at startup. New content revisions replace the index along with the article
 snapshot, so removed links disappear without redeploying the Worker.
 
 Enabling the feature in production requires the updated renderer and one fresh
-content publication through `npm run content:publish -- --no-strict` (omit
+content publication through `npm run publish -- --no-strict` (omit
 `--no-strict` for strict query checking). Deploying code and publishing content
 remain separate operations: deploy the updated renderer before publishing a
 version 2 index, which the earlier renderer cannot read. Older snapshots remain

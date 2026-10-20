@@ -320,7 +320,7 @@ export async function main(options) {
     });
     if (working) { await removeWorkingDirectory(working); working = undefined; }
     if (!result.skipped) console.log(options.buildOnly ?
-      'Prepared content and search locally; no R2/D1 reads or writes. Run npm run cf:check to verify the Worker package.' :
+      'Prepared content and search locally; no R2/D1 reads or writes. Run node scripts/cloudflare.mjs check to verify the Worker package.' :
       `Content published (${result.revision.slice(0, 12)}). The Worker will read the new revision from R2.`);
     return result;
   } catch (error) {
@@ -332,7 +332,7 @@ export async function main(options) {
   }
 }
 
-const help = `Usage: npm run content:publish -- [options]
+const help = `Usage: npm run publish -- [options]
 Checks the Taelgar commit in R2, exports via Obsidian, optimizes images, uploads, and verifies D1 search before activation.
 Requires Node 22+, Git, the vault open in Obsidian with Dataview ready, and Wrangler login.
 Settings: config.json, plus config.local.json automatically when present.

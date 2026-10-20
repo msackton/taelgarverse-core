@@ -143,16 +143,16 @@ source, and D1 destination changes invalidate the build fingerprint.
 The separate maintenance flow is:
 
 ```sh
-npm run cf:prepare
-npm run search:index -- stage --dry-run
-npm run cf:upload
-npm run search:index -- stage --remote
-npm run search:index -- verify --remote
-npm run cf:publish
+node scripts/prepare-cloudflare.mjs
+node scripts/search.mjs stage --dry-run
+node scripts/cloudflare.mjs upload-remote
+node scripts/search.mjs stage --remote
+node scripts/search.mjs verify --remote
+node scripts/cloudflare.mjs publish
 ```
 
-`cf:publish` repeats upload/staging and verifies D1 readiness under the shared
-publication lock before activating content. `cf:seed` does the same locally. The search
+The internal `node scripts/cloudflare.mjs publish` repeats upload/staging and verifies D1 readiness under the shared
+publication lock before activating content. Full local preview does the same locally. The search
 CLI defaults to `.cache/cloudflare/latest.json`; `--report FILE` selects retained
 artifacts. Except with `--dry-run`, select `--local` or `--remote` explicitly.
 Search commands never activate R2 content. Interrupted staging can be retried
@@ -188,9 +188,9 @@ retained snapshots available. An unchanged full publication retries cleanup
 without rebuilding. Maintenance commands require an explicit destination:
 
 ```sh
-npm run content:prune -- --remote --dry-run
-npm run content:prune -- --remote
-npm run content:rollback -- --remote
+node scripts/maintain-content.mjs prune --remote --dry-run
+node scripts/maintain-content.mjs prune --remote
+node scripts/maintain-content.mjs rollback --remote
 ```
 
 `--local` selects the emulators instead. Dry-run reads and verifies the current

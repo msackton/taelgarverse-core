@@ -1,0 +1,45 @@
+name: Tests
+
+on:
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          path: core
+          persist-credentials: false
+      - name: Read public vault inputs used by compatibility tests
+        uses: actions/checkout@v6
+        with:
+          repository: tsackton/taelgar
+          path: taelgar
+          persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            **/*.md
+            /_scripts/customJS/
+            /_scripts/session_note_campaigns.json
+            /.obsidian/metadata.json
+            !/.agents/
+            !/assets/
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: core/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - name: Test local R2 and D1 publication and recovery
+        run: npm test -- --integration
+      - name: Check website deployment package
+        run: node scripts/cloudflare.mjs check

@@ -60,3 +60,10 @@ test('existing plugin releases are never overwritten, and uncommitted source can
   await assert.rejects(releaseObsidian({notes:'Maps'},changed.dependencies),/Source revision changed/);
   assert.equal(changed.calls.length,0);
 });
+
+test('a release tag must match the plugin version before any GitHub mutation',async t=>{
+  const f=await fixture(t);
+  await assert.rejects(releaseObsidian({notes:'Maps',tag:'obsidian/9.9.9'},f.dependencies),/tag must match/);
+  assert.equal(f.calls.length,0);
+  await releaseObsidian({notes:'Maps',tag:'obsidian/0.1.0'},f.dependencies);
+});

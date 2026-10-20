@@ -1,12 +1,14 @@
 name: Release Taelgarverse for Obsidian
 
 on:
+  push:
+    tags: ['obsidian/*']
   workflow_dispatch:
     inputs:
       publish:
         description: Publish to BRAT after uploading all assets (otherwise create a draft)
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
@@ -16,7 +18,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test:
+    uses: ./.github/workflows/tests.yml
   release:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -28,7 +33,7 @@ jobs:
       - name: Build, test, and release the plugin
         env:
           GH_TOKEN: ${{ secrets.TAELGARVERSE_RELEASE_TOKEN }}
-          PUBLISH: ${{ inputs.publish }}
+          PUBLISH: ${{ github.event_name == 'push' || inputs.publish }}
         shell: bash
         run: |
           args=(--notes obsidian/taelgarverse/release-notes.md)

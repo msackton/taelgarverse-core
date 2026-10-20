@@ -28,7 +28,8 @@ flowchart LR
     S --> P
     P --> R[R2 snapshots and assets]
     P --> D[D1 revision-matched search index]
-    C[taelgarverse-core main] --> B[Cloudflare build pipeline]
+    C[taelgarverse-core main] --> T[GitHub tests and package check]
+    T -->|success| B[GitHub deployment job]
     B --> W[Worker and static application assets]
     R --> W
     W --> U[Browser / API client]
@@ -40,8 +41,9 @@ flowchart LR
   it does not rewrite source notes.
 - **`taelgarverse-core`** owns rendering, routing, navigation behavior, browser assets, the
   publisher, the Taelgarverse Obsidian plugin source, and the checked-in Worker
-  header module. Cloudflare builds need this repository and its dependencies;
-  they do not need a vault checkout or Obsidian.
+  header module. The deployment job needs this repository and its dependencies;
+  it does not need a vault checkout or Obsidian. The preceding test job checks
+  out sparse public vault inputs, and must pass before deployment starts.
 - **`taelgarverse` / the older static publishing pipeline** are independent of
   this application. Their MkDocs output and materialized static headers are not
   inputs to the dynamic renderer.
@@ -49,6 +51,8 @@ flowchart LR
 | Code | Responsibility |
 | --- | --- |
 | `scripts/publish-content.mjs` | Git checkpoint, Obsidian export, image optimization, upload, then activation. |
+| `scripts/dev.mjs`, `scripts/test.mjs`, `.github/workflows/tests.yml` | Public development/test entry points, live-vault watching, full local publication preview, plugin installation, and GitHub test/package gates. |
+| `.github/workflows/website.yml` | Reuse CI tests, then deploy Worker/static assets on `main`. Serialize production pipelines; deployment credentials are available only in the deployment step. See the one-time cutover in [Deploy](deploy.md#one-time-github-website-deployment-setup). |
 | `scripts/prepare-cloudflare.mjs` | Package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. |
 | `scripts/compile-search.mjs`, `src/search-text.mjs` | Compile deduplicated whole-note text versions and date/campaign/DM visibility rules. |
 | `scripts/search-index.mjs`, `scripts/search-database.mjs`, `scripts/search.mjs` | Immutable D1 staging, verification, remote/local adapters, and explicit staging CLI. |
@@ -158,7 +162,9 @@ The Worker shares an index and bounded Markdown cache within an isolate. It read
 the R2 publication pointer on content requests and replaces that state when the
 revision changes. Node reads a filesystem snapshot at startup and must restart
 after vault, runtime, settings, homepage, or menu changes. There is no rendered HTML
-cache. [Cloudflare](cloudflare.md) owns the hosted storage/request details.
+cache. The `dev` supervisor restarts Node after vault/source changes; full preview
+uses a prepared snapshot and must be rerun after vault edits.
+[Cloudflare](cloudflare.md) owns the hosted storage/request details.
 
 ## Change and release rules
 
@@ -166,13 +172,13 @@ cache. [Cloudflare](cloudflare.md) owns the hosted storage/request details.
 | --- | --- |
 | Vault Markdown/media, session notes, registry, `.obsidian/metadata.json` | Run the content publisher. |
 | `_website/home.md`, `_website/navigation.md`, `home_source`, `nav_source`, `default_date`, materializer, packaging, image settings | Republish content; use `--force` if the change is outside the publisher's fingerprint. A core merge alone does not refresh the published homepage or menu. |
-| Renderer, routes, CSS/browser scripts, dependencies, Worker configuration | Merge core changes to `main`; the Cloudflare pipeline deploys them. |
+| Renderer, routes, CSS/browser scripts, dependencies, Worker configuration | Merge core changes to `main`; GitHub deploys to Cloudflare after CI passes. |
 | Taelgarverse plugin or shared map code used by it | Test both consumers, bump the plugin's own version, then explicitly release to the BRAT distribution repository. A website deployment does not release the plugin. |
-| Vault CustomJS header classes | Run `npm run build:worker-headers`, review and commit the generated `src/worker-headers.mjs` (and changed generated icons), then merge core to `main`. Content publication does not regenerate or deploy this module. Republish if data also changed. |
+| Vault CustomJS header classes | Run `node scripts/build-worker-headers.mjs`, review and commit the generated `src/worker-headers.mjs` (and changed generated icons), then merge core to `main`. Content publication does not regenerate or deploy this module. Republish if data also changed. |
 | Snapshot schema or publication/availability policy | Update producer and consumers together; determine a compatible deployment order and whether existing snapshots must be republished. |
 | Search compiler, visibility rules, or index format | Republish content to compile/stage D1 before activation; retain active plus one previous good generation in R2/D1 and collect orphaned assets/text. See [search publication](search.md). |
 
-`npm run build:runtime` regenerates the local `.generated/headers.mjs` and
+`node scripts/build-runtime.mjs` regenerates the local `.generated/headers.mjs` and
 `src/icons.mjs`; it does **not** update the committed Worker header module.
 `public/generated/` is ignored and rebuilt from the pinned browser dependencies.
 Core provenance is also generated locally under `.generated/` by Wrangler before
@@ -196,8 +202,8 @@ Agents must update the relevant core docs in the same change:
   changes to it are requested.
 
 For behavior changes, run the relevant tests in `tests/`; use `npm test` for shared
-rendering changes and `npm run cf:check` for the Worker package. Tests that build
+rendering changes and `node scripts/cloudflare.mjs check` for the Worker package. Tests that build
 headers need the configured vault. Publisher storage changes also have the local
-`node --test tests/publish-r2.integration.mjs` check. Use `cf:smoke` only against
+`node --test tests/publish-r2.integration.mjs` check. Use `node scripts/smoke-worker.mjs` only against
 a Worker serving equivalent content/settings to the local reference. Documentation
 edits need link/example checks; they do not require publishing content.

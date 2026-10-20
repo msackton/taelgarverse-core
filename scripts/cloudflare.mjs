@@ -24,7 +24,7 @@ function run(args) {
 }
 
 function prepared() {
-  if (!fs.existsSync(latestFile)) throw new Error('Prepare content first: npm run cf:prepare');
+  if (!fs.existsSync(latestFile)) throw new Error('Prepare content first: node scripts/prepare-cloudflare.mjs');
   const report=JSON.parse(fs.readFileSync(latestFile,'utf8'));
   const config=JSON.parse(fs.readFileSync(report.configFile,'utf8'));
   return {report,config,flags:['--config',report.configFile]};
@@ -34,7 +34,7 @@ function verifiedUpload(report,config) {
   const receipt=fs.existsSync(receiptFile) ? JSON.parse(fs.readFileSync(receiptFile,'utf8')) : {};
   if (receipt.revision!==report.revision || receipt.bucket!==report.bucket ||
       receipt.worker!==config.name || receipt.account!==config.account_id) {
-    throw new Error('Upload this snapshot first with npm run cf:upload, then publish it');
+    throw new Error('Upload this snapshot first with node scripts/cloudflare.mjs upload-remote, then publish it');
   }
 }
 
@@ -59,7 +59,7 @@ async function uploadPrepared(report,config,flags,{local=false,activate=false}={
       fs.writeFileSync(report.pointerFile,JSON.stringify(pointer)+'\n');
       await run(['r2','object','put',report.bucket+'/'+POINTER_KEY,...flags,'--file',report.pointerFile,...target,'--force']);
       try{await prunePublication(retention,index,pointer,{log:console.log});}
-      catch(error){throw new Error('Content is published, but cleanup failed; retry cf:publish: '+error.message);}
+      catch(error){throw new Error('Content is published, but cleanup failed; retry node scripts/cloudflare.mjs publish: '+error.message);}
     });
   }finally{try{await retention?.close();}finally{await db.close();}}
 }

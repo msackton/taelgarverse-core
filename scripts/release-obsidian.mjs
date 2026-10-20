@@ -55,7 +55,7 @@ async function initializeRepository(request){
     content:Buffer.from(await fs.readFile(path.join(root,'LICENSE'))).toString('base64')}});
 }
 
-export async function releaseObsidian({notes,publish=false,initRepository=false},dependencies={}){
+export async function releaseObsidian({notes,publish=false,initRepository=false,tag},dependencies={}){
   const {request=githubRequest,build=buildObsidian,verify=verifySource,test=runTests}=dependencies;
   if(typeof notes!=='string' || !notes.trim())throw new Error('Release notes are required');
   const commit=await verify();
@@ -63,6 +63,9 @@ export async function releaseObsidian({notes,publish=false,initRepository=false}
   const output=await build();
   if(await verify()!==commit)throw new Error('Source revision changed during release preparation; review and retry');
   const manifest=JSON.parse(await fs.readFile(path.join(output,'manifest.json'),'utf8'));
+  if(tag && tag!=='obsidian/'+manifest.version){
+    throw new Error('Release tag must match the plugin manifest: obsidian/'+manifest.version);
+  }
   // Ensure the source link is usable before publishing any binary artifacts.
   await request('/repos/'+sourceRepo+'/commits/'+commit);
   try{await request('/repos/'+distributionRepo);}
@@ -103,7 +106,8 @@ if(process.argv[1] && import.meta.url===pathToFileURL(path.resolve(process.argv[
     throw new Error('Use --notes FILE [--publish] [--init-repository]. Default: create a draft. --init-repository may create the public '+distributionRepo+' repository.');
   }
   try{
-    const result=await releaseObsidian({notes:await fs.readFile(args[index+1],'utf8'),publish:args.includes('--publish'),initRepository:args.includes('--init-repository')});
+    const result=await releaseObsidian({notes:await fs.readFile(args[index+1],'utf8'),publish:args.includes('--publish'),initRepository:args.includes('--init-repository'),
+      tag:process.env.GITHUB_REF_TYPE==='tag'?process.env.GITHUB_REF_NAME:undefined});
     console.log((result.published?'Published: ':'Draft ready: ')+result.url);
   }catch(error){console.error(error.message);process.exitCode=1;}
 }
