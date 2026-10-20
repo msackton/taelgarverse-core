@@ -194,3 +194,16 @@ headers need the configured vault. Publisher storage changes also have the local
 `node --test tests/publish-r2.integration.mjs` check. Use `cf:smoke` only against
 a Worker serving equivalent content/settings to the local reference. Documentation
 edits need link/example checks; they do not require publishing content.
+
+## Pronunciation prototype
+
+`src/pronunciation-data.mjs` owns the shared note-to-audio naming convention,
+owned Obsidian embed block, SSML input, and explicit mock WAV. The optional plugin
+under `experiments/pronunciation/obsidian/` bundles those helpers; its Azure
+adapter runs only in Obsidian. It does not change vault CustomJS sources or the
+committed Worker header module. `src/pronunciation.mjs` adds playback after
+dynamic header generation from indexed assets, with conditional scripts/styles.
+The existing snapshot/asset schema is unchanged. See the
+[prototype guide](../experiments/pronunciation/README.md) for local build/demo and
+[metadata behavior](vault.md#pronunciation-audio-prototype). No deployment or
+content publication accompanies this experiment.

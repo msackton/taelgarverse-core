@@ -1,0 +1,9 @@
+{
+  "id": "taelgar-pronunciation",
+  "name": "Taelgar Pronunciation Prototype",
+  "version": "0.1.0",
+  "minAppVersion": "1.6.0",
+  "description": "Generate and save IPA pronunciation audio, with a no-key test-tone mode.",
+  "author": "Taelgar",
+  "isDesktopOnly": false
+}

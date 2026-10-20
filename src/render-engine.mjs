@@ -8,6 +8,8 @@ import {siteHeader,siteDialogs} from './header.mjs';
 import {Navigation} from './navigation.mjs';
 import {expandNoteEmbeds} from './embeds.mjs';
 import {releaseFooter} from './release-footer.mjs';
+import {decoratePronunciation} from './pronunciation.mjs';
+import {stripPronunciationLink} from './pronunciation-data.mjs';
 import {responsiveImages} from './images.mjs';
 
 export class RenderEngine {
@@ -56,7 +58,7 @@ export class RenderEngine {
       }
     }
     const hide = Array.isArray(metadata.hide) ? metadata.hide : typeof metadata.hide === 'string' ? metadata.hide.split(/[\s,]+/) : [];
-    const rendered = this.renderBody(body,entry,context,embedLoading);
+    const rendered = decoratePronunciation(this.renderBody(stripPronunciationLink(body),entry,context,embedLoading),entry,this.store);
     if (hide.includes('toc')) rendered.toc = '';
     return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,hide,
       ...rendered, backlinks:this.backlinkIndex && (this.backlinkIndex.version>=2 || context.campaigns.length<=1)
@@ -119,15 +121,18 @@ export function document(result,contextOptions,navigation,releases) {
     toc + backlinks + '</aside>' : '';
   const diagrams = result.html.includes('class="mermaid-diagram"') ? '<script type="module" src="/theme/diagrams.js"></script>' : '';
   const maps = result.html.includes('class="leaflet-map"');
+  const pronunciation = result.html.includes('class="pronunciation-control"');
   return '<!doctype html><html lang="en" dir="ltr" data-appearance="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><script src="/theme/appearance.js"></script>' +
     '<title>' + escapeHtml(result.title) + ' — TaelgarVerse</title><link rel="stylesheet" href="/theme/material.css">' +
     '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"><link rel="stylesheet" href="/theme/quiet-library.css">' +
     (maps ? '<link rel="stylesheet" href="/theme/leaflet.css"><link rel="stylesheet" href="/theme/maps.css">' : '') +
+    (pronunciation ? '<link rel="stylesheet" href="/theme/pronunciation.css">' : '') +
     (result.search ? '<link rel="stylesheet" href="/theme/search.css">' : '') +
     (result.homepage ? '<link rel="stylesheet" href="/theme/homepage.css">' : '') + '</head>' +
     '<body>' + siteHeader(result.context,contextOptions,{query:result.query,searchType:result.searchType,sections:showNavigation ? navigation.sections(view) : '',navigation:!!showNavigation}) +
     '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (pageNav ? '' : ' layout--no-toc') + (hasSection ? '' : ' layout--no-navigation') + (result.homepage ? ' layout--home' : '') + '">' + sidebar +
     '<main id="page-content" class="md-typeset article-main" tabindex="-1">' + breadcrumbs + result.html + '</main>' + pageNav +
     '</div>' + siteDialogs() + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/site-ui.js" defer></script><script src="/theme/image-viewer.js" defer></script>' + diagrams +
+    (pronunciation ? '<script src="/theme/pronunciation.js" defer></script>' : '') +
     (maps ? '<script type="module" src="/theme/maps.js"></script>' : '') + '</body></html>';
 }

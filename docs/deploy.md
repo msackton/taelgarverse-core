@@ -438,3 +438,12 @@ optional. `serve --no-ai` enforces baseline-only operation, and the ordinary
 viewer has a per-search AI toggle. Disabling queries does not remove the AI
 index or stop separately invoked uploads. Production search integration remains
 outside the experiment.
+
+## Local pronunciation experiment
+
+The optional [pronunciation prototype](../experiments/pronunciation/README.md)
+uses `npm run build:pronunciation` to package an Obsidian plugin and
+`npm run demo:pronunciation` to create a separate disposable demo vault under
+`.cache/`. These commands perform no deployment, content publication, or remote
+Git write. The guide covers optional Azure credentials through Obsidian
+SecretStorage and the no-key test-tone/browser-preview workflow.

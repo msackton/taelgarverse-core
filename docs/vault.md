@@ -331,3 +331,16 @@ The website also uses a few files that are not published as articles:
 Changes to the two JSON files take effect after publishing content again.
 Changes to the header **scripts** also need a website code update; follow the
 [header update instructions](architecture.md#change-and-release-rules).
+
+## Pronunciation audio prototype
+
+The unpushed [pronunciation prototype](../experiments/pronunciation/README.md) adds
+optional saved name playback. A clip under
+`assets/pronunciation/<note path without .md>.wav` (or `.mp3`) is discovered
+automatically after the page header is generated. Optional `pronunciationIPA`
+is displayed beside the player. `.mock.wav` clips are explicitly labeled test
+tones and are used only when no real clip exists. Notes without a matching clip
+retain their existing header. The prototype Obsidian plugin maintains a native
+audio embed and provides Generate and browser-preview controls; it is installed
+separately and never runs synthesis during website rendering. See the prototype
+guide for credential setup, field overrides, and current limitations.
