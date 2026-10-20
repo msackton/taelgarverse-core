@@ -117,14 +117,14 @@ export function buildBacklinkCampaigns(store, registry) {
 }
 
 export function linkedFrom(index, store, target, context, sourceCampaigns) {
-  if (!index || !availableInContext(store.bySlug.get(target),context)) return [];
+  if (!index || !availableInContext(store.bySlug.get(target),context,store.settings)) return [];
   const date = dateKey(context.date), campaigns = new Set(context.campaigns.map(code => code.toLowerCase()));
   const incoming = Object.hasOwn(index.byTarget,target) ? index.byTarget[target] : [];
   return incoming.filter(link => {
     const source = store.bySlug.get(link.source);
     const ownership = sourceCampaigns?.get(link.source);
     return (context.allCampaigns || !ownership || ownership.some(code=>campaigns.has(code))) &&
-      source?.slug !== target && availableInContext(source,context) && link.when.some(rule =>
+      source?.slug !== target && availableInContext(source,context,store.settings) && link.when.some(rule =>
       (!rule.campaign || campaigns.has(rule.campaign)) &&
       (!rule.campaigns || rule.campaigns.every(code=>campaigns.has(code))) &&
       (!rule.exceptCampaigns || !rule.exceptCampaigns.some(code => campaigns.has(code))) &&

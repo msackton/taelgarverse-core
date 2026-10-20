@@ -186,3 +186,21 @@ test('results escape excerpt/title/query markup and pagination preserves context
   for(const link of $('.search-pagination a').toArray()){const url=new URL($(link).attr('href'),'https://example.test');assert.equal(url.searchParams.get('campaigns'),'dufr,adma');assert.equal(url.searchParams.get('dm'),'1');assert.equal(url.searchParams.get('q'),'<script>');assert.equal(url.searchParams.get('type'),'person');}
   assert.equal(load(searchView({...data,offset:1000}))('a[rel="next"]').length,0);
 });
+
+sqliteTest('reader POV filters full-text matches before ranking and pagination in one shared index',async t=>{
+  const sources={'Visible A.md':'perspectivemarker first current reference.','Visible B.md':'perspectivemarker second current reference.'};
+  for (let i=0;i<40;i++) sources['Future '+i+'.md']='---\nPOV: 1750s\n---\nperspectivemarker';
+  const store=storeFor(sources);store.settings={respect_pov_dates:true};
+  const manifest=compileSearch(store),d=database(t);await new SearchIndex(d.adapter).stage(rev('a'),manifest);
+  const search=createIndexSearch(d.adapter.query,{revision:rev('a'),descriptor:searchDescriptor(manifest),store});
+  const view={...context([],false,'1740-01-01'),pov:true};
+  for (const dm of [false,true]) {
+    const first=await search(searchInput('perspectivemarker',{limit:1}),{...view,dm});
+    const second=await search(searchInput('perspectivemarker',{limit:1,offset:1}),{...view,dm});
+    assert.equal(first.hasMore,true);assert.equal(second.hasMore,false);
+    assert.deepEqual([...first.results,...second.results].map(r=>r.page).sort(),['visible-a','visible-b']);
+    assert.equal((await search(searchInput('perspectivemarker',{limit:50}),{...view,dm,pov:false})).results.length,42);
+    assert.equal((await search(searchInput('perspectivemarker',{limit:50}),{...view,dm,date:'1750-01-01'})).results.length,42);
+  }
+  assert.equal((await search(searchInput('perspectivemarker',{limit:50}),context())).results.length,2);
+});

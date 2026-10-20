@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import {createHash,randomBytes} from 'node:crypto';
 import sharp from 'sharp';
 import {load} from 'cheerio';
 import {ContentStore,parseNote} from '../src/content-store.mjs';
@@ -10,6 +11,8 @@ import {createMarkdown,renderMarkdown} from '../src/markdown.mjs';
 import {prepareMaps} from '../scripts/build-maps.mjs';
 import {optimizeImages} from '../scripts/optimize-images.mjs';
 import {ROOT} from '../src/config.mjs';
+
+await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
 
 const definition = 'id: repeated\nimage: [[map with spaces.png]]\nbounds:\n- [0,0]\n- [64,4100]\nheight: 700px\nwidth: 900px\nlat: 32\nlong: 2050\nminZoom: -3\nmaxZoom: 2\ndefaultZoom: -1\n';
 function fixture(filename) {
@@ -31,6 +34,7 @@ test('Leaflet definitions resolve vault and relative images, preserve coordinate
     assert.deepEqual(config.center,[32,2050]);
     assert.equal(config.defaultZoom,-1);assert.equal(config.minZoom,-3);assert.equal(config.maxZoom,2);
     assert.equal(config.height,'700px');assert.equal(config.width,'900px');
+    assert.deepEqual(config.measurement,{xScale:1,yScale:1,unit:'map units'});
     assert.equal($('.map-canvas[hidden][role="region"]').length,1);
     assert.equal($('figcaption a').attr('href'),'/assets/assets/map-with-spaces.png');
     assert.deepEqual(result.warnings,[]);
@@ -45,6 +49,58 @@ test('Leaflet definitions resolve vault and relative images, preserve coordinate
     assert.equal($('script,img').length,0);
   }
   assert.throws(()=>parseMap(definition.replace('[[map with spaces.png]]','javascript:alert(1)'),store,author));
+});
+
+test('map measurement preserves authored scale and unit; invalid calibration leaves the map available',()=>{
+  const {store,author}=fixture();
+  const parsed=parseMap(definition+'unit: miles\nscale: 0.5\n',store,author);
+  assert.deepEqual(parsed.config.measurement,{xScale:0.5,yScale:0.5,unit:'miles'});
+  for(const settings of ['unit: []','unit: ""','scale: 0','scale: -1','scale: .inf','scale: "0.5"']){
+    const result=render('```leaflet\n'+definition+settings+'\n```',store,author),$=load(result.html);
+    assert.equal($('.leaflet-map').length,1);
+    assert.equal(JSON.parse($('.leaflet-map').attr('data-map')).measurement,null);
+    assert.match(result.warnings[0],/distance measurement disabled/);
+  }
+});
+
+test('taelgar-map blocks render and participate in image preparation alongside legacy leaflet blocks',()=>{
+  const {store,author}=fixture();
+  const source='```taelgar-map\n'+definition+'```';
+  const legacy=render(author.note.body,store,author),current=render(source,store,author);
+  assert.equal(current.html,legacy.html);assert.deepEqual(current.warnings,[]);
+  author.note.body=source;
+  assert.deepEqual(mapImages(store).map(map=>map.entry.id),['assets/map with spaces.png']);
+});
+
+test('leaflet blocks carry their own source-pixel calibration through website rendering',()=>{
+  const {store,author,entry}=fixture();entry.sha256='a'.repeat(64);
+  const calibration='calibration:\n  hexMiles: 24\n  hexPixels: 40\n  imageSize: [200, 100]\n  imageSha256: '+entry.sha256+'\n';
+  const source='```leaflet\n'+definition+'scale: 999\n'+calibration+'```';
+  const result=render(source,store,author),$=load(result.html);
+  const options=JSON.parse($('.leaflet-map').attr('data-map')).measurement;
+  assert.equal(options.unit,'miles');assert.equal(options.hexMiles,24);
+  assert.equal(options.xScale,200*0.6/4100);assert.equal(options.yScale,100*0.6/64);
+  assert.deepEqual(result.warnings,[]);
+  entry.sha256='b'.repeat(64);
+  const changed=render(source,store,author);
+  assert.equal(JSON.parse(load(changed.html)('.leaflet-map').attr('data-map')).measurement,null);
+  assert.match(changed.warnings[0],/distance measurement disabled/);
+});
+
+test('local preparation fingerprints new calibrated maps without a registered path or tile pyramid',async t=>{
+  const directory=await fs.mkdtemp(path.join(ROOT,'.cache','map-calibration-test-'));
+  t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+  const filename=path.join(directory,'custom.png');
+  await sharp({create:{width:200,height:100,channels:3,background:'#ef2020'}}).png().toFile(filename);
+  const {entry,author,store}=fixture(filename);
+  const fingerprint=createHash('sha256').update(await fs.readFile(filename)).digest('hex');
+  author.note.body='```leaflet\nimage: [[map with spaces.png]]\nbounds: [[0,0],[100,200]]\ncalibration:\n  hexMiles: 24\n  hexPixels: 40\n  imageSize: [200,100]\n  imageSha256: '+fingerprint+'\n```';
+  assert.equal(JSON.parse(load(render(author.note.body,store,author).html)('.leaflet-map').attr('data-map')).measurement,null);
+  assert.deepEqual(await prepareMaps(store,path.join(directory,'tiles')),[]);
+  assert.equal(entry.sha256,fingerprint);
+  const ready=render(author.note.body,store,author);
+  assert.deepEqual(JSON.parse(load(ready.html)('.leaflet-map').attr('data-map')).measurement,{unit:'miles',hexMiles:24,xScale:0.6,yScale:0.6});
+  assert.deepEqual(ready.warnings,[]);
 });
 
 test('map images retain full resolution and tiled maps include aligned edge tiles, native zooms and a reusable cache',async t=>{
@@ -75,4 +131,60 @@ test('map images retain full resolution and tiled maps include aligned edge tile
   await fs.unlink(edge.filename);
   await prepareMaps(store,path.join(directory,'tiles'));
   assert.ok((await fs.stat(edge.filename)).size>0,'incomplete cache is repaired');
+});
+
+test('tiling follows source pixels and bytes rather than authored coordinate size, preserving calibration and originals',async t=>{
+  const directory = await fs.mkdtemp(path.join(ROOT,'.cache','map-selection-test-'));
+  t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+  for (const [name,width,height,bounds,tiled,noisy] of [
+    ['regional',2308,2468,[[0,0],[2468,2308]],true,false],
+    ['large-download',1024,512,[[0,0],[512,1024]],true,true],
+    ['small-stretched',200,100,[[0,0],[5000,5000]],false,false],
+    ['offset',2308,64,[[10,20],[74,2328]],false,false],
+  ]) {
+    const filename = path.join(directory,name+'.png');
+    const image = noisy ? sharp(randomBytes(width*height*3),{raw:{width,height,channels:3}}) :
+      sharp({create:{width,height,channels:3,background:'#ef2020'}});
+    await image.png().toFile(filename);
+    const original = await fs.readFile(filename), fingerprint = createHash('sha256').update(original).digest('hex');
+    if (noisy) assert.ok(original.length >= 1024*1024,'fixture exercises the file-size threshold');
+    const {entry,author,store} = fixture(filename);
+    author.note.body='```taelgar-map\nimage: [[map with spaces.png]]\nbounds: '+JSON.stringify(bounds)+
+      '\ncalibration:\n  hexMiles: 24\n  hexPixels: 40\n  imageSize: ['+width+','+height+']\n  imageSha256: '+fingerprint+'\n```';
+    const files = await prepareMaps(store,path.join(directory,'tiles'));
+    const config = JSON.parse(load(render(author.note.body,store,author).html)('.leaflet-map').attr('data-map'));
+    assert.equal(!!config.tile,tiled,name);assert.equal(files.length>0,tiled,name);
+    assert.deepEqual(config.measurement,{unit:'miles',hexMiles:24,
+      xScale:width/(bounds[1][1]-bounds[0][1])*0.6,yScale:height/(bounds[1][0]-bounds[0][0])*0.6});
+    assert.deepEqual(await fs.readFile(filename),original,name+' original is unchanged');
+    if (name==='regional') {
+      const firstURL = config.tile.baseUrl, oldTile = files[0], oldBytes = await fs.readFile(oldTile.filename);
+      await sharp({create:{width,height,channels:3,background:'#2020ef'}}).png().toFile(filename);
+      const next = fixture(filename);next.author.note.body=author.note.body;
+      await prepareMaps(next.store,path.join(directory,'tiles'));
+      assert.notEqual(next.entry.mapTiles[0].baseUrl,firstURL,'changed source gets a new immutable URL');
+      assert.deepEqual(await fs.readFile(oldTile.filename),oldBytes,'old immutable tiles are untouched');
+      assert.equal(JSON.parse(load(render(next.author.note.body,next.store,next.author).html)('.leaflet-map').attr('data-map')).measurement,null,
+        'changed originals still require calibration verification');
+    }
+  }
+});
+
+test('large animated maps remain original image overlays and undecodable maps warn without failing preparation',async t=>{
+  const directory = await fs.mkdtemp(path.join(ROOT,'.cache','map-fallback-test-'));
+  t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+  const filename = path.join(directory,'animated.webp'), frames = Buffer.alloc(2048*32*3,140);
+  frames.fill(230,frames.length/2);
+  await sharp(frames,{raw:{width:2048,height:32,channels:3,pageHeight:16}}).webp({loop:0,delay:[100,100]}).toFile(filename);
+  const original = await fs.readFile(filename), {entry,author,store} = fixture(filename);
+  assert.equal((await sharp(original).metadata()).pages,2);
+  assert.deepEqual(await prepareMaps(store,path.join(directory,'tiles')),[]);
+  assert.equal(entry.mapTiles,undefined);assert.deepEqual(await fs.readFile(filename),original);
+  await fs.writeFile(filename,'not an image');
+  const bad = fixture(filename);
+  assert.deepEqual(await prepareMaps(bad.store,path.join(directory,'tiles')),[]);
+  assert.equal(bad.store.warnings.length,1);assert.match(bad.store.warnings[0],/undecodable image/);
+  await prepareMaps(bad.store,path.join(directory,'tiles'));
+  assert.equal(bad.store.warnings.length,1,'repeated preparation does not duplicate warnings');
+  assert.ok(load(render(author.note.body,bad.store,bad.author).html)('.leaflet-map').length,'original URL remains renderable');
 });

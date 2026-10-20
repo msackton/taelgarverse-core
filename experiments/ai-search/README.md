@@ -21,11 +21,11 @@ commands. Run project-local Wrangler
 From the core repository:
 
 ```powershell
-npm run search:pilot -- prepare
-npm run search:pilot -- baseline-upload --dry-run
-npm run search:pilot -- baseline-upload
-npm run search:pilot -- compare --engine baseline --no-ai
-npm run search:pilot -- serve --no-ai
+node experiments/ai-search/cli.mjs prepare
+node experiments/ai-search/cli.mjs baseline-upload --dry-run
+node experiments/ai-search/cli.mjs baseline-upload
+node experiments/ai-search/cli.mjs compare --engine baseline --no-ai
+node experiments/ai-search/cli.mjs serve --no-ai
 ```
 
 This creates only the D1 database named `taelgarverse-search-pilot`, with an
@@ -40,11 +40,11 @@ production should use a Worker binding.
 To add semantic retrieval, stop the viewer and run:
 
 ```powershell
-npm run search:pilot -- upload --dry-run
-npm run search:pilot -- init
-npm run search:pilot -- upload
-npm run search:pilot -- compare
-npm run search:pilot -- serve
+node experiments/ai-search/cli.mjs upload --dry-run
+node experiments/ai-search/cli.mjs init
+node experiments/ai-search/cli.mjs upload
+node experiments/ai-search/cli.mjs compare
+node experiments/ai-search/cli.mjs serve
 ```
 
 `prepare` reports the batch ID, token count, and manifest path. Review the exact
@@ -103,13 +103,13 @@ as exploration rather than a controlled production benchmark.
 ## Change one variable at a time
 
 ```powershell
-npm run search:pilot -- prepare --style passages --chunk-tokens 600
-npm run search:pilot -- baseline-upload
-npm run search:pilot -- upload --dry-run
-npm run search:pilot -- upload
-npm run search:pilot -- compare
-npm run search:pilot -- compare --rerank --threshold 0.4
-npm run search:pilot -- query --query "Where did the adventurers infiltrate a vampire lord's castle?"
+node experiments/ai-search/cli.mjs prepare --style passages --chunk-tokens 600
+node experiments/ai-search/cli.mjs baseline-upload
+node experiments/ai-search/cli.mjs upload --dry-run
+node experiments/ai-search/cli.mjs upload
+node experiments/ai-search/cli.mjs compare
+node experiments/ai-search/cli.mjs compare --rerank --threshold 0.4
+node experiments/ai-search/cli.mjs query --query "Where did the adventurers infiltrate a vampire lord's castle?"
 ```
 
 Use `--batch <ID>` on remote commands to select a particular prepared batch;
@@ -131,13 +131,13 @@ materialized copies instead of the vault without invoking the materializer.
 ## Visibility and update checks
 
 ```powershell
-npm run search:pilot -- prepare --pilot experiments/ai-search/visibility.json --views public-all,public-none,dm-all,before-fire,after-fire,before-door
-npm run search:pilot -- upload
-npm run search:pilot -- baseline-upload
-npm run search:pilot -- baseline-probe-visibility
-npm run search:pilot -- probe-visibility
-npm run search:pilot -- baseline-probe-updates --batch <main-sample-batch-ID>
-npm run search:pilot -- probe-updates --batch <main-sample-batch-ID>
+node experiments/ai-search/cli.mjs prepare --pilot experiments/ai-search/visibility.json --views public-all,public-none,dm-all,before-fire,after-fire,before-door
+node experiments/ai-search/cli.mjs upload
+node experiments/ai-search/cli.mjs baseline-upload
+node experiments/ai-search/cli.mjs baseline-probe-visibility
+node experiments/ai-search/cli.mjs probe-visibility
+node experiments/ai-search/cli.mjs baseline-probe-updates --batch <main-sample-batch-ID>
+node experiments/ai-search/cli.mjs probe-updates --batch <main-sample-batch-ID>
 ```
 
 The visibility corpus uses four of the selected notes in six fixed views. The
@@ -188,10 +188,10 @@ missing/stale local receipts trigger full-text fallback. Keep the stored index
 within included usage or explicitly reset its documents if it is no longer wanted.
 
 ```powershell
-npm run search:pilot -- status
-npm run search:pilot -- baseline-status
-npm run search:pilot -- reset --batch <ID>
-npm run search:pilot -- baseline-reset --batch <ID>
+node experiments/ai-search/cli.mjs status
+node experiments/ai-search/cli.mjs baseline-status
+node experiments/ai-search/cli.mjs reset --batch <ID>
+node experiments/ai-search/cli.mjs baseline-reset --batch <ID>
 ```
 
 Reset deletes only built-in documents bearing the pilot ownership marker and

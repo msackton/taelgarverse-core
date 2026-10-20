@@ -25,13 +25,8 @@
 .home-introduction { display: grid; grid-template-columns: minmax(170px,1fr) minmax(0,790px); column-gap: 60px; padding: 14px 0 24px; }
 .home-section-label { padding-top: 6px; color: var(--muted); font: 400 24px/1.4 Georgia,serif; }
 .home-prose { min-width: 0; }
+.home-introduction--campaign { margin-top: 28px; }
 .home-prose > :last-child { margin-bottom: 0; }
-.home-find { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 20px 40px; border-top: 1px solid var(--line); padding: 26px 0 0; margin-top: 20px; }
-.md-typeset .home-find h2 { font-size: 25px; margin: 0 0 8px; padding: 0; border: 0; }
-.md-typeset .home-find p { margin: 0; color: var(--muted); font: 14px/1.6 system-ui,sans-serif; }
-.home-find form { display: flex; flex: 0 1 420px; gap: 8px; padding: 0; margin: 0; background: transparent; }
-.home-find input { min-width: 0; width: 100%; font-size: 16px; }
-.home-find button { min-height: 44px; padding: 8px 18px; font: 14px/1.5 system-ui,sans-serif; }
 @media (max-width:1100px) {
   .home-hero-copy { max-width: 570px; }
   .home-entry { padding: 20px 16px; gap: 12px; }
@@ -53,11 +48,9 @@
   .home-entry-copy { gap: 4px; }
   .home-introduction { display: block; padding-top: 0; }
   .home-section-label { font-size: 22px; padding: 0; margin-bottom: 18px; }
-  .home-find { margin-top: 8px; }
-  .home-find form { flex-basis: 100%; }
 }
 @media print {
-  .home-map, .home-hero::after, .home-find { display: none; }
+  .home-map, .home-hero::after { display: none; }
   .home-hero { min-height: 0; }
   .home-introduction { display: block; }
 }

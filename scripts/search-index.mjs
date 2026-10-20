@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import {randomUUID} from 'node:crypto';
 import {SEARCH_VERSION,searchHash,documentHash,validateSearchManifest,searchDescriptor} from './compile-search.mjs';
+import {withPublicationProgress} from './publication-progress.mjs';
 
 const OWNER='taelgarverse-core-search',SCHEMA=2;
 const schema=[
@@ -86,15 +87,34 @@ export class SearchIndex {
       await this.query([...schema,...retentionSchema].map(sql=>({sql})).concat({sql:'INSERT INTO tv_search_meta VALUES(?,?)',params:[OWNER,SCHEMA]}));
     }
   }
-  async withPublicationLock(action){
+  async withPublicationLock(action,{unblock=false}={}){
     await this.ensure();const owner=randomUUID();
-    const [,rows]=await this.query([
+    const acquire=[
       {sql:'INSERT INTO tv_search_publish_lock VALUES(1,?,?) ON CONFLICT(slot) DO NOTHING',params:[owner,new Date().toISOString()]},
       {sql:'SELECT owner,started_at FROM tv_search_publish_lock WHERE slot=1'},
-    ]);
-    if(rows[0]?.owner!==owner)throw new Error('Another publisher holds the D1 publication lock since '+rows[0]?.started_at+'. If it crashed, confirm it has stopped before clearing tv_search_publish_lock.');
+    ];
+    let [,rows]=await this.query(acquire);
+    if(rows[0]?.owner!==owner && rows[0] && unblock){
+      const stale=rows[0];
+      // Delete only the observed owner, then acquire in the same transaction.
+      // A competing recovery must not remove a newly acquired publication lock.
+      const result=await this.query([
+        {sql:'DELETE FROM tv_search_publish_lock WHERE slot=1 AND owner=? AND started_at=?',params:[stale.owner,stale.started_at]},
+        ...acquire,
+      ]);
+      rows=result[2];
+      if(rows[0]?.owner!==owner)throw new Error('The D1 publication lock changed during --unblock; another publisher may have started. No publication was performed. Confirm all publishers have stopped before retrying.');
+    }
+    if(rows[0]?.owner!==owner)throw new Error('Another publisher holds the D1 publication lock since '+rows[0]?.started_at+'. After confirming no publisher, staging, cleanup, or rollback is running on any computer, rerun your npm run publish command with --unblock added after -- (keep your existing options). This clears the stale D1 lock and continues publishing.');
     this.lockOwner=owner;
-    try{return await action();}finally{this.lockOwner=null;await this.query([{sql:'DELETE FROM tv_search_publish_lock WHERE slot=1 AND owner=?',params:[owner]}]);}
+    let failure;
+    try{return await action();}
+    catch(error){failure=error;throw error;}
+    finally{
+      this.lockOwner=null;
+      try{await withPublicationProgress('Releasing the publication lock',()=>this.query([{sql:'DELETE FROM tv_search_publish_lock WHERE slot=1 AND owner=?',params:[owner]}]),this.log);}
+      catch(error){throw new Error((failure?failure.message:'The publication operation completed.')+'\nCould not release the D1 publication lock: '+error.message+' After confirming all publishers have stopped, rerun with --unblock.');}
+    }
   }
   async prune(retained){
     if(!this.lockOwner)throw new Error('Search retention requires the publication lock');
@@ -122,46 +142,60 @@ export class SearchIndex {
     return {revision,...descriptor,database:this.database.identity,ready:true};
   }
   async stage(revision,manifest){
-    validRevision(revision);validateSearchManifest(manifest);const descriptor=searchDescriptor(manifest),start={...this.usage};
-    await this.ensure();
-    let [existing]=await this.query([{sql:'SELECT * FROM tv_search_revisions WHERE revision=?',params:[revision]}]);
-    if(existing.length && (existing[0].digest!==manifest.digest || existing[0].compiler!==manifest.version || existing[0].documents!==descriptor.documents || existing[0].rules!==descriptor.rules))throw new Error('An immutable content revision already has a different search manifest');
-    if(existing[0]?.state==='ready')return {...await this.verify(revision,descriptor),uploaded:0,reused:manifest.documents.length,resumed:true,usage:this.delta(start)};
-    await this.query([{sql:"INSERT INTO tv_search_revisions VALUES(?,?,?,'staging',?,?) ON CONFLICT(revision) DO NOTHING",params:[revision,manifest.digest,manifest.version,descriptor.documents,descriptor.rules]}]);
-    let uploaded=0,reused=0;
-    for(const group of chunks(manifest.documents)){
-      const [rows]=await this.query([{sql:'SELECT id FROM tv_search_documents WHERE id IN (SELECT value FROM json_each(?))',params:[JSON.stringify(group.map(d=>d.id))]}]);
-      const present=new Set(rows.map(r=>r.id)),missing=group.filter(d=>!present.has(d.id));reused+=present.size;
-      if(missing.length){
-        await this.query([{sql:`INSERT INTO tv_search_documents(id,page,title,aliases,text)
-          SELECT json_extract(value,'$.id'),json_extract(value,'$.page'),json_extract(value,'$.title'),json_extract(value,'$.aliases'),json_extract(value,'$.text')
-          FROM json_each(?) WHERE true ON CONFLICT(id) DO NOTHING`,params:[JSON.stringify(missing.map(d=>({...d,aliases:JSON.stringify(d.aliases)})))]}]);uploaded+=missing.length;
+    return withPublicationProgress('Search indexing',async progress=>{
+      validRevision(revision);validateSearchManifest(manifest);const descriptor=searchDescriptor(manifest),start={...this.usage};
+      await this.ensure();
+      let [existing]=await this.query([{sql:'SELECT * FROM tv_search_revisions WHERE revision=?',params:[revision]}]);
+      if(existing.length && (existing[0].digest!==manifest.digest || existing[0].compiler!==manifest.version || existing[0].documents!==descriptor.documents || existing[0].rules!==descriptor.rules))throw new Error('An immutable content revision already has a different search manifest');
+      if(existing[0]?.state==='ready'){
+        progress('Search: revision already staged; verifying readiness.');
+        return {...await this.verify(revision,descriptor),uploaded:0,reused:manifest.documents.length,resumed:true,usage:this.delta(start)};
       }
-    }
-    for(const group of chunks(manifest.rules.map((r,ordinal)=>({...r,ordinal})))){
-      await this.query([{sql:`INSERT INTO tv_search_rules(revision,ordinal,document,from_date,before_date,campaigns,except_campaigns,dm)
-        SELECT ?,json_extract(value,'$.ordinal'),json_extract(value,'$.document'),json_extract(value,'$.from'),json_extract(value,'$.before'),
-          json_extract(value,'$.campaigns'),json_extract(value,'$.exceptCampaigns'),json_extract(value,'$.dm') FROM json_each(?)
-        WHERE (SELECT state FROM tv_search_revisions WHERE revision=?)='staging' ON CONFLICT(revision,ordinal) DO NOTHING`,
-        params:[revision,JSON.stringify(group.map(r=>({...r,campaigns:JSON.stringify(r.campaigns),exceptCampaigns:JSON.stringify(r.exceptCampaigns)}))),revision]}]);
-    }
-    // Read back exact membership and content, including resumed documents, in
-    // bounded pages. Counts alone cannot prove that a partial upload is correct.
-    const verifiedDocuments=[],verifiedRules=[];
-    for(const group of chunks(manifest.documents)){
-      const [rows]=await this.query([{sql:'SELECT * FROM tv_search_documents WHERE id IN (SELECT value FROM json_each(?)) ORDER BY id',params:[JSON.stringify(group.map(d=>d.id))]}]);
-      for(const row of rows){const doc={id:row.id,page:row.page,title:row.title,aliases:JSON.parse(row.aliases),text:row.text};if(documentHash(doc)!==doc.id)throw new Error('Stored search text failed its content hash');verifiedDocuments.push(doc);}
-    }
-    for(let offset=0;;offset+=500){
-      const [rows]=await this.query([{sql:'SELECT * FROM tv_search_rules WHERE revision=? ORDER BY ordinal LIMIT 500 OFFSET ?',params:[revision,offset]}]);
-      for(const r of rows)verifiedRules.push({document:r.document,from:r.from_date,before:r.before_date,campaigns:JSON.parse(r.campaigns),exceptCampaigns:JSON.parse(r.except_campaigns),dm:r.dm===null?null:Boolean(r.dm)});
-      if(rows.length<500)break;
-    }
-    if(searchHash({version:SEARCH_VERSION,documents:verifiedDocuments,rules:verifiedRules})!==manifest.digest)throw new Error('Staged search membership failed verification; content remains inactive');
-    await this.query([{sql:"INSERT INTO tv_search_fts(tv_search_fts,rank) VALUES('integrity-check',1)"},
-      {sql:"UPDATE tv_search_revisions SET state='ready' WHERE revision=? AND digest=? AND state='staging'",params:[revision,manifest.digest]}]);
-    const receipt=await this.verify(revision,descriptor);this.log('Search ready: '+descriptor.documents+' text versions; '+uploaded+' new, '+reused+' reused.');
-    return {...receipt,uploaded,reused,resumed:Boolean(existing.length),usage:this.delta(start)};
+      await this.query([{sql:"INSERT INTO tv_search_revisions VALUES(?,?,?,'staging',?,?) ON CONFLICT(revision) DO NOTHING",params:[revision,manifest.digest,manifest.version,descriptor.documents,descriptor.rules]}]);
+      let uploaded=0,reused=0;
+      progress(`Search text: 0/${manifest.documents.length} checked.`);
+      for(const group of chunks(manifest.documents)){
+        const [rows]=await this.query([{sql:'SELECT id FROM tv_search_documents WHERE id IN (SELECT value FROM json_each(?))',params:[JSON.stringify(group.map(d=>d.id))]}]);
+        const present=new Set(rows.map(r=>r.id)),missing=group.filter(d=>!present.has(d.id));reused+=present.size;
+        if(missing.length){
+          await this.query([{sql:`INSERT INTO tv_search_documents(id,page,title,aliases,text)
+            SELECT json_extract(value,'$.id'),json_extract(value,'$.page'),json_extract(value,'$.title'),json_extract(value,'$.aliases'),json_extract(value,'$.text')
+            FROM json_each(?) WHERE true ON CONFLICT(id) DO NOTHING`,params:[JSON.stringify(missing.map(d=>({...d,aliases:JSON.stringify(d.aliases)})))]}]);uploaded+=missing.length;
+        }
+        progress(`Search text: ${uploaded+reused}/${manifest.documents.length} checked; ${uploaded} uploaded, ${reused} reused.`);
+      }
+      let stagedRules=0;
+      progress(`Search visibility rules: 0/${manifest.rules.length} staged.`);
+      for(const group of chunks(manifest.rules.map((r,ordinal)=>({...r,ordinal})))){
+        await this.query([{sql:`INSERT INTO tv_search_rules(revision,ordinal,document,from_date,before_date,campaigns,except_campaigns,dm)
+          SELECT ?,json_extract(value,'$.ordinal'),json_extract(value,'$.document'),json_extract(value,'$.from'),json_extract(value,'$.before'),
+            json_extract(value,'$.campaigns'),json_extract(value,'$.exceptCampaigns'),json_extract(value,'$.dm') FROM json_each(?)
+          WHERE (SELECT state FROM tv_search_revisions WHERE revision=?)='staging' ON CONFLICT(revision,ordinal) DO NOTHING`,
+          params:[revision,JSON.stringify(group.map(r=>({...r,campaigns:JSON.stringify(r.campaigns),exceptCampaigns:JSON.stringify(r.exceptCampaigns)}))),revision]}]);
+        stagedRules+=group.length;progress(`Search visibility rules: ${stagedRules}/${manifest.rules.length} staged.`);
+      }
+      // Read back exact membership and content, including resumed documents, in
+      // bounded pages. Counts alone cannot prove that a partial upload is correct.
+      const verifiedDocuments=[],verifiedRules=[];
+      progress(`Search verification: reading back ${manifest.documents.length} text versions and ${manifest.rules.length} rules.`);
+      for(const group of chunks(manifest.documents)){
+        const [rows]=await this.query([{sql:'SELECT * FROM tv_search_documents WHERE id IN (SELECT value FROM json_each(?)) ORDER BY id',params:[JSON.stringify(group.map(d=>d.id))]}]);
+        for(const row of rows){const doc={id:row.id,page:row.page,title:row.title,aliases:JSON.parse(row.aliases),text:row.text};if(documentHash(doc)!==doc.id)throw new Error('Stored search text failed its content hash');verifiedDocuments.push(doc);}
+        progress(`Search verification: ${verifiedDocuments.length}/${manifest.documents.length} text versions checked.`);
+      }
+      for(let offset=0;;offset+=500){
+        const [rows]=await this.query([{sql:'SELECT * FROM tv_search_rules WHERE revision=? ORDER BY ordinal LIMIT 500 OFFSET ?',params:[revision,offset]}]);
+        for(const r of rows)verifiedRules.push({document:r.document,from:r.from_date,before:r.before_date,campaigns:JSON.parse(r.campaigns),exceptCampaigns:JSON.parse(r.except_campaigns),dm:r.dm===null?null:Boolean(r.dm)});
+        progress(`Search verification: ${verifiedRules.length}/${manifest.rules.length} rules read back.`);
+        if(rows.length<500)break;
+      }
+      if(searchHash({version:SEARCH_VERSION,documents:verifiedDocuments,rules:verifiedRules})!==manifest.digest)throw new Error('Staged search membership failed verification; content remains inactive');
+      progress('Search: checking full-text index integrity and marking the revision ready.');
+      await this.query([{sql:"INSERT INTO tv_search_fts(tv_search_fts,rank) VALUES('integrity-check',1)"},
+        {sql:"UPDATE tv_search_revisions SET state='ready' WHERE revision=? AND digest=? AND state='staging'",params:[revision,manifest.digest]}]);
+      const receipt=await this.verify(revision,descriptor);this.log('Search ready: '+descriptor.documents+' text versions; '+uploaded+' new, '+reused+' reused.');
+      return {...receipt,uploaded,reused,resumed:Boolean(existing.length),usage:this.delta(start)};
+    },this.log);
   }
   delta(start){return Object.fromEntries(Object.keys(this.usage).map(k=>[k,this.usage[k]-start[k]]));}
 }

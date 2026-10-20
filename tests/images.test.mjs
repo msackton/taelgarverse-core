@@ -14,6 +14,7 @@ import {createServer} from '../src/server.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
 import {instantiate} from '../src/worker-headers.mjs';
+import {createMarkdown,renderMarkdown} from '../src/markdown.mjs';
 
 async function fixture(t) {
   await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
@@ -56,6 +57,50 @@ test('responsive derivatives retain original bytes, cache safely, never upscale,
   assert.match($('img').last().attr('sizes'),/^auto, /);
   assert.doesNotMatch($('img').first().attr('srcset'),/1800w|1920w|2560w|portrait.jpg/);
   assert.equal(JSON.parse($('img').first().attr('data-image-variants')).at(-1).width,1800);
+});
+
+test('authored callout, gallery and session captions stay attached to each image without replacing accessible alt text',async t=>{
+  const {store} = await fixture(t), entry = store.bySlug.get('gallery');
+  const source = [
+    '> [!image|right standard] Hidden title\n> ![[portrait.jpg]]\n> *Delwath in Karawa as our campaign begins.*',
+    '> [!image|figure large]\n> ![[portrait.jpg]]\n>\n> A **second** view with [context](https://example.test/).',
+    '> [!image|hero]- Folded title\n> ![[portrait.jpg]]\n> *An establishing view.*',
+    '> [!gallery]\n> - ![[portrait.jpg]]\n>   *The temple exterior.*\n> - ![[portrait.jpg]]\n>   *The central sanctuary.*',
+    '<figure class="taelgar-session-zoom__image"><img src="/assets/portrait.jpg" alt="Visual description"><figcaption>A session caption.</figcaption></figure>',
+    '![[portrait.jpg]]',
+    '> [!image|right] Title is not a caption\n> ![[portrait.jpg]]',
+    '<figure><img src="/assets/portrait.jpg" alt="Safe alt"><figcaption>&lt;img src=x onerror=alert(1)&gt; &amp; "quoted"</figcaption></figure>',
+  ].join('\n\n');
+  const rendered = renderMarkdown(createMarkdown(),source,{store,entry,date:'1750-01-01',context:{date:'1750-01-01',campaigns:[]},warnings:[]});
+  const $ = load(responsiveImages(rendered.html,store));
+  assert.deepEqual($('img').map((_,el)=>$(el).attr('data-image-caption') || '').get(),[
+    'Delwath in Karawa as our campaign begins.',
+    'A second view with context.',
+    'An establishing view.',
+    'The temple exterior.',
+    'The central sanctuary.',
+    'A session caption.',
+    '', '', '<img src=x onerror=alert(1)> & "quoted"',
+  ]);
+  assert.equal($('img').first().attr('alt'),'Portrait');
+  assert.equal($('figure img').first().attr('alt'),'Visual description');
+  assert.equal($('.admonition.image em').first().text(),'Delwath in Karawa as our campaign begins.');
+  assert.equal($('figcaption img').length,0,'caption text is not interpreted as markup');
+  assert.equal($('.admonition.image a').first().attr('href'),'https://example.test/');
+  const repeated = load(responsiveImages($.html(),store));
+  assert.equal(repeated('img').first().attr('data-image-caption'),$('img').first().attr('data-image-caption'));
+});
+
+test('caption extraction ignores unrelated prose, ambiguous groups, hidden text and Behind the Curtain controls',()=>{
+  const store = {assets:new Map()};
+  const $ = load(responsiveImages([
+    '<p><img src="image.png" alt="Alt only"> Ordinary article prose.</p>',
+    '<figure><img src="a.png"><img src="b.png"><figcaption>Ambiguous shared caption.</figcaption></figure>',
+    '<div class="admonition image"><p class="admonition-title">Hidden title</p><p><img src="c.png"><br><em>Visible caption.</em><sup class="dm-note-ref"><button>1</button></sup><span hidden>Hidden words</span></p><div popover>Private popup</div></div>',
+    '<figure><img src="d.png" data-image-caption="Explicit caption"><figcaption>Other caption</figcaption></figure>',
+    '<figure><img src="e.png"><figcaption> </figcaption></figure>',
+  ].join('\n'),store));
+  assert.deepEqual($('img').map((_,el)=>$(el).attr('data-image-caption') || '').get(),['','','','Visible caption.','Explicit caption','']);
 });
 
 test('PNG transparency and pixels survive lossless conversion; animations and authored image choices stay intact',async t=>{
@@ -120,7 +165,7 @@ test('usage planning finds alternative reference definitions, DM images, HTML, t
 
 test('Node and Worker serve small image variants with original downloads, ranges, cache validation and context filtering',async t=>{
   const {directory,entry} = await fixture(t), original = await fs.readFile(entry.filename);
-  await fs.writeFile(path.join(directory,'Gallery.md'),'# Gallery\n\n![[portrait.jpg|200]]\n\n%%^Campaign:none%%\n![[portrait.jpg]]\n%%^End%%\n');
+  await fs.writeFile(path.join(directory,'Gallery.md'),'# Gallery\n\n> [!image|figure]\n> ![[portrait.jpg|200]]\n> *Shared caption.* %%DM Private caption.%%\n\n%%^Campaign:none%%\n![[portrait.jpg]]\n%%^End%%\n');
   const settings = {...loadSettings(),source_dir:directory,nav_source:null,home_source:null};
   const engine = new Engine(settings), server = createServer(engine);
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -128,6 +173,7 @@ test('Node and Worker serve small image variants with original downloads, ranges
   const base = 'http://127.0.0.1:'+server.address().port;
   const local = await (await fetch(base+'/api/page?page=Gallery')).json(), $local = load(local.html);
   assert.equal($local('img').length,1);
+  assert.equal($local('img').attr('data-image-caption'),'Shared caption.');
   const smallURL = $local('img').attr('src');
   const small = await fetch(base+smallURL);assert.match(small.headers.get('content-type'),/image\/webp/);
   assert.ok((await small.arrayBuffer()).byteLength<original.length/4);
@@ -146,9 +192,13 @@ test('Node and Worker serve small image variants with original downloads, ranges
   const request = (url,headers={},method='GET')=>worker.fetch(new Request('https://example.test'+url,{headers,method}),env);
   const page = await (await request('/api/page?page=Gallery')).json(), $ = load(page.html);
   assert.equal($('img').length,1);assert.equal($('img').attr('src'),smallURL);
+  assert.equal($('img').attr('data-image-caption'),'Shared caption.');
   const full = index.entries.find(item=>item.id==='portrait.jpg');
   assert.ok(!reads.includes(full.objectKey),'rendering must not fetch original image bytes');
-  assert.equal(load((await (await request('/api/page?page=Gallery&dm=1')).json()).html)('img').length,2);
+  const dmPage = load((await (await request('/api/page?page=Gallery&dm=1')).json()).html);
+  assert.equal(dmPage('img').length,2);
+  assert.equal(dmPage('img').first().attr('data-image-caption'),'Shared caption.');
+  assert.equal(dmPage('img').last().attr('data-image-caption'),undefined);
   const response = await request(smallURL), data = Buffer.from(await response.arrayBuffer());
   assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/image\/webp/);
   assert.match(response.headers.get('cache-control'),/immutable/);

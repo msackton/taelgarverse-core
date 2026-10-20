@@ -1,5 +1,5 @@
 import {load} from 'cheerio';
-import {escapeHtml,pageUrl,contextQuery} from './common.mjs';
+import {escapeHtml,pageUrl} from './common.mjs';
 import {availableInContext} from './content-store.mjs';
 
 const destinations = [
@@ -13,13 +13,15 @@ const destinations = [
 export function homepage(home,context,store) {
   const $ = load(home.html,{},false);
   const title = $.root().children('h1').first();
-  const heading = title.length ? $.html(title) : '<h1>TaelgarVerse</h1>';
+  const campaign = context.locked;
+  const pageTitle = campaign ? title.text() || context.label : 'TaelgarVerse';
+  const heading = title.length ? $.html(title) : '<h1>'+escapeHtml(pageTitle)+'</h1>';
   title.remove();
   // Earlier home.md versions included the same three entry links as a plain
   // paragraph. Remove only that exact navigation row, leaving prose links alone.
   $.root().children('p').each((_,element) => {
     const paragraph = $(element), links = paragraph.children('a');
-    if (links.length !== destinations.length) return;
+    if (campaign || links.length !== destinations.length) return;
     const matches = links.toArray().every((link,index) => {
       const href = $(link).attr('href') || '';
       return href.split(/[?#]/)[0] === '/page/' + destinations[index].slug;
@@ -29,20 +31,17 @@ export function homepage(home,context,store) {
   const first = $.root().children().first();
   const lead = first.is('p') ? $.html(first) : '';
   if (lead) first.remove();
-  const cards = destinations.map(item => {
-    const entry = store.bySlug.get(item.slug), available = availableInContext(entry,context);
+  const cards = (campaign ? [] : destinations).map(item => {
+    const entry = store.bySlug.get(item.slug), available = availableInContext(entry,context,store.settings);
     const icon = '<svg viewBox="0 0 24 24" aria-hidden="true">' + item.icon + '</svg>';
     const copy = '<span class="home-entry-copy"><span class="home-entry-title">' + item.label + '</span><span class="home-entry-description">' +
       (available ? item.description : 'Not available in this view.') + '</span></span>';
     return '<li>' + (available ? '<a class="home-entry" aria-label="' + item.label + '" href="' + escapeHtml(pageUrl(entry.slug,context.date,context)) + '">' + icon + copy + '<span class="home-entry-arrow" aria-hidden="true">↗</span></a>' :
       '<div class="home-entry home-entry-unavailable" role="group" aria-label="' + item.label + '">' + icon + copy + '</div>') + '</li>';
   }).join('');
-  const fields = [...contextQuery(context)].map(([key,value]) => '<input type="hidden" name="' + key + '" value="' + escapeHtml(value) + '">').join('');
-  return {...home,homepage:true,toc:'',html:
-    '<section class="home-hero" aria-label="Welcome to TaelgarVerse"><div class="home-map" aria-hidden="true"></div><div class="home-hero-copy">' +
+  return {...home,title:pageTitle,homepage:true,toc:'',html:
+    '<section class="home-hero" aria-label="'+escapeHtml('Welcome to '+pageTitle)+'"><div class="home-map" aria-hidden="true"></div><div class="home-hero-copy">' +
     '<span class="home-ornament" aria-hidden="true">◆</span>' + heading + '<div class="home-lead">' + lead + '</div></div></section>' +
-    '<nav class="home-destinations" aria-label="Explore Taelgar"><ul>' + cards + '</ul></nav>' +
-    '<section class="home-introduction" aria-label="About TaelgarVerse"><div class="home-section-label" aria-hidden="true">A world of stories</div><div class="home-prose">' + $.html() + '</div></section>' +
-    '<section class="home-find" aria-labelledby="home-find-title"><div><h2 id="home-find-title">Looking for something?</h2><p>Search names, phrases, and words from the notes.</p></div>' +
-    '<form role="search" aria-label="Search Taelgar" action="/">' + fields + '<label class="sr-only" for="home-search">Search Taelgar</label><input id="home-search" type="search" name="q" maxlength="256" placeholder="Search notes…"><button>Search</button></form></section>'};
+    (cards ? '<nav class="home-destinations" aria-label="Explore Taelgar"><ul>' + cards + '</ul></nav>' : '') +
+    '<section class="home-introduction'+(campaign ? ' home-introduction--campaign' : '')+'" aria-label="'+escapeHtml('About '+pageTitle)+'"><div class="home-section-label" aria-hidden="true">'+(campaign ? 'Campaign guide' : 'A world of stories')+'</div><div class="home-prose">' + $.html() + '</div></section>'};
 }

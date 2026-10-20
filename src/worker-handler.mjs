@@ -32,10 +32,10 @@ export function createWorker(instantiate,coreRelease = {}) {
         search:createD1Search(env.SEARCH_DB,{revision,descriptor:index.search,store}),
         releases:{core:coreRelease,content:{...(index.sourceVersion || {}),
           ...(published.commit ? {commit:published.commit,dirty:published.dirty} : {}),publishedAt:published.completedAt}},
-        async renderPage(page,date,context,dm,campaigns) {
-          return engine.renderAsync(page,date,context,dm,campaigns,entry=>store.getNote(entry));
+        async renderPage(page,date,context,dm,campaigns,pov) {
+          return engine.renderAsync(page,date,context,dm,campaigns,entry=>store.getNote(entry),pov);
         },
-        renderHome:context=>engine.renderHomeAsync(context,entry=>store.getNote(entry)),
+        renderHome:(context,siteHost)=>engine.renderHomeAsync(context,entry=>store.getNote(entry),siteHost),
         assets(entry,request) {
           return serveAsset(request,entry,async range=>{
             const object=await env.CONTENT.get(entry.objectKey,{range});

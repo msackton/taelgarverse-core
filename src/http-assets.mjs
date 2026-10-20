@@ -1,7 +1,7 @@
-export const themeFiles = {'material.css':'vendor/material.css','taelgarverse.css':'taelgarverse.css','preview.css':'preview.css','release.js':'release.js','context.js':'context.js','navigation.js':'navigation.js','image-viewer.js':'image-viewer.js','diagrams.js':'generated/diagrams.js',
+export const themeFiles = {'material.css':'vendor/material.css','taelgarverse.css':'taelgarverse.css','preview.css':'preview.css','release.js':'release.js','context.js':'context.js','navigation.js':'navigation.js','image-viewer.js':'generated/image-viewer.js','image-viewer.css':'image-viewer.css','diagrams.js':'generated/diagrams.js',
   'maps.js':'generated/maps.js','maps.css':'maps.css','leaflet.css':'generated/leaflet.css','search.css':'search.css'};
-Object.assign(themeFiles,{'quiet-library.css':'quiet-library.css','appearance.js':'appearance.js','site-ui.js':'site-ui.js'});
-Object.assign(themeFiles,{'homepage.css':'homepage.css','home-map.webp':'images/home-map.webp'});
+Object.assign(themeFiles,{'quiet-library.css':'quiet-library.css','appearance.js':'appearance.js','site-ui.js':'site-ui.js','search-overlay.js':'search-overlay.js'});
+Object.assign(themeFiles,{'homepage.css':'homepage.css','home-map.webp':'images/home-map.webp','site-logo.webp':'images/site-logo.webp'});
 Object.assign(themeFiles,{'pronunciation.js':'pronunciation.js','pronunciation.css':'pronunciation.css'});
 export const contentTypes = {'.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg',
   '.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.pdf':'application/pdf','.heic':'image/heic',
@@ -9,7 +9,7 @@ export const contentTypes = {'.css':'text/css; charset=utf-8','.js':'text/javasc
 
 export async function serveAsset(request,entry,read) {
   const headers=new Headers({'Content-Type':contentTypes[entry.extension] || 'application/octet-stream','Accept-Ranges':'bytes',
-    'Cache-Control':entry.generatedImageVariant ? 'public, max-age=31536000, immutable' : 'public, max-age=0, must-revalidate',ETag:entry.etag});
+    'Cache-Control':entry.generatedImageVariant || entry.generatedMapTile ? 'public, max-age=31536000, immutable' : 'public, max-age=0, must-revalidate',ETag:entry.etag});
   const condition=request.headers.get('If-None-Match');
   if (condition && (condition==='*' || condition.split(',').map(s=>s.trim().replace(/^W\//,'')).includes(entry.etag))) return new Response(null,{status:304,headers});
   let start=0,end=entry.size-1,status=200;

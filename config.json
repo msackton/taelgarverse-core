@@ -1,4 +1,5 @@
 {
   "vault_dir": "../taelgar",
-  "default_date": "1750-01-01"
+  "default_date": "1750-01-01",
+  "respect_pov_dates": false
 }

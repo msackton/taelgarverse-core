@@ -4,6 +4,7 @@ import {load} from 'cheerio';
 import {document} from '../src/render-engine.mjs';
 import {Navigation} from '../src/navigation.mjs';
 import {themeFiles} from '../src/http-assets.mjs';
+import {searchView} from '../src/search-view.mjs';
 
 const context = {id:'custom',kind:'custom',date:'1730-01-01',campaigns:['dufr'],dm:true};
 const entry = {id:'Places/Town.md',target:'places/town.md',slug:'places/town',title:'Town',note:{metadata:{}}};
@@ -19,6 +20,16 @@ test('live Quiet Library shell includes accessible settings, context-preserving 
   assert.equal($('.section-navigation [aria-current="location"]').text(),'Places');
   assert.equal($('.nav-tree > .active-section > details > summary').text(),'Places');
   assert.equal($('.layout--no-navigation').length,0);
+  assert.equal($('.site-brand').attr('aria-label'),'TaelgarVerse home');
+  assert.equal($('.site-brand-label').text(),'TaelgarVerse');
+  assert.equal($('.site-brand img').attr('src'),'/theme/site-logo.webp');
+  assert.equal($('.site-brand img').attr('alt'),'');
+  assert.equal(themeFiles['site-logo.webp'],'images/site-logo.webp');
+  assert.equal($('script[type="module"][src="/theme/search-overlay.js"]').length,1);
+  assert.equal($('#header-search input[name="q"]').attr('maxlength'),'256');
+  assert.equal($('#search-suggestions input[name="q"],dialog#search-dialog').length,0);
+  assert.equal($('#search-results').attr('aria-busy'),'false');
+  assert.equal($('#search-status').attr('aria-live'),'polite');
   assert.equal($('.page-nav-title').text(),'On this page');
   assert.equal($('.page-contents summary,details.page-contents').length,0);
   assert.equal($('#header-search input[name="date"]').val(),'1730-01-01');
@@ -26,7 +37,7 @@ test('live Quiet Library shell includes accessible settings, context-preserving 
   assert.equal($('#header-search input[name="dm"]').val(),'1');
   const ids = $('[id]').map((_,el)=>$(el).attr('id')).get();
   assert.equal(new Set(ids).size,ids.length);
-  for (const file of ['appearance.js','site-ui.js','quiet-library.css']) assert.equal(themeFiles[file],file);
+  for (const file of ['appearance.js','site-ui.js','quiet-library.css','search-overlay.js']) assert.equal(themeFiles[file],file);
 });
 test('optional navigation omissions reclaim space while retaining search/settings and backlinks',() => {
   for (const hide of [['navigation'],['toc'],['navigation','toc']]) {
@@ -42,4 +53,16 @@ test('optional navigation omissions reclaim space while retaining search/setting
   const $ = load(document({...result,page:undefined,toc:''},[],nav));
   assert.equal($('.layout--no-navigation.layout--no-toc').length,1);
   assert.equal($('.section-navigation a').length,2);
+});
+
+test('floating search retains content types and has unique labels on a full search page',()=>{
+  const html=searchView({query:'river',type:'place',context,results:[],offset:0,limit:20,hasMore:false});
+  const $=load(document({...result,html,query:'river',searchType:'place',search:true},[],nav));
+  assert.equal($('#header-search input[name="type"]').val(),'place');
+  assert.equal($('#suggestions-type option[value="person"]').text(),'People');
+  assert.equal($('#suggestions-type option[value="place"]').text(),'Places');
+  assert.equal($('#suggestions-type option[value="session-note"]').text(),'Session notes');
+  assert.equal($('#search-suggestions').attr('aria-modal'),'false');
+  assert.equal($('#search-suggestions').attr('role'),'dialog');
+  const ids=$('[id]').map((_,el)=>$(el).attr('id')).get();assert.equal(new Set(ids).size,ids.length);
 });

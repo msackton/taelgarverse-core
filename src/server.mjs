@@ -16,27 +16,27 @@ import {collectImageUsages} from '../scripts/image-usage.mjs';
 export function createServer(engine) {
   const mapCache = path.join(ROOT,'.cache/maps');
   const imageCache = path.join(ROOT,'.cache/images');
-  const imageUsages = collectImageUsages(engine.store,{homeSource:engine.home});
+  const imageUsages = collectImageUsages(engine.store,{homeSource:engine.home,campaignHomes:Object.fromEntries([...engine.campaignSites.byHost].map(([host,site])=>[host,site.note]))});
   let mapsReady;
   const ready = () => mapsReady ??= prepareMaps(engine.store,mapCache).catch(error=>{mapsReady=undefined;throw error;});
   const server=http.createServer(async(req,res)=>{
     try {
-      const request=new Request(new URL(req.url,'http://localhost'),{method:req.method,headers:req.headers});
+      const request=new Request(new URL(req.url,'http://'+(req.headers.host || 'localhost')),{method:req.method,headers:req.headers});
       const response=await handleRequest(request,engine,{
-        async renderPage(page,date,context,dm,campaigns) {
+        async renderPage(page,date,context,dm,campaigns,pov) {
           await ready();
-          const render = ()=>engine.render(page,date,context,dm,undefined,campaigns);
+          const render = ()=>engine.render(page,date,context,dm,undefined,campaigns,undefined,pov);
           const result = render(), entries = imageEntries(engine.store,result.html);
           if (!entries.length) return result;
           await prepareImages(engine.store,imageCache,{usages:imageUsages},entries);
           return render();
         },
-        async renderHome(context) {
+        async renderHome(context,siteHost) {
           await ready();
-          const result = engine.renderHome(context), entries = imageEntries(engine.store,result?.html || '');
+          const result = engine.renderHome(context,undefined,siteHost), entries = imageEntries(engine.store,result?.html || '');
           if (!entries.length) return result;
           await prepareImages(engine.store,imageCache,{usages:imageUsages},entries);
-          return engine.renderHome(context);
+          return engine.renderHome(context,undefined,siteHost);
         },
         assets(entry,request) {
           const directory = entry.generatedMapTile ? mapCache : entry.generatedImageVariant ? imageCache : engine.settings.source_dir;

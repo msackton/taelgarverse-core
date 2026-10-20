@@ -7,7 +7,8 @@ search contacts no AI service.
 
 ## App search
 
-The header and homepage search forms open `/?q=...`. `/api/search` returns the
+The header search shows suggestions as you type. Without JavaScript, its form
+opens `/?q=...`. `/api/search` returns the
 same results as JSON: query, resolved context, source (`full-text` or `page-names`),
 fallback status/notice, selected `type`, results, and `hasMore`/`limit`/`offset`. Each result contains
 page/title/context URL, a plain-text excerpt, and UTF-16 highlight ranges into that
@@ -85,6 +86,19 @@ and `dm` (true, false, or null for either). Unrelated campaigns have no effect.
 This supports arbitrary Custom dates/subsets and matches across paragraphs.
 The separate campaign-ownership filter used by backlinks is not applied here.
 
+POV filtering is a request-local reader preference: `pov=1` enables it and
+`pov=0` disables it. A microsite's authored `enforcePoV` overrides the URL
+preference when present. Otherwise, when omitted, `respect_pov_dates` supplies the site default
+(`false` in new and older snapshots). See [page visibility](vault.md#when-a-page-is-shown).
+The compiler retains text for both POV modes, while keeping birth/creation,
+activity, campaign, and DM intervals. At query time, snapshot metadata supplies
+the list of available pages for the reader's preference; SQL applies that list
+before ranking, pagination, and limits. This works with existing production
+indexes without article-body reads, database changes, or republication.
+The preference stays in result links, pagination, forms, and floating suggestions.
+Changing the configuration default still invalidates the publication fingerprint
+and requires publication to store the new default.
+
 An unsafe comment omits the entire note and records a warning. More than 4,096
 candidate states in one note, or a document larger than 1.5 MB, stops compilation.
 Sparse notes retain searchable headings, titles, and aliases.
@@ -142,16 +156,16 @@ source, and D1 destination changes invalidate the build fingerprint.
 The separate maintenance flow is:
 
 ```sh
-npm run cf:prepare
-npm run search:index -- stage --dry-run
-npm run cf:upload
-npm run search:index -- stage --remote
-npm run search:index -- verify --remote
-npm run cf:publish
+node scripts/prepare-cloudflare.mjs
+node scripts/search.mjs stage --dry-run
+node scripts/cloudflare.mjs upload-remote
+node scripts/search.mjs stage --remote
+node scripts/search.mjs verify --remote
+node scripts/cloudflare.mjs publish
 ```
 
-`cf:publish` repeats upload/staging and verifies D1 readiness under the shared
-publication lock before activating content. `cf:seed` does the same locally. The search
+The internal `node scripts/cloudflare.mjs publish` repeats upload/staging and verifies D1 readiness under the shared
+publication lock before activating content. Full local preview does the same locally. The search
 CLI defaults to `.cache/cloudflare/latest.json`; `--report FILE` selects retained
 artifacts. Except with `--dry-run`, select `--local` or `--remote` explicitly.
 Search commands never activate R2 content. Interrupted staging can be retried
@@ -177,19 +191,33 @@ artifacts and the separate AI Search pilot are outside this policy.
 A D1 publication lock serializes supported publishers, manual uploads, search
 staging, cleanup and rollback across machines. It has no automatic expiry, so a
 slow publisher cannot lose its lock while uploading. Normal completion/failure
-releases it; after a killed process, confirm **all publishers have stopped**,
-inspect `tv_search_publish_lock`, then delete only that stale owner row using
-Wrangler D1 execute. The full publisher also retains its local file lock.
+releases it; after a killed process, confirm **all publishers, staging, cleanup,
+and rollback operations have stopped on every computer**, then rerun the full
+publisher with `--unblock` added to the existing options, for example
+`npm run publish -- --no-strict --unblock`. The flag is that confirmation; it
+clears only the observed owner in `tv_search_publish_lock` and acquires the new
+lock in one transaction before continuing publication. If a different owner
+acquires the lock during recovery, the command stops without stealing it.
+There is no automatic retry or expiry. `--local --unblock` targets only local D1;
+`--build-only --unblock` is rejected. The full publisher also retains its local
+file lock; see [local lock recovery](deploy.md#if-something-goes-wrong).
 Direct Wrangler object/SQL writes bypass this coordination.
+
+Full publication and `--assets-only` share the same lock. Assets-only stages
+missing media but does not stage D1 search, activate a snapshot, or prune storage.
+The normal run rechecks the destination and reuses those assets before staging
+search. R2 and D1 share refreshable credentials so a long media transfer does not
+leave D1 using the token captured at startup. An unsuccessful lock release
+preserves the original failure in the error message and explains `--unblock`.
 
 Cleanup failure reports that the new content is already active and leaves both
 retained snapshots available. An unchanged full publication retries cleanup
 without rebuilding. Maintenance commands require an explicit destination:
 
 ```sh
-npm run content:prune -- --remote --dry-run
-npm run content:prune -- --remote
-npm run content:rollback -- --remote
+node scripts/maintain-content.mjs prune --remote --dry-run
+node scripts/maintain-content.mjs prune --remote
+node scripts/maintain-content.mjs rollback --remote
 ```
 
 `--local` selects the emulators instead. Dry-run reads and verifies the current
@@ -206,6 +234,18 @@ stored content history, not Cloudflare-managed Time Travel history or a guarante
 that the displayed database file size immediately shrinks.
 
 ## Verification and measured scope
+
+Publisher progress reports count staged/reused text versions, staged visibility
+rules, and read-back verification batches. The integrity check, activation, and
+retention phases have explicit status messages, with ten-second reminders during
+long requests. A completed upload does not imply activation; `New content is live`
+is emitted only after the publication pointer write succeeds.
+
+Image/map recipe records in `build-cache/derivatives-v1.json` are build hints,
+not retained content roots. They are saved after successful asset transfers under
+the same publication lock; this neither stages search nor activates a revision.
+Retention can collect unreferenced derivatives, and the next build regenerates
+them when the catalog's output inventory check fails.
 
 Fast tests cover live Worker API/HTML routing, ranking/prefix/phrase/Unicode
 queries, escaped highlighted excerpts, bounded pagination, fallback, revision

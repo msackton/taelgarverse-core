@@ -298,10 +298,17 @@ they make collections easier to scan.
 
 ### P-03: Map exploration
 
-**Status:** Agreed direction; detailed design remains open.
+**Status:** Distance measurement completed in core; overlays and map-to-map
+navigation remain open.
 
-Extend the MVP map experience with distance measurement, switchable overlays,
-and navigation between world and regional maps.
+Maps have an opt-in route ruler with click/tap points, freehand tracing for roads
+and rivers, route totals, Undo, Clear, and keyboard controls. A desktop Obsidian
+companion plugin shares these tools; real-vault activation is separate from its
+implemented bundle. The current map exports use a source-image calibration
+of 24 miles across each hex, checked independently of the old display bounds,
+zoom, and tiles. See [map calibration and controls](maps.md). Deployment remains
+separate. Switchable overlays and navigation between world and regional maps
+remain to be designed.
 
 ### P-04: Better search
 
@@ -326,10 +333,10 @@ indexing and production integration are outside the current work.
 
 ### P-05: More informative backlinks
 
-**Status:** Agreed direction; detailed design remains open.
+**Status:** Deferred; the existing title-only backlink list is useful as it stands.
 
-Make backlinks more useful, including short excerpts explaining why another
-page links to the current page.
+Keep the current list without excerpts or other added context. Revisit richer
+backlink presentation if a specific reader need emerges.
 
 ### P-06: Campaign hubs and standard campaign presentation
 

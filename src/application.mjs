@@ -1,4 +1,4 @@
-import {RenderError,escapeHtml,pageUrl,parseDM} from './common.mjs';
+import {RenderError,escapeHtml,pageUrl,parseDM,parsePOV} from './common.mjs';
 import {document} from './render-engine.mjs';
 import {contextQuery} from './header.mjs';
 import {searchInput,searchPages} from './search.mjs';
@@ -42,54 +42,71 @@ const apiSpec = {
       {name:'dm',in:'query',schema:{type:'boolean'}}],responses:{200:{description:'Branch title and HTML list items'},404:{description:'Unavailable branch'}}}},
   },
 };
+for (const path of ['/api/page','/api/search','/api/navigation','/api/diagram-links']) {
+  apiSpec.paths[path].get.parameters.push({name:'pov',in:'query',schema:{type:'boolean'},
+    description:'Optional reader preference: 1/true hides pages before their POV date; 0/false overrides the site default; ignored when the microsite enforces a mode'});
+}
 function send(status,body,type='application/json') { return new Response(type==='application/json' ? JSON.stringify(body) : body,{status,headers:{'Content-Type':type+'; charset=utf-8'}}); }
 function shell(title, content,header = '') {
   return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>' + escapeHtml(title) + '</title><link rel="stylesheet" href="/theme/preview.css"></head><body>' + header + '<main>' + content + '</main></body></html>';
 }
-async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)=>engine.render(page,date,context,dm,undefined,campaigns),renderHome=context=>engine.renderHome(context),search=engine.search?.bind(engine),assets,theme,runtime='node',revision,releases=engine.releases}={}) {
+async function route(request,engine,{renderPage=(page,date,context,dm,campaigns,pov)=>engine.render(page,date,context,dm,undefined,campaigns,undefined,pov),renderHome=(context,siteHost)=>engine.renderHome(context,undefined,siteHost),search=engine.search?.bind(engine),assets,theme,runtime='node',revision,releases=engine.releases}={}) {
       if (!['GET','HEAD'].includes(request.method)) { return new Response(JSON.stringify({detail:'Method not allowed'}),{status:405,headers:{Allow:'GET, HEAD','Content-Type':'application/json'}}); }
       const url = new URL(request.url);
       const pathname = decodeURIComponent(url.pathname);
-      const date = url.searchParams.get('date') ?? undefined;
-      const contextId = url.searchParams.get('context') ?? undefined;
-      const selectedCampaigns = url.searchParams.has('campaigns') ? url.searchParams.getAll('campaigns') : undefined;
+      let site;
+      try { site = engine.campaignSites.forHost(url.hostname); }
+      catch (error) {
+        if (error.status !== 404 || pathname.startsWith('/api/')) throw error;
+        return send(404,shell('Campaign site not found','<h1>Campaign site not found</h1><p><a href="https://www.taelgar.org/">Visit TaelgarVerse</a></p>'),'text/html');
+      }
+      // A campaign hostname is authoritative, even for API and manually edited URLs.
+      const date = site ? site.date : url.searchParams.get('date') ?? undefined;
+      const contextId = site ? site.contextId : url.searchParams.get('context') ?? undefined;
+      const selectedCampaigns = site ? site.campaigns : url.searchParams.has('campaigns') ? url.searchParams.getAll('campaigns') : undefined;
       const dm = parseDM(url.searchParams.get('dm'));
+      const pov = site?.enforcePoV ?? parsePOV(url.searchParams.get('pov'));
+      const preference = pov === undefined ? {} : {pov};
+      const lock = context => site ? {...context,label:site.label || context.label,locked:true,site:site.host} : context;
+      const resolveContext = () => lock({...engine.contexts.resolve(contextId,date,selectedCampaigns),dm,...preference});
+      const contextOptions = site ? site.contextId==='custom' ? [resolveContext()] : engine.contexts.list().filter(context=>context.id===site.contextId) : engine.contexts.list();
+      const renderArticle = async (...args) => { const result=await renderPage(...args,pov);return {...result,context:lock(result.context)}; };
       if (pathname === '/health') return send(200,{status:'ok',pages:engine.store.bySlug.size,index_warnings:engine.store.warnings,context_warnings:engine.contexts.warnings,runtime,revision});
-      if (pathname === '/api/contexts') return send(200,{contexts:engine.contexts.list(),warnings:engine.contexts.warnings});
+      if (pathname === '/api/contexts') return send(200,{contexts:contextOptions,warnings:engine.contexts.warnings,...(site ? {locked:true,site:site.host} : {})});
       if (pathname === '/openapi.json') return send(200,apiSpec);
       if (pathname === '/api/diagram-links') {
         const source = url.searchParams.get('source'), targets = url.searchParams.getAll('target');
         if (!source || !targets.length || targets.length > 100 || targets.some(target => target.length > 2048)) {
           throw new RenderError(400,'source and 1–100 targets of at most 2048 characters are required');
         }
-        const {entry,context} = engine.resolvePage(source,date,contextId,dm,selectedCampaigns);
+        const {entry,context} = engine.resolvePage(source,date,contextId,dm,selectedCampaigns,pov);
         return send(200,{links:targets.map(target => resolveDiagramLink(target,{store:engine.store,entry,context,origin:url.origin}))});
       }
       if (pathname === '/api/navigation') {
         const branch = url.searchParams.get('branch');
         if (!branch) throw new RenderError(400,'branch is required');
-        const context = {...engine.contexts.resolve(contextId,date,selectedCampaigns),dm};
+        const context = resolveContext();
         return send(200,engine.navigation.branch(context,branch,url.searchParams.get('page')));
       }
       if (pathname === '/api/page') {
         const page = url.searchParams.get('page');
         if (!page) throw new RenderError(400,'page is required');
-        return send(200,await renderPage(page,date,contextId,dm,selectedCampaigns));
+        return send(200,await renderArticle(page,date,contextId,dm,selectedCampaigns));
       }
       if(pathname==='/api/search'){
-        const context={...engine.contexts.resolve(contextId,date,selectedCampaigns),dm};
+        const context=resolveContext();
         const input=searchInput(url.searchParams.get('q') || '',{limit:url.searchParams.get('limit') ?? 20,offset:url.searchParams.get('offset') ?? 0,type:url.searchParams.get('type') ?? ''});
         return send(200,await searchPages(engine,search,input,context));
       }
       if (pathname.startsWith('/page/')) {
-        try { return send(200,document(await renderPage(pathname.slice(6),date,contextId,dm,selectedCampaigns),engine.contexts.list(),engine.navigation,releases),'text/html'); }
+        try { return send(200,document(await renderArticle(pathname.slice(6),date,contextId,dm,selectedCampaigns),contextOptions,engine.navigation,releases),'text/html'); }
         catch (error) {
           if (error.status !== 404) throw error;
-          const context = {...engine.contexts.resolve(contextId,date,selectedCampaigns), dm};
+          const context = resolveContext();
           return send(404,document({title:'Page unavailable',html:'<h1>Page unavailable</h1><p>' + escapeHtml(error.message) +
-            '. Choose another context or return to <a href="/?q=&amp;' + escapeHtml(contextQuery(context).toString()) + '">search</a>.</p>',
-            toc:'',warnings:[],context},engine.contexts.list(),engine.navigation,releases),'text/html');
+            (site ? '. Return to ' : '. Choose another context or return to ') + '<a href="/?q=&amp;' + escapeHtml(contextQuery(context).toString()) + '">search</a>.</p>',
+            toc:'',warnings:[],context},contextOptions,engine.navigation,releases),'text/html');
         }
       }
       if (pathname === '/docs') {
@@ -100,27 +117,27 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
           '<p><a href="/openapi.json">OpenAPI schema</a> · <a href="/?q=">Search</a></p>'),'text/html');
       }
       if (pathname.startsWith('/browse/')) {
-        const context = {...engine.contexts.resolve(contextId,date,selectedCampaigns),dm};
+        const context = resolveContext();
         const view = engine.navigation.view(context,undefined,pathname.slice(8));
         const node = view.visible.get(pathname.slice(8));
         const items = node.children.map(child=>view.visible.get(child.id)).map(child=>'<li><a href="' + escapeHtml(engine.navigation.url(child,context)) + '">' + escapeHtml(child.label) + '</a></li>').join('');
         const overview = node.entry ? '<p><a href="' + escapeHtml(pageUrl(node.entry.slug,context.date,context)) + '">Read the overview</a></p>' : '';
         return send(200,document({title:node.label,html:'<h1>' + escapeHtml(node.label) + '</h1>' + overview +
-          '<ul class="section-pages">' + items + '</ul>',toc:'',warnings:[],context,navigationId:node.id},engine.contexts.list(),engine.navigation,releases),'text/html');
+          '<ul class="section-pages">' + items + '</ul>',toc:'',warnings:[],context,navigationId:node.id},contextOptions,engine.navigation,releases),'text/html');
       }
       if (pathname === '/') {
         const query = url.searchParams.get('q') || '';
-        const context = {...engine.contexts.resolve(contextId,date,selectedCampaigns), dm};
+        const context = resolveContext();
         if (!url.searchParams.has('q')) {
-          const home = await renderHome(context);
-          if (home) return send(200,document({...homepage(home,context,engine.store),title:'TaelgarVerse',context},engine.contexts.list(),engine.navigation,releases),'text/html');
+          const home = await renderHome(context,site?.host);
+          if (home) return send(200,document({...homepage(home,context,engine.store),context},contextOptions,engine.navigation,releases),'text/html');
         }
         let input;
         const type=url.searchParams.get('type') ?? '';
         try{input=searchInput(query,{limit:url.searchParams.get('limit') ?? 20,offset:url.searchParams.get('offset') ?? 0,type});}
-        catch(error){if(error.status!==400)throw error;return send(400,document({title:'Search Taelgar',html:searchErrorView(query,context,error.message,type),toc:'',warnings:[],context,query,searchType:searchTypes.some(([value])=>value===type)?type:'',search:true},engine.contexts.list(),engine.navigation,releases),'text/html');}
+        catch(error){if(error.status!==400)throw error;return send(400,document({title:'Search Taelgar',html:searchErrorView(query,context,error.message,type),toc:'',warnings:[],context,query,searchType:searchTypes.some(([value])=>value===type)?type:'',search:true},contextOptions,engine.navigation,releases),'text/html');}
         const results=await searchPages(engine,search,input,context);
-        return send(200,document({title:query?'Search: '+query:'Search Taelgar',html:searchView(results),toc:'',warnings:[],context,query,searchType:input.type,search:true},engine.contexts.list(),engine.navigation,releases),'text/html');
+        return send(200,document({title:query?'Search: '+query:'Search Taelgar',html:searchView(results),toc:'',warnings:[],context,query,searchType:input.type,search:true},contextOptions,engine.navigation,releases),'text/html');
       }
       if (pathname.startsWith('/assets/')) {
         const entry=engine.store.assets.get(pathname.slice(8));

@@ -6,7 +6,7 @@ import {initializeHeaderRuntime,renderModuleHeader} from './header-runtime.mjs';
 
 export class SnapshotStore extends ContentStore {
   constructor(index,bucket) {
-    super(index.entries,index.warnings);
+    super(index.entries,index.warnings,index.settings);
     this.bucket=bucket;this.revision=index.revision;
     this.shards=new Map();this.pending=new Map();this.maxShards=8;
   }
@@ -46,6 +46,6 @@ export async function loadSnapshot(bucket,revision,instantiate) {
   const store=new SnapshotStore(index,bucket);
   const headers=initializeHeaderRuntime({pages:store.entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta:index.coreMeta,registry:index.registry},instantiate);
   const engine=new RenderEngine({settings:index.settings,store,headers,renderHeader:renderModuleHeader,navigationSource:index.navigationSource,
-    homeSource:index.homeSource ?? null,backlinkIndex:index.backlinks || null});
+    homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null});
   return {engine,store,index};
 }

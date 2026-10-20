@@ -1,0 +1,9 @@
+.taelgar-map-tools .leaflet-map { margin:1rem 0; max-width:100%; }
+.taelgar-map-tools .leaflet-container img { max-width:none !important; max-height:none !important; margin:0; border-radius:0; }
+.taelgar-map-tools .map-measure-help { color:var(--text-muted); }
+.taelgar-map-tools .map-status { color:var(--text-muted); }
+.taelgar-map-tools .map-error { color:var(--text-error); }
+.taelgar-image-viewer { background:var(--background-primary); color:var(--text-normal); }
+.taelgar-image-viewer .image-viewer-caption, .taelgar-image-viewer .image-viewer-status { color:var(--text-muted); }
+.taelgar-image-viewer button, .taelgar-image-viewer a { font:inherit; }
+.taelgar-image-viewer img.image-viewer-preview { max-width:none; max-height:none; }

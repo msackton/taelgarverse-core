@@ -4,17 +4,22 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const script = fs.readFileSync(new URL('../public/site-ui.js',import.meta.url),'utf8');
-function page({height=5000,viewport=800,reduced=false}={}) {
+function page({height=5000,viewport=800,reduced=false,titleText}={}) {
   const events = {}, frames = [];
   let resize, click, headerHeight=64;
   const root = {scrollHeight:height,style:{setProperty(){}},classList:{add(){}}};
   const header = {getBoundingClientRect:()=>({bottom:headerHeight,height:headerHeight})};
-  const brand = {textContent:'TaelgarVerse',classList:{toggle(){}},setAttribute(){},focus(){}};
+  const brandLabel = {textContent:'TaelgarVerse'}, logo = {};
+  const brand = {querySelector:selector=>selector==='.site-brand-label' ? brandLabel : selector==='img' ? logo : null,
+    classList:{toggle(){}},setAttribute(){},focus(){},
+    get textContent(){return brandLabel.textContent;},
+    set textContent(value){throw new Error('Replacing brand content would remove the home icon');}};
+  const title = titleText ? {textContent:titleText,getBoundingClientRect:()=>({bottom:180-context.scrollY})} : null;
   const back = {hidden:true,addEventListener:(event,callback)=>{if(event==='click') click=callback;}};
   const nodes = {'site-header':header,'back-to-top':back};
   const context = {
     document:{documentElement:root,getElementById:id=>nodes[id] || null,
-      querySelector:selector=>selector==='.site-brand' ? brand : null,querySelectorAll:()=>[]},
+      querySelector:selector=>selector==='.site-brand' ? brand : selector==='.article-main h1' ? title : null,querySelectorAll:()=>[]},
     matchMedia:query=>({matches:query.includes('reduced-motion') && reduced}),
     scrollY:0,innerHeight:viewport,
     addEventListener:(event,callback)=>{events[event]=callback;},
@@ -23,7 +28,7 @@ function page({height=5000,viewport=800,reduced=false}={}) {
     scrollTo:options=>{context.lastScroll=options;}
   };
   vm.runInNewContext(script,context);
-  return {back,context,click:()=>click(),
+  return {back,brand,brandLabel,logo,context,click:()=>click(),
     scroll(y){context.scrollY=y;events.scroll();},
     resize(y){if(y!==undefined) context.scrollY=y;headerHeight=72;resize();},
     frame(){while(frames.length) frames.shift()();},
@@ -69,4 +74,15 @@ test('elastic overscroll does not show the control and reduced motion returns im
   p.click(); assert.equal(p.context.lastScroll.behavior,'instant');
   p.scroll(0); p.scroll(-30); p.scroll(0);
   assert.equal(p.back.hidden,true);
+});
+
+test('scrolling replaces only the brand label and keeps the home icon',()=>{
+  const p=page({titleText:'A long article title'});
+  assert.equal(p.brandLabel.textContent,'TaelgarVerse');
+  p.scroll(300); p.frame();
+  assert.equal(p.brandLabel.textContent,'A long article title');
+  assert.equal(p.brand.querySelector('img'),p.logo);
+  p.scroll(0); p.frame();
+  assert.equal(p.brandLabel.textContent,'TaelgarVerse');
+  assert.equal(p.brand.querySelector('img'),p.logo);
 });

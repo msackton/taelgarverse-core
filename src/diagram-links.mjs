@@ -30,7 +30,7 @@ export function resolveDiagramLink(target, {store, entry, context, origin}) {
     destination = /^\.\.?\//.test(name) ? store.lookup(relative).entry || store.lookup(exported).entry
       : store.lookup(name).entry || store.lookup(relative).entry || store.lookup(exported).entry;
   }
-  if (!availableInContext(destination, context)) return null;
+  if (!availableInContext(destination, context, store.settings)) return null;
   return {page: destination.slug, title: destination.title,
     href: pageUrl(destination.slug, context.date, context) + (fragment ? '#' + fragment : '')};
 }

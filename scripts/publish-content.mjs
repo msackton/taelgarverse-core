@@ -7,21 +7,26 @@ import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {ROOT, loadSettings, isInside} from '../src/config.mjs';
 import {prepareContent, loadCloudflareConfig} from './prepare-cloudflare.mjs';
+import {DerivativeCache} from './derivative-cache.mjs';
+import {withPublicationProgress} from './publication-progress.mjs';
+import {readCampaignHomes} from '../src/website-sources.mjs';
+import {readFolderExclusions} from '../src/folder-exclusions.mjs';
 import {IMAGE_DEFAULTS, IMAGE_VERSION} from './optimize-images.mjs';
 import {createSearchDatabase,searchBinding} from './search-database.mjs';
 import {SearchIndex,readPreparedSearch,validateSearchDescriptor} from './search-index.mjs';
-import {activationPointer,validatePointer,validatePublicationUploads,createRetentionStorage,prunePublication} from './content-retention.mjs';
+import {activationPointer,validatePointer,createRetentionStorage,prunePublication} from './content-retention.mjs';
+import {createCloudflareClient} from './cloudflare-client.mjs';
+import {uploadContent} from './upload-content.mjs';
 
 export const CHECKPOINT_KEY = 'published/current.json';
 const CACHE = path.join(ROOT, '.cache/publish');
-const WRANGLER = path.join(ROOT, 'node_modules/wrangler/bin/wrangler.js');
 const json = async (file, value) => fs.writeFile(file, JSON.stringify(value, null, 2) + '\n');
 
 export function parseOptions(argv) {
-  const options = {force: false, allowDirty: false, noStrict: false, local: false, buildOnly: false,
+  const options = {force: false, allowDirty: false, noStrict: false, local: false, buildOnly: false, unblock: false, assetsOnly: false,
     maxSize: IMAGE_DEFAULTS.maxSize, quality: IMAGE_DEFAULTS.quality};
   const flags = {'--force': 'force', '--allow-dirty': 'allowDirty', '--no-strict': 'noStrict',
-    '--local': 'local', '--build-only': 'buildOnly', '--help': 'help', '-h': 'help'};
+    '--local': 'local', '--build-only': 'buildOnly', '--unblock': 'unblock', '--assets-only': 'assetsOnly', '--help': 'help', '-h': 'help'};
   const values = {'--config': 'config', '--vault': 'vault', '--obsidian-command': 'obsidianCommand',
     '--obsidian-vault': 'obsidianVault', '--max-image-size': 'maxSize', '--image-quality': 'quality'};
   for (let i = 0; i < argv.length; i++) {
@@ -38,6 +43,8 @@ export function parseOptions(argv) {
     throw new Error('Image size must be a positive integer and quality must be 1–100.');
   }
   if (options.local && options.buildOnly) throw new Error('Choose --local or --build-only.');
+  if (options.unblock && options.buildOnly) throw new Error('--unblock requires publication; it cannot be combined with --build-only.');
+  if (options.assetsOnly && options.buildOnly) throw new Error('Choose --assets-only or --build-only.');
   return options;
 }
 
@@ -99,53 +106,38 @@ export function validateCheckpoint(value) {
   return value;
 }
 
-export function isMissingCheckpoint(error) {
-  // Match the pinned Wrangler command's object-404 error specifically. Auth,
-  // network, bucket, or account failures must never be mistaken for first build.
-  return /The specified key does not exist\./.test((error.stderr || '') + (error.stdout || ''));
-}
-
-export function createStorage({bucket, configFile, local = false, persistTo = path.join(ROOT, '.wrangler/state'), run = runCommand}) {
-  const target = local ? ['--local', '--persist-to', persistTo] : ['--remote'];
-  const invoke = (args, live = false) => run(process.execPath,
-    [WRANGLER, ...args, '--config', configFile, ...target], {live});
+export function createStorage({storage,log=()=>{}}) {
   return {
     async readCheckpoint(filename) {
-      try { await invoke(['r2', 'object', 'get', `${bucket}/${CHECKPOINT_KEY}`, '--file', filename]); }
-      catch (error) { if (isMissingCheckpoint(error)) return null; throw error; }
-      const value = JSON.parse(await fs.readFile(filename, 'utf8'));
-      // Manual publication pointers carry a revision and optional activation time,
-      // but have no publisher fingerprint that can justify skipping a build.
+      const value=await (await storage()).getJSON(CHECKPOINT_KEY);
+      if(value===null)return null;
+      await json(filename,value);
+      // Manual pointers do not carry a build fingerprint that permits skipping.
       if (value && Object.keys(value).every(key=>['revision','completedAt','search','previous','retentionVersion'].includes(key)) &&
           /^[a-f0-9]{64}$/.test(value.revision || '')) {validatePointer(value);return null;}
       return validateCheckpoint(value);
     },
-    async upload(report) {
-      const manifest = JSON.parse(await fs.readFile(report.manifestFile, 'utf8'));
-      validatePublicationUploads(report.revision,manifest);
-      await invoke(['r2', 'bulk', 'put', bucket, '--filename', report.manifestFile, '--concurrency', '8', '--force'], true);
-    },
-    async writeCheckpoint(value, filename) {
-      validateCheckpoint(value);
-      await json(filename, value);
-      await invoke(['r2', 'object', 'put', `${bucket}/${CHECKPOINT_KEY}`, '--file', filename, '--content-type', 'application/json', '--force'], true);
+    async upload(report,options) {return uploadContent(report,await storage(),{log,...options});},
+    async writeCheckpoint(value,filename) {
+      validateCheckpoint(value);await json(filename,value);
+      await (await storage()).putPointer(value);
     },
   };
 }
 
 // Separating orchestration lets tests prove that failures never advance R2 state.
 export async function publishContent(options, deps) {
-  if(!options.buildOnly && deps.withPublicationLock)return deps.withPublicationLock(()=>publishContent(options,{...deps,withPublicationLock:null}));
+  if(!options.buildOnly && deps.withPublicationLock)return deps.withPublicationLock(()=>publishContent(options,{...deps,withPublicationLock:null}),{unblock:options.unblock === true});
   const before = await deps.repositoryState();
   if (before.dirty && !options.allowDirty) {
     throw new Error('Taelgar has uncommitted changes. Commit them first, or use --allow-dirty for a build marked dirty that will never skip subsequent builds.');
   }
-  const previous = options.buildOnly ? null : await deps.readCheckpoint();
+  const previous = options.buildOnly || options.assetsOnly ? null : await deps.readCheckpoint();
   if (!options.force && !before.dirty && previous?.dirty === false && previous?.commit === before.commit &&
       previous.repository === before.repository && previous.fingerprint === options.fingerprint) {
     if(previous.search){
       if(!deps.verifySearch)throw new Error('Search readiness verification is required before skipping this publication');
-      await deps.verifySearch(previous);
+      await withPublicationProgress('Verifying the published search index',()=>deps.verifySearch(previous),deps.log);
     }
     await deps.prune?.(previous);
     deps.log(`Taelgar ${before.commit.slice(0, 12)} is already in R2; skipping export, images, and upload.`);
@@ -156,11 +148,16 @@ export async function publishContent(options, deps) {
   const unchanged = async () => {
     const state = await deps.repositoryState();
     if (state.commit !== before.commit || state.repository !== before.repository || (!before.dirty && state.dirty)) {
-      throw new Error('Taelgar changed during publishing; the R2 commit checkpoint was not updated. Run again.');
+      throw new Error('Taelgar changed during publishing. This run did not activate new content. Finish saving, syncing, and any Git changes, then rerun the publish command.');
     }
     await deps.verifyInputs?.();
   };
   await unchanged();
+  if(options.assetsOnly){
+    const uploaded=await deps.upload(build,{assetsOnly:true});
+    await unchanged();
+    return {assetsOnly:true,revision:build.revision,...uploaded};
+  }
   let result = {schemaVersion: 1, repository: before.repository, commit: before.commit,
     dirty: before.dirty, fingerprint: options.fingerprint, revision: build.revision,
     headerRevision: build.headerRevision, images: build.images, queries: build.queries,
@@ -170,15 +167,18 @@ export async function publishContent(options, deps) {
     if(build.search){
       if(!deps.stageSearch || !deps.verifySearch)throw new Error('Search indexing and readiness verification are required before activation');
       await deps.stageSearch(build);
-      await deps.verifySearch(build);
+      await withPublicationProgress('Verifying search readiness before activation',()=>deps.verifySearch(build),deps.log);
       result.search=validateSearchDescriptor(build.search);
     }
-    await unchanged();
+    await withPublicationProgress('Checking source files and publishing settings before activation',unchanged,deps.log);
     result.completedAt = new Date().toISOString();
     // Manual pointers identify the previous good snapshot even without a
     // publisher fingerprint that could justify skipping this build.
-    result=activationPointer(deps.readPointer?await deps.readPointer():previous,result);
-    await deps.writeCheckpoint(result);
+    await withPublicationProgress('Activating the new content revision',async()=>{
+      result=activationPointer(deps.readPointer?await deps.readPointer():previous,result);
+      await deps.writeCheckpoint(result);
+    },deps.log);
+    deps.log('New content is live. Finishing publication cleanup…');
     if(deps.prune){
       try{await deps.prune(result);}catch(error){throw new Error('Content is published, but retention cleanup failed. Rerun to retry cleanup: '+error.message);}
     }
@@ -200,13 +200,18 @@ export function validateMaterializationReport(report, output) {
 
 export function buildFingerprint(settings, options, config={}) {
   const hash = createHash('sha256');
+  hash.update(JSON.stringify({excludedFolders:readFolderExclusions(settings.vault_dir)}));
+  for (const [host,source] of Object.entries(readCampaignHomes(settings))) hash.update(JSON.stringify([host,source.replace(/\r\n/g,'\n')]));
   hash.update(JSON.stringify({version: 1, image: {maxSize: options.maxSize, quality: options.quality, ...IMAGE_VERSION},
-    strict: !options.noStrict, default_date: settings.default_date,searchDestination:{account:config.account_id,databases:config.d1_databases || []}}));
+    strict: !options.noStrict, default_date: settings.default_date, respect_pov_dates: settings.respect_pov_dates === true,searchDestination:{account:config.account_id,databases:config.d1_databases || []}}));
   for (const filename of [settings.nav_source, settings.home_source,
     new URL('./publish-content.mjs', import.meta.url), new URL('./optimize-images.mjs', import.meta.url),
-    new URL('./build-images.mjs', import.meta.url), new URL('../src/images.mjs', import.meta.url),
+    new URL('./build-images.mjs', import.meta.url), new URL('./derivative-cache.mjs', import.meta.url), new URL('../src/images.mjs', import.meta.url),
     new URL('./image-usage.mjs', import.meta.url),
+    new URL('../src/website-sources.mjs', import.meta.url), new URL('../src/campaign-sites.mjs', import.meta.url),
+    new URL('../src/folder-exclusions.mjs', import.meta.url),
     new URL('./build-maps.mjs', import.meta.url), new URL('../src/maps.mjs', import.meta.url),
+    new URL('../src/map-distance.mjs', import.meta.url),
     new URL('./prepare-cloudflare.mjs', import.meta.url), new URL('../src/store.mjs', import.meta.url),
     new URL('../src/content-store.mjs', import.meta.url), new URL('../src/backlinks.mjs', import.meta.url),
     new URL('../src/markdown.mjs', import.meta.url), new URL('../src/comments.mjs', import.meta.url),
@@ -215,7 +220,7 @@ export function buildFingerprint(settings, options, config={}) {
     // invalidate the shared R2 checkpoint for an otherwise identical build.
     hash.update(filename ? readFileSync(filename, 'utf8').replace(/\r\n/g, '\n') : '<no-website-source>');
   }
-  for(const filename of ['./compile-search.mjs','./search-index.mjs','./search-database.mjs','./content-retention.mjs','../src/search-text.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
+  for(const filename of ['./compile-search.mjs','./search-index.mjs','./search-database.mjs','./content-retention.mjs','./cloudflare-client.mjs','./upload-content.mjs','./publication-progress.mjs','../src/search-text.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
   return hash.digest('hex');
 }
 
@@ -247,15 +252,14 @@ export async function main(options) {
   let working,searchDatabase,retentionStorage;
   try {
     await lock.writeFile(JSON.stringify({pid: process.pid, startedAt: new Date().toISOString()}) + '\n');
-    const destinationFile = path.join(CACHE, 'destination.json');
-    await json(destinationFile, {name: config.name, account_id: config.account_id, r2_buckets: config.r2_buckets});
-    const storage = createStorage({bucket: binding.bucket_name, configFile: destinationFile, local: options.local});
     const fingerprint = buildFingerprint(settings, options, config);
-    const index=async()=>{searchDatabase ??=await createSearchDatabase(config,{local:options.local});return new SearchIndex(searchDatabase,{log:console.log});};
-    let publicationIndex;
-    const retainedStorage=async()=>retentionStorage ??=await createRetentionStorage(config,{local:options.local});
+    let publicationIndex,clientPromise;
+    const client=()=>options.local?undefined:(clientPromise ??=createCloudflareClient(config,{log:console.log}));
+    const index=async()=>{searchDatabase ??=await createSearchDatabase(config,{local:options.local,client:await client()});return new SearchIndex(searchDatabase,{log:console.log});};
+    const retainedStorage=async()=>retentionStorage ??=await createRetentionStorage(config,{local:options.local,client:await client(),log:console.log});
+    const storage=createStorage({storage:retainedStorage,log:console.log});
     const result = await publishContent({...options, fingerprint}, {
-      withPublicationLock:async action=>{publicationIndex=await index();return publicationIndex.withPublicationLock(action);},
+      withPublicationLock:async (action,lockOptions)=>{publicationIndex=await index();return publicationIndex.withPublicationLock(action,lockOptions);},
       readPointer:async()=>(await retainedStorage()).getJSON(CHECKPOINT_KEY),
       prune:async pointer=>prunePublication(await retainedStorage(),publicationIndex,pointer,{log:console.log}),
       repositoryState: () => repositoryState(vault),
@@ -272,7 +276,7 @@ export async function main(options) {
         const currentSettings = loadSettings(options.config, {vault: options.vault});
         if (currentSettings.vault_dir !== vault || buildFingerprint(currentSettings, options, current) !== fingerprint || current.name !== config.name ||
             current.account_id !== config.account_id || current.r2_buckets?.find(item => item.binding === 'CONTENT')?.bucket_name !== binding.bucket_name) {
-          throw new Error('Publisher code, settings, or destination changed during the build; run again before publishing.');
+          throw new Error('Publisher code, settings, website files, or destination changed during the build. This run did not activate new content. Let edits, syncing, and repository updates finish, then rerun the publish command.');
         }
       },
       async build(sourceVersion) {
@@ -292,6 +296,7 @@ export async function main(options) {
         await fs.copyFile(reportFile, path.join(CACHE, 'materialization-report.json'));
         const preparedSettings = {...settings, source_dir: output};
         console.log('Preparing responsive images; preserving full-resolution exports…');
+        const derivativeCache=options.buildOnly ? new DerivativeCache() : await DerivativeCache.load(await retainedStorage());
         let lastLog = 0;
         const prepared = await prepareContent(preparedSettings,undefined,sourceVersion,
           {maxSize: options.maxSize, quality: options.quality}, progress => {
@@ -299,8 +304,9 @@ export async function main(options) {
               console.log(`Images: ${progress.images} processed | ${progress.currentFile}`);
               lastLog = Date.now();
             }
-          });
+          },derivativeCache);
         const images = prepared.images;
+        console.log(`R2 recipes reused: ${derivativeCache.hits.images} image(s), ${derivativeCache.hits.maps} map pyramid(s); no derivative downloads or encoding for these.`);
         console.log(`Images: ${images.images} originals retained; ${images.variants} responsive variants (${(images.variantBytes / 1048576).toFixed(1)} MiB stored)`);
         const preparedConfig = JSON.parse(await fs.readFile(prepared.configFile, 'utf8'));
         if (prepared.bucket !== binding.bucket_name || preparedConfig.account_id !== config.account_id || preparedConfig.name !== config.name) {
@@ -308,7 +314,7 @@ export async function main(options) {
         }
         return {...prepared, images, queries: {errors: report.counts.errors, unsupported: report.counts.unsupported}};
       },
-      upload: report => storage.upload(report),
+      upload: (report,uploadOptions) => storage.upload(report,uploadOptions),
       async recordBuild(value, report) {
         await json(path.join(CACHE, 'latest.json'), value);
         if (!options.local && !options.buildOnly) await json(path.join(ROOT, '.cache/cloudflare/remote-upload.json'), {
@@ -317,9 +323,10 @@ export async function main(options) {
         });
       },
     });
-    if (working) { await removeWorkingDirectory(working); working = undefined; }
-    if (!result.skipped) console.log(options.buildOnly ?
-      'Prepared content and search locally; no R2/D1 reads or writes. Run npm run cf:check to verify the Worker package.' :
+    if (working) { await withPublicationProgress('Removing temporary export files',()=>removeWorkingDirectory(working),console.log); working = undefined; }
+    if(result.assetsOnly)console.log('Assets staged. Published notes and search are unchanged; run the normal publish command to activate them.');
+    else if (!result.skipped) console.log(options.buildOnly ?
+      'Prepared content and search locally; no R2/D1 reads or writes. Run node scripts/cloudflare.mjs check to verify the Worker package.' :
       `Content published (${result.revision.slice(0, 12)}). The Worker will read the new revision from R2.`);
     return result;
   } catch (error) {
@@ -331,7 +338,7 @@ export async function main(options) {
   }
 }
 
-const help = `Usage: npm run content:publish -- [options]
+const help = `Usage: npm run publish -- [options]
 Checks the Taelgar commit in R2, exports via Obsidian, optimizes images, uploads, and verifies D1 search before activation.
 Requires Node 22+, Git, the vault open in Obsidian with Dataview ready, and Wrangler login.
 Settings: config.json, plus config.local.json automatically when present.
@@ -341,7 +348,10 @@ Settings: config.json, plus config.local.json automatically when present.
   --obsidian-command PATH   Override automatic Windows/macOS CLI detection
   --obsidian-vault NAME     Optional Obsidian vault name or ID
   --no-strict               Permit failed/unsupported queries, reporting each one
+  --assets-only             Upload missing images/media without activating notes, search, or cleanup
   --force                   Rebuild even when the R2 commit/settings match
+  --unblock                 Clear a stale D1 publication lock and continue publishing
+                            Confirms no publisher, staging, cleanup, or rollback is running on any computer
   --allow-dirty             Publish uncommitted changes, marked dirty; subsequent runs rebuild
   --max-image-size PIXELS   Largest responsive image edge; default 2560; originals retained
   --image-quality 1-100     JPEG/WebP derivative quality; default 82 (PNG derivatives are lossless)
@@ -354,5 +364,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     const options = parseOptions(process.argv.slice(2));
     if (options.help) console.log(help);
     else await main(options);
-  } catch (error) { console.error(error.message); process.exitCode = 1; }
+  } catch (error) {
+    const title = 'ERROR: PUBLISH COMMAND FAILED';
+    const heading = process.stderr.isTTY && !('NO_COLOR' in process.env) ? '\x1b[1;31m' + title + '\x1b[0m' : title;
+    console.error('\n' + heading + '\n\n' + error.message + '\n');
+    process.exitCode = 1;
+  }
 }

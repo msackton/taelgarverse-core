@@ -25,9 +25,10 @@ test('Wrangler custom build produces map and diagram assets without a prior loca
     await fs.copyFile(path.join(ROOT,'scripts',file),path.join(directory,'scripts',file));
   }
   await fs.cp(path.join(ROOT,'src/browser'),path.join(directory,'src/browser'),{recursive:true});
+  for(const file of ['map-distance.mjs','map-path.mjs'])await fs.copyFile(path.join(ROOT,'src',file),path.join(directory,'src',file));
   const config = JSON.parse(await fs.readFile(path.join(ROOT,'wrangler.json'),'utf8'));
   await run(config.build.command,{cwd:directory,windowsHide:true});
-  for (const file of ['maps.js','leaflet.css','diagrams.js']) {
+  for (const file of ['maps.js','leaflet.css','diagrams.js','image-viewer.js']) {
     assert.ok((await fs.stat(path.join(directory,'public/generated',file))).size>0,file+' is packaged');
   }
   assert.match(await fs.readFile(path.join(directory,'.generated/core-release.mjs'),'utf8'),/"commit":"[a-f0-9]{40}"/);

@@ -41,6 +41,15 @@ test('shared settings work without a local file and use paths relative to config
   assert.equal(settings.default_date, '1750-01-01');
 });
 
+test('plugin installation needs only a vault directory, and quick preview ignores an unavailable old export',t=>{
+  const {root,vault,write,load}=fixture(t);
+  const testVault=path.join(root,'empty-test-vault');fs.mkdirSync(testVault);
+  write('config.local.json',{source_dir:'missing-export'});
+  assert.equal(load(undefined,{}, {vault:testVault,vaultOnly:true}).vault_dir,fs.realpathSync(testVault));
+  assert.equal(load(undefined,{}, {liveVault:true}).source_dir,vault);
+  assert.throws(()=>load(),/ENOENT/);
+});
+
 test('local settings load automatically and only need the values being changed', t => {
   const {vault, write, load} = fixture(t);
   write('config.local.json', {default_date: '1740-02-01', nav_source: null});
@@ -159,4 +168,17 @@ test('website source overrides are relative to their file, and null explicitly d
   write('config.local.json', {home_source:null,nav_source:null});
   assert.equal(load().home_source, null);
   assert.equal(load().nav_source, null);
+});
+
+test('POV date restrictions default off and accept only a boolean site setting',t=>{
+  const {write,load}=fixture(t);
+  assert.equal(load().respect_pov_dates,false);
+  for (const respect_pov_dates of [true,false]) {
+    write('config.local.json',{respect_pov_dates});
+    assert.equal(load().respect_pov_dates,respect_pov_dates);
+  }
+  for (const respect_pov_dates of ['true','false',1,0,null,[],{}]) {
+    write('config.local.json',{respect_pov_dates});
+    assert.throws(()=>load(),/respect_pov_dates must be a boolean/);
+  }
 });

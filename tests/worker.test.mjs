@@ -36,6 +36,8 @@ before(async()=>{
   fs.writeFileSync(path.join(source,'tiny.png'),'fixture asset');
   fs.writeFileSync(path.join(source,'Tiled Map.md'),'```leaflet\nimage: [[world.png]]\nbounds: [[0,0],[64,4100]]\n```');
   await sharp({create:{width:4100,height:64,channels:3,background:'red'}}).png().toFile(path.join(source,'world.png'));
+  fs.writeFileSync(path.join(source,'Regional Map.md'),'```taelgar-map\nimage: [[regional.png]]\nbounds: [[0,0],[64,2308]]\n```');
+  await sharp({create:{width:2308,height:64,channels:3,background:'blue'}}).png().toFile(path.join(source,'regional.png'));
   for (const relative of ['assets/audio/song.mp3','assets/session-audio/session/clip.m4a','assets/excalidraw/drawing.png']) {
     const file=path.join(source,relative);fs.mkdirSync(path.dirname(file),{recursive:true});
     fs.writeFileSync(file,'media fixture: ' + relative);
@@ -59,7 +61,7 @@ before(async()=>{
   fs.writeFileSync(navSource,'- [Home](index.md)\n- People\n    - {glob: people/}\n- Places\n    - {glob: places/}\n');
   fs.copyFileSync(new URL('./fixtures/home.md',import.meta.url),homeSource);
   fs.writeFileSync(path.join(source,'_website','private.md'),'Unpublished website planning.');
-  const settings={...loadSettings(),source_dir:source,ignore_file:path.join(source,'_ignore.txt'),nav_source:navSource,home_source:homeSource,campaigns:['dufr','adma']};
+  const settings={...loadSettings(),respect_pov_dates:true,source_dir:source,ignore_file:path.join(source,'_ignore.txt'),nav_source:navSource,home_source:homeSource,campaigns:['dufr','adma']};
   report=await prepareContent(settings,path.join(directory,'package'));
   bucket=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
     {key:'published/current.json',file:report.pointerFile}]);
@@ -67,6 +69,36 @@ before(async()=>{
   engine=new Engine(settings);worker=createWorker(instantiate);
 });
 after(()=>{if(directory && isInside(path.join(ROOT,'.cache'),directory))fs.rmSync(directory,{recursive:true});});
+
+test('published campaign homes select per-host content and lock Worker APIs without shared state',async()=>{
+  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  index.campaignHomes={dunmar:'---\ncampaigns: [dufr]\ndate: 1730-01-01\n---\n# Dunmar home\n\nHello Dunmar.\n\n![[Nested Embed]]',addermarch:'---\ncampaigns: [adma]\n---\n# Addermarch home\n\nHello Addermarch.',combined:'---\ntitle: Three campaigns\ncampaigns: [dufr, feywild, mawar]\n---\n# Combined home\n\nWelcome.\n\n![[Nested Embed]]',historic:'---\ncampaigns: [dufr, feywild, mawar]\ndate: 1730-01-01\n---\n# Historic home\n\nWelcome.'};
+  const indexFile=path.join(directory,'campaign-index.json');fs.writeFileSync(indexFile,JSON.stringify(index));
+  const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
+  const storage=new LocalBucket([...uploads,{key:'revisions/'+report.revision+'/index.json',file:indexFile},{key:'published/current.json',file:report.pointerFile}]);
+  const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+  for(const [host,id,title] of [['dunmar','dunmar-frontier','Dunmar home'],['combined','custom','Combined home'],['historic','custom','Historic home'],['addermarch','addermarch','Addermarch home'],['www','modern','Welcome to the fixture site'],['combined','custom','Combined home'],['dunmar','dunmar-frontier','Dunmar home']]) {
+    const home=await app.fetch(new Request('https://'+host+'.taelgar.org/'),environment);
+    assert.equal(home.status,200);const $=load(await home.text());assert.equal($('main h1').first().text(),title);
+    const response=await app.fetch(new Request('https://'+host+'.taelgar.org/api/page?page=Example'+(host==='www'?'':'&context=modern&date=9999-01-01&campaigns=all')),environment);
+    assert.equal(response.status,200);const page=await response.json();assert.equal(page.context.id,id);
+    assert.equal(page.context.locked,host==='www'?undefined:true);
+    if(id==='custom') {
+      assert.deepEqual(page.campaigns,['dufr','feywild','mawar']);
+      assert.equal(page.date,host==='historic'?'1730-01-01':engine.contexts.resolve('modern').date);
+      const catalogue=await(await app.fetch(new Request('https://'+host+'.taelgar.org/api/contexts'),environment)).json();
+      assert.equal(catalogue.contexts[0].date,page.date);assert.deepEqual(catalogue.contexts[0].campaigns,page.campaigns);
+    } else if(host!=='www') {
+      assert.deepEqual(page.campaigns,[host==='dunmar'?'dufr':'adma']);
+      assert.equal(page.date,engine.contexts.resolve(id).date);
+    }
+  }
+  assert.equal(storage.calls.get('revisions/'+report.revision+'/index.json'),1);
+  for(const metadata of ['campaigns: [unknown]','context: dunmar-frontier']) {
+    index.campaignHomes={dunmar:'---\n'+metadata+'\n---\n# Invalid'};fs.writeFileSync(indexFile,JSON.stringify(index));
+    await assert.rejects(loadSnapshot(storage,report.revision,instantiate),error=>error.status===503);
+  }
+});
 
 test('Worker renders context-filtered maps and serves packaged tile assets without fetching the original image',async()=>{
   for (const [context,dm,count] of [['modern','0',1],['dunmar-frontier','0',2],['modern','1',2]]) {
@@ -83,9 +115,28 @@ test('Worker renders context-filtered maps and serves packaged tile assets witho
   const previousImageReads = bucket.calls.get(image.objectKey) || 0;
   const tile = await request(config.tile.baseUrl+'/0/8/0.webp');
   assert.equal(tile.status,200);assert.match(tile.headers.get('content-type'),/image\/webp/);
-  assert.equal((await sharp(Buffer.from(await tile.arrayBuffer())).metadata()).width,512);
+  assert.equal(tile.headers.get('cache-control'),'public, max-age=31536000, immutable');
+  const tileBytes = Buffer.from(await tile.arrayBuffer());
+  assert.equal((await sharp(tileBytes).metadata()).width,512);
   assert.equal(bucket.calls.get(image.objectKey) || 0,previousImageReads);
-  assert.equal((await request(config.tile.baseUrl+'/0/8/0.webp',{method:'HEAD'})).status,200);
+  const head = await request(config.tile.baseUrl+'/0/8/0.webp',{method:'HEAD'});
+  assert.equal(head.status,200);assert.equal(head.headers.get('cache-control'),tile.headers.get('cache-control'));
+  assert.equal(head.headers.get('content-length'),String(tileBytes.length));
+  const cached = await request(config.tile.baseUrl+'/0/8/0.webp',{headers:{'If-None-Match':tile.headers.get('etag')}});
+  assert.equal(cached.status,304);assert.equal(cached.headers.get('cache-control'),tile.headers.get('cache-control'));
+  const range = await request(config.tile.baseUrl+'/0/8/0.webp',{headers:{Range:'bytes=0-15'}});
+  assert.equal(range.status,206);assert.equal(range.headers.get('cache-control'),tile.headers.get('cache-control'));
+  assert.deepEqual(Buffer.from(await range.arrayBuffer()),tileBytes.subarray(0,16));
+  const original = await request(config.image,{method:'HEAD'});
+  assert.equal(original.headers.get('cache-control'),'public, max-age=0, must-revalidate');
+  const regionalPage = await (await request('/api/page?page=Regional%20Map')).json();
+  const regionalConfig = JSON.parse(load(regionalPage.html)('.leaflet-map').attr('data-map'));
+  assert.ok(regionalConfig.tile,'regional maps receive tiles in a packaged snapshot');
+  const regionalImage = index.entries.find(entry=>entry.id==='regional.png');
+  assert.equal(bucket.calls.get(regionalImage.objectKey) || 0,0);
+  const regionalTile = await request(regionalConfig.tile.baseUrl+'/0/0/0.webp');
+  assert.equal(regionalTile.status,200);assert.equal(regionalTile.headers.get('cache-control'),tile.headers.get('cache-control'));
+  assert.equal(bucket.calls.get(regionalImage.objectKey) || 0,0);
   assert.equal((await request(config.tile.baseUrl+'/0/999/999.webp')).status,404);
   assert.equal(await (await request('/theme/maps.js')).text(),'/generated/maps.js');
   assert.equal(await (await request('/theme/leaflet.css')).text(),'/generated/leaflet.css');
@@ -187,17 +238,19 @@ test('Worker rejects unavailable pages before reading any note body and permits 
   for (const [page,query] of [
     ['Hidden','context=modern'],['Hidden','date=1800-01-01'],
     ['CampaignHidden','context=dunmar-frontier'],['Unborn','date=1730-04-01'],['Unbuilt','date=1730-04-01'],
+    ['POV%20Year','date=1739-12-31'],['POV%20Plural','date=1739-12-31'],
   ]) {
     for (const dm of ['0','1']) for (const route of ['/api/page?page='+page+'&','/page/'+page+'?']) {
       const response=await fetch(route+query+'&dm='+dm);
       assert.equal(response.status,404,route+query);
-      assert.doesNotMatch(await response.text(),/Private page\.|Unborn biography\.|Unbuilt history\./);
+      assert.doesNotMatch(await response.text(),/Private page\.|Unborn biography\.|Unbuilt history\.|POV year text\.|POV plural text\./);
     }
   }
   assert.equal([...isolated.calls.keys()].some(key=>key.includes('/notes/')),false);
   for (const [page,query] of [
     ['CampaignHidden','context=modern'],['CampaignHidden','context=addermarch'],
     ['Unborn','date=1730-04-02'],['Unbuilt','date=1730-04-02'],['Invisible','context=modern'],['Drawing','context=modern'],
+    ['POV%20Year','date=1740-01-01'],['POV%20Plural','date=1740-01-01'],
   ]) assert.equal((await fetch('/api/page?page='+page+'&'+query)).status,200,page);
   assert.equal((await fetch('/assets/assets/dm/map.png')).status,404);
   assert.equal((await fetch('/assets/asset/dm/map.png')).status,404);
@@ -376,7 +429,7 @@ test('published snapshots retain audio and exported drawings and Worker serves m
   }
   const html=await(await request('/page/media')).text();
   assert.match(html,/<script src="\/theme\/image-viewer.js" defer>/);
-  assert.equal(await(await request('/theme/image-viewer.js')).text(),'/image-viewer.js');
+  assert.equal(await(await request('/theme/image-viewer.js')).text(),'/generated/image-viewer.js');
 });
 
 test('snapshot load failures recover and publication can change without redeploying Worker',async()=>{
@@ -512,4 +565,74 @@ test('republishing replaces removed backlinks and invalidates the active Worker 
     storage.objects.set('published/current.json',packaged.pointerFile);
     assert.equal((await read()).backlinks.some(link=>link.page==='backlink-source'),false);
   } finally { fs.writeFileSync(file,original); }
+});
+
+test('snapshot POV setting is opt-in and older snapshots keep POV pages available',async()=>{
+  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  assert.equal(index.settings.respect_pov_dates,true);
+  for (const setting of [undefined,false,true]) {
+    if (setting===undefined) delete index.settings.respect_pov_dates;
+    else index.settings.respect_pov_dates=setting;
+    const file=path.join(directory,'pov-settings-index.json');fs.writeFileSync(file,JSON.stringify(index));
+    const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
+      {key:'revisions/'+report.revision+'/index.json',file},{key:'published/current.json',file:report.pointerFile}]);
+    const app=createWorker(instantiate);
+    for (const pov of [undefined,'1','0','1','0']) for (const page of ['pov-year','pov-plural']) {
+      const enabled=pov===undefined?setting===true:pov==='1';
+      const response=await app.fetch(new Request('https://example.test/page/'+page+'?date=1739-12-31'+(pov===undefined?'':'&pov='+pov)),{...env,CONTENT:storage});
+      assert.equal(response.status,enabled?404:200,String(setting)+' '+pov);
+    }
+    const response=await app.fetch(new Request('https://example.test/api/search?q=POV&date=1739-12-31'),{...env,CONTENT:storage});
+    const result=await response.json();
+    assert.deepEqual(result.results.map(r=>r.page).sort(),setting===true?[]:['pov-plural','pov-year']);
+  }
+});
+
+test('campaign sites honor reader POV choices without changing their locked date or shared engine',async()=>{
+  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  index.settings.respect_pov_dates=false;
+  index.campaignHomes={dunmar:'---\ncampaigns: [dufr]\n---\n# Campaign home'};
+  const file=path.join(directory,'reader-pov-index.json');fs.writeFileSync(file,JSON.stringify(index));
+  const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
+    {key:'revisions/'+report.revision+'/index.json',file},{key:'published/current.json',file:report.pointerFile}]);
+  const app=createWorker(instantiate),environment={...env,CONTENT:storage};
+  const fetch=path=>app.fetch(new Request('https://dunmar.taelgar.org'+path),environment);
+  const hidden=await fetch('/api/page?page=POV%20Year&date=9999-01-01&pov=1&dm=1');
+  assert.equal(hidden.status,404);
+  assert.equal([...storage.calls.keys()].some(key=>key.includes('/notes/')),false);
+  const outcomes=await Promise.all(['0','1','0','1'].map(async pov=>(await fetch('/page/pov-year?pov='+pov)).status));
+  assert.deepEqual(outcomes,[200,404,200,404]);
+  const normal=await (await fetch('/api/page?page=POV%20Year')).json();
+  assert.equal(normal.date,'1720-01-01');assert.equal(normal.context.locked,true);
+  assert.equal(normal.context.pov,undefined);
+  const home=load(await (await fetch('/?pov=1')).text());
+  assert.equal(home('#context-controls input[name="pov"]').val(),'1');
+  assert.equal(home('.full-site-link').attr('href'),'https://www.taelgar.org/?pov=1');
+  for (const pov of ['1','0']) {
+    const search=await (await fetch('/api/search?q=POV&pov='+pov)).json();
+    assert.deepEqual(search.results.map(r=>r.page).sort(),pov==='1'?[]:['pov-plural','pov-year']);
+  }
+});
+
+test('published microsite enforcePoV overrides reader choices on the Worker and isolates hosts',async()=>{
+  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  const home=value=>'---\ncampaigns: [dufr]\nenforcePoV: '+value+'\n---\n# Perspective home\n\n![[POV Plural]]';
+  index.campaignHomes={enabled:home(1),disabled:home(0)};
+  const file=path.join(directory,'enforced-pov-index.json');fs.writeFileSync(file,JSON.stringify(index));
+  const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
+    {key:'revisions/'+report.revision+'/index.json',file},{key:'published/current.json',file:report.pointerFile}]);
+  const app=createWorker(instantiate),environment={...env,CONTENT:storage};
+  const fetch=(host,path)=>app.fetch(new Request('https://'+host+'.taelgar.org'+path),environment);
+  const hidden=await fetch('enabled','/api/page?page=POV%20Year&pov=0');assert.equal(hidden.status,404);
+  assert.equal([...storage.calls.keys()].some(key=>key.includes('/notes/')),false);
+  const outcomes=await Promise.all([['enabled','0'],['disabled','1'],['enabled','invalid'],['disabled','invalid']].map(async([host,pov])=>(await fetch(host,'/page/pov-year?pov='+pov)).status));
+  assert.deepEqual(outcomes,[404,200,404,200]);
+  for (const [host,pov] of [['enabled',true],['disabled',false]]) {
+    const result=await (await fetch(host,'/api/search?q=POV&pov='+(pov?'0':'1'))).json();
+    assert.equal(result.context.pov,pov);
+    assert.deepEqual(result.results.map(r=>r.page).sort(),pov?[]:['pov-plural','pov-year']);
+    const html=load(await (await fetch(host,'/')).text());
+    assert.equal(html('#context-controls input[name="pov"]').val(),pov?'1':'0');
+    assert.equal(html('main').text().includes('POV plural text.'),!pov);
+  }
 });

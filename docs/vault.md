@@ -27,6 +27,7 @@ The following are left out of the article and media collection:
   regardless of capitalization.
 - Files and folders beginning with `.`, files named `AGENTS.md`, and symbolic links
   (filesystem links to another location).
+- Folders containing a `.nopublish` marker, including every descendant.
 
 The underscore rule applies to **folders**: a file named `_example.md` can still
 be included. Likewise, `assets/dm-map.png` is included; it is outside `assets/dm/`.
@@ -36,14 +37,37 @@ Notes with unreadable text or invalid properties are skipped with a warning.
 Two notes that produce the same website address stop publication until the
 conflict is resolved.
 
+### Exclude a folder
+
+Create a file named **`.nopublish`** inside any folder you want omitted from the
+article and media collection. It can be empty or contain an explanatory note;
+only its presence matters. For example:
+
+```text
+Campaigns/Cleenseau Campaign/Chats/.nopublish
+```
+
+The folder and all descendants are excluded in every campaign/date view,
+including Behind the Curtain. Their notes, metadata, aliases, backlinks, search
+documents, and contained media are not packaged for publication. A child folder
+cannot override an excluded parent. Removing the marker opts the folder back in
+on the next preview refresh or content publication.
+
+The publisher reads markers from the original vault even when preparing a
+materialized export that omits dotfiles. Marker additions and removals invalidate
+the unchanged-publication check. A marker does not remove files from an already
+active publication: republish the content through the normal approved workflow.
+It also does not remove text already copied or quoted into other notes.
+
 ## Homepage and menu
 
-Two files in the vault's `_website` folder supply the website's own content:
+Files in the vault's `_website` folder supply the website's own content:
 
 | File | What to edit |
 | --- | --- |
 | `_website/home.md` | The homepage heading, introductory prose, and links within that prose. |
 | `_website/navigation.md` | The sidebar menu: section names, order, and links to notes. See the [menu format](../README.md#site-navigation-and-page-toc). |
+| `_website/<subdomain>.md` | A landing page with a locked campaign set and date on that subdomain. See [campaign landing pages](campaign-sites.md). |
 
 Edit these in the vault and publish them with your notes. The homepage uses
 ordinary Markdown and supports the same links and campaign/date comments as
@@ -59,7 +83,14 @@ three-link navigation paragraph work without displaying duplicate entry links.
 
 The publisher reads these two files directly from the original vault, even when
 it prepares the other notes through Obsidian. They do not become searchable
-articles, and other files in `_website` stay excluded. Setting `vault_dir` once
+articles. Additional `_website/<subdomain>.md` files opt in with `campaigns`
+frontmatter; other website files stay excluded.
+For example, `campaigns: [dufr, feywild, mawar]` keeps those three campaigns selected
+throughout that subdomain. An optional `date: 1748-05-05` fixes the in-world date;
+omitting it uses Modern. A single campaign, such as `campaigns: [clee]`, always
+follows its latest published session date, regardless of an authored `date`.
+The old `context` property is no longer supported on landing pages.
+Setting `vault_dir` once
 is enough to find both files; see [configuration settings](deploy.md#vault-and-website-settings)
 only if you need a different location.
 
@@ -130,6 +161,7 @@ These properties hide a whole page:
 | `excludePublish: [dufr]` | Hide the page when Dunmar Frontier is selected, including in Custom. It can still appear in Modern or selections that omit Dunmar Frontier. |
 | `born` or `created` after the selected date | Hide the page until that date. If both are present, `born` is used. |
 | `activeYear` after the selected date | Hide the page until it becomes active. |
+| Dated `POV` after the selected date, with `pov=1` or an enabled site default | Treat the page as not yet born; hide it until its POV date. |
 
 `excludePublish` can also contain several campaign codes, as a YAML list or a
 comma-separated string. Codes are matched regardless of capitalization.
@@ -148,13 +180,36 @@ Partial birth/creation dates have different meanings depending on how they are w
 The same rules apply to `created`. Missing or unknown birth/creation dates do not
 hide the page. `activeYear` uses the start of the specified year.
 
+POV filtering is an optional reader preference. Add `pov=1` to a website URL
+to try it, for example `/?context=addermarch&pov=1`, or `&pov=1` when the URL
+already has query parameters. Use `pov=0` to turn it off. The choice travels
+through article links, navigation, search, and context changes, including
+campaign sites. It is kept in URLs, so a bookmark or shared link keeps the choice;
+a fresh URL without `pov` follows the site default. No new control appears for
+ordinary visitors. The API also accepts `pov=true` and `pov=false`.
+
+The site-wide `respect_pov_dates` setting supplies the default when `pov` is
+omitted. It defaults to `false`, including in older snapshots. A reader can
+override either default unless the microsite landing page sets `enforcePoV: 1`
+or `enforcePoV: 0`, which fixes that host's mode. See
+[microsite POV filtering](campaign-sites.md#pov-date-filtering) and
+[configuration settings](deploy.md#configuration-settings).
+Birth/creation, activity, and campaign exclusions still apply in both modes.
+
+When enabled, dated `POV` uses the beginning of its stated period: `POV: 1740`,
+`POV: "1740"`, and `POV: 1740s` all make the page available on January 1,
+1740. A year-month starts on its first day; a full date starts on that day.
+The page becomes available on the latest of its birth/creation, activity, and POV
+dates. Missing, invalid, or nondated POV values such as `modern` and `undated`
+add no date restriction.
+
 Hidden pages disappear from search and navigation. Links to them keep their text
 but cannot be clicked; opening their address gives “Page unavailable.”
 
 **Readers can choose any campaign and turn on See Behind the Curtain.** These
 choices do not require a login. That option reveals comments, but never overrides
-the whole-page rules above. `knownTo`, POV/audience notes, and status tags do not
-limit who can read a page.
+the whole-page rules above. `knownTo`, nondated POV/audience notes, and status
+tags do not limit who can read a page.
 
 A hidden page's properties may still contribute to other pages' headers. Its
 images and other media can still be opened separately. Ordinary prose does not
@@ -226,8 +281,29 @@ below 800px the page contents disappear. In note or homepage frontmatter,
 `hide: [navigation]` omits the section links and left navigation, and
 `hide: [toc]` omits page contents. Both may be combined. For articles,
 `hide: toc` also works, and hidden contents are omitted from the page API.
-Search, settings, and
-backlinks remain available, and unused navigation columns release their space.
+Search, settings, and backlinks remain available, and unused navigation columns
+release their space.
+
+### Article width
+
+Prose, lists, ordinary figures, and floated asides keep a readable width (up to
+80ch). Maps (`.leaflet-map`), hero image roles, both semantic and callout galleries,
+large figure roles, and Mermaid diagrams automatically use the wider article
+column. Navigation and page navigation keep their own space; on narrow screens
+media fits the available width. Mermaid drawings retain their intrinsic size
+within that space. No per-page metadata is needed for these semantic roles.
+
+Consecutive prose blocks share a formatting context, preserving image-callout
+floats and their text. Breakouts clear those floats. Embedded notes retain their
+title, boundary, and scoped anchors while allowing semantic media inside them to
+expand. Media nested in ordinary prose callouts or lists stays inside its parent.
+Wide tables and code scroll within their container rather than widening the page.
+
+For an exceptional media page, frontmatter `layout: wide` also expands top-level
+tables, nonfloated figures, and paragraphs containing only an image or linked
+image. It does not widen prose or promote portraits/asides. Unknown layout values
+use the normal semantic rules. This affects the website shell; the page API
+retains the fragment structure and reports `layout: "wide"` for that override.
 
 **Linked from** lists other articles that link to the current one. Only pages and
 passages visible in the selected view contribute links. Campaign notes contribute
@@ -253,6 +329,17 @@ campaign, and **See Behind the Curtain** controls.
 | An Excalidraw drawing | Use an exported PNG or another supported image; the website does not draw it from Excalidraw data. |
 | A Mermaid code block | A diagram, with its source text available as a fallback. |
 
+Captions below images in `[!image|...]` callouts, captions in each `[!gallery]`
+list item, and HTML `figcaption` text also appear in the enlarged image viewer.
+The viewer uses the image's alt text when no caption is authored; alt text itself
+remains unchanged for accessibility. For example:
+
+```markdown
+> [!image|right standard]
+> ![[portrait.jpg]]
+> *A short contextual caption.*
+```
+
 Mermaid flowchart nodes marked `internal-link` resolve their visible labels to
 notes, including filenames and aliases, as in the existing family trees. Explicit
 Mermaid destinations such as `click A href "../People/Example.md"` also work.
@@ -271,12 +358,32 @@ source/context metadata; previews use the existing context-filtered page API.
 
 ## Interactive maps
 
-Existing fenced `leaflet` blocks render as interactive image maps. Their image
-wikilink, bounds, center (`lat`/`long`), zoom limits, default zoom, height, and
+Fenced `taelgar-map` and legacy `leaflet` blocks render as interactive image maps.
+Their image wikilink, bounds, center (`lat`/`long`), zoom limits, default zoom, height, and
 width are preserved. Maps support dragging, zoom buttons, keyboard panning and
 zooming, and touch gestures. **Fit map** shows the complete map; **Open map image**
 also works without JavaScript or if the interactive viewer fails. Mouse-wheel
 scrolling continues to scroll the article.
+
+**Measure distance** adds a temporary route ruler. Click or tap successive
+points for a total; Undo, Clear, and Done controls appear as needed.
+**Trace path** mode follows winding roads or rivers by dragging, with each
+stroke measured along its bends and removed as one Undo action. The same tools
+are available through the [Taelgarverse Obsidian plugin](../obsidian/taelgarverse/README.md).
+Use `taelgar-map` for new notes so the plugin can coexist with Obsidian Leaflet.
+Existing `leaflet` blocks require opting into legacy support in Taelgarverse,
+with other map renderers disabled, or changing only their opening fence label.
+Returning to the start or choosing **Close shape** closes an outline and shows
+its enclosed area in square miles alongside the distance. Separate outlines
+have separate readings; crossed outlines report that area is unavailable.
+The current Taelgar maps record their verified **24-mile hex** calibration inside
+each `leaflet` block: `calibration.hexMiles`, `hexPixels` in original image pixels,
+`imageSize: [width, height]`, and an optional `imageSha256` fingerprint. The vault
+owns this data; the website and Obsidian read the same fields. The fingerprint
+disables measurement after an image changes until its calibration is rechecked.
+Zoom and the older display bounds do not affect calibrated distance. Blocks
+without calibration use authored `unit`/`scale`, or show map units if no unit is
+supplied. See [map calibration and controls](maps.md).
 
 Large maps use generated WebP tiles, so viewing a map does not fetch its entire
 original image. Smaller regional maps use image overlays. On narrow screens,
@@ -286,7 +393,7 @@ and loaded only on pages with maps. Campaign/date and Behind the Curtain blocks
 filter maps like other article content, including inside note embeds. Missing
 images or invalid definitions produce a map warning without breaking the article.
 
-Distance tools, markers, switchable overlays, and navigation between maps remain
+Markers, switchable overlays, and navigation between maps remain
 future work; the website does not execute Obsidian Leaflet plugin scripts.
 
 Other images may be made smaller during publication. See
@@ -305,8 +412,13 @@ scripts. HTML in the normal article body is supported.
 
 ## Search
 
-Search the header or homepage for names, aliases, or words from a note. Words
-match together and include word beginnings; use double quotes for an exact phrase.
+Use the header search for names, aliases, or words from a note. Search
+shows results directly below the field as you type, leaving the current article
+in place. Previous and Next stay inside the dropdown. Use Escape or click outside
+to dismiss it; select a result to open its article. Arrow keys move between the
+search input and result links. On phones, the search icon reveals the field in
+the header. Regular search URLs and forms remain available without JavaScript.
+Words match together and include word beginnings; use double quotes for an exact phrase.
 Results show relevant excerpts with highlighted matches and keep the selected
 date, campaigns and Behind the Curtain view. Conditional and private prose only
 appears when it is visible in that view. Generated headers, executable query

@@ -8,7 +8,7 @@ import {createRetentionStorage,prunePublication,rollbackPublication,POINTER_KEY}
 export async function main(argv=process.argv.slice(2)){
   const [command,...args]=argv;
   if(!command || command==='--help' || args.includes('--help')){
-    console.log('Usage: npm run content:prune -- --local|--remote [--dry-run]\n       npm run content:rollback -- --local|--remote\nPrune keeps the active publication plus one previous good snapshot in R2/D1.\nRollback swaps those two snapshots after verifying their content and search.');return;
+    console.log('Usage: node scripts/maintain-content.mjs prune --local|--remote [--dry-run]\n       node scripts/maintain-content.mjs rollback --local|--remote\nPrune keeps the active publication plus one previous good snapshot in R2/D1.\nRollback swaps those two snapshots after verifying their content and search.');return;
   }
   if(!['prune','rollback'].includes(command) || args.some(a=>!['--local','--remote','--dry-run'].includes(a)) || args.includes('--local')===args.includes('--remote') || (command==='rollback' && args.includes('--dry-run')))throw new Error('Choose prune [--dry-run] or rollback, with exactly one of --local / --remote');
   const config=loadCloudflareConfig(),options={local:args.includes('--local')};

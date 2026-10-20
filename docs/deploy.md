@@ -1,16 +1,94 @@
-# Update the website
+# Development and publication workflows
 
 The site is [taelgarverse.msackton.workers.dev](https://taelgarverse.msackton.workers.dev/).
 
 - **Notes, images, audio, homepage, and menu in `taelgar`:** run the publishing command below.
   Saving them to GitHub alone does not update the website.
+  This includes opted-in `_website/<subdomain>.md` campaign landing pages;
+  see [campaign landing pages](campaign-sites.md) for the format and DNS setup.
+  Folder exclusions use a `.nopublish` marker in the original vault; adding or
+  removing one also requires content publication. See [folder exclusions](vault.md#exclude-a-folder).
 - **Website code in `taelgarverse-core`:** merging changes into `main` on
-  GitHub updates the website automatically through Cloudflare.
+  GitHub runs tests, then deploys to Cloudflare only if they pass (after the
+  one-time GitHub deployment setup below).
+- **Taelgarverse Obsidian plugin:** publish a separate BRAT release for Maps and
+  the optional Images feature; the materializer still follows the existing vault
+  workflow. See [plugin development and releases](../obsidian/taelgarverse/README.md).
 
 Start with [publishing](#publish-your-latest-notes) for a normal update.
 The references below explain [publishing options](#publishing-options),
 [configuration settings](#configuration-settings), and
-[the other npm commands](#command-reference).
+[maintenance internals](#command-reference).
+
+## Local preview and testing
+
+After `npm ci`, use one of these commands from core:
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Reads the live vault without Obsidian. Restarts on vault/source changes; refresh the browser. Some Dataview content can be incomplete. |
+| `npm run dev -- --full` | Exports through running Obsidian, processes images/maps/search, loads local R2/D1, and starts the local Worker. No live publication. Rerun after editing notes. |
+| `npm run dev -- --plugin` | Builds and installs Taelgarverse in the configured vault. Tries to reload it in running Obsidian; otherwise asks for a restart. |
+| `npm test` | Runs the automated suite without running Obsidian. |
+
+Both previews use http://127.0.0.1:8765/. Add `--port 8766` if needed.
+Use `--vault PATH` or `--config FILE` to select local inputs without changing
+shared defaults. `--plugin` can be combined with `--full`. Quick preview uses
+the original vault even if `source_dir` points to an earlier export.
+Full preview permits uncommitted notes and reports unsupported materialization
+queries; it never contacts production R2/D1. Its cached data stays in core.
+
+## GitHub tests, website deployment, and plugin releases
+
+The **Tests** workflow runs on pull requests and is reused by website and plugin
+release workflows. **Test and deploy website** runs on pushes to core's `main`.
+Both automatic triggers skip changes that only affect `.md` files anywhere in
+the repository; changes that include any other file still run. Explicit plugin
+releases continue to run the reusable tests regardless of changed paths.
+The test job checks out public vault Markdown and header metadata/scripts, excluding assets,
+then runs `npm test`, local R2/D1 integration checks, and the Worker packaging
+check. Testing requires no Obsidian or Cloudflare credentials. The website
+deployment job requires the tests to succeed; failures skip deployment and leave
+the current site running. Production pipelines are serialized. Deployment uploads
+Worker code and static website assets; it does not publish vault content to R2/D1.
+
+### One-time GitHub website deployment setup
+
+1. In Cloudflare, create an API token using the **Edit Cloudflare Workers**
+   template, scoped to the **Taelgar** account and the **taelgar.org** zone for
+   the custom domains declared in `wrangler.json`. Follow Cloudflare's
+   [GitHub Actions authentication guide](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/).
+   Use a separate deployment token; the local content publisher has different needs.
+2. In `msackton/taelgarverse-core` → **Settings → Secrets and variables → Actions**,
+   add repository secret **`CLOUDFLARE_API_TOKEN`** with that token. Never put its
+   value in Git, chat, or a repository variable.
+3. Add repository variable **`CLOUDFLARE_ACCOUNT_ID`** with
+   `2328f3621c0a639572c74f537c5854c4` (Taelgar).
+4. Before pushing the workflow change to `main`, open Cloudflare → **Workers &
+   Pages → taelgarverse → Settings → Builds** and disconnect the Git repository.
+   This removes the independent deployment trigger; the deployed Worker and its
+   R2/D1 data remain. Keep the GitHub repository itself and the Worker.
+5. Push the reviewed workflow changes to `main`, then verify **Test and deploy
+   website** completes successfully in GitHub Actions and check the live site.
+   Until that verification, the existing deployed version continues to serve.
+
+The migration is not active merely because these files exist locally. Both the
+GitHub credential setup and Cloudflare trigger change are required. Afterward,
+retry a failed run in GitHub Actions after fixing the cause. A failed test run
+never starts the deployment job. A failure after deployment has started requires
+checking the job log and live version; it is not an automatic rollback.
+
+For an Obsidian release, commit the version, compatibility entry, and release
+notes, then use **Release Taelgarverse for Obsidian** in GitHub, or push a tag
+named `obsidian/<manifest version>`. GitHub runs the same CI checks, builds,
+uploads a complete draft, and publishes it to BRAT. Manual dispatch can opt to
+leave a draft. The one-time distribution-repository credential is described in
+the [plugin guide](../obsidian/taelgarverse/README.md).
+
+For agent-driven release preparation, version updates, notes, and publication,
+follow the [agent release procedure](obsidian-releases.md). The helper prepares
+only the three release files; the agent reviews the change scope and GitHub
+continues to own release builds and publication.
 
 ## Publish your latest notes
 
@@ -26,12 +104,16 @@ If this is your first time publishing from this computer, follow
 3. Open a terminal in the `taelgarverse-core` folder and run:
 
    ```sh
-   npm run content:publish -- --no-strict
+   npm run publish -- --no-strict
    ```
 
-4. Leave Obsidian open and avoid editing the vault until the command finishes.
-   Then open the website and check the pages you changed, including their images
-   and any relevant campaign/date views.
+4. Leave Obsidian open and avoid editing, syncing, or updating either repository
+   until the command finishes. Check the final message:
+   `Content published (<revision>)` confirms activation; “already in R2; skipping” means the saved
+   version/settings were already online. `ERROR: PUBLISH COMMAND FAILED` means
+   the command failed; read the explanation before retrying.
+5. After a successful publication, open the website and check the pages you
+   changed, including their images and any relevant campaign/date views.
 
 The command prepares copies of your notes, generates small image variants, and
 uploads the results and stages the matching D1 search index. It switches the site
@@ -73,9 +155,9 @@ npm ci
 Run this again after pulling changes to the project's dependencies.
 `npm ci` installs the exact package versions recorded by this project.
 
-In commands such as `npm run content:publish`, `npm run` starts one of the
+In commands such as `npm run publish`, `npm run` starts one of the
 project's named scripts. The extra `--` passes any following options to that
-script. For example, in `npm run content:publish -- --no-strict`, `--no-strict`
+script. For example, in `npm run publish -- --no-strict`, `--no-strict`
 is an option for the publisher.
 
 Next, sign in to Cloudflare:
@@ -128,7 +210,11 @@ alternative are omitted from the choices sent to browsers.
 JPEG/WebP derivatives use quality **82**. PNG derivatives use lossless WebP
 encoding and retain transparency. Animation, unsupported formats and audio keep
 their existing delivery. Leaflet maps retain full-resolution imagery and their
-separate WebP tile pipeline. Vault originals remain untouched.
+separate WebP tile pipeline. Maps with an original edge of at least 2,048 pixels
+or a file size of at least 1 MiB get tiles when their bounds start at zero. A
+core deployment applies long-lived caching to existing tiles; republish content
+to generate tiles for newly eligible maps. Either order is compatible. See
+[map delivery](maps.md#delivery-and-maintenance). Vault originals remain untouched.
 
 Article images select a small variant for their actual layout and screen density;
 offscreen images are deferred. The popup loads a screen-sized version only when
@@ -139,19 +225,21 @@ snapshots continue working with their existing images. See [image delivery](imag
 To increase the largest popup derivative, publish with a larger image limit:
 
 ```sh
-npm run content:publish -- --no-strict --max-image-size 4096 --image-quality 85
+npm run publish -- --no-strict --max-image-size 4096 --image-quality 85
 ```
 
 These settings affect derivatives; the downloadable original stays unchanged.
 
 ## Publishing options
 
-Add these after `npm run content:publish --`. You can combine them unless noted.
+Add these after `npm run publish --`. You can combine them unless noted.
 
 | Option | What it does |
 | --- | --- |
 | `--no-strict` | Continues when a Dataview query cannot be converted, and reports the problem. Without this option, query problems stop the export. |
 | `--force` | Publishes again even when the saved Git version and settings appear unchanged. |
+| `--assets-only` | Exports/packages content and uploads missing images/media only. Does not activate notes, stage search, or run retention cleanup. Uses production storage unless combined with `--local`; cannot be combined with `--build-only`. |
+| `--unblock` | Clears an observed stale D1 publication lock and continues publishing. Supplying it confirms no publisher, staging, cleanup, or rollback is running on any computer. Uses production D1 by default, or the emulator with `--local`; cannot be combined with `--build-only`. |
 | `--build-only` | Prepares the notes and images on this computer without contacting Cloudflare storage. Useful for checking an export. |
 | `--local` | Publishes into a local copy of Cloudflare storage for previewing. The live site stays unchanged. Use this or `--build-only`, not both. |
 | `--allow-dirty` | Allows uncommitted vault changes. Useful for local checks; if used for a live publication, the next publication will rebuild. |
@@ -166,18 +254,89 @@ Add these after `npm run content:publish --`. You can combine them unless noted.
 For example, check uncommitted edits without changing the live website:
 
 ```sh
-npm run content:publish -- --build-only --allow-dirty --no-strict
+npm run publish -- --build-only --allow-dirty --no-strict
 ```
 
-To preview an exported publication in a local Cloudflare Worker:
+For the complete local materialization and publication dry run, use `npm run dev -- --full`. It starts the local Worker after preparing its local R2/D1 data. Press Ctrl+C to stop it.
+
+### Incremental assets and interrupted uploads
+
+The publisher handles images and other media separately from notes. Assets use
+content hashes as their keys. Before uploading, it lists the destination bucket
+and reuses matching asset keys with matching sizes, including assets saved by a
+failed earlier run. Missing assets and size mismatches are uploaded first, then
+the note shards and index. Only after those transfers and D1 verification does
+the publisher activate the revision. No local upload receipt is trusted as proof
+that an asset still exists in the bucket.
+
+After the notes/index upload, progress reports show search text staging and reuse,
+visibility-rule staging, read-back verification, activation, and retention cleanup.
+Longer steps print a status message every ten seconds with elapsed time and the
+last completed batch count where available. `New content is live` confirms
+activation; cleanup may still be deleting obsolete R2 objects or compacting D1.
+The final completion message follows cleanup and removal of temporary export
+files. These are phase counts, not an estimated overall completion percentage.
+
+Normal publication automatically uses this behavior:
 
 ```sh
-npm run content:publish -- --local --allow-dirty --no-strict
-npm run cf:dev
+npm run publish -- --no-strict
 ```
 
-Keep the second command running and open [the local preview](http://127.0.0.1:8787).
-Press Ctrl+C to stop it.
+To stage a large media update separately, first run:
+
+```sh
+npm run publish -- --no-strict --assets-only
+```
+
+This writes assets to production but leaves the live notes/search unchanged.
+Then run the normal command to publish the notes using those assets. Both runs
+still export/package the current vault; image derivatives reuse the R2 recipe
+manifest or the local image cache. Assets-only does not record a successful publication or run cleanup.
+Staged assets are not pinned forever: another successful publication or explicit
+cleanup can collect unreferenced assets. A later publish checks storage again
+and uploads anything missing. The same publication lock protects both modes.
+
+Before generating responsive images or map tiles, the publisher reads
+`build-cache/derivatives-v1.json` from the destination bucket. Each recipe key
+includes the source bytes, generation settings, planned sizes/bounds, recipe
+version, and encoder versions. Matching recipes reuse the recorded output hashes
+and sizes after checking the bucket inventory. A machine with an empty local
+cache still reads/hashes original files and their image metadata, but does no
+derivative encoding or downloading for these hits. The log reports reused image
+recipes and map pyramids.
+
+The first asset upload with this publisher seeds the manifest, using existing
+local derivatives when available. Subsequent runs save new recipes only after
+all asset transfers succeed, including `--assets-only` runs. Missing, malformed,
+or outdated records fall back to local generation; authentication/network errors
+still stop the run. A prepared snapshot containing remote references is checked
+again during upload. If those objects disappeared, prepare it again before
+publishing. Normal reruns do this automatically.
+
+The manifest is a cache hint and does not pin unused assets against retention.
+Stale records are removed when the manifest is next saved. `--local` uses only
+the local emulator's manifest; `--build-only` and standalone preparation remain
+offline. Generation algorithm changes must bump the relevant recipe version as
+described in [architecture](architecture.md#change-and-release-rules); `--force`
+alone does not invalidate image/map recipes. This cache support does not add a
+GitHub asset workflow or remove the current publisher's Obsidian export step.
+
+Transfers use four concurrent uploads with request pacing. Transient network,
+429, and 5xx errors retry the individual R2 request up to four times, with backoff
+and bounded `Retry-After` waits. Each upload retry opens a fresh file stream.
+R2 and D1 share credentials that are reloaded periodically; a 401 triggers one
+credential reload and retry. Persistent authentication/permission errors stop
+with login instructions. D1 writes are not blindly replayed after a connection
+failure because their transaction may already have committed.
+The direct R2 object API retains its [300 MB per-object upload limit](https://developers.cloudflare.com/api/resources/r2/subresources/buckets/subresources/objects/methods/upload/);
+larger media needs a future multipart/S3 upload path. Internal prepared upload
+and publication commands use the same transfer implementation and accept no
+extra Wrangler flags; configure their destination before preparation.
+
+If a run still fails, rerun the same command. It rechecks source files and reuses
+completed assets; it does not resume the old export blindly. Use `--unblock` only
+if the command reports a leftover D1 lock and all publishers have stopped.
 
 ## Configuration settings
 
@@ -199,9 +358,26 @@ The shared defaults are in [config.json](../config.json):
 | --- | --- | --- |
 | `vault_dir` | `"../taelgar"` | Your Taelgar vault. Used for notes, media, supporting scripts, and metadata by previews and publishing. This is the only folder you normally need to set. |
 | `default_date` | `"1750-01-01"` | The in-world fallback date when no campaign session date is available. Use a full year-month-day date. Campaign dates normally come from session notes. |
-| `source_dir` (optional) | Uses `vault_dir` | Reads notes and media from a different folder for local previews and `cf:prepare`. Only needed to preview an already exported copy. |
+| `respect_pov_dates` | `false` | Default for POV date filtering. Readers can override it with `pov=1` or `pov=0` in URLs. Plural years such as `1740s` mean January 1, 1740. |
+| `source_dir` (optional) | Uses `vault_dir` | Selects content for internal preparation/server tools. Quick `dev` deliberately reads the live vault; full `dev` prepares its own materialized snapshot. |
 | `nav_source` (optional) | `_website/navigation.md` inside the vault | Uses a different menu file. Set it to `null` to build the menu from the note folders. |
 | `home_source` (optional) | `_website/home.md` inside the vault | Uses a different homepage file. Set it to `null` to show the page finder as the homepage. |
+
+To trial POV filtering without changing the default, deploy the updated core
+and open a URL with `pov=1` (or `pov=0` to turn it off). The preference stays in
+links and forms as you browse. Existing snapshots already contain POV metadata;
+this reader opt-in works with existing production search indexes and needs no
+content publication. It adds no visible control to the normal website.
+
+To change the default for URLs that omit `pov`, add `"respect_pov_dates": true`
+to `config.local.json`. Use a JSON boolean, without quotes around `true` or
+`false`. Restart the local preview after changing it. For the hosted site, deploy
+updated core first, then publish content to store the new default. Changing this
+configuration default requires content publication; a code deployment alone does
+not change it. Readers can still override the default with either URL value.
+A microsite can enforce either mode with `enforcePoV: 1` or `enforcePoV: 0` in
+its `_website/<subdomain>.md` frontmatter; this overrides URL choices. See
+[campaign landing pages](campaign-sites.md#pov-date-filtering).
 
 To use a vault in another location, create `config.local.json` in
 `taelgarverse-core` with:
@@ -233,14 +409,14 @@ Older files using `runtime_dir` still work. To simplify one, rename `runtime_dir
 to `vault_dir` and remove `source_dir` if it repeats the same vault path.
 
 For a separate named setup, use
-`npm run content:publish -- --config preview.json --no-strict`, or set
+`npm run publish -- --config preview.json --no-strict`, or set
 `$env:TAELGARVERSE_CONFIG = 'preview.json'` for commands in a PowerShell terminal.
 The selected file replaces `config.local.json` for that run; omitted settings
 still come from `config.json`. An explicit `--config` takes priority over the
 terminal setting. Inherited paths remain relative to the file that supplied them.
 
-Republish content after changing the homepage, menu, or fallback date. Restart a
-local preview after changing its settings or vault files.
+Republish content after changing the homepage, menu, or fallback date. Quick
+preview refreshes automatically; rerun full preview after changing vault content.
 
 ### Cloudflare settings
 
@@ -302,7 +478,7 @@ fields in either JSON file.
 | `TAELGARVERSE_CONFIG` | Chooses an alternative to `config.local.json`. Shared settings from `config.json` still apply unless changed in the selected file. |
 | `OBSIDIAN_COMMAND` | Sets the Obsidian command-line program's path. `--obsidian-command` takes priority. |
 | `HOST` / `PORT` | Changes the address or port for `npm start` and `npm run dev`. Defaults: `127.0.0.1` and `8765`. |
-| `REPEATS` | Sets how many times `npm run benchmark` measures each sample page. Default: `10`. |
+| `REPEATS` | Sets how many times `node scripts/benchmark.mjs` measures each sample page. Default: `10`. |
 
 ## If something goes wrong
 
@@ -313,11 +489,19 @@ fields in either JSON file.
 | Materializer plugin needs updating | Update the plugin, restart Obsidian, and try again. |
 | Dataview query failed | Read the reported note/query. Fix it, or use `--no-strict` if you accept that part being unavailable online. |
 | Export, image processing, or upload failed | Read the error, fix the cause, and rerun the command. These failures leave the previous content online. |
+| Cloudflare authentication/permission failure (401/403) | Run `npx wrangler login`, or check your API token's R2 and D1 permissions. Rerun the same publish command; completed assets will be reused. |
+| “changed during publishing” or “changed during the build” | This run did not activate new content. Finish saving, syncing, and any Git changes, then rerun the command without editing or updating either repository while it runs. `--no-strict` does not bypass this check. |
 | A publish lock exists | Check that no publishing command is still running. If a previous run was killed, remove only `.cache/publish/publish.lock` and retry. |
+| Another publisher holds the D1 publication lock | Confirm no publisher, staging, cleanup, or rollback is running on any computer, then rerun with `--unblock`, keeping your other options; for example, `npm run publish -- --no-strict --unblock`. This clears the stale D1 lock and continues publication. |
 | The wrong content is online | Fix the local vault, commit it, and publish again. For restoring an older version, see [recovery instructions](cloudflare.md#restore-older-content). |
 
 Run only one publisher at a time, even if you use more than one computer. Failed
 runs keep their temporary files and print the location so you can inspect them.
+Use `--unblock` only for recovery, not in your usual publishing command. It does
+not detect publishers on other computers. Recovery removes only the D1 owner it
+observed and stops if another owner wins the lock in the meantime. The separate
+local `.cache/publish/publish.lock` file still needs the recovery step above if
+present.
 
 ## Optional: use an API token instead of signing in
 
@@ -325,7 +509,7 @@ Most people can use the browser login above. A token is useful if you want a
 script to publish without that login. Treat it like a password.
 
 In Cloudflare, create an API token with **Account → Workers R2 Storage → Edit**
-permission for the account that owns TaelgarVerse. Use a token that works with
+and **Account → D1 → Edit** permissions for the account that owns TaelgarVerse. Use a token that works with
 Cloudflare's API; the R2 “Object Read & Write” option is for S3 tools and does not
 work with this publisher. See [Cloudflare's token guide](https://developers.cloudflare.com/r2/api/tokens/).
 
@@ -334,7 +518,7 @@ In **PowerShell 7**, run:
 ```powershell
 $env:CLOUDFLARE_ACCOUNT_ID = 'paste-the-account-id-here'
 $env:CLOUDFLARE_API_TOKEN = Read-Host 'Paste your Cloudflare API token' -MaskInput
-npm run content:publish -- --no-strict
+npm run publish -- --no-strict
 Remove-Item Env:CLOUDFLARE_API_TOKEN
 ```
 
@@ -347,75 +531,29 @@ to the scripts that generate note headers, follow the
 
 ## Command reference
 
-Run these from `taelgarverse-core`. The `cf:` prefix means the command works
-with the Cloudflare version of the website. It does not always mean the command
-changes the live site.
+The public npm commands are `dev`, `test`, and `publish`; `npm start` is an
+alias for `dev`. Plugin releases run in GitHub. Preparation and storage scripts
+remain internal tools, rather than separate everyday npm commands.
 
-### Everyday commands and local checks
+For maintenance or recovery only:
 
-| Command | What it does | Changes the live site? |
-| --- | --- | --- |
-| `npm ci` | Installs the project's required packages. | No |
-| `npm run content:publish` | Exports through Obsidian, prepares images, uploads content, and switches the site to it. | **Yes**, unless you use `--local` or `--build-only` |
-| `npm start` | Starts a local website at `http://127.0.0.1:8765`, reading the configured content folder directly. It does not export Dataview queries through Obsidian. | No |
-| `npm run dev` | Starts the same local website and restarts it when code changes. Restart it yourself after vault or settings changes. | No |
-| `npm run cf:check` | Builds the browser files and checks that the Worker can be packaged for deployment. It does not check every page. | No |
-| `npm run cf:dev` | Starts a local Cloudflare Worker at `http://127.0.0.1:8787`. Prepare local content first, as shown above. | No |
-| `npm run cf:smoke` | Checks sample pages on the local Worker against the local renderer. It needs matching content and settings. An optional URL after `--` selects another running Worker. | No; reads the selected site |
-| `npm test` | Runs the automated tests, first rebuilding local header code and browser files. Requires the configured vault. | No |
-| `npm run benchmark` | Measures how quickly the local renderer creates a selection of pages. | No |
+| Internal command | Effect |
+| --- | --- |
+| `node scripts/cloudflare.mjs check` | Builds/checks the website package without deployment. CI runs it. |
+| `node scripts/cloudflare.mjs deploy` | Deploys website code; GitHub runs this after tests. Direct local use bypasses the CI gate. |
+| `node scripts/build-worker-headers.mjs` | Regenerates the committed Worker header module after vault CustomJS changes. Review before committing. |
+| `node scripts/maintain-content.mjs rollback --remote` | Restores the previous verified live content snapshot. |
+| `node scripts/maintain-content.mjs prune --remote --dry-run` | Reports old content/media/search cleanup candidates. Omit `--dry-run` to remove them. |
 
-### Commands for maintaining website code
-
-| Command | What it does | Changes the live site? |
-| --- | --- | --- |
-| `npm run build:browser` | Prepares Leaflet map scripts/styles and Mermaid diagram support in `public/generated/`. Runs automatically for local previews, tests, and Worker builds, including plain `npx wrangler deploy`. | No |
-| `npm run build:runtime` | Rebuilds local header code from the vault's CustomJS and updates generated icons. It does not update the Worker's header code. | No |
-| `npm run build:worker-headers` | Updates `src/worker-headers.mjs` from those same vault scripts. Review and commit the result so the next core deployment includes it. | No, until the code is deployed |
-| `npm run cf:deploy` | Builds the browser files and deploys the Worker and website files directly from this checkout. Normally GitHub's automatic deployment handles this. | **Yes: website code**, not vault content |
-
-The `prestart`, `predev`, and `pretest` scripts in `package.json` are automatic
-preparation steps for `start`, `dev`, and `test`; you do not need to run them
-separately.
-
-### Separate preparation and upload steps
-
-These are lower-level maintenance commands. The full `content:publish` command
-already handles normal publication.
-
-| Command | What it does | Changes the live site? |
-| --- | --- | --- |
-| `npm run cf:prepare` | Packages content, homepage/menu, responsive images, map tiles and a context-aware search manifest into `.cache/cloudflare/`. Uses default image settings and does not export Obsidian queries. | No |
-| `npm run cf:seed` | Loads R2 content and stages local D1 before selecting the local publication. Run after preparation. | No |
-| `npm run cf:upload` | Uploads prepared content to the configured R2 bucket, leaving the site's selected publication unchanged. | Writes live storage; readers still see the previous content |
-| `npm run cf:publish` | Rechecks/re-uploads prepared content and stages matching D1 under the publication lock, activates it, then retains one previous good snapshot. Requires a matching `cf:upload` receipt. | **Yes: vault content** |
-| `npm run search:index -- stage --dry-run` | Validates/reports the prepared search manifest without authentication or storage calls. | No |
-| `npm run search:index -- stage --remote` | Stages/verifies only the prepared D1 search revision; `--local` targets the emulator. | Writes search storage; does not activate content |
-| `npm run search:index -- verify --remote` | Checks prepared-revision readiness; accepts `--report FILE` for retained builds. | No; reads D1 |
-| `npm run content:prune -- --remote --dry-run` | Verifies the retained R2/D1 snapshots and reports R2 cleanup size without deleting anything. | No; reads storage |
-| `npm run content:prune -- --remote` | Removes history beyond the active and one previous good snapshot, including orphaned assets/search text. `--local` uses emulators. | Deletes excess storage; selected content stays active |
-| `npm run content:rollback -- --remote` | Verifies and swaps the active and previous good snapshot under the publication lock. | **Yes: vault content** |
-| `npm run cf:bucket` | Creates the bucket named by the prepared configuration. The existing site already has one. | Creates Cloudflare storage; does not publish content |
-
-Prepare again after changing settings before using these separate commands.
-For the manual flow, optional search staging after `cf:upload` allows an early
-readiness check. `cf:publish` repeats upload/staging under the shared D1 lock,
-because an intervening publication can collect unactivated uploads. Both full
-and manual publication automatically prune R2/D1 to the active snapshot and one
-previous successful snapshot. Cleanup failures can be retried with `content:prune`
-or an unchanged full publication. The manual command records the revision,
-activation time, search descriptor and rollback choice without a build fingerprint,
-so the next full
-`content:publish` run rebuilds instead of skipping unchanged content.
-
-[Search publication](search.md) documents visibility compilation, local artifacts,
-failed-stage recovery, database setup, retention, and rollback. `--build-only`
-makes no R2/D1 requests, and this pipeline never invokes AI Search.
+The full content publisher owns export, optimization, upload, search staging,
+activation, and retention. Lower-level prepare/upload/activation scripts remain
+available for diagnostics; ordinary publishing does not need them. See
+[search publication](search.md) for indexing and recovery details.
 
 ### Enable full-text search in the app
 
 Deploy the updated core through the normal code release, and run a successful
-`content:publish` to populate the matching production D1 revision. No separate
+`npm run publish` to populate the matching production D1 revision. No separate
 search upload is needed with the full publisher. The app uses `SEARCH_DB` for
 `/?q=...` and `/api/search`; missing/older indexes show a page-name fallback notice.
 Both release orders work. Verify a body-only phrase and the desired campaign/date/
@@ -428,7 +566,7 @@ changes to rebuild the local store/index. See [search](search.md#app-search).
 
 ## Isolated search experiment
 
-`npm run search:pilot -- help` describes the separate search pilot. Its
+`node experiments/ai-search/cli.mjs help` describes the separate search pilot. Its
 [operating guide](../experiments/ai-search/README.md) covers local preparation,
 authentication, explicit small uploads, comparisons, and cleanup. These commands
 do not publish vault content or deploy the website; they target only

@@ -17,7 +17,7 @@ export async function stagePreparedSearch(report,{config=loadCloudflareConfig(),
 export async function main(argv=process.argv.slice(2)){
   const [command='help',...args]=argv;
   if(command==='help' || command==='--help'){
-    console.log('Search publication: npm run search:index -- stage|verify [--local|--remote] [--report FILE] [--dry-run]\nDefaults to .cache/cloudflare/latest.json. Remote operations require --remote explicitly.\nConfigure SEARCH_DB (database_name taelgarverse-search) in wrangler.json or wrangler.local.json.\nAI services are never contacted. This command does not activate R2 content.');return;
+    console.log('Search publication: node scripts/search.mjs stage|verify [--local|--remote] [--report FILE] [--dry-run]\nDefaults to .cache/cloudflare/latest.json. Remote operations require --remote explicitly.\nConfigure SEARCH_DB (database_name taelgarverse-search) in wrangler.json or wrangler.local.json.\nAI services are never contacted. This command does not activate R2 content.');return;
   }
   if(!['stage','verify'].includes(command))throw new Error('Use search stage or verify');
   let file=path.join(ROOT,'.cache/cloudflare/latest.json'),local=false,remote=false,dry=false;

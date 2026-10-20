@@ -17,8 +17,8 @@ import {stagePreparedSearch} from '../scripts/search.mjs';
 
 const {DatabaseSync}=await import('node:sqlite').catch(()=>({}));
 const sqliteTest=(name,fn)=>test(name,{skip:!DatabaseSync?'Enable node:sqlite with --experimental-sqlite on Node 22.12':false},fn);
-function storeFor(sources){
-  return new ContentStore(Object.entries(sources).map(([id,source])=>({id,name:id.slice(0,-3),title:id.slice(0,-3),target:targetPath(id),slug:targetPath(id).slice(0,-3),note:parseNote(source),extension:'.md'})));
+function storeFor(sources,settings={}){
+  return new ContentStore(Object.entries(sources).map(([id,source])=>({id,name:id.slice(0,-3),title:id.slice(0,-3),target:targetPath(id),slug:targetPath(id).slice(0,-3),note:parseNote(source),extension:'.md'})),[],settings);
 }
 function database(){
   const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');let failAt;
@@ -64,6 +64,53 @@ sqliteTest('D1 retention keeps only two generations, removes orphan FTS text and
   await other.withPublicationLock(async()=>{});db.close();
 });
 
+sqliteTest('explicit unblock recovers a stale lock, preserves content, and releases after success or failure',async t=>{
+  const {db,adapter}=database();t.after(()=>db.close());
+  const index=new SearchIndex(adapter),manifest=compileSearch(storeFor({'One.md':'publishedmarker'}));
+  await index.stage(rev('a'),manifest);
+  const seed=()=>db.prepare('INSERT INTO tv_search_publish_lock VALUES(1,?,?)').run('stale-owner','2026-10-20T18:19:04.423Z');
+  const current=()=>db.prepare('SELECT owner FROM tv_search_publish_lock').get()?.owner;
+  seed();
+  await assert.rejects(index.withPublicationLock(async()=>assert.fail('must not publish')),/confirming.*any computer.*--unblock/);
+  assert.equal(current(),'stale-owner');
+  for(const fail of [false,true]){
+    if(fail)seed();
+    const action=async()=>{
+      assert.ok(current());assert.notEqual(current(),'stale-owner');assert.equal(index.lockOwner,current());
+      await index.verify(rev('a'),searchDescriptor(manifest));
+      await assert.rejects(new SearchIndex(adapter).withPublicationLock(async()=>assert.fail('must remain locked')),/Another publisher/);
+      if(fail)throw new Error('publication failed');
+      return 'published';
+    };
+    if(fail)await assert.rejects(index.withPublicationLock(action,{unblock:true}),/publication failed/);
+    else assert.equal(await index.withPublicationLock(action,{unblock:true}),'published');
+    assert.equal(current(),undefined);assert.equal(index.lockOwner,null);
+  }
+  await index.withPublicationLock(async()=>assert.ok(current()),{unblock:true});
+  assert.equal(current(),undefined);
+});
+
+sqliteTest('unblock never removes a replacement owner and rolls back failed recovery',async t=>{
+  const {db,adapter,fail}=database();t.after(()=>db.close());
+  const index=new SearchIndex(adapter);await index.ensure();
+  db.prepare('INSERT INTO tv_search_publish_lock VALUES(1,?,?)').run('stale-owner','old-time');
+  let replaced=false;
+  const racing=new SearchIndex({...adapter,query:async statements=>{
+    if(!replaced && statements[0].sql.startsWith('DELETE FROM tv_search_publish_lock')){
+      replaced=true;
+      db.prepare('UPDATE tv_search_publish_lock SET owner=?,started_at=?').run('new-publisher','new-time');
+    }
+    return adapter.query(statements);
+  }});
+  await assert.rejects(racing.withPublicationLock(async()=>assert.fail('must not publish'),{unblock:true}),/lock changed during --unblock/);
+  assert.equal(db.prepare('SELECT owner FROM tv_search_publish_lock').get().owner,'new-publisher');
+  assert.ok(!racing.lockOwner);
+  let inserts=0;
+  fail(sql=>sql.startsWith('INSERT INTO tv_search_publish_lock') && ++inserts===2);
+  await assert.rejects(index.withPublicationLock(async()=>assert.fail('must not publish'),{unblock:true}),/injected D1 failure/);
+  assert.equal(db.prepare('SELECT owner FROM tv_search_publish_lock').get().owner,'new-publisher');
+});
+
 sqliteTest('schema-1 database upgrades transactionally without dropping ready generations',async()=>{
   const {db,adapter}=database(),index=new SearchIndex(adapter),manifest=compileSearch(storeFor({'One.md':'oldmarker'}));
   await index.stage(rev('a'),manifest);
@@ -77,14 +124,27 @@ sqliteTest('schema-1 database upgrades transactionally without dropping ready ge
   await index.withPublicationLock(()=>index.prune([rev('a')]));db.close();
 });
 
+sqliteTest('failed lock release preserves the original publication error and explains recovery',async t=>{
+  const {db,adapter,fail}=database();t.after(()=>db.close());const index=new SearchIndex(adapter);
+  await assert.rejects(index.withPublicationLock(async()=>{
+    fail(sql=>sql.startsWith('DELETE FROM tv_search_publish_lock'));
+    throw new Error('original upload failure');
+  }),/original upload failure[\s\S]*Could not release[\s\S]*--unblock/);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM tv_search_publish_lock').get().n,1);
+});
+
 test('compiler supports arbitrary dates, campaign subsets and DM mode with whole-note renderer parity',()=>{
   const store=storeFor({'Host.md':'---\naliases: ["Other Name"]\n---\nPublic phrase beginning.\n%%^Campaign:dufr%%frontiertext%%^End%%\n%%^Campaign:adma%%addertext%%^End%%\n%%^Date:1740-05%%afterdate%%^End%%\n%%^Date:1740-05b%%beforedate%%^End%%\n%% privatepopup %%\n%%^Campaign:none%%dmonlyblock%%^End%%\n%%^Metadata:lint%%adminnever%%^End%%\nEnd of public phrase.',
     'Excluded.md':'---\nexcludePublish: [dufr]\n---\nExclusion text.',
     'Future.md':'---\ncreated: "1740-05"\n---\nFuture text.',
     'Born.md':'---\nborn: 1740\nactiveYear: 1742\n---\nBorn text.',
+    'POV Year.md':'---\nPOV: 1740\n---\nPOV year text.',
+    'POV Plural.md':'---\nPOV: 1740s\n---\nPOV plural text.',
+    'POV Full.md':'---\nPOV: 1740-05-31\n---\nPOV full text.',
+    'POV Modern.md':'---\nPOV: modern\n---\nPOV modern text.',
     'Never.md':'---\nexcludePublish: all\n---\nDo not index.',
     'Unsafe.md':'Public prefix %% unclosed private data',
-    'Heading.md':'## Searchable heading only'});
+    'Heading.md':'## Searchable heading only'},{respect_pov_dates:true});
   const manifest=validateSearchManifest(compileSearch(store)),md=createMarkdown(),notesMarkdown=createMarkdown({html:false});
   assert.equal(manifest.warnings.length,1);assert.doesNotMatch(JSON.stringify(manifest.documents),/Do not index|unclosed private|adminnever/);
   for(const date of ['1739-09-17','1740-01-01','1740-04-30','1740-05-01','1740-05-30','1740-05-31','1742-01-01','1750-02-05']){
@@ -100,6 +160,11 @@ test('compiler supports arbitrary dates, campaign subsets and DM mode with whole
         if(entry.id==='Host.md')assert.equal(docs[0].text.includes('privatepopup'),dm);
       }
     }
+  }
+  for (const [page,from] of [['pov-year',10101],['pov-plural',10101],['pov-full',10101],['pov-modern',10101]]) {
+    const document=manifest.documents.find(d=>d.page===page);
+    assert.ok(document,page);
+    assert.deepEqual(manifest.rules.filter(r=>r.document===document.id).map(r=>r.from),[from],page);
   }
   assert.ok(manifest.documents.some(d=>d.text.includes('Searchable heading only')));
   assert.equal(compileSearch(store).digest,manifest.digest);
@@ -120,7 +185,7 @@ test('prepared search is revision-bound, stays out of R2 uploads, and tampering 
   const source=path.join(directory,'source');fs.mkdirSync(source);fs.writeFileSync(path.join(source,'One.md'),'Public.\n%% private-fixture-marker %%');
   const report=await prepareContent({...loadSettings(),source_dir:source,home_source:null,nav_source:null},path.join(directory,'output'),{commit:'a'.repeat(40),dirty:false});
   const manifest=readPreparedSearch(report);assert.ok(manifest.documents.some(d=>d.text.includes('private-fixture-marker')));
-  const index=fs.readFileSync(report.indexFile,'utf8');assert.ok(!index.includes('private-fixture-marker'));assert.ok(!index.includes('searchFile'));
+  const index=fs.readFileSync(report.indexFile,'utf8');assert.equal(JSON.parse(index).settings.respect_pov_dates,false);assert.ok(!index.includes('private-fixture-marker'));assert.ok(!index.includes('searchFile'));
   const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));assert.ok(!uploads.some(item=>item.file===report.searchFile || item.key.endsWith('/search.json')));
   fs.writeFileSync(report.searchFile,JSON.stringify({...manifest,digest:'f'.repeat(64)}));
   await assert.rejects(stagePreparedSearch(report),/manifest\/digest/);
@@ -198,4 +263,14 @@ test('production credentials never enable Wrangler auth logging, and configured 
   await assert.rejects(createSearchDatabase(config,{credentials:()=>auth,fetcher:async()=>Response.json({success:false,errors:[{code:10000,message:'fake-secret'}]},{status:403})}),error=>!error.message.includes('fake-secret'));
   const options={maxSize:2560,quality:82},settings={default_date:'1750-01-01'};
   assert.notEqual(buildFingerprint(settings,options,config),buildFingerprint(settings,options,{...config,d1_databases:[{...config.d1_databases[0],database_id:id.replace('1','2')}]}));
+});
+
+test('compiler retains both POV modes and publication fingerprints track the site default',()=>{
+  const sources={'POV.md':'---\nPOV: 1740s\n---\nPerspective text.'};
+  for (const settings of [{},{respect_pov_dates:false},{respect_pov_dates:true}]) {
+    const manifest=validateSearchManifest(compileSearch(storeFor(sources,settings)));
+    assert.deepEqual(manifest.rules.map(rule=>rule.from),[10101]);
+  }
+  const settings=loadSettings(),options={maxSize:2560,quality:82};
+  assert.notEqual(buildFingerprint({...settings,respect_pov_dates:false},options),buildFingerprint({...settings,respect_pov_dates:true},options));
 });

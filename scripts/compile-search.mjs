@@ -38,6 +38,7 @@ export function compileSearch(store,{maxStatesPerNote=4096}={}){
     try{
       filterComments(source,{date:'0001-01-01',source:entry.id,conditions});
       const campaigns=[...new Set([...exclusions.filter(Boolean),...conditions.map(c=>c.campaign).filter(c=>c && c!=='none')])].sort();
+      // POV is a reader preference; retain text for both modes in one index.
       const from=availableFrom(entry),dates=[...new Set([firstDate,...(from?[from]:[]),...conditions.map(c=>c.date).filter(Boolean)])].sort((a,b)=>a-b);
       if(campaigns.length>10 || 2**campaigns.length*dates.length*2>maxStatesPerNote)throw new Error('Search state limit exceeded for '+entry.id+'; review the note before publishing');
       const selections=campaigns.reduce((all,c)=>[...all,...all.map(s=>[...s,c])],[[]]),cache=new Map();

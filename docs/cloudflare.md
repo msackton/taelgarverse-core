@@ -1,10 +1,23 @@
 # How the site runs on Cloudflare
 
-The live site is [taelgarverse.msackton.workers.dev](https://taelgarverse.msackton.workers.dev/).
+The live site is [taelgar.org](https://taelgar.org/), also available at
+[www.taelgar.org](https://www.taelgar.org/) and
+[taelgarverse.msackton.workers.dev](https://taelgarverse.msackton.workers.dev/).
 Cloudflare runs the website and stores the published copies of the vault.
 Your local Obsidian vault is where you edit the content.
 
-For publishing steps, commands, and account setup, see [Update the website](deploy.md).
+Campaign subdomains use this same Worker. The wildcard route is declared in
+`wrangler.json`; wildcard DNS and HTTPS coverage must also be configured before
+Markdown-only campaign activation works. See [campaign landing pages](campaign-sites.md)
+for setup, the Cleenseau opt-in, and checks for existing subdomains.
+
+Both custom domains are attached to the `taelgarverse` Worker and declared in
+`wrangler.json`. Cloudflare manages their DNS records and HTTPS certificates.
+On **2026-10-20**, both domains returned HTTP 200 over HTTPS for the homepage
+and `/health`; health reported `ok` with 3,029 pages. The domain was already
+active on Cloudflare, but had no Worker domain attachment before this setup.
+
+For preview, CI, publication, and account setup, see [Development and publication workflows](deploy.md).
 
 ## The pieces
 
@@ -14,7 +27,7 @@ For publishing steps, commands, and account setup, see [Update the website](depl
 | **R2 storage: `taelgarverse-content`** | Holds the published notes, images, audio, homepage, menu, and supporting data. Cloudflare calls this storage container a “bucket.” |
 | **D1 database: `taelgarverse-search`** | Stores revision-matched text versions, visibility rules, and the full-text index queried by the Worker search route. |
 | **Website files from `public/`** | The styles, browser scripts, icons, and diagram support used by the site. These are uploaded with the website code. Vault images and audio go in R2 instead. |
-| **Workers Builds** | The connection to GitHub that updates the website code when changes merge into `taelgarverse-core/main`. |
+| **GitHub Actions** | Tests changes to `taelgarverse-core/main`, then deploys the Worker and website files only after success. Requires the [one-time cutover](deploy.md#one-time-github-website-deployment-setup) from Workers Builds. |
 | **Logs** | Records of website errors and build failures, available in Cloudflare. Logging is enabled in the project configuration. |
 
 The Worker reaches R2 through a connection named `CONTENT`, and the website
@@ -28,18 +41,44 @@ configuration is in [wrangler.json](../wrangler.json); the
 
 ## How updates reach the site
 
-**Website code:** merge a change into `main` in GitHub. Cloudflare builds and
-deploys the Worker and website files. This changes page rendering, styles, and
-site features. The build uses the core repository; it does not need Obsidian or
-a copy of the vault.
+**Website code:** merge a change into `main` in GitHub. **Test and deploy website**
+runs the shared tests and deployment-package check, then deploys the Worker and
+website files only after success. This changes page rendering, styles, and site
+features. Tests read sparse public vault inputs; deployment itself needs only
+core and its dependencies. Neither job needs running Obsidian.
 
-**Vault content:** run `npm run content:publish -- --no-strict` on your computer.
+**Vault content:** run `npm run publish -- --no-strict` on your computer.
 The script asks Obsidian to prepare the notes, makes copies of large images
 smaller, and uploads a complete saved version to R2. It then stages/verifies the
 matching D1 search revision before activating the R2 pointer. No website code
 deployment is needed for subsequent content updates.
 The homepage and menu come from `taelgar/_website` and are included in the same
 publication.
+
+The publisher's asset phase checks the existing `assets/` inventory and uploads
+only missing objects or size mismatches. Notes/index objects are uploaded in a
+separate phase, followed by D1 verification and activation. `--assets-only` stages
+media without activating a revision; it uses the same bucket and publication
+lock. These behaviors are implemented by
+[`upload-content.mjs`](../scripts/upload-content.mjs) and
+[`content-retention.mjs`](../scripts/content-retention.mjs), with per-request
+retries, pacing, and refreshable credentials in
+[`cloudflare-client.mjs`](../scripts/cloudflare-client.mjs). They require no
+Worker deployment or storage migration. See [publishing recovery and asset
+staging](deploy.md#incremental-assets-and-interrupted-uploads).
+
+[`derivative-cache.mjs`](../scripts/derivative-cache.mjs) adds an R2 build catalog
+for image variants and map tiles. On publication it checks recipe keys and the
+current asset inventory before generation, allowing a fresh machine to reference
+existing derivatives without encoding or downloading them. Catalog writes follow
+successful asset uploads under the publication lock; the Worker does not read it.
+This is publisher behavior in this checkout, not evidence of a production rollout.
+
+Publication logs identify search staging/read-back verification, activation,
+retained-snapshot checks, R2 inventory/deletion, and D1 cleanup. Long operations
+repeat their latest status every ten seconds with elapsed time. Activation is
+reported before cleanup so a wait during retention is distinguishable from a
+revision that has not yet gone live.
 
 The publisher uses your local Cloudflare login or API token. The GitHub build
 has its own Cloudflare authorization. These are separate from how visitors
@@ -60,26 +99,31 @@ snapshot; activation timestamps come from that request's `published/current.json
 Local Node previews show checkout hashes and “Local preview” without publication
 dates. No Git or GitHub requests occur in the deployed Worker or browser.
 
-For maintainers checking the build setup: both `npm run cf:deploy` and
+For maintainers checking the build setup: both `node scripts/cloudflare.mjs deploy` and
 `npx wrangler deploy` generate the browser assets before packaging through the
-custom build in [wrangler.json](../wrangler.json). A separate dashboard build
-command is optional; a clean core checkout with its dependencies is sufficient.
-The destination Worker must be `taelgarverse`. The exact current dashboard
-commands were not checked. Cloudflare explains the two commands in its
-[build settings guide](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/).
+custom build in [wrangler.json](../wrangler.json). GitHub uses the pinned Wrangler
+dependency through `node scripts/cloudflare.mjs deploy`. The destination Worker
+is `taelgarverse`, with its existing R2/D1 bindings. Disconnect Cloudflare's Git
+build trigger during the [one-time cutover](deploy.md#one-time-github-website-deployment-setup)
+so it cannot deploy independently of these checks. Cloudflare documents the
+[GitHub authentication setup](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/).
 
 ## What is stored in R2
 
 Each publication gets a long unique ID, called a **revision**. The storage
-contains three kinds of files:
+contains the following files:
 
 | Location | What it contains |
 | --- | --- |
 | `published/current.json` | A small file saying which revision the website should use. It also records the Git version and publishing settings so unchanged content can be skipped next time. |
 | `revisions/<revision>/` | A saved version of the notes and supporting data. `index.json` holds the homepage and menu Markdown, plus the page list, campaign information, metadata, backlinks, and media locations. The `notes/` folder holds article Markdown in groups of files. |
 | `assets/` | Images, audio, and other published attachments. Identical files share one stored copy, even across publications. |
+| `build-cache/derivatives-v1.json` | Disposable recipe-to-output catalog with dimensions, generated asset targets, content hashes, and sizes; no source paths or image bytes. |
 
-Older publications and media remain in storage. There is no automatic cleanup.
+Successful publication retains the active and previous good snapshots and
+collects other revision objects and unreferenced media. The build catalog does
+not protect assets from cleanup: reuse checks their existence, and later catalog
+writes discard stale records. Deleting the catalog only loses build reuse.
 The metadata index now includes a search descriptor (version, digest, and counts),
 while search text/rules stay in D1. The local `search.json` compiler payload is
 excluded from R2 upload manifests. Older indexes without search still render.
@@ -105,8 +149,13 @@ opens search at `/?q=...`. An older publication without homepage text
 shows the search/browse page until content is published again.
 
 The Worker reuses loaded note data to keep this fast, but checks for a new
-publication on content requests. Page responses are marked not to be cached;
-browsers can reuse images and audio after checking whether they have changed.
+publication on content requests. Page responses are marked not to be cached.
+In `src/http-assets.mjs`, generated map tiles and responsive image variants use
+`Cache-Control: public, max-age=31536000, immutable`; their URLs include a source
+and recipe hash, so a changed image gets a new URL. Original images and audio
+still revalidate before reuse. This describes the configured policy; deploying
+core is required to apply a changed policy to the live site. See
+[map delivery](maps.md#delivery-and-maintenance) for tile selection and publication.
 
 Readers do not need a login. **Behind the Curtain is also available to everyone.**
 Hiding a note from a campaign view does not make its media private, and its
@@ -130,7 +179,7 @@ those dates.
 - A `404` or `422` on an article can come from the note or selected campaign/date;
   check [vault usage](vault.md) as well as the error message.
 
-For code deployment failures, look at the Cloudflare build log. For errors while
+For code deployment failures, look at the GitHub Actions job log. For errors while
 reading the website, look at the Worker's logs.
 
 ## Restore older content
@@ -142,9 +191,9 @@ R2 and D1. Older revisions and unused media/search text are removed after a
 successful activation. Failed builds never replace the rollback choice. Assets
 shared by the two retained snapshots are stored once.
 
-Run `npm run content:rollback -- --remote` to verify and restore the retained
+Run `node scripts/maintain-content.mjs rollback --remote` to verify and restore the retained
 previous snapshot. It becomes active and the replaced publication becomes the
-single rollback choice. `npm run content:prune -- --remote --dry-run` reports
+single rollback choice. `node scripts/maintain-content.mjs prune --remote --dry-run` reports
 cleanup candidates; omit `--dry-run` to retry cleanup. These commands share the
 publisher's D1 lock. Avoid direct pointer writes, which bypass this coordination.
 The first publish using this policy records the previously active snapshot;

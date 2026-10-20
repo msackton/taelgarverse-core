@@ -1,0 +1,44 @@
+name: Test and deploy website
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**/*.md']
+
+permissions:
+  contents: read
+
+# Serialize the complete pipeline so an older deployment cannot finish after
+# a newer one. Let an active deployment complete rather than interrupting it.
+concurrency:
+  group: taelgarverse-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/tests.yml
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Deploy website code and static assets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: 'false'
+        shell: bash
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo '::error::Configure CLOUDFLARE_API_TOKEN (Actions secret) and CLOUDFLARE_ACCOUNT_ID (Actions variable). See docs/deploy.md.'
+            exit 1
+          fi
+          node scripts/cloudflare.mjs deploy

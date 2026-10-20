@@ -8,23 +8,36 @@ to materialize vault queries before uploading content.
 
 The live [Cloudflare site](https://taelgarverse.msackton.workers.dev/) runs the same
 application in a Worker with R2-backed content. Merges to this repository's `main`
-branch deploy the web core automatically through Cloudflare Builds; vault content
-is published separately. For local Cloudflare development, run
-`npm run cf:prepare`, `npm run cf:seed`, then `npm run cf:dev` and open
-http://127.0.0.1:8787/.
+branch run GitHub tests before deploying the web core to Cloudflare; vault content
+and the Obsidian plugin have separate publication workflows.
+
+| Workflow | Entry point |
+| --- | --- |
+| Website preview from the live vault, without Obsidian | `npm run dev` |
+| Full materialization, image/search processing, and local Cloudflare preview | `npm run dev -- --full` |
+| Build/install the Obsidian plugin for local testing | `npm run dev -- --plugin` |
+| Automated tests | GitHub on pull requests and pushes to `main`; `npm test` locally |
+| Website code deployment | GitHub's **Test and deploy website**, after tests pass on `main` |
+| Obsidian release | GitHub's **Release Taelgarverse for Obsidian** workflow, or a tag named `obsidian/<version>` |
+| Update live vault content | `npm run publish -- --no-strict` |
+
+Both previews use http://127.0.0.1:8765/. Full preview and content publication
+need running Obsidian with Dataview and the materializer. The plugin release
+workflow needs its one-time GitHub credential setup; see the plugin guide below.
+Website deployment also needs [one-time GitHub/Cloudflare setup](docs/deploy.md#one-time-github-website-deployment-setup),
+including removal of the independent Cloudflare Git deployment trigger.
 The core documentation is:
 
 - [Deploy](docs/deploy.md): publish vault content, configure authorization, and recover from failures.
 - [Architecture](docs/architecture.md): components, release boundaries, and documentation maintenance rules.
 - [Vault usage](docs/vault.md): input files, metadata, contexts, and rendering behavior.
 - [Cloudflare](docs/cloudflare.md): hosted resources, bindings, and snapshot storage.
-
-The Node preview below remains available as a reference.
+- [Taelgarverse for Obsidian](obsidian/taelgarverse/README.md): the Maps feature, local development, and BRAT releases.
 
 ## Run locally
 
 For the cross-platform Obsidian export, web image optimization, and R2 publication
-pipeline, use `npm run content:publish -- --no-strict`. Unchanged Taelgar commits
+pipeline, use `npm run publish -- --no-strict`. Unchanged Taelgar commits
 skip the build. See [content publishing](docs/deploy.md) for prerequisites,
 the R2 commit checkpoint, image settings, and offline testing.
 
@@ -33,7 +46,7 @@ Requires Node.js 22.12+ and an adjacent checkout of the Taelgar vault:
 ~~~powershell
 cd C:\Users\msack\taelgarverse-core
 npm ci
-npm start
+npm run dev
 ~~~
 
 Open [the preview](http://127.0.0.1:8765/),
@@ -41,15 +54,16 @@ Open [the preview](http://127.0.0.1:8765/),
 or [the API explorer](http://127.0.0.1:8765/docs).
 
 The server reports its URL and indexed page count when ready. Press Ctrl+C to
-stop it. Restart after editing vault content, scripts, or configuration: the
-server uses an in-memory snapshot. This includes the vault's `_website` files.
-**npm run dev** watches application code only, not the external vault.
+stop it. Quick preview automatically restarts after vault notes, supporting
+scripts, metadata, or application code change; refresh the browser afterward.
+It reads the original notes directly, so unmaterialized Dataview blocks can be
+incomplete. Use `npm run dev -- --full` to export and process a local snapshot;
+rerun full preview after changing vault content. Neither mode updates the live site.
 
-The server defaults to localhost port 8765. To choose another port in PowerShell:
+The server defaults to localhost port 8765. To choose another port:
 
 ~~~powershell
-$env:PORT = '8766'
-npm start
+npm run dev -- --port 8766
 ~~~
 
 ## Configuration
@@ -142,12 +156,17 @@ GET /page/people/zimkovans/zahara?context=dunmar-frontier&dm=1
 
 ## Homepage
 
+Campaigns can opt into their own subdomain and locked context with a Markdown
+file such as `_website/cleenseau.md`. See [campaign landing pages](docs/campaign-sites.md)
+for the format, local preview, and one-time Cloudflare setup.
+
 Edit `_website/home.md` in the `taelgar` vault to change the homepage text and
 links within the introduction. Core owns the dedicated Quiet Library homepage
 template, decorative map, and prominent Current Games, Gazetteer, and World Map
 buttons. The heading and first paragraph from `home.md` appear in the banner;
-the remaining prose appears below the buttons. The buttons and homepage search
-retain the selected context. Submitting a search opens the page finder at `/?q=...`.
+the remaining prose appears below the buttons. The buttons and header search
+retain the selected context. Use the header field for search suggestions, or
+open the page finder directly at `/?q=...`.
 Publish homepage changes with the usual [content publishing command](docs/deploy.md).
 
 ## Site navigation and page TOC
@@ -183,14 +202,18 @@ explicitly set to null, navigation follows the content directory tree.
 Only the current branch's immediate siblings and ancestors are sent with the
 article. Expanding another branch loads its children through `/api/navigation`.
 Without JavaScript, **Browse section** links provide ordinary section pages.
-Quiet Library uses serif prose, a neutral Sage & stone palette, and top-level
-section links in the desktop header. At 1100px the left navigation becomes a
+Quiet Library uses serif prose, neutral article surfaces, and a sage green header
+with the original dragon home icon and top-level section links. Generated bio
+summaries use slightly larger text for readability. At 1100px the left navigation becomes a
 hamburger drawer and header search becomes a magnifying-glass button. At 800px
 page contents disappear, while backlinks remain available below the article.
-The header gear offers System (default), Light, and Dark appearance and remembers
+Search results appear in a dropdown beneath the field as you type, keeping the
+selected viewing context and content-type filter. Escape or a click outside
+dismisses the suggestions. On phones, the search icon reveals the field in the
+header. Regular search URLs and forms still work without JavaScript. The header gear offers System (default), Light, and Dark appearance and remembers
 the selection in the browser. On smaller screens it also contains the context
 and Behind the Curtain controls. The page title replaces the wordmark after
-scrolling, and upward scrolling reveals a Back to top button.
+scrolling while the home icon stays visible, and upward scrolling reveals a Back to top button.
 Notes and the authored homepage can use `hide: [navigation, toc]` to omit either
 or both navigation areas; see [vault usage](docs/vault.md#links-navigation-and-media).
 `hide: toc` also hides page contents, and hidden contents are omitted from the page API.
@@ -280,12 +303,11 @@ diagram too. Missing, ambiguous, or unavailable pages stay unlinked. See
 The library is loaded only on pages containing visible diagrams. The API returns
 the escaped source and diagram containers; the article shell loads the browser renderer.
 
-`npm start`, `npm run dev`, `npm test`, `npm run cf:dev`, `npm run cf:check`, and
-`npm run cf:deploy` rebuild the Leaflet and Mermaid browser assets automatically.
+`npm start`, `npm run dev`, `npm test`, `node scripts/cloudflare.mjs dev`, `node scripts/cloudflare.mjs check`, and
+`node scripts/cloudflare.mjs deploy` rebuild the Leaflet and Mermaid browser assets automatically.
 Wrangler's custom build also generates them for plain `npx wrangler deploy`,
-including deployments from a clean Cloudflare Builds checkout. Run
-`npm run build:browser` after changing `src/browser/` while a preview
-is already running. Output lives in ignored `public/generated/`; application
+including deployments from a clean GitHub Actions checkout. Quick preview
+also rebuilds them when source changes. Output lives in ignored `public/generated/`; application
 code and dependency pins are the source of truth. After pulling dependency
 changes, run `npm ci` before starting or deploying.
 
@@ -354,7 +376,7 @@ Workers or context-aware caching can follow measurements of the intended load.
 
 ~~~powershell
 npm test
-npm run benchmark
+node scripts/benchmark.mjs
 ~~~
 
 Tests use synthetic notes with the configured real CustomJS code. They cover
@@ -367,7 +389,7 @@ The benchmark renders six real-vault requests without an HTML cache. It reports
 startup separately. REPEATS sets the default ten iterations. Save JSON with:
 
 ~~~powershell
-npm run benchmark -- .cache/node-benchmark.json
+node scripts/benchmark.mjs -- .cache/node-benchmark.json
 ~~~
 
 In the migration measurement, warm engine medians were approximately 14–27 ms,

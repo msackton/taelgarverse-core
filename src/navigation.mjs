@@ -10,6 +10,7 @@ const alphabetical = (a,b) => a.label.localeCompare(b.label,undefined,{numeric:t
 
 export class Navigation {
   constructor(store, template = null) {
+    this.settings = store.settings;
     this.entries = store.entries.filter(entry=>entry.note);
     this.byTarget = new Map(this.entries.map(entry=>[entry.target,entry]));
     const roots = [], stack = [{indent:-1,children:roots}];
@@ -88,7 +89,7 @@ export class Navigation {
       const children = node.children.filter(child=>visit(child));
       let link = node.home;
       if (node.entry) {
-        if (!available.has(node.entry)) available.set(node.entry,availableInContext(node.entry,context));
+        if (!available.has(node.entry)) available.set(node.entry,availableInContext(node.entry,context,this.settings));
         link = available.get(node.entry);
       }
       if (!link && !children.length) return false;

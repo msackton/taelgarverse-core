@@ -1,14 +1,28 @@
-// Large files are assigned to an image only after the reader asks for detail.
-(() => {
+// One popup per document, shared by website and Obsidian image controls.
+export function imageCaption(image) {
+  if (image.dataset.imageCaption) return image.dataset.imageCaption;
+  const host = image.closest('figure,.admonition.image,details.image,.admonition.gallery li,details.gallery li,[data-callout="image"],[data-callout="gallery"] li');
+  if (!host || host.querySelectorAll('img').length !== 1) return '';
+  const content = host.matches('figure') ? host.querySelector(':scope > figcaption') :
+    host.matches('[data-callout="image"]') ? host.querySelector(':scope > .callout-content') : host;
+  if (!content) return '';
+  const copy = content.cloneNode(true);
+  for (const item of copy.querySelectorAll('.admonition-title,summary,.callout-title,img,script,style,button,[hidden],[popover],.dm-note-ref')) item.remove();
+  for (const item of copy.querySelectorAll('br')) item.replaceWith(' ');
+  for (const item of copy.querySelectorAll('p,li')) item.append(' ');
+  return copy.textContent.replace(/\s+/g,' ').trim();
+}
+
+export function createImageViewer(document) {
+  const win = document.defaultView, {Image,ResizeObserver} = win;
   const viewer = document.createElement('dialog');
-  const images = [...document.querySelectorAll('.article-main img[src]')].filter(image =>
-    !image.closest('a,button,dialog,[popover],.twemoji,[role="button"],.leaflet-map,.leaflet-container'));
-  if (typeof viewer.showModal !== 'function' || !images.length) return;
+  if (typeof viewer.showModal !== 'function') return {open(){},closeFor(){},dispose(){}};
+  let disposed = false;
   const button = (label,action) => {
     const control = document.createElement('button');control.type = 'button';control.textContent = label;
     control.addEventListener('click',action);return control;
   };
-  viewer.className = 'image-viewer';viewer.setAttribute('aria-label','Image viewer');
+  viewer.className = 'image-viewer taelgar-image-viewer';viewer.setAttribute('aria-label','Image viewer');
   const toolbar = document.createElement('div');toolbar.className = 'image-viewer-toolbar';
   const download = document.createElement('a');download.textContent = 'Download';download.download = '';
   const zoom = button('Pan / zoom',()=>setDetail(!detail));zoom.setAttribute('aria-pressed','false');
@@ -78,24 +92,26 @@
     try { variants = JSON.parse(source.dataset.imageVariants || '[]'); } catch { variants = []; }
     if (!variants.length) return;
     // Popup sizing follows the actual fitted width, including tall portraits.
-    const needed = fitWidth*Math.min(devicePixelRatio || 1,2);
+    const needed = fitWidth*Math.min(win.devicePixelRatio || 1,2);
     const variant = variants.find(item=>item.width>=needed) || variants.at(-1);
     if (preview.getAttribute('src')===variant.url) return;
     status.textContent = 'Loading image…';await loadImage(variant.url,requestToken,'');
   }
   function open(image,control) {
+    if (disposed) return;
     source = image;opener = control;full = image.dataset.imageFull || image.currentSrc || image.src;
     fullReady = false;detail = false;scale = 1;x = y = 0;pointers.clear();
     zoom.setAttribute('aria-pressed','false');zoomControls.hidden = true;stage.classList.remove('image-viewer-stage--zoom');
     preview.src = image.currentSrc || image.src;preview.alt = image.alt;download.href = full;
     download.setAttribute('aria-label','Download full-resolution image'+(image.alt ? ': '+image.alt : ''));
-    caption.textContent = image.alt;caption.hidden = !image.alt;status.textContent = '';
+    const captionText = imageCaption(image) || image.alt;
+    caption.textContent = captionText;caption.hidden = !captionText;status.textContent = '';
     viewer.showModal();document.documentElement.classList.add('image-viewer-open');layout();
     loadScreen(++token);
   }
   viewer.addEventListener('close',()=>{
     ++token;pointers.clear();source = undefined;preview.removeAttribute('src');
-    document.documentElement.classList.remove('image-viewer-open');opener?.focus({preventScroll:true});
+    document.documentElement.classList.remove('image-viewer-open');opener?.isConnected && opener.focus({preventScroll:true});
   });
   preview.addEventListener('load',layout);
   viewer.addEventListener('keydown',event=>{
@@ -137,31 +153,13 @@
   for (const type of ['pointerup','pointercancel','lostpointercapture']) stage.addEventListener(type,event=>{
     pointers.delete(event.pointerId);gesture = pointers.size ? state() : undefined;
   });
-  new ResizeObserver(()=>{
+  const observer = new ResizeObserver(()=>{
     layout();if (viewer.open && !detail) loadScreen(++token);
-  }).observe(stage);
-  const controls = [];
-  let positionPending = false;
-  const positionControls = ()=>{
-    positionPending = false;
-    for (const {image,control,host} of controls) {
-      const rect = image.getBoundingClientRect(), parent = host.getBoundingClientRect();
-      control.hidden = !image.getClientRects().length || rect.width<32 || rect.height<32;
-      control.style.left = (rect.right-parent.left-host.clientLeft-38)+'px';
-      control.style.top = (rect.top-parent.top-host.clientTop+6)+'px';
-    }
-  };
-  const schedulePositions = ()=>{if (!positionPending) {positionPending = true;requestAnimationFrame(positionControls);}};
-  const observer = new ResizeObserver(schedulePositions);
-  for (const image of images) {
-    const control = button('',()=>open(image,control));control.className = 'image-zoom-control';
-    control.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M3 3l6 6m12-6-6 6M3 21l6-6m12 6-6-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-    control.title = 'Enlarge image';control.setAttribute('aria-label','Enlarge image'+(image.alt ? ': '+image.alt : ''));control.setAttribute('aria-haspopup','dialog');
-    const host = image.parentElement;host.classList.add('image-zoom-host');image.after(control);
-    image.classList.add('image-enlarge');image.addEventListener('click',()=>open(image,control));
-    controls.push({image,control,host});observer.observe(image);observer.observe(host);
-    image.addEventListener('load',schedulePositions);
-  }
-  document.addEventListener('toggle',schedulePositions,true);addEventListener('resize',schedulePositions);
-  positionControls();
-})();
+  });
+  observer.observe(stage);
+  return {open,closeFor(image) {if (source===image && viewer.open) viewer.close();},dispose() {
+    if (disposed) return;disposed = true;++token;observer.disconnect();
+    if (viewer.open) viewer.close();
+    preview.removeAttribute('src');viewer.remove();pointers.clear();source = undefined;
+  }};
+}
