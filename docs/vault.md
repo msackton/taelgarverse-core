@@ -42,13 +42,20 @@ Two files in the vault's `_website` folder supply the website's own content:
 
 | File | What to edit |
 | --- | --- |
-| `_website/home.md` | The homepage heading, introduction, and links. It starts with the existing TaelgarVerse homepage text. |
+| `_website/home.md` | The homepage heading, introductory prose, and links within that prose. |
 | `_website/navigation.md` | The sidebar menu: section names, order, and links to notes. See the [menu format](../README.md#site-navigation-and-page-toc). |
 
 Edit these in the vault and publish them with your notes. The homepage uses
 ordinary Markdown and supports the same links and campaign/date comments as
-articles. It does not generate a note header or run Dataview queries. The search
-box below it is supplied by the website code.
+articles. It does not generate a note header or run Dataview queries. The first
+top-level heading and introductory paragraph appear in the homepage banner;
+the remaining content appears below the entry buttons. If there is no heading,
+the banner uses TaelgarVerse. Keep HTML layout, styles, and decorative images out
+of this file: `taelgarverse-core` owns the homepage template, map decoration,
+Current Games / Gazetteer / World Map buttons, and search form. Button links
+retain the reader's context and are unavailable when their destination is not
+published or visible in that view. Older snapshots containing the original
+three-link navigation paragraph work without displaying duplicate entry links.
 
 The publisher reads these two files directly from the original vault, even when
 it prepares the other notes through Obsidian. They do not become searchable
@@ -210,6 +217,13 @@ can still appear in search and work through a direct link without being listed
 there. **On this page** comes from the article's headings, excluding its first
 title and popup-comment headings.
 
+Main sections appear in the desktop header, with the current section's branch
+on the left. Below 1100px the full navigation moves into a hamburger drawer;
+below 800px the page contents disappear. In note or homepage frontmatter,
+`hide: [navigation]` omits the section links and left navigation, and
+`hide: [toc]` omits page contents. Both may be combined. Search, settings, and
+backlinks remain available, and unused navigation columns release their space.
+
 **Linked from** lists other articles that link to the current one. Only pages and
 passages visible in the selected view contribute links. Campaign notes contribute
 links when their campaign is selected, including Custom subsets. Modern and
@@ -218,6 +232,13 @@ also includes unrecognized campaign sources. Campaign ownership comes from the
 source note's `campaign` property or its registered campaign folder. This does
 not change whether those articles can be opened directly.
 Generated header relationships and links back to the same article are excluded.
+Nonempty backlinks appear in the right sidebar even on short articles; on mobile they
+appear in a collapsed **Linked from** section below the article.
+
+The header gear offers **System**, **Light**, and **Dark** appearance. System is
+the default and follows operating-system changes. Explicit selections are saved
+in that browser. On small screens the gear also contains the context/date,
+campaign, and **See Behind the Curtain** controls.
 
 | In the note | On the website |
 | --- | --- |
@@ -227,8 +248,28 @@ Generated header relationships and links back to the same article are excluded.
 | An Excalidraw drawing | Use an exported PNG or another supported image; the website does not draw it from Excalidraw data. |
 | A Mermaid code block | A diagram, with its source text available as a fallback. |
 
-Images may be made smaller during publication. See [image settings](deploy.md#image-settings)
-if map labels need more detail.
+## Interactive maps
+
+Existing fenced `leaflet` blocks render as interactive image maps. Their image
+wikilink, bounds, center (`lat`/`long`), zoom limits, default zoom, height, and
+width are preserved. Maps support dragging, zoom buttons, keyboard panning and
+zooming, and touch gestures. **Fit map** shows the complete map; **Open map image**
+also works without JavaScript or if the interactive viewer fails. Mouse-wheel
+scrolling continues to scroll the article.
+
+Large maps use generated WebP tiles, so viewing a map does not fetch its entire
+original image. Smaller regional maps use image overlays. On narrow screens,
+maps allow extra zooming out so **Fit map** can show the complete image. Map images retain
+their resolution during publication. Leaflet and its styles are served locally
+and loaded only on pages with maps. Campaign/date and Behind the Curtain blocks
+filter maps like other article content, including inside note embeds. Missing
+images or invalid definitions produce a map warning without breaking the article.
+
+Distance tools, markers, switchable overlays, and navigation between maps remain
+future work; the website does not execute Obsidian Leaflet plugin scripts.
+
+Other images may be made smaller during publication. See
+[image settings](deploy.md#image-settings).
 
 ## Dataview and other generated content
 
@@ -237,13 +278,13 @@ article content. Those results stay as they were when published; changing the
 website's campaign or date does not rerun the query.
 
 DataviewJS blocks are removed, along with headings left empty by their removal.
-Remaining unsupported queries, inline query expressions, and Leaflet maps show
+Remaining unsupported queries and inline query expressions show
 warnings or unavailable-content messages. The website does not execute these
 scripts. HTML in the normal article body is supported.
 
 ## Search
 
-Search the sidebar or homepage for names, aliases, or words from a note. Words
+Search the header or homepage for names, aliases, or words from a note. Words
 match together and include word beginnings; use double quotes for an exact phrase.
 Results show relevant excerpts with highlighted matches and keep the selected
 date, campaigns and Behind the Curtain view. Conditional and private prose only

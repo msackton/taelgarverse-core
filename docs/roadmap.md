@@ -90,11 +90,20 @@ a fresh content publication. See [backlink behavior and indexing](backlinks.md).
 
 ### MVP-05: Existing tiled maps
 
-**Status:** Agreed scope; detailed behavior remains open.
+**Status:** Implemented; local browser and Node/Worker publication verification complete.
 
 Restore the existing interactive map experience, including tiled maps and basic
 pan/zoom behavior. Additional map capabilities can follow under Presentation
 improvements.
+
+Existing Leaflet image maps preserve their authored bounds, center, dimensions,
+and zoom settings, with extra zooming out to fit narrow screens. Large maps use
+generated WebP tile pyramids; regional maps use image overlays. Leaflet is bundled
+locally and loaded only where needed. Maps support mouse, keyboard, and touch
+interaction, a Fit map control, and an
+original-image fallback. Publication preserves map image resolution and packages
+tiles with the existing asset pipeline. Deployment and content publication remain
+separate.
 
 ### MVP-06: Click-to-enlarge images
 

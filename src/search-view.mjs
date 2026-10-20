@@ -3,7 +3,7 @@ import {escapeHtml,contextQuery} from './common.mjs';
 export function searchForm(query,context){
   const fields=[...contextQuery(context)].map(([key,value])=>'<input type="hidden" name="'+key+'" value="'+escapeHtml(value)+'">').join('');
   return '<form class="search-form" action="/" role="search" aria-label="Search Taelgar">'+fields+
-    '<label for="site-search">Search Taelgar</label><div class="search-input-row"><input id="site-search" type="search" name="q" maxlength="256" value="'+escapeHtml(query)+'" placeholder="Names, phrases, or words from a note" aria-describedby="search-help"><button>Search</button></div>'+
+    '<label for="search-query">Search Taelgar</label><div class="search-input-row"><input id="search-query" type="search" name="q" maxlength="256" value="'+escapeHtml(query)+'" placeholder="Names, phrases, or words from a note" aria-describedby="search-help"><button>Search</button></div>'+
     '<p id="search-help">Use quotes for an exact phrase. Other words match together, including word beginnings.</p></form>';
 }
 export const searchErrorView=(query,context,message)=>'<section class="search-page"><h1>Search Taelgar</h1>'+searchForm(query.slice(0,256),context)+'<p class="search-notice" role="alert">'+escapeHtml(message)+'</p></section>';

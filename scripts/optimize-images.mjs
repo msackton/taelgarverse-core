@@ -43,7 +43,7 @@ export async function optimizeImages(entries, cacheDir, options = {}, onProgress
     const filename = entry.filename;
     const original = await fs.stat(filename);
     const hash = await fileHash(filename);
-    const cacheKey = createHash('sha256').update(hash + recipe).digest('hex');
+    const cacheKey = createHash('sha256').update(hash + recipe + (entry.mapImage ? ':map' : '')).digest('hex');
     const cached = path.join(cacheDir, `${cacheKey}.${format}`);
     stats.images++;
     stats.inputBytes += original.size;
@@ -74,7 +74,8 @@ export async function optimizeImages(entries, cacheDir, options = {}, onProgress
       // Short filenames also work when Windows has its legacy path limit.
       const temporary = path.join(cacheDir, randomUUID() + '.' + format);
       try {
-        let image = sharp(input).autoOrient().resize({
+        let image = sharp(input).autoOrient();
+        if (!entry.mapImage) image = image.resize({
           width: settings.maxSize, height: settings.maxSize, fit: 'inside', withoutEnlargement: true,
         });
         if (format === 'jpeg') image = image.jpeg({quality: settings.quality, mozjpeg: true});

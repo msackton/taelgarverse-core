@@ -1,0 +1,4 @@
+{
+  "Maps.md": "# Maps\n\n```leaflet \nimage: [[tiny.png]]\nbounds: [[0,0],[100,200]]\nlat: 50\nlong: 100\nminZoom: -2\nmaxZoom: 2\ndefaultZoom: 0\n```\n\n%%^Campaign:dufr%%\n```leaflet\nimage: [[tiny.png]]\nbounds: [[0,0],[100,200]]\n```\n%%^End%%\n\n%%^Campaign:none%%\n```leaflet\nimage: [[tiny.png]]\nbounds: [[0,0],[100,200]]\n```\n%%^End%%\n",
+  "Embedded Maps.md": "# Embedded maps\n\n![[Maps]]\n\n![[Maps]]\n"
+}

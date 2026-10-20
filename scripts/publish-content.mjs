@@ -12,6 +12,7 @@ import {IMAGE_DEFAULTS, IMAGE_VERSION, optimizeImages} from './optimize-images.m
 import {createSearchDatabase,searchBinding} from './search-database.mjs';
 import {SearchIndex,readPreparedSearch,validateSearchDescriptor} from './search-index.mjs';
 import {activationPointer,validatePointer,validatePublicationUploads,createRetentionStorage,prunePublication} from './content-retention.mjs';
+import {mapImages} from '../src/maps.mjs';
 
 export const CHECKPOINT_KEY = 'published/current.json';
 const CACHE = path.join(ROOT, '.cache/publish');
@@ -205,6 +206,7 @@ export function buildFingerprint(settings, options, config={}) {
     strict: !options.noStrict, default_date: settings.default_date,searchDestination:{account:config.account_id,databases:config.d1_databases || []}}));
   for (const filename of [settings.nav_source, settings.home_source,
     new URL('./publish-content.mjs', import.meta.url), new URL('./optimize-images.mjs', import.meta.url),
+    new URL('./build-maps.mjs', import.meta.url), new URL('../src/maps.mjs', import.meta.url),
     new URL('./prepare-cloudflare.mjs', import.meta.url), new URL('../src/store.mjs', import.meta.url),
     new URL('../src/content-store.mjs', import.meta.url), new URL('../src/backlinks.mjs', import.meta.url),
     new URL('../src/markdown.mjs', import.meta.url), new URL('../src/comments.mjs', import.meta.url),
@@ -290,6 +292,7 @@ export async function main(options) {
         await fs.copyFile(reportFile, path.join(CACHE, 'materialization-report.json'));
         const preparedSettings = {...settings, source_dir: output};
         const store = new Store(preparedSettings);
+        mapImages(store);
         console.log('Optimizing exported JPEG, PNG, and WebP images…');
         let lastLog = 0;
         const images = await optimizeImages(store.entries, path.join(CACHE, 'images'),

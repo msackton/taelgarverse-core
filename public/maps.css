@@ -1,0 +1,9 @@
+.article-main .leaflet-map { margin:1.5rem 0; width:100%; max-width:100%; }
+.map-canvas { height:min(var(--map-height,600px),75vh); width:var(--map-width,100%); max-width:100%; min-height:240px; border:1px solid #aaa; border-radius:4px; background:#e7e4dc; isolation:isolate; z-index:0; }
+.map-canvas[hidden] { display:none; }
+.leaflet-map figcaption { display:flex; align-items:center; flex-wrap:wrap; gap:.6rem; margin-top:.5rem; font-size:.85rem; font-style:normal; }
+.leaflet-map figcaption button { padding:.3rem .6rem; cursor:pointer; }
+.article-main .leaflet-container img { max-width:none !important; max-height:none !important; margin:0; border-radius:0; }
+.article-main .leaflet-control-zoom a { text-decoration:none; color:#333; }
+.map-canvas:focus-visible { outline:3px solid #287c79; outline-offset:3px; }
+@media (max-width:600px) { .map-canvas { height:min(var(--map-height,600px),65vh); } }

@@ -76,6 +76,7 @@ sqliteTest('Worker search API/HTML use the active revision, preserve context, fa
   const html=await (await request('/?q=bronze&date=1740-01-01&campaigns=all&dm=1')).text(),$=load(html);
   assert.equal($('.search-result mark').text(),'bronze');assert.equal($('.search-form input[name="campaigns"]').val(),'all');assert.equal($('.context-form input[name="q"]').val(),'bronze');
   assert.equal($('link[href="/theme/search.css"]').length,1);assert.equal((await request('/theme/search.css')).status,200);
+  assert.equal($('#site-search').length,1);assert.equal($('#search-query').length,1);
   const simultaneous=await Promise.all(['','&dm=1','&campaigns=dufr','&campaigns=adma'].map(async query=>(await request('/api/search?q=privatemarker&date=1740-01-01'+query)).json()));
   assert.deepEqual(simultaneous.map(r=>r.results.length),[0,1,0,0]);
   const missing=await (await request('/api/search?q=Golden',{SEARCH_DB:undefined})).json();assert.equal(missing.fallback,true);assert.equal(missing.results[0].excerpt,'');

@@ -8,6 +8,7 @@ import {load} from 'cheerio';
 import {escapeHtml, pageUrl, titleCase} from './common.mjs';
 import {IMAGE_TYPES, AUDIO_TYPES, availableInContext} from './content-store.mjs';
 import {decorateDMNotes} from './dm.mjs';
+import {renderMap} from './maps.mjs';
 
 import {icons} from './icons.mjs';
 const aliases = {summary:'abstract',tldr:'abstract',hint:'tip',important:'tip',check:'success',done:'success',
@@ -169,7 +170,8 @@ export function createMarkdown(options = {}) {
         '<details class="mermaid-source" open><summary>Diagram source</summary><pre><code class="language-mermaid">' +
         escapeHtml(tokens[index].content) + '</code></pre></details></figure>\n';
     }
-    if (['dataview','dataviewjs','leaflet'].includes(type)) {
+    if (/^leaflet(?:\s|$)/i.test(type)) return renderMap(tokens[index].content,env);
+    if (['dataview','dataviewjs'].includes(type)) {
       env.warnings.push(type + ' block requires a materialized body or a future query adapter');
       return '<div class="admonition warning"><p class="admonition-title">Dynamic content unavailable</p><p>This block has not been rendered.</p></div>\n';
     }

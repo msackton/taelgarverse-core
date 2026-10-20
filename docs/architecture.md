@@ -56,6 +56,7 @@ flowchart LR
 | `src/snapshot.mjs` | Load the R2 index and fetch/cache Markdown shards on demand. |
 | `src/application.mjs` | Shared Fetch API router: homepage, articles, search HTML/JSON, contexts, navigation, assets, health. |
 | `src/render-engine.mjs` | Resolve context/page, generate header, filter comments, render Markdown and page shell. |
+| `src/homepage.mjs`, `public/homepage.css`, `public/images/home-map.webp` | Homepage composition, entry buttons, responsive layout, and decorative map asset. Introductory content remains in the vault's `_website/home.md`. |
 | `src/contexts.mjs`, `src/navigation.mjs` | Session-derived dates and context-filtered navigation. |
 | `src/backlinks.mjs` | Index authored incoming links and filter them by source availability and visible comment states. |
 | `src/embeds.mjs` | Expand visible note/heading/block embeds, bound recursion, preserve source-relative rendering, and isolate anchors/popups. |
@@ -64,10 +65,32 @@ flowchart LR
 | `src/worker.mjs`, `src/worker-handler.mjs`, `src/header-runtime.mjs` | Worker adapter and fresh instances of generated header classes. |
 | `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs` | Translate trusted vault classes into ordinary JavaScript modules. |
 | `public/`, `src/browser/`, `scripts/build-browser.mjs` | Application styles/scripts and the generated Mermaid browser bundle. |
+| `public/quiet-library.css`, `public/site-ui.js`, `public/appearance.js` | Quiet Library layout, responsive dialogs and scroll controls, and browser-local System/Light/Dark appearance. |
 | `src/release-footer.mjs`, `public/release.js`, `scripts/build-core-release.mjs` | Version footer, copy behavior, and core provenance captured by Wrangler's custom build. |
 | `experiments/ai-search/` | Isolated D1 full-text baseline and optional AI Search pilot: allowlisted exports, usage limits, explicit independent syncs, local viewer, fallback, and repeatable comparisons; no production imports. |
 
 ## Configuration
+
+The page shell uses Quiet Library typography with the Sage & stone palette.
+`src/header.mjs` owns header controls and dialog markup; `src/navigation.mjs`
+renders context-filtered section links and the lazy navigation tree. Browser
+code moves the same navigation, search, and context controls into dialogs below
+1100px. Backlinks use the right sidebar even without a contents list, and remain
+accessible below the article on mobile. Material CSS still provides article
+components; the Quiet Library stylesheet overrides its colors with shared light/dark tokens.
+Appearance defaults to the operating system, is applied before styles load, and
+explicit choices persist in `localStorage` under `taelgarverse-appearance`.
+This preference does not alter content context or server caching.
+
+The homepage route passes the rendered, context-filtered `home.md` through
+`src/homepage.mjs` before the shared page shell. Its heading and lead paragraph
+form the banner; remaining prose is kept intact below the three entry links.
+The entry destinations use indexed metadata for visibility and URL context,
+without fetching extra article bodies. Search requests (`/?q=`, including an
+empty query) retain the page-finder layout. Homepage CSS loads only for the
+homepage. The decorative WebP is a 1600px derivative of the existing TaelgarVerse
+`overrides/assets/images/banner-map.png` reference asset; it is checked into core
+and served through the theme asset allowlist, independently of vault snapshots.
 
 `config.json` owns shared vault/content defaults. `loadSettings()` automatically
 applies the ignored `config.local.json` when present; local files need only changed

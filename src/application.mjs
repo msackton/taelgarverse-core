@@ -2,7 +2,8 @@ import {RenderError,escapeHtml,pageUrl,parseDM} from './common.mjs';
 import {document} from './render-engine.mjs';
 import {contextQuery} from './header.mjs';
 import {searchInput,searchPages} from './search.mjs';
-import {searchForm,searchView,searchErrorView} from './search-view.mjs';
+import {searchView,searchErrorView} from './search-view.mjs';
+import {homepage} from './homepage.mjs';
 
 const apiSpec = {
   openapi:'3.1.0', info:{title:'TaelgarVerse rendering API',version:'0.2.0'},
@@ -95,7 +96,7 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
         const context = {...engine.contexts.resolve(contextId,date,selectedCampaigns), dm};
         if (!url.searchParams.has('q')) {
           const home = await renderHome(context);
-          if (home) return send(200,document({...home,title:'TaelgarVerse',html:home.html + searchForm(query,context),context,search:true},engine.contexts.list(),engine.navigation,releases),'text/html');
+          if (home) return send(200,document({...homepage(home,context,engine.store),title:'TaelgarVerse',context},engine.contexts.list(),engine.navigation,releases),'text/html');
         }
         let input;
         try{input=searchInput(query,{limit:url.searchParams.get('limit') ?? 20,offset:url.searchParams.get('offset') ?? 0});}

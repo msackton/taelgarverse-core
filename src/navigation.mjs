@@ -119,29 +119,36 @@ export class Navigation {
   }
   browseUrl(node,context) { return '/browse/' + node.id + '?' + contextQuery(context); }
 
-  list(nodes,view) {
+  list(nodes,view,roots = false) {
     return nodes.map(original=>{
       const node = view.visible.get(original.id);
       if (!node) return '';
       const active = node.id===view.selected || node.home && !view.page && !view.trail.length;
+      const item = '<li' + (roots ? ' data-nav-root' + (node.id===view.trail[0]?.id ? ' class="active-section"' : '') : '') + '>';
       const link = '<a href="' + escapeHtml(this.url(node,view.context)) + '"' + (active ? ' aria-current="page"' : '') + '>' + escapeHtml(node.label) + '</a>';
-      if (!node.children.length) return '<li>' + link + '</li>';
+      if (!node.children.length) return item + link + '</li>';
       const open = view.active.has(node.id);
       const query = contextQuery(view.context);
       query.set('branch',node.id);
       if (view.page) query.set('page',view.page);
       const content = open ? this.list(node.children,view) : '<li class="nav-placeholder"><a href="' + escapeHtml(this.browseUrl(node,view.context)) + '">Browse section</a></li>';
-      return '<li><details' + (open ? ' open' : '') + ' data-nav-url="' + escapeHtml('/api/navigation?' + query) + '">' +
+      return item + '<details' + (open ? ' open' : '') + ' data-nav-url="' + escapeHtml('/api/navigation?' + query) + '">' +
         '<summary>' + link + '</summary><ul data-nav-children data-loaded="' + open + '">' + content + '</ul></details></li>';
     }).join('');
   }
 
   sidebar(view) {
-    const fields = [...contextQuery(view.context)].map(([key,value])=>'<input type="hidden" name="' + key + '" value="' + escapeHtml(value) + '">').join('');
-    return '<aside class="site-sidebar"><details class="site-navigation" open><summary>Explore Taelgar</summary>' +
-      '<nav aria-label="Site navigation"><form class="nav-search" action="/">' + fields +
-      '<label class="sr-only" for="nav-search">Search Taelgar</label><input id="nav-search" type="search" name="q" maxlength="256" placeholder="Search notes…"><button>Search</button></form>' +
-      '<ul class="nav-tree">' + this.list(view.roots,view) + '</ul></nav></details></aside>';
+    const section = view.trail[0];
+    return '<aside class="site-sidebar" id="site-navigation"><details class="site-navigation" open><summary><span class="nav-section-label">' + escapeHtml(section?.label || 'Explore Taelgar') + '</span><span class="nav-all-label">Explore Taelgar</span></summary>' +
+      '<nav aria-label="Site navigation"><ul class="nav-tree">' + this.list(view.roots,view,true) + '</ul></nav></details></aside>';
+  }
+
+  sections(view) {
+    if (!view.roots.length) return '';
+    return '<nav class="section-navigation" aria-label="Main sections"><ul>' + view.roots.map(root=>{
+      const node = view.visible.get(root.id), active = node.id===view.trail[0]?.id || node.home && !view.page && !view.trail.length;
+      return '<li><a href="' + escapeHtml(this.url(node,view.context)) + '"' + (active ? ' aria-current="location"' : '') + '>' + escapeHtml(node.label) + '</a></li>';
+    }).join('') + '</ul></nav>';
   }
 
   breadcrumbs(view) {

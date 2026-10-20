@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {load} from 'cheerio';
+import sharp from 'sharp';
 import {Engine} from '../src/engine.mjs';
 import {initializeHeaders, renderHeader} from '../src/headers.mjs';
 import {createServer} from '../src/server.mjs';
@@ -15,6 +16,7 @@ before(async () => {
   fs.mkdirSync(path.join(ROOT,'.cache'),{recursive:true});
   directory = fs.mkdtempSync(path.join(ROOT,'.cache','node-test-'));
   const notes = JSON.parse(fs.readFileSync(new URL('./fixtures/notes.json',import.meta.url),'utf8'));
+  Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/maps.json',import.meta.url),'utf8')));
   Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/backlinks.json',import.meta.url),'utf8')));
   Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/embeds.json',import.meta.url),'utf8')));
   for (const [relative,source] of Object.entries(notes)) {
@@ -23,6 +25,8 @@ before(async () => {
     fs.writeFileSync(filename,source);
   }
   fs.writeFileSync(path.join(directory,'tiny.png'),'fixture asset');
+  fs.writeFileSync(path.join(directory,'Tiled Map.md'),'```leaflet\nimage: [[world.png]]\nbounds: [[0,0],[64,4100]]\n```');
+  await sharp({create:{width:4100,height:64,channels:3,background:'red'}}).png().toFile(path.join(directory,'world.png'));
   for (const relative of ['assets/audio/song.mp3','assets/session-audio/session/clip.m4a','assets/excalidraw/drawing.png']) {
     const filename = path.join(directory,relative);
     fs.mkdirSync(path.dirname(filename),{recursive:true});
@@ -46,6 +50,27 @@ after(async () => {
   if (server) await new Promise(resolve => server.close(resolve));
   if (directory && isInside(path.join(ROOT,'.cache'),directory)) fs.rmSync(directory,{recursive:true});
 });
+test('Node renders maps in context and repeated note embeds, loads local map assets only when needed',async()=>{
+  for (const [context,dm,count] of [['modern','0',1],['dunmar-frontier','0',2],['modern','1',2]]) {
+    const $ = load(await (await fetch(base+'/page/maps?context='+context+'&dm='+dm)).text());
+    assert.equal($('.leaflet-map').length,count);
+    assert.equal($('script[src="/theme/maps.js"]').length,1);
+    assert.equal($('link[href="/theme/leaflet.css"]').length,1);
+  }
+  const embedded = load(await (await fetch(base+'/page/embedded-maps?context=modern')).text());
+  assert.equal(embedded('.leaflet-map').length,2);
+  const tiled = await (await fetch(base+'/api/page?page=Tiled%20Map')).json();
+  const config = JSON.parse(load(tiled.html)('.leaflet-map').attr('data-map'));
+  assert.ok(config.tile);
+  const tile = await fetch(base+config.tile.baseUrl+'/0/8/0.webp');
+  assert.equal(tile.status,200);assert.match(tile.headers.get('content-type'),/image\/webp/);
+  assert.equal((await sharp(Buffer.from(await tile.arrayBuffer())).metadata()).width,512);
+  for (const [url,mime] of [['maps.js','javascript'],['leaflet.css','css'],['maps.css','css']]) {
+    const response = await fetch(base+'/theme/'+url);assert.equal(response.status,200);assert.match(response.headers.get('content-type'),new RegExp(mime));
+  }
+  assert.equal(load(await (await fetch(base+'/page/places/first-town')).text())('script[src="/theme/maps.js"]').length,0);
+});
+
 test('Node HTML and API include context-filtered note embeds without adding child headings to the TOC',async()=>{
   const query='context=custom&date=1730-01-01&campaigns=all&dm=1';
   const api=await fetch(base+'/api/page?page=Embed%20Host&'+query);
@@ -334,6 +359,9 @@ test('homepage renders authored Markdown with context links and keeps search sep
   assert.equal(response.status,200);
   const $ = load(await response.text());
   assert.equal($('main h1').text(),'Welcome to the fixture site');
+  assert.equal($('.home-hero h1').text(),'Welcome to the fixture site');
+  assert.equal($('.home-entry').length,3);
+  assert.equal($('.layout--home').length,1);
   assert.match($('main').text(),/Website introduction|Addermarch homepage content/);
   assert.doesNotMatch($('main').text(),/Private homepage note|Up to 100 matching pages/);
   assert.equal($('main a[href="/page/people/example?context=addermarch"]').length,1);
@@ -344,6 +372,11 @@ test('homepage renders authored Markdown with context links and keeps search sep
   assert.equal(finder('main .search-results').length,1);
   assert.doesNotMatch(finder('main').text(),/Website introduction/);
   assert.equal(finder('.context-form input[name="q"]').val(),'');
+  assert.equal(finder('.home-hero').length,0);
+  for (const [file,type] of [['homepage.css','text/css'],['home-map.webp','image/webp']]) {
+    const asset = await fetch(base+'/theme/'+file);
+    assert.equal(asset.status,200); assert.ok(asset.headers.get('content-type').startsWith(type));
+  }
 });
 
 test('page finder and navigation use the same date availability as articles',async()=>{
@@ -401,9 +434,8 @@ test('Node API and right page navigation expose the same filtered backlinks, inc
     for (const link of result.backlinks) assert.equal((await fetch(base+link.url)).status,200);
   }
   const $=load(await(await fetch(base+'/page/backlink-empty')).text());
-  assert.equal($('.page-backlinks summary').text(),'Linked from');
-  assert.equal($('.page-backlinks a').length,0);
-  assert.equal($('.backlinks-empty').text(),'No incoming links.');
+  assert.equal($('.page-backlinks').length,0);
+  assert.equal($('.page-toc').length,0);
   assert.equal((await fetch(base+'/page/addermarch-backlink-session?context=modern')).status,200);
 });
 
