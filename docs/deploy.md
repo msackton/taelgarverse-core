@@ -6,6 +6,9 @@ The site is [taelgarverse.msackton.workers.dev](https://taelgarverse.msackton.wo
   Saving them to GitHub alone does not update the website.
 - **Website code in `taelgarverse-core`:** merging changes into `main` on
   GitHub updates the website automatically through Cloudflare.
+- **Taelgarverse Obsidian plugin:** publish a separate BRAT release. Its first
+  version includes Maps only; the materializer still follows the existing vault
+  workflow. See [plugin development and releases](../obsidian/taelgarverse/README.md).
 
 Start with [publishing](#publish-your-latest-notes) for a normal update.
 The references below explain [publishing options](#publishing-options),
@@ -346,6 +349,19 @@ to the scripts that generate note headers, follow the
 [code update instructions](architecture.md#change-and-release-rules).
 
 ## Command reference
+
+### Obsidian plugin commands
+
+| Command | Effect |
+| --- | --- |
+| `npm run build:obsidian` | Builds the self-contained Taelgarverse plugin in `dist/obsidian/taelgarverse/`. Local only. |
+| `npm run test:obsidian` | Runs plugin, map, and release checks against disposable fixtures; no vault or running Obsidian needed. |
+| `npm run obsidian:install -- --vault PATH --enable` | Installs locally, removes the former Map Tools ID from the enabled list, and enables Taelgarverse. Restart Obsidian afterward. Preserves notes and settings. |
+| `npm run obsidian:release -- --notes FILE` | Requires committed, pushed source and GitHub access; creates a release draft in `msackton/taelgarverse-obsidian`. Add `--publish` to make it available to BRAT after successful uploads. |
+
+The [plugin guide](../obsidian/taelgarverse/README.md) owns versioning, migration,
+GitHub sign-in, one-time public repository setup, and the manual Actions workflow.
+These commands do not publish vault content or deploy the website.
 
 Run these from `taelgarverse-core`. The `cf:` prefix means the command works
 with the Cloudflare version of the website. It does not always mean the command

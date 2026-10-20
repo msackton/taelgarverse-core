@@ -271,8 +271,8 @@ source/context metadata; previews use the existing context-filtered page API.
 
 ## Interactive maps
 
-Existing fenced `leaflet` blocks render as interactive image maps. Their image
-wikilink, bounds, center (`lat`/`long`), zoom limits, default zoom, height, and
+Fenced `taelgar-map` and legacy `leaflet` blocks render as interactive image maps.
+Their image wikilink, bounds, center (`lat`/`long`), zoom limits, default zoom, height, and
 width are preserved. Maps support dragging, zoom buttons, keyboard panning and
 zooming, and touch gestures. **Fit map** shows the complete map; **Open map image**
 also works without JavaScript or if the interactive viewer fails. Mouse-wheel
@@ -282,7 +282,10 @@ scrolling continues to scroll the article.
 points for a total; Undo, Clear, and Done controls appear as needed.
 **Trace path** mode follows winding roads or rivers by dragging, with each
 stroke measured along its bends and removed as one Undo action. The same tools
-are available through the [Obsidian companion plugin](../obsidian/taelgar-map-tools/README.md).
+are available through the [Taelgarverse Obsidian plugin](../obsidian/taelgarverse/README.md).
+Use `taelgar-map` for new notes so the plugin can coexist with Obsidian Leaflet.
+Existing `leaflet` blocks require opting into legacy support in Taelgarverse,
+with other map renderers disabled, or changing only their opening fence label.
 Returning to the start or choosing **Close shape** closes an outline and shows
 its enclosed area in square miles alongside the distance. Separate outlines
 have separate readings; crossed outlines report that area is unavailable.

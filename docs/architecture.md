@@ -2,7 +2,8 @@
 
 TaelgarVerse renders vault Markdown for a selected in-world date and campaign.
 The same application runs locally in Node and on Cloudflare Workers. Website
-code and published vault content have independent release paths.
+code, published vault content, and the Taelgarverse Obsidian plugin have
+independent release paths.
 
 ## Documentation map
 
@@ -38,8 +39,9 @@ flowchart LR
   CustomJS header rules, and the Obsidian materializer. Publishing exports copies;
   it does not rewrite source notes.
 - **`taelgarverse-core`** owns rendering, routing, navigation behavior, browser assets, the
-  publisher, and the checked-in Worker header module. Cloudflare builds need this
-  repository and its dependencies; they do not need a vault checkout or Obsidian.
+  publisher, the Taelgarverse Obsidian plugin source, and the checked-in Worker
+  header module. Cloudflare builds need this repository and its dependencies;
+  they do not need a vault checkout or Obsidian.
 - **`taelgarverse` / the older static publishing pipeline** are independent of
   this application. Their MkDocs output and materialized static headers are not
   inputs to the dynamic renderer.
@@ -61,7 +63,7 @@ flowchart LR
 | `src/backlinks.mjs` | Index authored incoming links and filter them by source availability and visible comment states. |
 | `src/embeds.mjs` | Expand visible note/heading/block embeds, bound recursion, preserve source-relative rendering, and isolate anchors/popups. |
 | `src/maps.mjs`, `src/map-distance.mjs`, `src/map-path.mjs`, `src/browser/map-view.mjs`, `src/browser/map-measurement.mjs` | Map rendering, calibration read from vault `leaflet` blocks, flat point/stroke routes, and shared measurement controls. See [maps](maps.md). |
-| `obsidian/taelgar-map-tools/`, `scripts/build-obsidian-maps.mjs`, `scripts/install-obsidian-maps.mjs` | Desktop Obsidian adapter and a reproducible local release using the shared map viewer, ruler, and calibration. The plugin reads vault images and owns map-component cleanup. |
+| `obsidian/taelgarverse/`, `scripts/build-obsidian.mjs`, `scripts/install-obsidian.mjs`, `scripts/release-obsidian.mjs` | Unified desktop plugin, initially Maps only. Features share core modules and own their Component cleanup. Self-contained releases go to `msackton/taelgarverse-obsidian` for BRAT; installed artifacts stay outside vault Git. See the [plugin guide](../obsidian/taelgarverse/README.md). |
 | `src/comments.mjs`, `src/markdown.mjs`, `src/dm.mjs` | Conditional prose, Obsidian syntax, link handling, Behind the Curtain notes. |
 | `src/engine.mjs`, `src/server.mjs`, `src/headers.mjs` | Node initialization, HTTP adapter, fresh VM context for trusted CustomJS. |
 | `src/worker.mjs`, `src/worker-handler.mjs`, `src/header-runtime.mjs` | Worker adapter and fresh instances of generated header classes. |
@@ -165,6 +167,7 @@ cache. [Cloudflare](cloudflare.md) owns the hosted storage/request details.
 | Vault Markdown/media, session notes, registry, `.obsidian/metadata.json` | Run the content publisher. |
 | `_website/home.md`, `_website/navigation.md`, `home_source`, `nav_source`, `default_date`, materializer, packaging, image settings | Republish content; use `--force` if the change is outside the publisher's fingerprint. A core merge alone does not refresh the published homepage or menu. |
 | Renderer, routes, CSS/browser scripts, dependencies, Worker configuration | Merge core changes to `main`; the Cloudflare pipeline deploys them. |
+| Taelgarverse plugin or shared map code used by it | Test both consumers, bump the plugin's own version, then explicitly release to the BRAT distribution repository. A website deployment does not release the plugin. |
 | Vault CustomJS header classes | Run `npm run build:worker-headers`, review and commit the generated `src/worker-headers.mjs` (and changed generated icons), then merge core to `main`. Content publication does not regenerate or deploy this module. Republish if data also changed. |
 | Snapshot schema or publication/availability policy | Update producer and consumers together; determine a compatible deployment order and whether existing snapshots must be republished. |
 | Search compiler, visibility rules, or index format | Republish content to compile/stage D1 before activation; retain active plus one previous good generation in R2/D1 and collect orphaned assets/text. See [search publication](search.md). |

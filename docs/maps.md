@@ -40,9 +40,14 @@ but report that area is unavailable. Multiple outlines show separate numbered
 areas; overlapping outlines are not combined into a union or interpreted as holes.
 Maps authored with other units show square units instead of square miles.
 
-The [Obsidian companion plugin](../obsidian/taelgar-map-tools/README.md) uses the
+The [Taelgarverse Obsidian plugin](../obsidian/taelgarverse/README.md) uses the
 same map viewer, tracing controller, and calibration. It renders existing
-`leaflet` blocks locally without rewriting their source.
+`taelgar-map` blocks locally without rewriting their source. The website accepts
+both `taelgar-map` and legacy `leaflet` fences. Taelgarverse's optional legacy
+setting handles `leaflet` blocks only when another known map renderer is not
+enabled; it is off by default so Obsidian Leaflet can coexist. Switching a note
+to the new fence changes only its opening label, preserving its definition and
+calibration. BRAT distributes the plugin independently of the website.
 
 ## Calibration belongs in the map block
 

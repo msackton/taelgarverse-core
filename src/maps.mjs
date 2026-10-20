@@ -69,7 +69,7 @@ export function mapImages(store) {
   const result = [], seen = new Set(), markdown = new MarkdownIt();
   for (const author of store.entries.filter(entry => entry.note)) {
     for (const token of markdown.parse(author.note.body,{})) {
-      if (token.type !== 'fence' || !/^leaflet(?:\s|$)/i.test(token.info.trim())) continue;
+      if (token.type !== 'fence' || !/^(?:taelgar-map|leaflet)(?:\s|$)/i.test(token.info.trim())) continue;
       try {
         const map = parseMap(token.content,store,author);
         map.entry.mapImage = true;

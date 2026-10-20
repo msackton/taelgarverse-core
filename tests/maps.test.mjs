@@ -12,6 +12,8 @@ import {prepareMaps} from '../scripts/build-maps.mjs';
 import {optimizeImages} from '../scripts/optimize-images.mjs';
 import {ROOT} from '../src/config.mjs';
 
+await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
+
 const definition = 'id: repeated\nimage: [[map with spaces.png]]\nbounds:\n- [0,0]\n- [64,4100]\nheight: 700px\nwidth: 900px\nlat: 32\nlong: 2050\nminZoom: -3\nmaxZoom: 2\ndefaultZoom: -1\n';
 function fixture(filename) {
   const entry = {id:'assets/map with spaces.png',target:'assets/map-with-spaces.png',extension:'.png',filename};
@@ -59,6 +61,15 @@ test('map measurement preserves authored scale and unit; invalid calibration lea
     assert.equal(JSON.parse($('.leaflet-map').attr('data-map')).measurement,null);
     assert.match(result.warnings[0],/distance measurement disabled/);
   }
+});
+
+test('taelgar-map blocks render and participate in image preparation alongside legacy leaflet blocks',()=>{
+  const {store,author}=fixture();
+  const source='```taelgar-map\n'+definition+'```';
+  const legacy=render(author.note.body,store,author),current=render(source,store,author);
+  assert.equal(current.html,legacy.html);assert.deepEqual(current.warnings,[]);
+  author.note.body=source;
+  assert.deepEqual(mapImages(store).map(map=>map.entry.id),['assets/map with spaces.png']);
 });
 
 test('leaflet blocks carry their own source-pixel calibration through website rendering',()=>{

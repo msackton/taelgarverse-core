@@ -9,6 +9,10 @@
   "scripts": {
     "build:runtime": "node scripts/build-runtime.mjs",
     "build:browser": "node scripts/build-browser.mjs",
+    "build:obsidian": "node scripts/build-obsidian.mjs",
+    "obsidian:install": "node scripts/install-obsidian.mjs",
+    "obsidian:release": "node scripts/release-obsidian.mjs",
+    "test:obsidian": "node --test tests/obsidian-maps.test.mjs tests/obsidian-release.test.mjs tests/map-measurement.test.mjs tests/maps.test.mjs",
     "build:obsidian-maps": "node scripts/build-obsidian-maps.mjs",
     "maps:install": "node scripts/install-obsidian-maps.mjs",
     "build:worker-headers": "node scripts/build-worker-headers.mjs",

@@ -6,12 +6,13 @@ import vm from 'node:vm';
 import {createRequire} from 'node:module';
 import {createHash} from 'node:crypto';
 import {build} from 'esbuild';
-import {buildObsidianMaps} from '../scripts/build-obsidian-maps.mjs';
-import {installObsidianMaps} from '../scripts/install-obsidian-maps.mjs';
+import {buildObsidian} from '../scripts/build-obsidian.mjs';
+import {installObsidian} from '../scripts/install-obsidian.mjs';
 import {ROOT} from '../src/config.mjs';
 
 const require=createRequire(import.meta.url);
-const compiled=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgar-map-tools/main.mjs'],write:false,bundle:true,
+await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
+const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export {default} from './obsidian/taelgarverse/main.mjs'; export {obsidianMapConfig} from './obsidian/taelgarverse/features/maps.mjs';",resolveDir:ROOT},write:false,bundle:true,
   platform:'node',format:'cjs',external:['obsidian','leaflet'],logLevel:'silent'});
 
 function host(){
@@ -31,7 +32,17 @@ function host(){
   }
   const doc={createElement(tag){const element=new Element(doc);element.tag=tag;return element;}};
   class TFile {constructor(filePath){this.path=filePath;this.extension=filePath.split('.').at(-1);this.stat={mtime:1,size:4};}}
-  class Plugin {registerMarkdownCodeBlockProcessor(language,processor){this.language=language;this.processor=processor;}}
+  class Component {
+    constructor(){this.children=[];}
+    addChild(child){this.children.push(child);child.onload?.();return child;}
+    unload(){this.onunload?.();for(const child of [...this.children])child.unload();}
+  }
+  class Plugin extends Component {
+    async loadData(){return this.savedData || {};}
+    async saveData(data){this.savedData=data;}
+    addSettingTab(){}
+    registerMarkdownCodeBlockProcessor(language,processor){(this.processors ??= new Map()).set(language,processor);this.language=language;this.processor=processor;}
+  }
   class MarkdownRenderChild {constructor(container){this.containerEl=container;}unload(){this.onunload();}}
   const handler=()=>({enabled:()=>true,disable(){},enable(){}});
   const L={CRS:{Simple:{}},latLngBounds(points){return {pad(){return this;},getEast:()=>points[1][1],getWest:()=>points[0][1],getNorth:()=>points[1][0],getSouth:()=>points[0][0],getCenter:()=>({lat:50,lng:50})};},
@@ -39,7 +50,7 @@ function host(){
     imageOverlay(){return {on(){return this;},addTo(){return this;}};},layerGroup(){return {addTo(){return this;},clearLayers(){}};}};
   const module={exports:{}},context={module,exports:module.exports,Buffer,TextDecoder,TextEncoder,console,
     ResizeObserver:class{observe(){}disconnect(){disconnected++;}},
-    require:name=>name==='obsidian'?{Plugin,MarkdownRenderChild,TFile}:name==='leaflet'?L:require(name)};
+    require:name=>name==='obsidian'?{Plugin,Component,PluginSettingTab:class{},Setting:class{},Notice:class{},MarkdownRenderChild,TFile}:name==='leaflet'?L:require(name)};
   vm.runInNewContext(compiled.outputFiles[0].text,context);
   const file=new TFile('assets/local map.png');let reads=0,fail=false,resolve;
   const app={metadataCache:{getFirstLinkpathDest:(image,source)=>{assert.equal(image,'local map.png');assert.equal(source,'Places/Map.md');return file;}},
@@ -74,32 +85,65 @@ test('Obsidian reads calibration from the note block, applies edits without rebu
 });
 
 test('Obsidian map components mount the shared controller and dispose observers and Leaflet state when notes unload',async()=>{
-  const h=host(),plugin=new h.default();plugin.app=h.app;plugin.onload();assert.equal(plugin.language,'leaflet');
+  const h=host(),plugin=new h.default();plugin.app=h.app;await plugin.onload();assert.equal(plugin.language,'taelgar-map');
   let child;
   plugin.processor(source,h.doc.createElement('div'),{sourcePath:'Places/Map.md',addChild(value){child=value;}});
   await child.onload();assert.equal(h.counts.maps,1);
-  plugin.onunload();assert.deepEqual(h.counts,{maps:1,removed:1,disconnected:1});assert.equal(plugin.hashes.size,0);assert.equal(plugin.maps.size,0);
+  plugin.unload();assert.deepEqual(h.counts,{maps:1,removed:1,disconnected:1});assert.equal(plugin.children[0].hashes.size,0);assert.equal(plugin.children[0].maps.size,0);
 });
 
 test('an Obsidian note closed during image hashing never mounts a stale map',async()=>{
-  const h=host(),plugin=new h.default();plugin.app=h.app;plugin.onload();h.defer();
+  const h=host(),plugin=new h.default();plugin.app=h.app;await plugin.onload();h.defer();
   let child;plugin.processor(source,h.doc.createElement('div'),{sourcePath:'Places/Map.md',addChild(value){child=value;}});
   const pending=child.onload();child.onunload();h.release();await pending;assert.equal(h.counts.maps,0);
 });
 
 test('Obsidian release bundle is self-contained except for the host API and has inline Leaflet icons',async()=>{
-  const output=await buildObsidianMaps(),main=await fs.readFile(path.join(output,'main.js'),'utf8');
+  const output=await buildObsidian(),main=await fs.readFile(path.join(output,'main.js'),'utf8');
   assert.doesNotThrow(()=>new vm.Script(main));assert.match(main,/require\("obsidian"\)/);assert.match(main,/Trace path/);
   const styles=await fs.readFile(path.join(output,'styles.css'),'utf8');assert.doesNotMatch(styles,/url\(images\//);assert.match(styles,/data:image\/png;base64/);
-  assert.equal(JSON.parse(await fs.readFile(path.join(output,'manifest.json'),'utf8')).id,'taelgar-map-tools');
+  const manifest=JSON.parse(await fs.readFile(path.join(output,'manifest.json'),'utf8'));
+  assert.equal(manifest.id,'taelgarverse');
+  const provenance=JSON.parse(await fs.readFile(path.join(output,'release.json'),'utf8'));
+  assert.equal(provenance.version,manifest.version);assert.equal(typeof provenance.sourceDirty,'boolean');
 });
 
 test('installer operates only on its plugin in a disposable fixture and preserves notes and other enabled plugins',async t=>{
   const directory=await fs.mkdtemp(path.join(ROOT,'.cache','obsidian-install-test-'));t.after(()=>fs.rm(directory,{recursive:true,force:true}));
   await fs.mkdir(path.join(directory,'.obsidian'));await fs.writeFile(path.join(directory,'Note.md'),'Original note');
   const list=path.join(directory,'.obsidian/community-plugins.json');await fs.writeFile(list,JSON.stringify(['dataview','customjs']));
-  const installed=await installObsidianMaps(directory,{enable:true});assert.equal(path.dirname(installed),path.join(directory,'.obsidian/plugins'));
-  assert.deepEqual(JSON.parse(await fs.readFile(list,'utf8')),['dataview','customjs','taelgar-map-tools']);
+  const installed=await installObsidian(directory,{enable:true});assert.equal(path.dirname(installed),path.join(directory,'.obsidian/plugins'));
+  assert.deepEqual(JSON.parse(await fs.readFile(list,'utf8')),['dataview','customjs','taelgarverse']);
   assert.equal(await fs.readFile(path.join(directory,'Note.md'),'utf8'),'Original note');
   for(const file of ['main.js','styles.css','manifest.json'])assert.ok((await fs.stat(path.join(installed,file))).size>0);
+});
+
+test('Taelgarverse leaves leaflet blocks alone by default and declines legacy ownership when another renderer is enabled',async()=>{
+  for(const other of ['obsidian-leaflet-plugin','obsidian-leaflet','taelgar-map-tools']){
+    const h=host(),plugin=new h.default();plugin.app=h.app;
+    plugin.app.plugins={enabledPlugins:new Set([other])};
+    await plugin.onload();assert.deepEqual([...plugin.processors.keys()],['taelgar-map']);
+    plugin.unload();
+    plugin.savedData={legacyLeafletBlocks:true};await plugin.onload();
+    assert.deepEqual([...plugin.processors.keys()],['taelgar-map']);
+  }
+  const h=host(),plugin=new h.default();plugin.app=h.app;plugin.savedData={legacyLeafletBlocks:true};
+  await plugin.onload();assert.deepEqual([...plugin.processors.keys()],['taelgar-map','leaflet']);
+});
+
+test('local upgrade retires Map Tools, coexists with Leaflet, and preserves plugin settings and old files',async t=>{
+  await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
+  const directory=await fs.mkdtemp(path.join(ROOT,'.cache','obsidian-migration-test-'));
+  t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+  const config=path.join(directory,'.obsidian'),target=path.join(config,'plugins/taelgarverse');
+  await fs.mkdir(target,{recursive:true});
+  const old=path.join(config,'plugins/taelgar-map-tools');await fs.mkdir(old);
+  await fs.writeFile(path.join(old,'main.js'),'old plugin');
+  await fs.writeFile(path.join(target,'data.json'),'{"legacyLeafletBlocks":true}');
+  const list=path.join(config,'community-plugins.json');
+  await fs.writeFile(list,JSON.stringify(['dataview','taelgar-map-tools','obsidian-leaflet-plugin']));
+  await installObsidian(directory,{enable:true});
+  assert.deepEqual(JSON.parse(await fs.readFile(list,'utf8')),['dataview','obsidian-leaflet-plugin','taelgarverse']);
+  assert.equal(await fs.readFile(path.join(target,'data.json'),'utf8'),'{"legacyLeafletBlocks":true}');
+  assert.equal(await fs.readFile(path.join(old,'main.js'),'utf8'),'old plugin');
 });

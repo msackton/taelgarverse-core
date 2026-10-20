@@ -1,7 +1,10 @@
-import {Plugin,MarkdownRenderChild,TFile} from 'obsidian';
+import {Component,MarkdownRenderChild,TFile,Notice} from 'obsidian';
 import {createHash} from 'node:crypto';
-import {parseMap} from '../../src/maps.mjs';
-import {mountMap} from '../../src/browser/map-view.mjs';
+import {parseMap} from '../../../src/maps.mjs';
+import {mountMap} from '../../../src/browser/map-view.mjs';
+
+export const legacyRenderers=['taelgar-map-tools','obsidian-leaflet-plugin','obsidian-leaflet'];
+export const hasLegacyRenderer=app=>legacyRenderers.some(id=>app.plugins?.enabledPlugins?.has(id));
 
 // Obsidian owns note availability. This adapter only renders the map block
 // Obsidian passes to it; it does not rewrite Markdown or publish content.
@@ -54,13 +57,19 @@ class MapChild extends MarkdownRenderChild {
   onunload(){this.disposed=true;this.dispose?.();this.plugin.maps.delete(this);}
 }
 
-export default class TaelgarMapTools extends Plugin {
+export class MapsFeature extends Component {
+  constructor(plugin){super();this.plugin=plugin;this.app=plugin.app;}
   onload(){
     this.hashes=new Map();
     this.maps=new Set();
-    this.registerMarkdownCodeBlockProcessor('leaflet',(source,element,context)=>{
+    const render=(source,element,context)=>{
       context.addChild(new MapChild(this,source,element,context));
-    });
+    };
+    this.plugin.registerMarkdownCodeBlockProcessor('taelgar-map',render);
+    if(this.plugin.settings.legacyLeafletBlocks){
+      if(hasLegacyRenderer(this.plugin.app))new Notice('Taelgarverse: legacy leaflet blocks are handled by another enabled map plugin. Use taelgar-map blocks or disable the other renderer and restart Obsidian.');
+      else this.plugin.registerMarkdownCodeBlockProcessor('leaflet',render);
+    }
   }
   onunload(){for(const child of this.maps)child.unload();this.hashes.clear();}
 }
