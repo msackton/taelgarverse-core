@@ -11,7 +11,7 @@ export async function stagePreparedSearch(report,{config=loadCloudflareConfig(),
   const manifest=readPreparedSearch(report),db=await createSearchDatabase(config,{local,persistTo});
   try{
     const index=new SearchIndex(db,{log});
-    return verifyOnly?await index.verify(report.revision,report.search):await index.stage(report.revision,manifest);
+    return verifyOnly?await index.verify(report.revision,report.search):await index.withPublicationLock(()=>index.stage(report.revision,manifest));
   }finally{await db.close();}
 }
 export async function main(argv=process.argv.slice(2)){

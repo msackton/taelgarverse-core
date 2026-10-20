@@ -37,7 +37,8 @@ The command prepares copies of your notes, makes large images smaller, and
 uploads the results and stages the matching D1 search index. It switches the site
 to new content after both are verified. Your original notes and images stay
 unchanged. If the same saved version/settings are online, it checks search
-readiness and skips rebuilding. Search UI integration remains a separate step.
+readiness and skips rebuilding while retrying any pending retention cleanup.
+The updated core connects the search UI to that published D1 index.
 
 `--no-strict` means “continue if a Dataview query cannot be converted.” Read the
 warnings: those queries may appear as unavailable content on the website. Leave
@@ -367,21 +368,43 @@ already handles normal publication.
 | `npm run cf:prepare` | Packages content, homepage/menu and a context-aware search manifest into `.cache/cloudflare/`. Does not export Obsidian queries or resize images. | No |
 | `npm run cf:seed` | Loads R2 content and stages local D1 before selecting the local publication. Run after preparation. | No |
 | `npm run cf:upload` | Uploads prepared content to the configured R2 bucket, leaving the site's selected publication unchanged. | Writes live storage; readers still see the previous content |
-| `npm run cf:publish` | Selects uploaded content after checking the matching D1 index is ready. Requires `cf:upload` and search staging for the same revision. | **Yes: vault content** |
+| `npm run cf:publish` | Rechecks/re-uploads prepared content and stages matching D1 under the publication lock, activates it, then retains one previous good snapshot. Requires a matching `cf:upload` receipt. | **Yes: vault content** |
 | `npm run search:index -- stage --dry-run` | Validates/reports the prepared search manifest without authentication or storage calls. | No |
 | `npm run search:index -- stage --remote` | Stages/verifies only the prepared D1 search revision; `--local` targets the emulator. | Writes search storage; does not activate content |
 | `npm run search:index -- verify --remote` | Checks prepared-revision readiness; accepts `--report FILE` for retained builds. | No; reads D1 |
+| `npm run content:prune -- --remote --dry-run` | Verifies the retained R2/D1 snapshots and reports R2 cleanup size without deleting anything. | No; reads storage |
+| `npm run content:prune -- --remote` | Removes history beyond the active and one previous good snapshot, including orphaned assets/search text. `--local` uses emulators. | Deletes excess storage; selected content stays active |
+| `npm run content:rollback -- --remote` | Verifies and swaps the active and previous good snapshot under the publication lock. | **Yes: vault content** |
 | `npm run cf:bucket` | Creates the bucket named by the prepared configuration. The existing site already has one. | Creates Cloudflare storage; does not publish content |
 
 Prepare again after changing settings before using these separate commands.
-For the manual flow, run search staging after `cf:upload` and before `cf:publish`.
-The full publisher does this automatically. The manual `cf:publish` command records
-the revision and activation time without a build fingerprint, so the next full
+For the manual flow, optional search staging after `cf:upload` allows an early
+readiness check. `cf:publish` repeats upload/staging under the shared D1 lock,
+because an intervening publication can collect unactivated uploads. Both full
+and manual publication automatically prune R2/D1 to the active snapshot and one
+previous successful snapshot. Cleanup failures can be retried with `content:prune`
+or an unchanged full publication. The manual command records the revision,
+activation time, search descriptor and rollback choice without a build fingerprint,
+so the next full
 `content:publish` run rebuilds instead of skipping unchanged content.
 
 [Search publication](search.md) documents visibility compilation, local artifacts,
 failed-stage recovery, database setup, retention, and rollback. `--build-only`
 makes no R2/D1 requests, and this pipeline never invokes AI Search.
+
+### Enable full-text search in the app
+
+Deploy the updated core through the normal code release, and run a successful
+`content:publish` to populate the matching production D1 revision. No separate
+search upload is needed with the full publisher. The app uses `SEARCH_DB` for
+`/?q=...` and `/api/search`; missing/older indexes show a page-name fallback notice.
+Both release orders work. Verify a body-only phrase and the desired campaign/date/
+Behind the Curtain context after publication. Core deployment alone does not
+populate D1 or invoke AI Search.
+
+Local Node previews use an in-memory SQLite index, initialized on first search.
+They need `node:sqlite` support and do not contact Cloudflare; restart after source
+changes to rebuild the local store/index. See [search](search.md#app-search).
 
 ## Isolated search experiment
 

@@ -241,6 +241,21 @@ Remaining unsupported queries, inline query expressions, and Leaflet maps show
 warnings or unavailable-content messages. The website does not execute these
 scripts. HTML in the normal article body is supported.
 
+## Search
+
+Search the sidebar or homepage for names, aliases, or words from a note. Words
+match together and include word beginnings; use double quotes for an exact phrase.
+Results show relevant excerpts with highlighted matches and keep the selected
+date, campaigns and Behind the Curtain view. Conditional and private prose only
+appears when it is visible in that view. Generated headers, executable query
+source and embedded copies of other notes are not indexed as authored prose.
+Materialized query results are searchable after publication.
+
+If full-text search is unavailable, the site shows a notice and falls back to
+page-name matches. Search changes appear after a content publication, just like
+article changes. Local previews build their search index on first use; restart
+the preview after editing the source notes.
+
 ## Supporting files
 
 The website also uses a few files that are not published as articles:

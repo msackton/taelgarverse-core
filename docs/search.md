@@ -1,8 +1,51 @@
 # Production search index and publication
 
-The D1 compiler and publication lifecycle are implemented. Worker search API and
-UI integration are deferred; the existing page finder continues to operate. AI
-Search remains independent and optional. This pipeline contacts no AI service.
+The D1 compiler, publication lifecycle, Worker search API and results page are
+implemented. Local previews use SQLite with the same compiler and query. AI
+Search remains independent and optional; production search contacts no AI service.
+
+## App search
+
+The sidebar and homepage search forms open `/?q=...`. `/api/search` returns the
+same results as JSON: query, resolved context, source (`full-text` or `page-names`),
+fallback status/notice, results, and `hasMore`/`limit`/`offset`. Each result contains
+page/title/context URL, a plain-text excerpt, and UTF-16 highlight ranges into that
+excerpt. No SQL, provider errors or raw HTML are returned.
+
+Words match together and support word beginnings; double quotes request an exact
+phrase, including across paragraph boundaries. Unicode names and aliases use the
+FTS tokenizer's accent-insensitive matching. Search boosts exact titles/aliases,
+then uses weighted FTS5 ranking (title 10, aliases 6, prose 1) with a stable page
+tie-break. Queries are limited to 256 characters and 16 terms, with 20 results by
+default, maximum 50 per page, and offsets through 1,000. FTS operators are always
+quoted as literal words. Empty queries browse available page names without D1.
+
+`src/search.mjs` builds two read-only queries in one D1 batch: a readiness check
+against the active R2 index's search descriptor, and the ranked query restricted
+to that revision's matching date/campaign/DM rules **before** ordering/limiting.
+The request-local `first-primary` D1 session starts with current readiness data;
+results are not cached between contexts or publications. The Worker uses the
+`SEARCH_DB` binding directly. It never reads R2 note shards for search. Excerpts
+come from the matched visible text version, and page metadata is checked again
+before any result is returned.
+
+Missing bindings, legacy/unsupported descriptors, unready/stale indexes or query
+errors fall back to visible title/path/alias matches with a clear notice. A valid
+full-text query with zero matches stays empty. Raw errors, queries and excerpts
+are excluded from fallback logs. Result URLs, pagination, forms and the context
+selector retain Custom campaign subsets, dates and Behind the Curtain choices.
+
+Node previews lazily compile and stage an in-memory SQLite index on the first
+nonempty search, reusing it until the server closes. This needs `node:sqlite`
+(Node 22.12 may need `NODE_OPTIONS=--experimental-sqlite`); if unavailable, page-name
+fallback still works. There are no Cloudflare credentials or remote calls in this
+path. A full vault can take several seconds to initialize the first search.
+
+Deploy the updated core to add the route and UI, then publish content to stage
+the matching production index. Either order is supported because older snapshots
+fall back to page names. Local checks do not index the vault remotely. Production
+AI enrichment remains a separate future integration; the isolated pilot is not
+imported into the app.
 
 ## Compiler and visibility
 
@@ -41,11 +84,13 @@ ownership or SQL schema versions stop initialization.
 
 | Table | Purpose |
 | --- | --- |
-| `tv_search_meta` | Production ownership marker and SQL schema version, currently 1. |
+| `tv_search_meta` | Production ownership marker and SQL schema version, currently 2. |
 | `tv_search_documents` | Immutable versions: page, title, aliases, prose, and content-hash ID. |
 | `tv_search_fts` | External-content FTS5 index over title, aliases, and prose. |
 | `tv_search_revisions` | R2 revision, compiler version/digest, expected counts, and staging/ready state. |
 | `tv_search_rules` | Revision membership and context rules. |
+| `tv_search_gc` | Transaction-scoped authorization to remove retired ready memberships. |
+| `tv_search_publish_lock` | One shared publisher/cleanup owner across machines. |
 
 Staging inserts only missing text versions and resumes incomplete membership in
 bounded batches. It reads back every document and rule, verifies content hashes
@@ -53,9 +98,9 @@ and the full manifest digest, then checks FTS5 integrity and marks the revision
 ready in one final transaction. A failed batch leaves an inactive staging
 revision. Triggers prevent updates to text and changes to ready membership or
 revisions. Activation and unchanged-publish skips verify ready state, version,
-digest, and membership counts. The future query service must filter on the active
+digest, and membership counts. The query service filters on the active
 R2 revision and context rules before ranking/limiting; `EXISTS` avoids duplicate
-matches from multiple applicable rules. No public query route is added here.
+matches from multiple applicable rules.
 
 ## Publishing and recovery
 
@@ -83,25 +128,66 @@ npm run search:index -- verify --remote
 npm run cf:publish
 ```
 
-`cf:publish` independently verifies D1 readiness before activating search-aware
-content. `cf:seed` stages local D1 before moving its local R2 pointer. The search
+`cf:publish` repeats upload/staging and verifies D1 readiness under the shared
+publication lock before activating content. `cf:seed` does the same locally. The search
 CLI defaults to `.cache/cloudflare/latest.json`; `--report FILE` selects retained
 artifacts. Except with `--dry-run`, select `--local` or `--remote` explicitly.
 Search commands never activate R2 content. Interrupted staging can be retried
 with the same artifacts; completed text is reused. Confirm a publisher has stopped
 before removing its lock. Older snapshots without search remain renderable.
 
-Previous ready revisions and their immutable text remain available for rollback.
-Verify retained artifacts with `search:index -- verify --remote --report FILE`
-before restoring their R2 pointer. Direct Wrangler pointer writes bypass the
-supported activation checks. There is no automatic D1 garbage collection, matching
-R2 retention. Text is shared across revisions; membership is retained for each.
-Cleanup/migration requires a coordinated retention design before removing any
-index used by a retained publication.
+Publication retains **the active snapshot plus one previous successful snapshot**
+in both R2 and D1. `published/current.json` records `retentionVersion: 1` and a
+single `previous` snapshot without nested history. Only a distinct successful
+activation rotates `previous`; failed staging never does. Publishing the same
+revision keeps the existing rollback choice. The first publication with this
+policy preserves the previously active publication and removes older history;
+legacy upload timestamps are never used to guess which snapshot was good.
+
+After activation, cleanup verifies both retained R2 indexes, their referenced
+objects and any D1 search descriptors. It removes older note shards/indexes,
+unreferenced content-addressed assets, older D1 memberships, and orphaned search
+text, including FTS postings. Assets/text shared by the retained revisions stay
+stored once. Unknown R2 keys are left alone. Failed/unactivated staging can exist
+temporarily and is collected after the next successful publication. Local build
+artifacts and the separate AI Search pilot are outside this policy.
+
+A D1 publication lock serializes supported publishers, manual uploads, search
+staging, cleanup and rollback across machines. It has no automatic expiry, so a
+slow publisher cannot lose its lock while uploading. Normal completion/failure
+releases it; after a killed process, confirm **all publishers have stopped**,
+inspect `tv_search_publish_lock`, then delete only that stale owner row using
+Wrangler D1 execute. The full publisher also retains its local file lock.
+Direct Wrangler object/SQL writes bypass this coordination.
+
+Cleanup failure reports that the new content is already active and leaves both
+retained snapshots available. An unchanged full publication retries cleanup
+without rebuilding. Maintenance commands require an explicit destination:
+
+```sh
+npm run content:prune -- --remote --dry-run
+npm run content:prune -- --remote
+npm run content:rollback -- --remote
+```
+
+`--local` selects the emulators instead. Dry-run reads and verifies the current
+retention plan without deletion or migration. Rollback checks both snapshots,
+then swaps active/previous under the same lock; the publication being replaced
+becomes the single rollback choice. No local prepared artifacts are required.
+Legacy pointers must first pass through a successful retention-enabled publish.
+
+Schema 1 upgrades transactionally to schema 2 without dropping existing ready
+generations. Guarded deletion and the FTS delete trigger permit coordinated GC
+while preserving ordinary ready-generation immutability. FTS segments are
+compacted during cleanup; SQLite can reuse freed database pages. Retention limits
+stored content history, not Cloudflare-managed Time Travel history or a guarantee
+that the displayed database file size immediately shrinks.
 
 ## Verification and measured scope
 
-Fast tests cover renderer parity across arbitrary dates/subsets/DM modes, date
+Fast tests cover live Worker API/HTML routing, ranking/prefix/phrase/Unicode
+queries, escaped highlighted excerpts, bounded pagination, fallback, revision
+changes/rollback, request isolation, and renderer parity across dates/subsets/DM modes, date
 availability, exclusions, malformed comments, whole-note matching, resume/reuse,
 corruption rejection, immutable revisions, deletion, and publication failure gates.
 SQLite tests need `node:sqlite` (Node 22.12: `NODE_OPTIONS=--experimental-sqlite`).

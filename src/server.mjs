@@ -10,7 +10,7 @@ import {handleRequest} from './application.mjs';
 import {serveAsset,themeFiles,contentTypes} from './http-assets.mjs';
 
 export function createServer(engine) {
-  return http.createServer(async(req,res)=>{
+  const server=http.createServer(async(req,res)=>{
     try {
       const request=new Request(new URL(req.url,'http://localhost'),{method:req.method,headers:req.headers});
       const response=await handleRequest(request,engine,{
@@ -35,6 +35,8 @@ export function createServer(engine) {
       res.writeHead(500,{'Content-Type':'application/json'});res.end(JSON.stringify({detail:'Internal rendering error'}));
     }
   });
+  server.once('close',()=>engine.closeSearch?.());
+  return server;
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
   const start = performance.now();

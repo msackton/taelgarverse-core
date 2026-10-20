@@ -20,6 +20,8 @@
     "cf:deploy": "node scripts/cloudflare.mjs deploy",
     "cf:smoke": "node scripts/smoke-worker.mjs",
     "content:publish": "node scripts/publish-content.mjs",
+    "content:prune": "node scripts/maintain-content.mjs prune",
+    "content:rollback": "node scripts/maintain-content.mjs rollback",
     "search:pilot": "node experiments/ai-search/cli.mjs",
     "search:index": "node scripts/search.mjs",
     "pretest": "node scripts/build-runtime.mjs && node scripts/build-browser.mjs",

@@ -37,6 +37,46 @@ const visible=(manifest,context)=>new Set(manifest.rules.filter(r=>r.from<=dateK
   (r.dm===null || r.dm===context.dm) && r.campaigns.every(c=>context.campaigns.includes(c)) && r.exceptCampaigns.every(c=>!context.campaigns.includes(c))).map(r=>r.document));
 const rev=letter=>letter.repeat(64);
 
+sqliteTest('D1 retention keeps only two generations, removes orphan FTS text and shares a cross-publisher lock',async()=>{
+  const {db,adapter,fail}=database(),index=new SearchIndex(adapter),other=new SearchIndex(adapter);
+  const make=text=>compileSearch(storeFor({'One.md':text,'Shared.md':'sharedmarker'}));
+  const a=make('oldmarker'),b=make('previousmarker'),c=make('currentmarker');
+  await index.stage(rev('a'),a);await index.stage(rev('b'),b);await index.stage(rev('c'),c);
+  // Also remove interrupted staging, including text without any membership.
+  fail(sql=>sql.startsWith('INSERT INTO tv_search_rules'));
+  await assert.rejects(index.stage(rev('d'),make('failedmarker')),/injected/);
+  await assert.rejects(index.prune([rev('c'),rev('b')]),/lock/);
+  await index.withPublicationLock(async()=>{
+    await assert.rejects(other.withPublicationLock(async()=>assert.fail('must not acquire')),/Another publisher/);
+    fail(sql=>sql==='DELETE FROM tv_search_gc');
+    await assert.rejects(index.prune([rev('c'),rev('b')]),/injected/);
+    await index.verify(rev('a'),searchDescriptor(a));assert.equal(db.prepare('SELECT COUNT(*) n FROM tv_search_gc').get().n,0);
+    await index.prune([rev('c'),rev('b')]);
+  });
+  await index.verify(rev('b'),searchDescriptor(b));await index.verify(rev('c'),searchDescriptor(c));
+  await assert.rejects(index.verify(rev('a'),searchDescriptor(a)),/not ready/);
+  assert.deepEqual(db.prepare('SELECT revision FROM tv_search_revisions ORDER BY revision').all().map(r=>r.revision),[rev('b'),rev('c')]);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM tv_search_documents').get().n,3);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM tv_search_fts WHERE tv_search_fts MATCH 'oldmarker OR failedmarker'").get().n,0);
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM tv_search_fts WHERE tv_search_fts MATCH 'sharedmarker'").get().n,1);
+  assert.throws(()=>db.prepare('DELETE FROM tv_search_rules WHERE revision=?').run(rev('b')),/immutable/);
+  await assert.rejects(index.withPublicationLock(async()=>{throw new Error('failed operation');}),/failed operation/);
+  await other.withPublicationLock(async()=>{});db.close();
+});
+
+sqliteTest('schema-1 database upgrades transactionally without dropping ready generations',async()=>{
+  const {db,adapter}=database(),index=new SearchIndex(adapter),manifest=compileSearch(storeFor({'One.md':'oldmarker'}));
+  await index.stage(rev('a'),manifest);
+  db.exec(`DROP TRIGGER tv_search_delete; DROP TRIGGER tv_search_revision_delete; DROP TRIGGER tv_search_rule_delete;
+    CREATE TRIGGER tv_search_rule_delete BEFORE DELETE ON tv_search_rules WHEN
+      (SELECT state FROM tv_search_revisions WHERE revision=old.revision)='ready'
+      BEGIN SELECT RAISE(ABORT,'Ready search membership is immutable'); END;
+    DROP INDEX tv_search_document_membership; DROP TABLE tv_search_gc; DROP TABLE tv_search_publish_lock; UPDATE tv_search_meta SET version=1;`);
+  await index.ensure();assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,2);
+  await index.verify(rev('a'),searchDescriptor(manifest));
+  await index.withPublicationLock(()=>index.prune([rev('a')]));db.close();
+});
+
 test('compiler supports arbitrary dates, campaign subsets and DM mode with whole-note renderer parity',()=>{
   const store=storeFor({'Host.md':'---\naliases: ["Other Name"]\n---\nPublic phrase beginning.\n%%^Campaign:dufr%%frontiertext%%^End%%\n%%^Campaign:adma%%addertext%%^End%%\n%%^Date:1740-05%%afterdate%%^End%%\n%%^Date:1740-05b%%beforedate%%^End%%\n%% privatepopup %%\n%%^Campaign:none%%dmonlyblock%%^End%%\n%%^Metadata:lint%%adminnever%%^End%%\nEnd of public phrase.',
     'Excluded.md':'---\nexcludePublish: [dufr]\n---\nExclusion text.',

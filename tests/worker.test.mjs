@@ -215,7 +215,7 @@ test('old publications retain the page finder; invalid homepage data is rejected
   fs.writeFileSync(file,JSON.stringify(index));
   const response=await createWorker(instantiate).fetch(new Request('https://example.test/'),{...env,CONTENT:storage});
   assert.equal(response.status,200);
-  assert.match(await response.text(),/Up to 100 matching pages/);
+  assert.equal(load(await response.text())('main h1').text(),'Browse pages');
   index.homeSource={invalid:true};
   fs.writeFileSync(file,JSON.stringify(index));
   await assert.rejects(()=>loadSnapshot(storage,report.revision,instantiate),{status:503});

@@ -4,7 +4,9 @@ import {spawn} from 'node:child_process';
 import {ROOT} from '../src/config.mjs';
 import {loadCloudflareConfig} from './prepare-cloudflare.mjs';
 import {buildBrowser} from './build-browser.mjs';
-import {stagePreparedSearch} from './search.mjs';
+import {createSearchDatabase} from './search-database.mjs';
+import {SearchIndex,readPreparedSearch} from './search-index.mjs';
+import {activationPointer,validatePublicationUploads,createRetentionStorage,prunePublication,POINTER_KEY} from './content-retention.mjs';
 
 const task=process.argv[2], extra=process.argv.slice(3);
 const output=path.join(ROOT,'.cache/cloudflare');
@@ -36,10 +38,30 @@ function verifiedUpload(report,config) {
   }
 }
 
-function publicationPointer(report) {
-  // The commit stays in the snapshot; stamp the time of activation here.
-  fs.writeFileSync(report.pointerFile,JSON.stringify({revision:report.revision,
-    completedAt:new Date().toISOString()})+'\n');
+async function uploadPrepared(report,config,flags,{local=false,activate=false}={}) {
+  const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
+  validatePublicationUploads(report.revision,uploads);
+  if(config.r2_buckets?.find(b=>b.binding==='CONTENT')?.bucket_name!==report.bucket)throw new Error('Prepared content and retention bucket disagree');
+  if(extra.some(arg=>/^--(?:config|env|local|remote|persist-to)(?:=|$)/.test(arg) || ['-c','-e'].includes(arg)))throw new Error('Publishing destination overrides must be configured before preparation');
+  const manifest=report.search?readPreparedSearch(report):null;
+  const db=await createSearchDatabase(config,{local});let retention;
+  try{
+    retention=await createRetentionStorage(config,{local});const index=new SearchIndex(db,{log:console.log});
+    await index.withPublicationLock(async()=>{
+      const target=local?['--local','--persist-to',path.join(ROOT,'.wrangler/state')]:['--remote'];
+      // Re-upload under the lock at activation too: an intervening publication
+      // may have collected this previously uploaded but unactivated snapshot.
+      await run(['r2','bulk','put',report.bucket,...flags,'--filename',report.manifestFile,...target,'--concurrency','8','--force']);
+      if(!activate)return;
+      if(manifest)await index.stage(report.revision,manifest);
+      const pointer=activationPointer(await retention.getJSON(POINTER_KEY),{revision:report.revision,
+        completedAt:new Date().toISOString(),...(report.search?{search:report.search}:{})});
+      fs.writeFileSync(report.pointerFile,JSON.stringify(pointer)+'\n');
+      await run(['r2','object','put',report.bucket+'/'+POINTER_KEY,...flags,'--file',report.pointerFile,...target,'--force']);
+      try{await prunePublication(retention,index,pointer,{log:console.log});}
+      catch(error){throw new Error('Content is published, but cleanup failed; retry cf:publish: '+error.message);}
+    });
+  }finally{try{await retention?.close();}finally{await db.close();}}
 }
 
 if (task==='check' || task==='deploy') {
@@ -61,29 +83,16 @@ if (task==='check' || task==='deploy') {
   await run(['dev',...flags,'--ip','127.0.0.1','--port','8787','--persist-to',path.join(ROOT,'.wrangler/state')]);
 } else if (task==='upload-local' || task==='upload-remote') {
   const {report,config,flags}=prepared();
-  const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
-  const immutableKey=new RegExp('^(?:assets/[a-f0-9]{64}|revisions/'+report.revision+'/(?:index\\.json|notes/[a-f0-9]{2}\\.json))$');
-  if (!uploads.length || uploads.some(item=>!immutableKey.test(item.key))) {
-    throw new Error('Upload manifest must contain only this snapshot and content-addressed assets');
-  }
   const local=task==='upload-local';
-  const storage=local ? ['--local','--persist-to',path.join(ROOT,'.wrangler/state')] : ['--remote'];
-  await run(['r2','bulk','put',report.bucket,...flags,'--filename',report.manifestFile,...storage,'--concurrency','8','--force']);
-  if (local) {
-    if(report.search)await stagePreparedSearch(report,{config,local:true});
-    publicationPointer(report);
-    await run(['r2','object','put',report.bucket+'/published/current.json',...flags,'--file',report.pointerFile,...storage,'--force']);
-  } else {
+  await uploadPrepared(report,config,flags,{local,activate:local});
+  if (!local) {
     fs.writeFileSync(receiptFile,JSON.stringify({revision:report.revision,bucket:report.bucket,
       worker:config.name,account:config.account_id,uploadedAt:new Date().toISOString()})+'\n');
   }
 } else if (task==='publish') {
   const {report,config,flags}=prepared();
   verifiedUpload(report,config);
-  if(report.search)await stagePreparedSearch(report,{config,verifyOnly:true});
-  publicationPointer(report);
-  await run(['r2','object','put',report.bucket+'/published/current.json',...flags,
-    '--file',report.pointerFile,'--remote','--force']);
+  await uploadPrepared(report,config,flags,{activate:true});
 } else {
   throw new Error('Unknown Cloudflare task');
 }

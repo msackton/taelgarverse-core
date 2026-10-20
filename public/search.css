@@ -1,0 +1,18 @@
+.search-form { margin: 1.25rem 0; }
+.search-form > label { display: block; margin-bottom: .5rem; font-weight: 650; }
+.search-input-row { display: flex; align-items: stretch; gap: .5rem; }
+.search-input-row input { min-width: 0; flex: 1; width: 100%; }
+.search-input-row button { margin: 0; }
+.search-form #search-help { margin: .5rem 0 0; font-size: .8rem; color: #526a63; }
+.search-notice { padding: .75rem 1rem; border-left: 3px solid #a8752b; background: #fff8e9; }
+.search-summary { color: #526a63; font-size: .85rem; }
+.md-typeset .search-results { list-style: none; padding: 0; margin: 1rem 0; }
+.md-typeset .search-result { margin: 0; padding: 1.1rem 0; border-bottom: 1px solid #e2e9e7; }
+.md-typeset .search-result h2 { margin: 0; font-size: 1.1rem; }
+.search-result h2 a { text-decoration: none; }
+.md-typeset .search-path { margin: .25rem 0 .5rem; color: #64736f; font-size: .75rem; overflow-wrap: anywhere; }
+.md-typeset .search-excerpt { margin: 0; font-size: .9rem; line-height: 1.65; overflow-wrap: anywhere; }
+.search-excerpt mark { background: #fff0ad; color: inherit; padding: 0 .05em; }
+.search-pagination { display: flex; gap: 1rem; margin-top: 1.25rem; }
+.search-pagination a { display: inline-block; padding: .4rem .75rem; border: 1px solid #adc2be; border-radius: 4px; }
+@media (max-width: 480px) { .search-input-row { flex-wrap: wrap; } .search-input-row input { flex-basis: 100%; } }

@@ -1,7 +1,8 @@
 import fs from 'node:fs';
+import {randomUUID} from 'node:crypto';
 import {SEARCH_VERSION,searchHash,documentHash,validateSearchManifest,searchDescriptor} from './compile-search.mjs';
 
-const OWNER='taelgarverse-core-search',SCHEMA=1;
+const OWNER='taelgarverse-core-search',SCHEMA=2;
 const schema=[
   'CREATE TABLE tv_search_meta(owner TEXT PRIMARY KEY,version INTEGER NOT NULL)',
   `CREATE TABLE tv_search_revisions(revision TEXT PRIMARY KEY,digest TEXT NOT NULL,compiler INTEGER NOT NULL,
@@ -24,6 +25,22 @@ const schema=[
     BEGIN SELECT RAISE(ABORT,'Ready search membership is immutable'); END`,
   `CREATE TRIGGER tv_search_revision_immutable BEFORE UPDATE ON tv_search_revisions WHEN old.state='ready'
     BEGIN SELECT RAISE(ABORT,'Ready search revisions are immutable'); END`,
+];
+// Version 2 keeps ready generations immutable except during an atomic prune.
+const retentionSchema=[
+  'CREATE TABLE tv_search_gc(revision TEXT PRIMARY KEY)',
+  'CREATE TABLE tv_search_publish_lock(slot INTEGER PRIMARY KEY CHECK(slot=1),owner TEXT NOT NULL,started_at TEXT NOT NULL)',
+  'DROP TRIGGER tv_search_rule_delete',
+  `CREATE TRIGGER tv_search_rule_delete BEFORE DELETE ON tv_search_rules WHEN
+    (SELECT state FROM tv_search_revisions WHERE revision=old.revision)='ready'
+    AND NOT EXISTS(SELECT 1 FROM tv_search_gc WHERE revision=old.revision)
+    BEGIN SELECT RAISE(ABORT,'Ready search membership is immutable'); END`,
+  `CREATE TRIGGER tv_search_revision_delete BEFORE DELETE ON tv_search_revisions WHEN
+    NOT EXISTS(SELECT 1 FROM tv_search_gc WHERE revision=old.revision)
+    BEGIN SELECT RAISE(ABORT,'Search revisions require coordinated retention'); END`,
+  `CREATE TRIGGER tv_search_delete AFTER DELETE ON tv_search_documents BEGIN
+    INSERT INTO tv_search_fts(tv_search_fts,rowid,title,aliases,text) VALUES('delete',old.rowid,old.title,old.aliases,old.text); END`,
+  'CREATE INDEX tv_search_document_membership ON tv_search_rules(document)',
 ];
 const validRevision=revision=>{if(!/^[a-f0-9]{64}$/.test(revision || ''))throw new Error('Invalid search content revision');};
 export function validateSearchDescriptor(search){
@@ -62,11 +79,38 @@ export class SearchIndex {
     const [tables]=await this.query([{sql:"SELECT name FROM sqlite_master WHERE type='table' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB '_cf_*'"}]);
     if(tables.some(t=>t.name==='tv_search_meta')){
       const [rows]=await this.query([{sql:'SELECT owner,version FROM tv_search_meta'}]);
-      if(rows.length!==1 || rows[0].owner!==OWNER || rows[0].version!==SCHEMA)throw new Error('Incompatible search database ownership/schema');
+      if(rows.length!==1 || rows[0].owner!==OWNER || ![1,SCHEMA].includes(rows[0].version))throw new Error('Incompatible search database ownership/schema');
+      if(rows[0].version===1)await this.query([...retentionSchema.map(sql=>({sql})),{sql:'UPDATE tv_search_meta SET version=? WHERE owner=?',params:[SCHEMA,OWNER]}]);
     }else{
       if(tables.length)throw new Error('Refusing to initialize a nonempty database without the production search marker');
-      await this.query([...schema.map(sql=>({sql})),{sql:'INSERT INTO tv_search_meta VALUES(?,?)',params:[OWNER,SCHEMA]}]);
+      await this.query([...schema,...retentionSchema].map(sql=>({sql})).concat({sql:'INSERT INTO tv_search_meta VALUES(?,?)',params:[OWNER,SCHEMA]}));
     }
+  }
+  async withPublicationLock(action){
+    await this.ensure();const owner=randomUUID();
+    const [,rows]=await this.query([
+      {sql:'INSERT INTO tv_search_publish_lock VALUES(1,?,?) ON CONFLICT(slot) DO NOTHING',params:[owner,new Date().toISOString()]},
+      {sql:'SELECT owner,started_at FROM tv_search_publish_lock WHERE slot=1'},
+    ]);
+    if(rows[0]?.owner!==owner)throw new Error('Another publisher holds the D1 publication lock since '+rows[0]?.started_at+'. If it crashed, confirm it has stopped before clearing tv_search_publish_lock.');
+    this.lockOwner=owner;
+    try{return await action();}finally{this.lockOwner=null;await this.query([{sql:'DELETE FROM tv_search_publish_lock WHERE slot=1 AND owner=?',params:[owner]}]);}
+  }
+  async prune(retained){
+    if(!this.lockOwner)throw new Error('Search retention requires the publication lock');
+    if(!Array.isArray(retained) || !retained.length || retained.length>2)throw new Error('Retain the current and at most one previous search revision');
+    retained.forEach(validRevision);
+    // One D1 batch is transactional: guards never leak if deletion fails.
+    await this.query([
+      {sql:'INSERT INTO tv_search_gc SELECT revision FROM tv_search_revisions WHERE revision NOT IN (SELECT value FROM json_each(?))',params:[JSON.stringify(retained)]},
+      {sql:'DELETE FROM tv_search_rules WHERE revision IN (SELECT revision FROM tv_search_gc)'},
+      {sql:'DELETE FROM tv_search_revisions WHERE revision IN (SELECT revision FROM tv_search_gc)'},
+      {sql:'DELETE FROM tv_search_documents WHERE NOT EXISTS(SELECT 1 FROM tv_search_rules WHERE document=tv_search_documents.id)'},
+      {sql:'DELETE FROM tv_search_gc'},
+      // Compact old FTS segments/tombstones, then verify external-content parity.
+      {sql:"INSERT INTO tv_search_fts(tv_search_fts) VALUES('optimize')"},
+      {sql:"INSERT INTO tv_search_fts(tv_search_fts,rank) VALUES('integrity-check',1)"},
+    ]);
   }
   async verify(revision,descriptor){
     validRevision(revision);validateSearchDescriptor(descriptor);

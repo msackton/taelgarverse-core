@@ -50,9 +50,11 @@ flowchart LR
 | `scripts/prepare-cloudflare.mjs` | Package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. |
 | `scripts/compile-search.mjs`, `src/search-text.mjs` | Compile deduplicated whole-note text versions and date/campaign/DM visibility rules. |
 | `scripts/search-index.mjs`, `scripts/search-database.mjs`, `scripts/search.mjs` | Immutable D1 staging, verification, remote/local adapters, and explicit staging CLI. |
+| `scripts/content-retention.mjs`, `scripts/maintain-content.mjs` | Coordinated R2/D1 retention of active plus one previous good snapshot; shared publication lock, orphan cleanup and verified rollback. |
+| `src/search.mjs`, `src/local-search.mjs`, `src/search-view.mjs` | Read-only context/revision-filtered D1 queries, identical local SQLite search, page-name fallback, and escaped result/excerpt rendering. |
 | `src/store.mjs`, `src/content-store.mjs` | Local filesystem scan, YAML parsing, page/asset lookup, shared availability rules. |
 | `src/snapshot.mjs` | Load the R2 index and fetch/cache Markdown shards on demand. |
-| `src/application.mjs` | Shared Fetch API router: homepage, articles, page finder, contexts, navigation, assets, health. |
+| `src/application.mjs` | Shared Fetch API router: homepage, articles, search HTML/JSON, contexts, navigation, assets, health. |
 | `src/render-engine.mjs` | Resolve context/page, generate header, filter comments, render Markdown and page shell. |
 | `src/contexts.mjs`, `src/navigation.mjs` | Session-derived dates and context-filtered navigation. |
 | `src/backlinks.mjs` | Index authored incoming links and filter them by source availability and visible comment states. |
@@ -138,8 +140,8 @@ cache. [Cloudflare](cloudflare.md) owns the hosted storage/request details.
 | Renderer, routes, CSS/browser scripts, dependencies, Worker configuration | Merge core changes to `main`; the Cloudflare pipeline deploys them. |
 | Vault CustomJS header classes | Run `npm run build:worker-headers`, review and commit the generated `src/worker-headers.mjs` (and changed generated icons), then merge core to `main`. Content publication does not regenerate or deploy this module. Republish if data also changed. |
 | Snapshot schema or publication/availability policy | Update producer and consumers together; determine a compatible deployment order and whether existing snapshots must be republished. |
+| Search compiler, visibility rules, or index format | Republish content to compile/stage D1 before activation; retain active plus one previous good generation in R2/D1 and collect orphaned assets/text. See [search publication](search.md). |
 
-| Search compiler, visibility rules, or index format | Republish content to compile/stage D1 before activation; retain old ready generations for rollback. See [search publication](search.md). |
 `npm run build:runtime` regenerates the local `.generated/headers.mjs` and
 `src/icons.mjs`; it does **not** update the committed Worker header module.
 `public/generated/` is ignored and rebuilt from the pinned browser dependencies.

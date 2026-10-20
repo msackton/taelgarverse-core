@@ -2,6 +2,7 @@ import {handleRequest} from './application.mjs';
 import {loadSnapshot} from './snapshot.mjs';
 import {serveAsset,themeFiles} from './http-assets.mjs';
 import {RenderError} from './common.mjs';
+import {createD1Search} from './search.mjs';
 
 export function createWorker(instantiate,coreRelease = {}) {
   let state;
@@ -28,6 +29,7 @@ export function createWorker(instantiate,coreRelease = {}) {
       const {engine,store,index}=await state.pending;
       return await handleRequest(request,engine,{
         runtime:'cloudflare-worker',revision,
+        search:createD1Search(env.SEARCH_DB,{revision,descriptor:index.search,store}),
         releases:{core:coreRelease,content:{...(index.sourceVersion || {}),
           ...(published.commit ? {commit:published.commit,dirty:published.dirty} : {}),publishedAt:published.completedAt}},
         async renderPage(page,date,context,dm,campaigns) {

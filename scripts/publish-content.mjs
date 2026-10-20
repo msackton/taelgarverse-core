@@ -11,6 +11,7 @@ import {prepareContent, loadCloudflareConfig} from './prepare-cloudflare.mjs';
 import {IMAGE_DEFAULTS, IMAGE_VERSION, optimizeImages} from './optimize-images.mjs';
 import {createSearchDatabase,searchBinding} from './search-database.mjs';
 import {SearchIndex,readPreparedSearch,validateSearchDescriptor} from './search-index.mjs';
+import {activationPointer,validatePointer,validatePublicationUploads,createRetentionStorage,prunePublication} from './content-retention.mjs';
 
 export const CHECKPOINT_KEY = 'published/current.json';
 const CACHE = path.join(ROOT, '.cache/publish');
@@ -95,6 +96,7 @@ export function validateCheckpoint(value) {
     throw new Error('Invalid R2 build checkpoint; inspect ' + CHECKPOINT_KEY + ' before rebuilding.');
   }
   if(value.search)validateSearchDescriptor(value.search);
+  validatePointer(value);
   return value;
 }
 
@@ -115,14 +117,13 @@ export function createStorage({bucket, configFile, local = false, persistTo = pa
       const value = JSON.parse(await fs.readFile(filename, 'utf8'));
       // Manual publication pointers carry a revision and optional activation time,
       // but have no publisher fingerprint that can justify skipping a build.
-      if (value && Object.keys(value).every(key=>['revision','completedAt'].includes(key)) &&
-          /^[a-f0-9]{64}$/.test(value.revision || '')) return null;
+      if (value && Object.keys(value).every(key=>['revision','completedAt','search','previous','retentionVersion'].includes(key)) &&
+          /^[a-f0-9]{64}$/.test(value.revision || '')) {validatePointer(value);return null;}
       return validateCheckpoint(value);
     },
     async upload(report) {
       const manifest = JSON.parse(await fs.readFile(report.manifestFile, 'utf8'));
-      const allowed = new RegExp('^(?:assets/[a-f0-9]{64}|revisions/' + report.revision + '/(?:index\\.json|notes/[a-f0-9]{2}\\.json))$');
-      if (!manifest.length || manifest.some(item => !allowed.test(item.key))) throw new Error('Upload manifest contains unexpected object keys.');
+      validatePublicationUploads(report.revision,manifest);
       await invoke(['r2', 'bulk', 'put', bucket, '--filename', report.manifestFile, '--concurrency', '8', '--force'], true);
     },
     async writeCheckpoint(value, filename) {
@@ -135,6 +136,7 @@ export function createStorage({bucket, configFile, local = false, persistTo = pa
 
 // Separating orchestration lets tests prove that failures never advance R2 state.
 export async function publishContent(options, deps) {
+  if(!options.buildOnly && deps.withPublicationLock)return deps.withPublicationLock(()=>publishContent(options,{...deps,withPublicationLock:null}));
   const before = await deps.repositoryState();
   if (before.dirty && !options.allowDirty) {
     throw new Error('Taelgar has uncommitted changes. Commit them first, or use --allow-dirty for a build marked dirty that will never skip subsequent builds.');
@@ -146,6 +148,7 @@ export async function publishContent(options, deps) {
       if(!deps.verifySearch)throw new Error('Search readiness verification is required before skipping this publication');
       await deps.verifySearch(previous);
     }
+    await deps.prune?.(previous);
     deps.log(`Taelgar ${before.commit.slice(0, 12)} is already in R2; skipping export, images, and upload.`);
     return {skipped: true, ...previous};
   }
@@ -159,7 +162,7 @@ export async function publishContent(options, deps) {
     await deps.verifyInputs?.();
   };
   await unchanged();
-  const result = {schemaVersion: 1, repository: before.repository, commit: before.commit,
+  let result = {schemaVersion: 1, repository: before.repository, commit: before.commit,
     dirty: before.dirty, fingerprint: options.fingerprint, revision: build.revision,
     headerRevision: build.headerRevision, images: build.images, queries: build.queries,
     completedAt: new Date().toISOString()};
@@ -173,7 +176,13 @@ export async function publishContent(options, deps) {
     }
     await unchanged();
     result.completedAt = new Date().toISOString();
+    // Manual pointers identify the previous good snapshot even without a
+    // publisher fingerprint that could justify skipping this build.
+    result=activationPointer(deps.readPointer?await deps.readPointer():previous,result);
     await deps.writeCheckpoint(result);
+    if(deps.prune){
+      try{await deps.prune(result);}catch(error){throw new Error('Content is published, but retention cleanup failed. Rerun to retry cleanup: '+error.message);}
+    }
     if (before.dirty) deps.log('Published uncommitted content, marked dirty in R2; the next run will rebuild.');
   }
   await deps.recordBuild(result, build);
@@ -204,7 +213,7 @@ export function buildFingerprint(settings, options, config={}) {
     // invalidate the shared R2 checkpoint for an otherwise identical build.
     hash.update(filename ? readFileSync(filename, 'utf8').replace(/\r\n/g, '\n') : '<no-website-source>');
   }
-  for(const filename of ['./compile-search.mjs','./search-index.mjs','./search-database.mjs','../src/search-text.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
+  for(const filename of ['./compile-search.mjs','./search-index.mjs','./search-database.mjs','./content-retention.mjs','../src/search-text.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
   return hash.digest('hex');
 }
 
@@ -233,7 +242,7 @@ export async function main(options) {
     if (error.code === 'EEXIST') throw new Error('A publish lock exists at ' + lockFile + '. If no publisher is running, remove that file and retry.');
     throw error;
   }
-  let working,searchDatabase;
+  let working,searchDatabase,retentionStorage;
   try {
     await lock.writeFile(JSON.stringify({pid: process.pid, startedAt: new Date().toISOString()}) + '\n');
     const destinationFile = path.join(CACHE, 'destination.json');
@@ -241,7 +250,12 @@ export async function main(options) {
     const storage = createStorage({bucket: binding.bucket_name, configFile: destinationFile, local: options.local});
     const fingerprint = buildFingerprint(settings, options, config);
     const index=async()=>{searchDatabase ??=await createSearchDatabase(config,{local:options.local});return new SearchIndex(searchDatabase,{log:console.log});};
+    let publicationIndex;
+    const retainedStorage=async()=>retentionStorage ??=await createRetentionStorage(config,{local:options.local});
     const result = await publishContent({...options, fingerprint}, {
+      withPublicationLock:async action=>{publicationIndex=await index();return publicationIndex.withPublicationLock(action);},
+      readPointer:async()=>(await retainedStorage()).getJSON(CHECKPOINT_KEY),
+      prune:async pointer=>prunePublication(await retainedStorage(),publicationIndex,pointer,{log:console.log}),
       repositoryState: () => repositoryState(vault),
       readCheckpoint: () => storage.readCheckpoint(path.join(CACHE, 'previous-checkpoint.json')),
       writeCheckpoint: value => storage.writeCheckpoint(value, path.join(CACHE, 'checkpoint.json')),
@@ -311,7 +325,7 @@ export async function main(options) {
     if (working) console.error('Export files retained for inspection: ' + working);
     throw error;
   } finally {
-    try{await searchDatabase?.close();}
+    try{try{await retentionStorage?.close();}finally{await searchDatabase?.close();}}
     finally{await lock.close();await fs.rm(lockFile, {force: true});}
   }
 }

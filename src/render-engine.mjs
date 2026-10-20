@@ -115,7 +115,8 @@ export function document(result,contextOptions,navigation,releases) {
   const diagrams = result.html.includes('class="mermaid-diagram"') ? '<script type="module" src="/theme/diagrams.js"></script>' : '';
   return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>' + escapeHtml(result.title) + ' — TaelgarVerse</title><link rel="stylesheet" href="/theme/material.css">' +
-    '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"></head>' +
+    '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css">' +
+    (result.search ? '<link rel="stylesheet" href="/theme/search.css">' : '') + '</head>' +
     '<body data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="deep-purple">' +
     siteHeader(result.context,contextOptions,{query:result.query}) +
     '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (pageNav ? '' : ' layout--no-toc') + '">' + sidebar +

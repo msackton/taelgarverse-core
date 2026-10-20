@@ -140,7 +140,7 @@ export class Navigation {
     const fields = [...contextQuery(view.context)].map(([key,value])=>'<input type="hidden" name="' + key + '" value="' + escapeHtml(value) + '">').join('');
     return '<aside class="site-sidebar"><details class="site-navigation" open><summary>Explore Taelgar</summary>' +
       '<nav aria-label="Site navigation"><form class="nav-search" action="/">' + fields +
-      '<label class="sr-only" for="nav-search">Find a page</label><input id="nav-search" type="search" name="q" placeholder="Find a page…"><button>Search</button></form>' +
+      '<label class="sr-only" for="nav-search">Search Taelgar</label><input id="nav-search" type="search" name="q" maxlength="256" placeholder="Search notes…"><button>Search</button></form>' +
       '<ul class="nav-tree">' + this.list(view.roots,view) + '</ul></nav></details></aside>';
   }
 
