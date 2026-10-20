@@ -58,13 +58,13 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
         return send(404,shell('Campaign site not found','<h1>Campaign site not found</h1><p><a href="https://www.taelgar.org/">Visit TaelgarVerse</a></p>'),'text/html');
       }
       // A campaign hostname is authoritative, even for API and manually edited URLs.
-      const date = site ? undefined : url.searchParams.get('date') ?? undefined;
+      const date = site ? site.date : url.searchParams.get('date') ?? undefined;
       const contextId = site ? site.contextId : url.searchParams.get('context') ?? undefined;
-      const selectedCampaigns = !site && url.searchParams.has('campaigns') ? url.searchParams.getAll('campaigns') : undefined;
+      const selectedCampaigns = site ? site.campaigns : url.searchParams.has('campaigns') ? url.searchParams.getAll('campaigns') : undefined;
       const dm = parseDM(url.searchParams.get('dm'));
-      const lock = context => site ? {...context,locked:true,site:site.host} : context;
+      const lock = context => site ? {...context,label:site.label || context.label,locked:true,site:site.host} : context;
       const resolveContext = () => lock({...engine.contexts.resolve(contextId,date,selectedCampaigns),dm});
-      const contextOptions = site ? engine.contexts.list().filter(context=>context.id===site.contextId) : engine.contexts.list();
+      const contextOptions = site ? site.contextId==='custom' ? [resolveContext()] : engine.contexts.list().filter(context=>context.id===site.contextId) : engine.contexts.list();
       const renderArticle = async (...args) => { const result=await renderPage(...args);return {...result,context:lock(result.context)}; };
       if (pathname === '/health') return send(200,{status:'ok',pages:engine.store.bySlug.size,index_warnings:engine.store.warnings,context_warnings:engine.contexts.warnings,runtime,revision});
       if (pathname === '/api/contexts') return send(200,{contexts:contextOptions,warnings:engine.contexts.warnings,...(site ? {locked:true,site:site.host} : {})});

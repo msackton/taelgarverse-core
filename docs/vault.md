@@ -61,12 +61,13 @@ It also does not remove text already copied or quoted into other notes.
 
 ## Homepage and menu
 
-Two files in the vault's `_website` folder supply the website's own content:
+Files in the vault's `_website` folder supply the website's own content:
 
 | File | What to edit |
 | --- | --- |
 | `_website/home.md` | The homepage heading, introductory prose, and links within that prose. |
 | `_website/navigation.md` | The sidebar menu: section names, order, and links to notes. See the [menu format](../README.md#site-navigation-and-page-toc). |
+| `_website/<subdomain>.md` | A landing page with a locked campaign set and date on that subdomain. See [campaign landing pages](campaign-sites.md). |
 
 Edit these in the vault and publish them with your notes. The homepage uses
 ordinary Markdown and supports the same links and campaign/date comments as
@@ -82,7 +83,14 @@ three-link navigation paragraph work without displaying duplicate entry links.
 
 The publisher reads these two files directly from the original vault, even when
 it prepares the other notes through Obsidian. They do not become searchable
-articles, and other files in `_website` stay excluded. Setting `vault_dir` once
+articles. Additional `_website/<subdomain>.md` files opt in with `campaigns`
+frontmatter; other website files stay excluded.
+For example, `campaigns: [dufr, feywild, mawar]` keeps those three campaigns selected
+throughout that subdomain. An optional `date: 1748-05-05` fixes the in-world date;
+omitting it uses Modern. A single campaign, such as `campaigns: [clee]`, always
+follows its latest published session date, regardless of an authored `date`.
+The old `context` property is no longer supported on landing pages.
+Setting `vault_dir` once
 is enough to find both files; see [configuration settings](deploy.md#vault-and-website-settings)
 only if you need a different location.
 

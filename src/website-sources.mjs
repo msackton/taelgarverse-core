@@ -13,7 +13,9 @@ export function readCampaignHomes(settings) {
     const source = fs.readFileSync(path.join(directory,file.name),'utf8');
     // Other website planning/support files are not publication inputs.
     const frontmatter = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(source);
-    if (!frontmatter || !/^context\s*:/m.test(frontmatter[1])) continue;
+    // Detect the removed context field too, so validation reports a migration
+    // error instead of silently dropping an existing campaign homepage.
+    if (!frontmatter || !/^(?:context|campaigns)\s*:/m.test(frontmatter[1])) continue;
     const host = file.name.slice(0,-3);
     if (!validCampaignHost(host)) throw new Error('Invalid campaign homepage filename: '+file.name);
     parseNote(source); // Fail publication on malformed opted-in YAML.

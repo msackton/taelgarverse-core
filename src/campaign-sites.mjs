@@ -13,9 +13,22 @@ export class CampaignSites {
       let note;
       try { note = parseNote(source); }
       catch { throw new RenderError(503,'Invalid campaign homepage YAML: '+host); }
-      const id = note.metadata.context;
-      if (typeof id !== 'string' || contexts.byId.get(id)?.kind !== 'campaign') throw new RenderError(503,'_website/'+host+'.md: context must be a registered campaign ID');
-      this.byHost.set(host,{host,contextId:id,note});
+      const {campaigns,date,title} = note.metadata;
+      const invalid = message => new RenderError(503,'_website/'+host+'.md: '+message);
+      if (Object.hasOwn(note.metadata,'context')) throw invalid('context is no longer supported; use campaigns instead');
+      if (title !== undefined && (typeof title !== 'string' || !title.trim())) throw invalid('title must be a nonempty string');
+      if (!(typeof campaigns === 'string' || Array.isArray(campaigns) && campaigns.every(value=>typeof value === 'string' && value.trim()))) throw invalid('campaigns must be a list of campaign codes or a comma-separated string');
+      if (date !== undefined && typeof date !== 'string') throw invalid('date must be YYYY-MM-DD or modern');
+      const fixedDate = date === 'modern' ? undefined : date;
+      let selection;
+      try { selection = contexts.resolve('custom',fixedDate,campaigns); }
+      catch (error) { throw invalid(error.message); }
+      const selected = contexts.list().filter(context=>context.kind==='campaign' && selection.campaigns.includes(context.campaigns[0]));
+      // Count normalized, distinct campaigns, so duplicate names/aliases still
+      // follow the single campaign's session date rather than Modern.
+      const single = selected.length === 1 ? selected[0] : null;
+      this.byHost.set(host,{host,note,label:title?.trim() || (selection.allCampaigns ? 'All campaigns' : selected.map(context=>context.label).join(' + ') || 'Shared world'),
+        ...(single ? {contextId:single.id} : {contextId:'custom',date:fixedDate,campaigns:selection.allCampaigns ? 'all' : selection.campaigns})});
     }
   }
 

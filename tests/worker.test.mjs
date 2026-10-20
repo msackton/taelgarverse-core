@@ -70,22 +70,32 @@ after(()=>{if(directory && isInside(path.join(ROOT,'.cache'),directory))fs.rmSyn
 
 test('published campaign homes select per-host content and lock Worker APIs without shared state',async()=>{
   const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
-  index.campaignHomes={dunmar:'---\ncontext: dunmar-frontier\n---\n# Dunmar home\n\nHello Dunmar.\n\n![[Nested Embed]]',addermarch:'---\ncontext: addermarch\n---\n# Addermarch home\n\nHello Addermarch.'};
+  index.campaignHomes={dunmar:'---\ncampaigns: [dufr]\ndate: 1730-01-01\n---\n# Dunmar home\n\nHello Dunmar.\n\n![[Nested Embed]]',addermarch:'---\ncampaigns: [adma]\n---\n# Addermarch home\n\nHello Addermarch.',combined:'---\ntitle: Three campaigns\ncampaigns: [dufr, feywild, mawar]\n---\n# Combined home\n\nWelcome.\n\n![[Nested Embed]]',historic:'---\ncampaigns: [dufr, feywild, mawar]\ndate: 1730-01-01\n---\n# Historic home\n\nWelcome.'};
   const indexFile=path.join(directory,'campaign-index.json');fs.writeFileSync(indexFile,JSON.stringify(index));
   const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
   const storage=new LocalBucket([...uploads,{key:'revisions/'+report.revision+'/index.json',file:indexFile},{key:'published/current.json',file:report.pointerFile}]);
   const app=createWorker(instantiate), environment={...env,CONTENT:storage};
-  for(const [host,id,title] of [['dunmar','dunmar-frontier','Dunmar home'],['addermarch','addermarch','Addermarch home'],['www','modern','Welcome to the fixture site'],['dunmar','dunmar-frontier','Dunmar home']]) {
+  for(const [host,id,title] of [['dunmar','dunmar-frontier','Dunmar home'],['combined','custom','Combined home'],['historic','custom','Historic home'],['addermarch','addermarch','Addermarch home'],['www','modern','Welcome to the fixture site'],['combined','custom','Combined home'],['dunmar','dunmar-frontier','Dunmar home']]) {
     const home=await app.fetch(new Request('https://'+host+'.taelgar.org/'),environment);
     assert.equal(home.status,200);const $=load(await home.text());assert.equal($('main h1').first().text(),title);
     const response=await app.fetch(new Request('https://'+host+'.taelgar.org/api/page?page=Example'+(host==='www'?'':'&context=modern&date=9999-01-01&campaigns=all')),environment);
     assert.equal(response.status,200);const page=await response.json();assert.equal(page.context.id,id);
     assert.equal(page.context.locked,host==='www'?undefined:true);
-    if(host!=='www')assert.deepEqual(page.campaigns,[host==='dunmar'?'dufr':'adma']);
+    if(id==='custom') {
+      assert.deepEqual(page.campaigns,['dufr','feywild','mawar']);
+      assert.equal(page.date,host==='historic'?'1730-01-01':engine.contexts.resolve('modern').date);
+      const catalogue=await(await app.fetch(new Request('https://'+host+'.taelgar.org/api/contexts'),environment)).json();
+      assert.equal(catalogue.contexts[0].date,page.date);assert.deepEqual(catalogue.contexts[0].campaigns,page.campaigns);
+    } else if(host!=='www') {
+      assert.deepEqual(page.campaigns,[host==='dunmar'?'dufr':'adma']);
+      assert.equal(page.date,engine.contexts.resolve(id).date);
+    }
   }
   assert.equal(storage.calls.get('revisions/'+report.revision+'/index.json'),1);
-  index.campaignHomes={dunmar:'---\ncontext: unknown\n---\n# Invalid'};fs.writeFileSync(indexFile,JSON.stringify(index));
-  await assert.rejects(loadSnapshot(storage,report.revision,instantiate),error=>error.status===503);
+  for(const metadata of ['campaigns: [unknown]','context: dunmar-frontier']) {
+    index.campaignHomes={dunmar:'---\n'+metadata+'\n---\n# Invalid'};fs.writeFileSync(indexFile,JSON.stringify(index));
+    await assert.rejects(loadSnapshot(storage,report.revision,instantiate),error=>error.status===503);
+  }
 });
 
 test('Worker renders context-filtered maps and serves packaged tile assets without fetching the original image',async()=>{

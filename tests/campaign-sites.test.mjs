@@ -12,12 +12,12 @@ import {handleRequest} from '../src/application.mjs';
 import {buildFingerprint,parseOptions} from '../scripts/publish-content.mjs';
 import {collectImageUsages} from '../scripts/image-usage.mjs';
 
-const source = (id,body='# Campaign\n\nWelcome.\n\n[[Story]]')=>'---\ncontext: '+id+'\n---\n'+body;
-function engine() {
-  const registry={campaigns:{cleenseau:{name:'Cleenseau',code:'clee'},'dunmar-frontier':{name:'Dunmar Frontier',code:'dufr'}}};
+const source = (id,body='# Campaign\n\nWelcome.\n\n[[Story]]')=>'---\ncampaigns: ['+id+']\n---\n'+body;
+function engine(campaignHomes={}) {
+  const registry={campaigns:{cleenseau:{name:'Cleenseau',code:'clee'},'dunmar-frontier':{name:'Dunmar Frontier',code:'dufr'},'lost-in-the-feywild':{name:'Lost in the Feywild',code:'feywild',aliases:['litf']},'mawar-adventures':{name:'Mawar Adventures',code:'mawar'}}};
   const notes={
     'Story.md':'# Story\n\n%%^Campaign:clee%%\nCleenseau text\n%%^End%%\n%%^Campaign:dufr%%\nDunmar text\n%%^End%%\n%% Private comment %%\n\n![[Embedded]]',
-    'Embedded.md':'%%^Campaign:clee%%\nCleenseau embed\n%%^End%%\n%%^Campaign:dufr%%\nDunmar embed\n%%^End%%',
+    'Embedded.md':'%%^Campaign:clee%%\nCleenseau embed\n%%^End%%\n%%^Campaign:dufr%%\nDunmar embed\n%%^End%%\n%%^Campaign:feywild%%\nFeywild embed\n%%^End%%\n%%^Campaign:mawar%%\nMawar embed\n%%^End%%',
     'Cleenseau Session.md':'---\ntags: [session-note]\ncampaign: Cleenseau\nDR: 1720-01-01\n---\n[[Story]]',
     'Dunmar Session.md':'---\ntags: [session-note]\ncampaign: Dunmar Frontier\nDR: 1740-01-01\n---\n[[Story]]',
     'Future.md':'---\ncreated: 1730-01-01\n---\nFuture',
@@ -25,7 +25,7 @@ function engine() {
   const store=new ContentStore(Object.entries(notes).map(([id,value])=>({id,target:id.toLowerCase().replaceAll(' ','-'),slug:id.slice(0,-3).toLowerCase().replaceAll(' ','-'),name:id.slice(0,-3),title:id.slice(0,-3),note:parseNote(value),extension:'.md'})));
   return new RenderEngine({settings:{default_date:'1750-01-01'},store,headers:{registry},renderHeader:()=>'',
     navigationSource:'- [Home](index.md)\n- Stories\n    - [Story](story.md)\n    - [Future](future.md)\n',homeSource:'# Main home\n\nShared world.',
-    campaignHomes:{cleenseau:source('cleenseau','# Cleenseau home\n\nWelcome.\n\n![[Embedded]]\n\n[[Story]]'),dunmar:source('dunmar-frontier','# Dunmar home\n\nWelcome.\n\n[[Story]]')}});
+    campaignHomes:{cleenseau:source('cleenseau','# Cleenseau home\n\nWelcome.\n\n![[Embedded]]\n\n[[Story]]'),dunmar:source('dunmar-frontier','# Dunmar home\n\nWelcome.\n\n[[Story]]'),...campaignHomes}});
 }
 const request=(app,host,url='/')=>handleRequest(new Request('https://'+host+url),app);
 
@@ -42,7 +42,7 @@ test('campaign hosts fix context, date, home and controls across alternating req
     assert.equal(page.context.locked,id==='modern'?undefined:true);
     if(id==='cleenseau'){assert.match(page.html,/Cleenseau text/);assert.match(page.html,/Cleenseau embed/);assert.doesNotMatch(page.html,/Dunmar text|Dunmar embed/);}
     const contexts=await (await request(app,host,'/api/contexts')).json();
-    assert.equal(contexts.contexts.length,id==='modern'?4:1);
+    assert.equal(contexts.contexts.length,id==='modern'?6:1);
   }
   const $=load(await (await request(app,'cleenseau.taelgar.org')).text());
   assert.match($('.home-prose').text(),/Cleenseau embed/);assert.doesNotMatch($('.home-prose').text(),/Dunmar embed/);
@@ -88,7 +88,7 @@ test('unknown subdomains and undated campaigns never fall back to Modern',async(
   app.contexts.byId.get('cleenseau').unavailableReason='No published session date';
   const response=await request(app,'cleenseau.taelgar.org');assert.equal(response.status,400);
   assert.match(await response.text(),/No published session date/);
-  for(const homes of [{cleenseau:source('modern')},{cleenseau:source('unknown')},{www:source('cleenseau')},{'Bad Host':source('cleenseau')},{cleenseau:12},{cleenseau:'---\ncontext: [\n---\nInvalid'},[]])assert.throws(()=>new CampaignSites(homes,app.contexts));
+  for(const homes of [{cleenseau:source('modern')},{cleenseau:source('unknown')},{www:source('cleenseau')},{'Bad Host':source('cleenseau')},{cleenseau:12},{cleenseau:'---\ncampaigns: [\n---\nInvalid'},[]])assert.throws(()=>new CampaignSites(homes,app.contexts));
 });
 
 test('discovery opts in only explicit Markdown homes; fingerprints notice edits, adds and removals',t=>{
@@ -114,4 +114,82 @@ test('campaign landing images contribute responsive-image usages',()=>{
   const store=new ContentStore([...app.store.entries,{id:'picture.png',target:'picture.png',extension:'.png',note:null}]);
   const usages=collectImageUsages(store,{campaignHomes:{cleenseau:source('cleenseau','![[picture.png|350]]')}});
   assert.ok(usages.size>0);
+});
+
+const combinedHome = '---\ntitle: Dunmar, Feywild & Mawar\ncampaigns: [dunmar-frontier, litf, Mawar Adventures, dufr]\n---\n# Three campaigns\n\nWelcome.\n\n![[Embedded]]\n\n[[Story]]\n\n[[Future]]';
+test('a campaign subset and Modern date remain sticky across the whole site',async()=>{
+  const app=engine({combined:combinedHome,historic:combinedHome.replace('campaigns:','date: 1720-01-01\ncampaigns:')}),host='combined.taelgar.org';
+  const overrides='context=cleenseau&date=0001-01-01&campaigns=clee&campaigns=all';
+  for(const dm of ['', '&dm=1']) {
+    const page=await(await request(app,host,'/api/page?page=Story&'+overrides+dm)).json();
+    assert.equal(page.context.id,'custom');assert.equal(page.context.label,'Dunmar, Feywild & Mawar');
+    assert.equal(page.context.locked,true);assert.equal(page.date,'1740-01-01');assert.deepEqual(page.campaigns,['dufr','feywild','mawar']);
+    assert.match(page.html,/Dunmar text/);assert.match(page.html,/Feywild embed/);assert.match(page.html,/Mawar embed/);
+    assert.doesNotMatch(page.html,/Cleenseau text|Cleenseau embed/);assert.equal(page.html.includes('Private comment'),!!dm);
+  }
+  const $=load(await(await request(app,host,'/?'+overrides)).text());
+  assert.equal($('#site-context').length,0);assert.match($('[data-context-locked]').text(),/Dunmar, Feywild & Mawar · 1740-01-01 DR/);
+  assert.match($('.home-prose').text(),/Feywild embed/);assert.match($('.home-prose').text(),/Mawar embed/);assert.doesNotMatch($('.home-prose').text(),/Cleenseau embed/);
+  const articleLink=$('.home-prose a[href*="/page/story"]').attr('href');assert.ok(articleLink);
+  const article=load(await(await request(app,host,articleLink)).text());assert.equal(article('[data-context-locked]').length,1);
+  const contexts=await(await request(app,host,'/api/contexts?'+overrides)).json();
+  assert.equal(contexts.contexts.length,1);assert.equal(contexts.contexts[0].date,'1740-01-01');assert.deepEqual(contexts.contexts[0].campaigns,['dufr','feywild','mawar']);
+  const search=await(await request(app,host,'/api/search?q=Future&'+overrides)).json();
+  assert.equal(search.context.locked,true);assert.equal(search.results.length,1);
+  const searchHtml=load(await(await request(app,host,'/?q=Future&'+overrides)).text());assert.equal(searchHtml('[data-context-locked]').length,1);
+  const branch=article('a[href*="/browse/"]').first().attr('href');assert.ok(branch);
+  const node=branch.split('/browse/')[1].split('?')[0];
+  const navigation=await(await request(app,host,'/api/navigation?branch='+node+'&'+overrides)).json();assert.match(navigation.html,/future/);
+  const browse=load(await(await request(app,host,branch+'&'+overrides)).text());assert.equal(browse('[data-context-locked]').length,1);
+  const diagrams=await(await request(app,host,'/api/diagram-links?source=Story&target=Future&'+overrides)).json();assert.match(diagrams.links[0].href,/\/page\/future/);
+  const historic=await(await request(app,'historic.taelgar.org','/api/search?q=Future&'+overrides)).json();assert.equal(historic.context.date,'1720-01-01');assert.equal(historic.results.length,0);
+  assert.equal((await request(app,'historic.taelgar.org','/api/page?page=Future&'+overrides)).status,404);
+  assert.deepEqual((await(await request(app,'www.taelgar.org','/api/page?page=Story')).json()).campaigns,[]);
+  assert.deepEqual((await(await request(app,'cleenseau.taelgar.org','/api/page?page=Story')).json()).campaigns,['clee']);
+});
+
+test('omitted or Modern dates follow Modern while an explicit date remains fixed',async()=>{
+  const app=engine({combined:combinedHome,explicit:combinedHome.replace('campaigns:','date: modern\ncampaigns:'),historic:combinedHome.replace('campaigns:','date: 1720-01-01\ncampaigns:')});
+  app.contexts.byId.get('modern').date='1755-06-03';
+  for(const [host,date] of [['combined','1755-06-03'],['explicit','1755-06-03'],['historic','1720-01-01']]) {
+    const page=await(await request(app,host+'.localhost','/api/page?page=Story&date=bad&campaigns=unknown')).json();assert.equal(page.date,date);
+  }
+});
+
+test('one distinct campaign always follows its session date, including names, duplicates and authored dates',async()=>{
+  const app=engine({single:source('clee'),named:source('Cleenseau'),duplicates:source('clee, cleenseau, Cleenseau'),dated:source('clee').replace('campaigns:','date: 1740-01-01\ncampaigns:'),modern:source('clee').replace('campaigns:','date: modern\ncampaigns:')});
+  app.contexts.byId.get('cleenseau').date='1721-02-03';
+  app.contexts.byId.get('modern').date='1755-06-03';
+  for(const host of ['single','named','duplicates','dated','modern']) {
+    const page=await(await request(app,host+'.taelgar.org','/api/page?page=Story&date=9999-01-01&campaigns=all')).json();
+    assert.equal(page.date,'1721-02-03');assert.equal(page.context.dateSource,'latest-session');assert.equal(page.context.id,'cleenseau');
+    assert.deepEqual(page.campaigns,['clee']);assert.equal(page.context.locked,true);
+  }
+});
+
+test('a single undated campaign stays unavailable even with an authored date',async()=>{
+  const app=engine({undated:source('mawar').replace('campaigns:','date: 1740-01-01\ncampaigns:'),combined:combinedHome});
+  const response=await request(app,'undated.taelgar.org');assert.equal(response.status,400);assert.match(await response.text(),/No published session date/);
+  assert.equal((await request(app,'combined.taelgar.org')).status,200);
+});
+
+test('landing metadata rejects invalid dates, campaigns and removed context metadata',()=>{
+  const app=engine(),home=metadata=>'---\n'+metadata+'\n---\n# Home';
+  for(const metadata of ['campaigns: [unknown]','campaigns: [dufr]\ndate: 1740-02-29','campaigns: [dufr]\ndate: 1740','campaigns: [dufr]\ndate: null','campaigns: [dufr]\ntitle: []','campaigns: [dufr]\ncontext: cleenseau','context: cleenseau','context: cleenseau\ndate: 1740-01-01','campaigns: {dufr: true}','campaigns: [null]']) {
+    assert.throws(()=>new CampaignSites({combined:home(metadata)},app.contexts),error=>error.status===503 && error.message.includes('_website/combined.md'));
+  }
+  for(const campaigns of ['all','[]','dufr, litf, mawar'])assert.doesNotThrow(()=>new CampaignSites({combined:home('campaigns: '+campaigns)},app.contexts));
+});
+
+test('discovery and publication fingerprints include multi-campaign metadata',t=>{
+  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'taelgar-multi-sites-'));
+  t.after(()=>{assert.equal(path.dirname(directory),os.tmpdir());assert.ok(path.basename(directory).startsWith('taelgar-multi-sites-'));fs.rmSync(directory,{recursive:true});});
+  fs.mkdirSync(path.join(directory,'_website'));
+  const settings={vault_dir:directory},options=parseOptions([]),before=buildFingerprint(settings,options),file=path.join(directory,'_website','dunmar.md');
+  fs.writeFileSync(file,combinedHome);assert.equal(readCampaignHomes(settings).dunmar,combinedHome);
+  const added=buildFingerprint(settings,options);assert.notEqual(added,before);
+  fs.writeFileSync(file,combinedHome.replace('campaigns:','date: 1720-01-01\ncampaigns:'));assert.notEqual(buildFingerprint(settings,options),added);
+  fs.unlinkSync(file);assert.equal(buildFingerprint(settings,options),before);
+  fs.writeFileSync(file,'---\ncontext: cleenseau\n---\n# Old homepage');
+  assert.throws(()=>new CampaignSites(readCampaignHomes(settings),engine().contexts),/context is no longer supported/);
 });
