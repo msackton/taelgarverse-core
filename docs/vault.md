@@ -224,7 +224,9 @@ Main sections appear in the desktop header, with the current section's branch
 on the left. Below 1100px the full navigation moves into a hamburger drawer;
 below 800px the page contents disappear. In note or homepage frontmatter,
 `hide: [navigation]` omits the section links and left navigation, and
-`hide: [toc]` omits page contents. Both may be combined. Search, settings, and
+`hide: [toc]` omits page contents. Both may be combined. For articles,
+`hide: toc` also works, and hidden contents are omitted from the page API.
+Search, settings, and
 backlinks remain available, and unused navigation columns release their space.
 
 **Linked from** lists other articles that link to the current one. Only pages and
@@ -250,6 +252,22 @@ campaign, and **See Behind the Curtain** controls.
 | A PDF link/embed | A link to the PDF. |
 | An Excalidraw drawing | Use an exported PNG or another supported image; the website does not draw it from Excalidraw data. |
 | A Mermaid code block | A diagram, with its source text available as a fallback. |
+
+Mermaid flowchart nodes marked `internal-link` resolve their visible labels to
+notes, including filenames and aliases, as in the existing family trees. Explicit
+Mermaid destinations such as `click A href "../People/Example.md"` also work.
+Relative destinations resolve from the diagram's source note, including inside
+embeds. Missing, ambiguous, excluded, and future destinations remain unlinked.
+Internal links preserve the selected campaign/date and Behind the Curtain setting.
+
+Click a linked node to preview its article in a popup, then use **Open page** to
+navigate. Uncheck **Preview linked pages** below the diagram for direct navigation;
+modified clicks retain normal browser behavior. Links also work in **See bigger**.
+Explicit `_blank` destinations open a new tab; HTTP(S) and mail links navigate
+normally. Closing a preview returns focus to the node. Mermaid stays in strict
+mode; authored JavaScript callbacks and nonstandard URL schemes are not enabled.
+The `/api/diagram-links` endpoint resolves a bounded batch against the current
+source/context metadata; previews use the existing context-filtered page API.
 
 Images may be made smaller during publication. See [image settings](deploy.md#image-settings)
 if map labels need more detail.

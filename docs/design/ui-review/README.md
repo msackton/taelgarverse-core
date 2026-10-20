@@ -38,13 +38,18 @@ offline without installation.
   The grid becomes one column on mobile. Melusa demonstrates an empty list.
   These controls appear in proposals only, not the unchanged reference.
 
-Above 1100px, main sections appear in a second header row,
+Above 1100px, a compact header places main sections in a second row,
 with the current section highlighted. Links are taken from the captured
 navigation: Home, Campaigns, People, Gazetteer, World Map, History, and the
 snapshot's More pages fallback. The left sidebar shows only the current
 section's branch. Sections without children release the left sidebar space.
-Page contents stay in the right sidebar, headed by the current page name.
-Both sidebars scroll independently when long, below the sticky site header.
+Page contents stay in the right sidebar under the plain **On this page** title,
+without a repeated page name or collapse control. Header controls and the space
+before the article are kept compact, while small-screen icon buttons retain
+their 44px touch targets.
+The left sidebar stays below the sticky header and scrolls independently when
+long. The right contents list flows with the article and uses the page scrollbar,
+without a separate scroll area or sticky positioning.
 At 1100px and below, the header's section row and breadcrumbs disappear;
 a hamburger button opens all main sections and their nested navigation in a
 modal drawer, releasing the left sidebar's space. Page contents remain visible

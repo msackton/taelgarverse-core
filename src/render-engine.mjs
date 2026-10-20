@@ -54,8 +54,11 @@ export class RenderEngine {
         throw wrapped;
       }
     }
-    return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,hide:Array.isArray(metadata.hide) ? metadata.hide : [],
-      ...this.renderBody(body,entry,context,embedLoading), backlinks:this.backlinkIndex && (this.backlinkIndex.version>=2 || context.campaigns.length<=1)
+    const hide = Array.isArray(metadata.hide) ? metadata.hide : typeof metadata.hide === 'string' ? metadata.hide.split(/[\s,]+/) : [];
+    const rendered = this.renderBody(body,entry,context,embedLoading);
+    if (hide.includes('toc')) rendered.toc = '';
+    return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,hide,
+      ...rendered, backlinks:this.backlinkIndex && (this.backlinkIndex.version>=2 || context.campaigns.length<=1)
         ? linkedFrom(this.backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
   }
 

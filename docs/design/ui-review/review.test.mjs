@@ -193,7 +193,7 @@ test('left navigation becomes a drawer before contents disappear, and small head
     assert.equal(get('header-search').parent, get(width <= 1100 ? 'search-dialog-body' : '#header-search-slot'));
     assert.equal(get('context-controls').parent, get(width <= 1100 ? 'settings-dialog-body' : '#header-context-slot'));
     assert.match(get('context-controls').innerHTML, /See Behind the Curtain/);
-    assert.equal(get('contents-title').textContent, page.title);
+    assert.equal(get('contents-title').textContent, 'On this page');
     assert.equal(get('#navigation .nav-search').removed, true);
   }
 });

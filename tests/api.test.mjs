@@ -17,6 +17,7 @@ before(async () => {
   const notes = JSON.parse(fs.readFileSync(new URL('./fixtures/notes.json',import.meta.url),'utf8'));
   Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/backlinks.json',import.meta.url),'utf8')));
   Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/embeds.json',import.meta.url),'utf8')));
+  Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/article-options.json',import.meta.url),'utf8')));
   for (const [relative,source] of Object.entries(notes)) {
     const filename = path.join(directory,relative);
     fs.mkdirSync(path.dirname(filename),{recursive:true});
@@ -45,6 +46,39 @@ before(async () => {
 after(async () => {
   if (server) await new Promise(resolve => server.close(resolve));
   if (directory && isInside(path.join(ROOT,'.cache'),directory)) fs.rmSync(directory,{recursive:true});
+});
+test('hide: toc omits the article TOC in the API and shell while retaining headings, backlinks and site navigation',async()=>{
+  for (const [page,hidden] of [['Hidden TOC',true],['Scalar TOC',true],['Visible TOC',false]]) {
+    const result = await (await fetch(base+'/api/page?page='+encodeURIComponent(page))).json();
+    assert.equal(result.toc === '',hidden,page);
+    assert.equal(load(result.html)('h2#details').length,1);
+    const $ = load(await (await fetch(base+'/page/'+page.toLowerCase().replaceAll(' ','-'))).text());
+    assert.equal($('nav[aria-label="On this page"]').length,hidden ? 0 : 1,page);
+    assert.equal($('.page-backlinks').length,page === 'Hidden TOC' ? 1 : 0);
+    assert.equal($('.site-sidebar').length,page === 'Scalar TOC' ? 1 : 0);
+    if (page === 'Hidden TOC') assert.equal($('.page-backlinks a').text(),'Visible TOC');
+  }
+});
+
+test('diagram links resolve aliases, relative notes and anchors with context and reject hidden or unsafe destinations',async()=>{
+  const query = new URLSearchParams({source:'People/Example.md',context:'custom',date:'1730-01-01',campaigns:'all',dm:'1'});
+  const targets = ['First Town','../Places/First Town.md#History','/page/places/first-town?date=1800-01-01#History',
+    'Hidden','Future','Same','Unknown','javascript:alert(1)','data:text/html,bad','//evil.test','https://example.test/guide','Backlink Alias'];
+  targets.forEach(target=>query.append('target',target));
+  const response = await fetch(base+'/api/diagram-links?'+query);
+  assert.equal(response.status,200);
+  const {links} = await response.json();
+  for (const link of links.slice(0,3)) {
+    assert.equal(link.page,'places/first-town');
+    assert.match(link.href,/\?date=1730-01-01&campaigns=all&dm=1/);
+  }
+  assert.match(links[1].href,/#history$/);
+  assert.deepEqual(links.slice(3,10),Array(7).fill(null));
+  assert.deepEqual(links[10],{href:'https://example.test/guide'});
+  assert.equal(links[11].page,'backlink-target');
+  assert.equal((await fetch(base+'/api/diagram-links?source=Hidden&target=Example')).status,404);
+  assert.equal((await fetch(base+'/api/diagram-links?source=Example')).status,400);
+  assert.equal((await fetch(base+'/api/diagram-links?source=Example&'+Array(101).fill('target=Example').join('&'))).status,400);
 });
 test('Node HTML and API include context-filtered note embeds without adding child headings to the TOC',async()=>{
   const query='context=custom&date=1730-01-01&campaigns=all&dm=1';

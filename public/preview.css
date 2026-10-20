@@ -103,6 +103,10 @@ html.image-viewer-open { overflow: hidden; }
 .mermaid-output svg { display: block; width: auto; height: auto; max-width: 100%; max-height: 70vh; max-height: 70dvh; margin: 0 auto; }
 .diagram-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 12px; font-size: 14px; }
 .diagram-actions button, .diagram-popup-header button { margin: 0; }
+.diagram-preview-toggle { display: inline-flex; align-items: center; gap: 6px; }
+.diagram-preview-toggle input { width: 16px; height: 16px; accent-color: #00796b; }
+.diagram-linked-node a { cursor: pointer; }
+.diagram-linked-node a:hover > :is(rect, polygon, circle, ellipse, path), .diagram-linked-node a:focus-visible > :is(rect, polygon, circle, ellipse, path) { stroke: #00796b !important; stroke-width: 3px !important; }
 .diagram-actions button:disabled { opacity: .5; cursor: default; }
 .md-typeset .mermaid-source { margin: 12px 0 0; font-size: 13px; }
 .md-typeset .mermaid-source[hidden] { display: none; }
@@ -118,6 +122,12 @@ html.diagram-popup-open { overflow: hidden; }
 .diagram-popup-content svg { display: block; height: auto; max-width: none; }
 .diagram-popup-content--fit svg { width: auto; max-width: 100%; max-height: calc(100vh - 150px); max-height: calc(100dvh - 150px); margin: 0 auto; }
 .diagram-popup-content pre { margin: 0; padding: 16px; background: #f3f6f5; font: 14px/1.5 ui-monospace, monospace; tab-size: 2; }
+.diagram-page-preview { width: min(850px, calc(100vw - 32px)); height: fit-content; max-height: min(800px, calc(100vh - 32px)); max-height: min(800px, calc(100dvh - 32px)); }
+.diagram-page-preview[open] { display: flex; flex-direction: column; }
+.diagram-page-preview .diagram-popup-header { flex: 0 0 auto; flex-wrap: wrap; }
+.diagram-page-preview .diagram-popup-content { padding: 4px 16px; }
+.diagram-page-preview article > :first-child { margin-top: 0; }
+.diagram-page-preview .diagram-popup-content svg { max-width: 100%; }
 .diagram-popup button:focus-visible, .diagram-popup-content:focus-visible, .diagram-actions button:focus-visible { outline: 2px solid #00796b; outline-offset: 3px; }
 .md-typeset .twemoji svg { width: 1em; height: 1em; }
 @media (max-width: 1100px) {

@@ -34,19 +34,20 @@ html[data-theme=dark][data-palette=plum]{--bg:#222224;--surface:#2b2b2e;--text:#
 html[data-theme=dark][data-palette=parchment]{--bg:#25251f;--surface:#303029;--text:#e7e5de;--muted:#b9b9ad;--line:#494b42;--link:#d6bc91;--accent:#bda785;--soft:#393a30}
 /* Main navigation moves into a drawer before page contents disappear. */
 #site{--layout-width:1600px;--layout-gutter:32px}
-.site-header{position:sticky;top:0;z-index:10;background:var(--bg);padding:14px max(var(--layout-gutter),calc((100% - var(--layout-width))/2 + var(--layout-gutter)));gap:16px;min-height:80px;flex-wrap:wrap}
+.site-header{position:sticky;top:0;z-index:10;background:var(--bg);padding:10px max(var(--layout-gutter),calc((100% - var(--layout-width))/2 + var(--layout-gutter)));gap:8px;min-height:64px;flex-wrap:wrap}
 .brand{display:block;flex:0 1 260px;width:260px;max-width:260px;min-width:0;height:34px;font-size:27px;line-height:34px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.brand.is-page-title{font-size:20px;font-weight:400;letter-spacing:0}.header-tools{gap:10px;flex-wrap:nowrap;margin-left:auto}
-.header-search-slot{flex:1;max-width:330px;min-width:180px}.header-search{display:flex;gap:6px;margin:0}.header-search input{width:100%;min-width:0;font-size:14px}.header-search button{padding:6px 10px}
+.header-search-slot{flex:1;max-width:330px;min-width:180px}.header-search{display:flex;gap:6px;margin:0}.header-search input{width:100%;min-width:0;font-size:14px}.header-search button{display:inline-flex;align-items:center;justify-content:center;min-width:36px;min-height:36px;padding:6px 8px;line-height:1}
 .header-context-slot{margin-left:auto}.context-form{display:flex;align-items:center;gap:8px 12px;margin:0;font-size:12px;flex-wrap:wrap}.context-form select{max-width:260px;padding:7px;font-size:12px}.dm-toggle{display:flex;align-items:center;gap:6px;white-space:nowrap}.dm-toggle input{accent-color:var(--accent);width:16px;height:16px}.custom-date-controls{display:flex;gap:6px;align-items:center}
 .icon-button{display:none;align-items:center;justify-content:center;flex:none;min-width:44px;min-height:44px;padding:9px}.icon-button svg,.header-search button svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7}
-.site-layout{max-width:var(--layout-width);padding-inline:var(--layout-gutter);gap:32px}.navigation-slot,.contents-slot{top:calc(var(--header-height,80px) + 24px);max-height:calc(100dvh - var(--header-height,80px) - 48px)}
-.navigation-slot{padding-right:20px}.contents-slot{border-left:1px solid var(--line);padding-left:20px}.sidebar-heading{font:500 18px/1.35 Georgia,serif;margin:0 0 10px;overflow-wrap:anywhere}.sidebar-caption{color:var(--muted);font-size:12px;margin:0 0 14px}.site-navigation>summary{list-style:none;cursor:default}.site-navigation>summary::-webkit-details-marker{display:none}
+.site-layout{max-width:var(--layout-width);padding-top:20px;padding-inline:var(--layout-gutter);gap:32px}.navigation-slot,.contents-slot{top:calc(var(--header-height,80px) + 20px);max-height:calc(100dvh - var(--header-height,80px) - 40px)}
+.breadcrumbs{margin-bottom:12px}
+.navigation-slot{padding-right:20px}.contents-slot{position:static;top:auto;max-height:none;overflow:visible;border-left:1px solid var(--line);padding-left:20px}.sidebar-heading{font:500 18px/1.35 Georgia,serif;margin:0 0 10px;overflow-wrap:anywhere}.sidebar-caption{color:var(--muted);font-size:12px;margin:0 0 14px}.site-navigation>summary{list-style:none;cursor:default}.site-navigation>summary::-webkit-details-marker{display:none}
 article :is(h1,h2,h3,h4,h5,h6){scroll-margin-top:calc(var(--header-height,80px) + 24px)}
 .site-dialog{color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:6px;width:min(480px,calc(100vw - 32px));max-height:calc(100dvh - 32px);padding:20px}.site-dialog::backdrop{background:#17292370}.dialog-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}.dialog-heading h2{font:400 23px/1.3 Georgia,serif;margin:0}.dialog-heading button{min-width:44px;min-height:44px;font-size:22px;padding:2px}.site-dialog .context-form{display:flex;flex-direction:column;align-items:stretch;gap:14px;font-size:14px}.site-dialog .context-form select{max-width:100%;font-size:14px}.site-dialog .custom-date-controls{flex-wrap:wrap}.site-dialog .header-search input{font-size:16px}
 .nav-drawer{margin:0;height:100dvh;max-height:100dvh;width:min(350px,88vw);max-width:88vw;border:0;border-right:1px solid var(--line);border-radius:0;padding:20px}.nav-drawer .site-navigation>summary{display:none}.nav-drawer .navigation-slot{position:static;max-height:none;overflow:visible;border:0;padding:0;width:100%}
-.section-navigation{flex:0 0 100%;min-width:0;border-top:1px solid var(--line);margin-top:2px;padding-top:4px}
+.section-navigation{flex:0 0 100%;min-width:0;border-top:1px solid var(--line);margin-top:0;padding-top:2px}
 .section-navigation ul{display:flex;flex-wrap:wrap;gap:4px 24px;list-style:none;padding:0;margin:0}
-.section-navigation a{display:block;padding:8px 0 6px;color:var(--muted);font-size:14px;border-bottom:2px solid transparent;text-decoration:none}
+.section-navigation a{display:block;padding:5px 0;color:var(--muted);font-size:14px;line-height:1.4;border-bottom:2px solid transparent;text-decoration:none}
 .section-navigation a:hover{color:var(--link);border-bottom-color:var(--line)}
 .section-navigation a[aria-current]{color:var(--link);border-bottom-color:var(--accent);font-weight:600}
 .place-actions{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 26px;font:14px/1.4 system-ui,sans-serif}.place-actions button{padding:9px 16px;color:var(--link);border-color:var(--line);background:var(--surface)}
@@ -60,12 +61,15 @@ article :is(h1,h2,h3,h4,h5,h6){scroll-margin-top:calc(var(--header-height,80px) 
 .relationship-card-copy{padding:16px}.relationship-card strong{display:block;font:400 21px/1.3 Georgia,serif;color:var(--link)}.relationship-card p{font:14px/1.6 system-ui,sans-serif;margin:8px 0 0;color:var(--muted)}.relationship-empty{padding:24px;margin:0;color:var(--muted)}
 @media(max-width:600px){.relationship-dialog{width:calc(100vw - 20px);max-width:none;max-height:calc(100dvh - 20px)}.relationship-dialog-header{padding:16px}.relationship-grid{grid-template-columns:1fr;padding:16px;gap:14px}.relationship-portrait{height:180px}}
 @media(min-width:1101px){
+ .site-header .header-search input{padding:5px 10px;line-height:1.4}
+ .site-header .context-form select{min-height:32px;padding:4px 7px;line-height:1.4}
+ .site-header .icon-button{min-width:36px;min-height:36px;padding:7px}
  #navigation .nav-tree>li:not(.active-section){display:none}
  #navigation .nav-tree>.active-section>details>summary{display:none}
  #navigation .nav-tree>.active-section>details>ul{padding-left:0;margin:0;border-left:0}
  .site-navigation>summary{font:500 18px/1.35 Georgia,serif;color:var(--text)}
 }
-@media(max-width:1200px){#site{--layout-gutter:24px}.site-layout{grid-template-columns:190px minmax(0,1fr) 165px;gap:20px;padding:24px}.site-layout.no-toc{grid-template-columns:190px minmax(0,1fr)}.site-layout.no-nav{grid-template-columns:minmax(0,1fr) 165px}.site-layout.no-nav.no-toc{grid-template-columns:minmax(0,1fr)}.header-context-slot{flex:1}.context-form select{max-width:230px}}
+@media(max-width:1200px){#site{--layout-gutter:24px}.site-layout{grid-template-columns:190px minmax(0,1fr) 165px;gap:20px;padding:20px 24px 24px}.site-layout.no-toc{grid-template-columns:190px minmax(0,1fr)}.site-layout.no-nav{grid-template-columns:minmax(0,1fr) 165px}.site-layout.no-nav.no-toc{grid-template-columns:minmax(0,1fr)}.header-context-slot{flex:1}.context-form select{max-width:230px}}
 @media(max-width:1100px){
  #navigation-toggle,#search-toggle,#settings-toggle{display:inline-flex}
  .header-search-slot,.header-context-slot,.section-navigation,#breadcrumbs{display:none}
@@ -137,7 +141,7 @@ dialog{color:var(--text);background:var(--bg);border:1px solid var(--line);borde
  </div>
  <nav class="section-navigation" id="section-navigation" aria-label="Main sections"><ul id="section-links"></ul></nav>
 </header>
-<div class="site-layout"><div class="navigation-slot" id="navigation"></div><main class="article-column"><a id="related-back" class="related-back" hidden></a><div id="breadcrumbs"></div><div class="place-actions" id="place-actions" role="group" aria-label="Related people and places" hidden></div><article id="article" tabindex="-1"></article></main><aside class="contents-slot" aria-labelledby="contents-title"><h2 class="sidebar-heading" id="contents-title"></h2><p class="sidebar-caption">On this page</p><nav id="toc" aria-label="On this page"></nav></aside></div>
+<div class="site-layout"><div class="navigation-slot" id="navigation"></div><main class="article-column"><a id="related-back" class="related-back" hidden></a><div id="breadcrumbs"></div><div class="place-actions" id="place-actions" role="group" aria-label="Related people and places" hidden></div><article id="article" tabindex="-1"></article></main><aside class="contents-slot" aria-labelledby="contents-title"><h2 class="sidebar-heading" id="contents-title">On this page</h2><nav id="toc" aria-label="On this page"></nav></aside></div>
 <button class="back-to-top" id="back-to-top" type="button" hidden>↑ Back to top</button>
 <footer class="site-footer"><span>TaelgarVerse</span><a href="#site">Back to top ↑</a></footer>
 <dialog class="site-dialog nav-drawer" id="navigation-dialog" aria-labelledby="navigation-dialog-title"><div class="dialog-heading"><h2 id="navigation-dialog-title">Explore Taelgar</h2><button type="button" data-close-dialog="navigation-dialog" aria-label="Close navigation">×</button></div><div id="navigation-dialog-body"></div></dialog>
@@ -207,7 +211,7 @@ dialog{color:var(--text);background:var(--bg);border:1px solid var(--line);borde
   document.getElementById('navigation').innerHTML = page.navigation;
   document.getElementById('breadcrumbs').innerHTML = page.breadcrumbs;
   document.getElementById('toc').innerHTML = page.toc;
-  document.getElementById('contents-title').textContent = page.title;
+  document.getElementById('contents-title').textContent = 'On this page';
   // Reuse the real context choices and selected values from this snapshot.
   document.getElementById('context-controls').innerHTML = page.currentDocument.match(/<form class="context-form"[\s\S]*?<\/form>/)?.[0] || '';
   document.querySelector('#navigation .nav-search')?.remove();

@@ -57,7 +57,7 @@
   document.getElementById('navigation').innerHTML = page.navigation;
   document.getElementById('breadcrumbs').innerHTML = page.breadcrumbs;
   document.getElementById('toc').innerHTML = page.toc;
-  document.getElementById('contents-title').textContent = page.title;
+  document.getElementById('contents-title').textContent = 'On this page';
   // Reuse the real context choices and selected values from this snapshot.
   document.getElementById('context-controls').innerHTML = page.currentDocument.match(/<form class="context-form"[\s\S]*?<\/form>/)?.[0] || '';
   document.querySelector('#navigation .nav-search')?.remove();
