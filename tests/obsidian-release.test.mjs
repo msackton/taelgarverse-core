@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {ROOT} from '../src/config.mjs';
 import {releaseObsidian,distributionRepo,sourceRepo} from '../scripts/release-obsidian.mjs';
+const notes='Taelgarverse 0.1.0\n\n- Maps only.';
 
 async function fixture(t,{failUpload=false,existing=false}={}){
   await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
@@ -26,7 +27,7 @@ async function fixture(t,{failUpload=false,existing=false}={}){
 
 test('BRAT release is published only after every asset uploads and records the exact source commit',async t=>{
   const f=await fixture(t);
-  const result=await releaseObsidian({notes:'Maps only',publish:true},f.dependencies);
+  const result=await releaseObsidian({notes,publish:true},f.dependencies);
   assert.equal(result.published,true);
   assert.equal(result.url,'https://github.com/'+distributionRepo+'/releases/tag/0.1.0');
   assert.equal(f.calls[0].endpoint,'/repos/'+sourceRepo+'/commits/'+f.commit);
@@ -41,29 +42,35 @@ test('BRAT release is published only after every asset uploads and records the e
 
 test('failed upload leaves an unpublished draft; default release also stays a draft',async t=>{
   const failed=await fixture(t,{failUpload:true});
-  await assert.rejects(releaseObsidian({notes:'Maps',publish:true},failed.dependencies),/incomplete draft remains/);
+  await assert.rejects(releaseObsidian({notes,publish:true},failed.dependencies),/incomplete draft remains/);
   assert.ok(!failed.calls.some(call=>call.method==='PATCH'));
-  const draft=await fixture(t);await releaseObsidian({notes:'Maps'},draft.dependencies);
+  const draft=await fixture(t);await releaseObsidian({notes},draft.dependencies);
   assert.ok(!draft.calls.some(call=>call.method==='PATCH'));
 });
 
 test('existing plugin releases are never overwritten, and uncommitted source cannot reach GitHub',async t=>{
   const f=await fixture(t,{existing:true});
-  await assert.rejects(releaseObsidian({notes:'Maps'},f.dependencies),/already exists/);
+  await assert.rejects(releaseObsidian({notes},f.dependencies),/already exists/);
   assert.ok(!f.calls.some(call=>call.method==='POST'));
   const dirty=await fixture(t);
   dirty.dependencies.verify=async()=>{throw new Error('Commit the reviewed source changes');};
-  await assert.rejects(releaseObsidian({notes:'Maps'},dirty.dependencies),/Commit the reviewed/);
+  await assert.rejects(releaseObsidian({notes},dirty.dependencies),/Commit the reviewed/);
   assert.equal(dirty.calls.length,0);
   const changed=await fixture(t);let checks=0;
   changed.dependencies.verify=async()=>++checks===1?changed.commit:'b'.repeat(40);
-  await assert.rejects(releaseObsidian({notes:'Maps'},changed.dependencies),/Source revision changed/);
+  await assert.rejects(releaseObsidian({notes},changed.dependencies),/Source revision changed/);
   assert.equal(changed.calls.length,0);
 });
 
 test('a release tag must match the plugin version before any GitHub mutation',async t=>{
   const f=await fixture(t);
-  await assert.rejects(releaseObsidian({notes:'Maps',tag:'obsidian/9.9.9'},f.dependencies),/tag must match/);
+  await assert.rejects(releaseObsidian({notes,tag:'obsidian/9.9.9'},f.dependencies),/tag must match/);
   assert.equal(f.calls.length,0);
-  await releaseObsidian({notes:'Maps',tag:'obsidian/0.1.0'},f.dependencies);
+  await releaseObsidian({notes,tag:'obsidian/0.1.0'},f.dependencies);
+});
+
+test('stale release notes cannot be uploaded under a new version',async t=>{
+  const f=await fixture(t);
+  await assert.rejects(releaseObsidian({notes:'Taelgarverse 0.0.9\n\n- Previous changes.'},f.dependencies),/must start with Taelgarverse 0.1.0/);
+  assert.equal(f.calls.length,0);
 });

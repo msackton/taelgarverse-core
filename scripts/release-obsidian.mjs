@@ -4,6 +4,7 @@ import {execFileSync} from 'node:child_process';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {buildObsidian,releaseFiles,pluginSource} from './build-obsidian.mjs';
 import {repositoryVersion} from './repository-version.mjs';
+import {validateReleaseNotes} from './prepare-obsidian-release.mjs';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 export const distributionRepo='msackton/taelgarverse-obsidian';
@@ -63,6 +64,7 @@ export async function releaseObsidian({notes,publish=false,initRepository=false,
   const output=await build();
   if(await verify()!==commit)throw new Error('Source revision changed during release preparation; review and retry');
   const manifest=JSON.parse(await fs.readFile(path.join(output,'manifest.json'),'utf8'));
+  validateReleaseNotes(notes,manifest.version);
   if(tag && tag!=='obsidian/'+manifest.version){
     throw new Error('Release tag must match the plugin manifest: obsidian/'+manifest.version);
   }

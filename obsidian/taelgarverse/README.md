@@ -61,12 +61,22 @@ releasing each affected consumer.
 
 ## Release through BRAT
 
+For AI-driven preparation and publication, follow the repository's
+[agent release procedure](../../docs/obsidian-releases.md). Ask the agent to
+“prepare a patch release of Taelgarverse”; it reviews changes since the previous
+published source commit, writes release notes, and applies the version changes
+using `scripts/prepare-obsidian-release.mjs`. “Prepare” produces a reviewable
+proposal; an explicit request to publish starts the GitHub release process.
+
 1. Test locally, including a real Obsidian check of rendering, tracing, area,
    closing/reopening a note, and coexistence with Obsidian Leaflet.
 2. Update this plugin's `manifest.json`, append its minimum app version to
    `versions.json`, and replace `release-notes.md`. The core package version
    stays independent. Use `x.y.z` versions; do not publish experimental builds
    to this repository, because BRAT's latest also includes prereleases.
+   Release notes describe only this release and start with `Taelgarverse X.Y.Z`;
+   the uploader rejects a heading for another version. Use
+   `node scripts/prepare-obsidian-release.mjs check` for an offline consistency check.
 3. Commit and push the reviewed source to `msackton/taelgarverse-core`.
 4. In GitHub Actions, run **Release Taelgarverse for Obsidian** against that
    committed revision. It publishes by default; uncheck `publish` to leave a draft.

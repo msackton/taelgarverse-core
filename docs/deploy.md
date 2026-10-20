@@ -78,6 +78,11 @@ uploads a complete draft, and publishes it to BRAT. Manual dispatch can opt to
 leave a draft. The one-time distribution-repository credential is described in
 the [plugin guide](../obsidian/taelgarverse/README.md).
 
+For agent-driven release preparation, version updates, notes, and publication,
+follow the [agent release procedure](obsidian-releases.md). The helper prepares
+only the three release files; the agent reviews the change scope and GitHub
+continues to own release builds and publication.
+
 ## Publish your latest notes
 
 If this is your first time publishing from this computer, follow
