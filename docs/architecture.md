@@ -14,8 +14,8 @@ code and published vault content have independent release paths.
 | [Cloudflare](cloudflare.md) | Current hosted topology, bindings, storage layout, and operational behavior. |
 | [Search publication](search.md) | Production D1 compiler, visibility rules, revision staging, readiness, and rollback contract. |
 
-[Roadmap](roadmap.md) and [UI review](design/ui-review/README.md) are separate
-planning/design artifacts. Keep their proposals distinct from implemented behavior.
+[Roadmap](roadmap.md) is a planning artifact. Keep its proposals distinct from
+implemented behavior.
 
 ## Components and flow
 
@@ -185,8 +185,8 @@ Agents must update the relevant core docs in the same change:
   links, query handling, or media support. Check both export and request behavior.
 - Update **architecture** when ownership, module boundaries, or the release rules
   change. Link to the owning doc instead of copying its detailed rules. Remove
-  superseded prose and repair inbound links. Leave the roadmap and UI review
-  untouched unless changes to those artifacts are requested.
+  superseded prose and repair inbound links. Leave the roadmap untouched unless
+  changes to it are requested.
 
 For behavior changes, run the relevant tests in `tests/`; use `npm test` for shared
 rendering changes and `npm run cf:check` for the Worker package. Tests that build

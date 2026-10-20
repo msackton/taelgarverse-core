@@ -126,7 +126,9 @@ test('Linked from keeps the right column without a TOC, hides empty sections, an
   assert.equal($('.page-backlinks a').text(),result.backlinks[0].title);
   assert.equal($('.page-backlinks img').length,0);
   $ = load(document({...result,toc:'<a href="#section">Section</a>',backlinks:[]},[]));
-  assert.equal($('.page-toc > details').length,1);
+  assert.equal($('.page-toc > .page-contents').length,1);
+  assert.equal($('.page-contents .page-nav-title').text(),'On this page');
+  assert.equal($('.page-contents summary').length,0);
   assert.equal($('.page-backlinks').length,0);
   $ = load(document({...result,backlinks:[]},[]));
   assert.equal($('.page-toc').length,0);

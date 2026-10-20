@@ -120,6 +120,10 @@ test('Mermaid fences preserve escaped source as a readable fallback without affe
   const result = render('## Family\n\n```mermaid \n' + definition + '```\n\n```js\nconst x = 1;\n```\n');
   const $ = load(result.html,{},false);
   assert.equal($('.mermaid-diagram').length,1);
+  const linksUrl = new URL($('.mermaid-diagram').attr('data-links-url'),'https://example.test');
+  assert.equal(linksUrl.pathname,'/api/diagram-links');
+  assert.equal(linksUrl.searchParams.get('source'),'People/Example.md');
+  assert.equal(linksUrl.searchParams.get('date'),'1730-01-01');
   assert.equal($('.mermaid-output').length,1);
   assert.equal($('.mermaid-output[tabindex]').length,0);
   assert.equal($('.mermaid-source[open] code').text(),definition);

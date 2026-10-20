@@ -5,7 +5,7 @@ import footnote from 'markdown-it-footnote';
 import deflist from 'markdown-it-deflist';
 import {full as emoji} from 'markdown-it-emoji';
 import {load} from 'cheerio';
-import {escapeHtml, pageUrl, titleCase} from './common.mjs';
+import {escapeHtml, pageUrl, titleCase, contextQuery} from './common.mjs';
 import {IMAGE_TYPES, AUDIO_TYPES, availableInContext} from './content-store.mjs';
 import {decorateDMNotes} from './dm.mjs';
 import {renderMap} from './maps.mjs';
@@ -166,7 +166,9 @@ export function createMarkdown(options = {}) {
   md.renderer.rules.fence = (tokens, index, options, env, renderer) => {
     const type = tokens[index].info.trim();
     if (/^mermaid(?:\s|$)/i.test(type)) {
-      return '<figure class="mermaid-diagram"><div class="mermaid-output"></div>' +
+      const query = contextQuery(env.context || {kind:'custom',date:env.date});
+      query.set('source',env.entry.id);
+      return '<figure class="mermaid-diagram" data-links-url="' + escapeHtml('/api/diagram-links?' + query) + '"><div class="mermaid-output"></div>' +
         '<details class="mermaid-source" open><summary>Diagram source</summary><pre><code class="language-mermaid">' +
         escapeHtml(tokens[index].content) + '</code></pre></details></figure>\n';
     }

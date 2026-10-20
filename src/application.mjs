@@ -4,6 +4,7 @@ import {contextQuery} from './header.mjs';
 import {searchInput,searchPages} from './search.mjs';
 import {searchView,searchErrorView} from './search-view.mjs';
 import {homepage} from './homepage.mjs';
+import {resolveDiagramLink} from './diagram-links.mjs';
 
 const apiSpec = {
   openapi:'3.1.0', info:{title:'TaelgarVerse rendering API',version:'0.2.0'},
@@ -25,6 +26,12 @@ const apiSpec = {
         404:{description:'Missing/excluded/future page'},409:{description:'Ambiguous page'},422:{description:'Unsafe comment syntax or header error'}}}},
     '/health':{get:{summary:'Content snapshot status',responses:{200:{description:'Indexed page count and warnings'}}}},
     '/api/contexts':{get:{summary:'Available contexts, dates, campaign codes and date provenance',responses:{200:{description:'Context catalogue and warnings'}}}},
+    '/api/diagram-links':{get:{summary:'Resolve diagram destinations in the source article context',parameters:[
+      {name:'source',in:'query',required:true,schema:{type:'string'}},
+      {name:'target',in:'query',required:true,schema:{type:'array',maxItems:100,items:{type:'string',maxLength:2048}}},
+      {name:'context',in:'query',schema:{type:'string'}},{name:'date',in:'query',schema:{type:'string'}},
+      {name:'campaigns',in:'query',schema:{type:'string'}},{name:'dm',in:'query',schema:{type:'boolean'}}],
+      responses:{200:{description:'Ordered destinations; null for unavailable or unsafe links'},400:{description:'Invalid input'},404:{description:'Unavailable source article'}}}},
     '/api/navigation':{get:{summary:'Load children of a site navigation branch',parameters:[
       {name:'branch',in:'query',required:true,schema:{type:'string'}},
       {name:'page',in:'query',schema:{type:'string'},description:'Current page slug'},
@@ -49,6 +56,14 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
       if (pathname === '/health') return send(200,{status:'ok',pages:engine.store.bySlug.size,index_warnings:engine.store.warnings,context_warnings:engine.contexts.warnings,runtime,revision});
       if (pathname === '/api/contexts') return send(200,{contexts:engine.contexts.list(),warnings:engine.contexts.warnings});
       if (pathname === '/openapi.json') return send(200,apiSpec);
+      if (pathname === '/api/diagram-links') {
+        const source = url.searchParams.get('source'), targets = url.searchParams.getAll('target');
+        if (!source || !targets.length || targets.length > 100 || targets.some(target => target.length > 2048)) {
+          throw new RenderError(400,'source and 1–100 targets of at most 2048 characters are required');
+        }
+        const {entry,context} = engine.resolvePage(source,date,contextId,dm,selectedCampaigns);
+        return send(200,{links:targets.map(target => resolveDiagramLink(target,{store:engine.store,entry,context,origin:url.origin}))});
+      }
       if (pathname === '/api/navigation') {
         const branch = url.searchParams.get('branch');
         if (!branch) throw new RenderError(400,'branch is required');

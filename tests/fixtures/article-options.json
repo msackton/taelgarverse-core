@@ -1,0 +1,5 @@
+{
+  "Hidden TOC.md": "---\nhide: [toc, navigation]\n---\n# Hidden TOC\n\n## Details\n\nThe heading and its anchor remain available.\n",
+  "Scalar TOC.md": "---\nhide: toc\n---\n# Scalar TOC\n\n## Details\n\nArticle body.\n",
+  "Visible TOC.md": "---\nhide: [navigation]\n---\n# Visible TOC\n\n## Details\n\n[[Hidden TOC]]\n"
+}
