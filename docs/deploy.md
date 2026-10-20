@@ -107,9 +107,13 @@ If this is your first time publishing from this computer, follow
    npm run publish -- --no-strict
    ```
 
-4. Leave Obsidian open and avoid editing the vault until the command finishes.
-   Then open the website and check the pages you changed, including their images
-   and any relevant campaign/date views.
+4. Leave Obsidian open and avoid editing, syncing, or updating either repository
+   until the command finishes. Check the final message:
+   `Content published (<revision>)` confirms activation; “already in R2; skipping” means the saved
+   version/settings were already online. `ERROR: PUBLISH COMMAND FAILED` means
+   the command failed; read the explanation before retrying.
+5. After a successful publication, open the website and check the pages you
+   changed, including their images and any relevant campaign/date views.
 
 The command prepares copies of your notes, generates small image variants, and
 uploads the results and stages the matching D1 search index. It switches the site
@@ -384,6 +388,7 @@ fields in either JSON file.
 | Materializer plugin needs updating | Update the plugin, restart Obsidian, and try again. |
 | Dataview query failed | Read the reported note/query. Fix it, or use `--no-strict` if you accept that part being unavailable online. |
 | Export, image processing, or upload failed | Read the error, fix the cause, and rerun the command. These failures leave the previous content online. |
+| “changed during publishing” or “changed during the build” | This run did not activate new content. Finish saving, syncing, and any Git changes, then rerun the command without editing or updating either repository while it runs. `--no-strict` does not bypass this check. |
 | A publish lock exists | Check that no publishing command is still running. If a previous run was killed, remove only `.cache/publish/publish.lock` and retry. |
 | Another publisher holds the D1 publication lock | Confirm no publisher, staging, cleanup, or rollback is running on any computer, then rerun with `--unblock`, keeping your other options; for example, `npm run publish -- --no-strict --unblock`. This clears the stale D1 lock and continues publication. |
 | The wrong content is online | Fix the local vault, commit it, and publish again. For restoring an older version, see [recovery instructions](cloudflare.md#restore-older-content). |

@@ -56,7 +56,7 @@ test('changes during export or upload prevent the final R2 pointer write', async
   for (const changeAt of [2, 3]) {
     let reads = 0;
     const {calls, deps} = harness({repositoryState: async () => ({...state, commit: ++reads >= changeAt ? 'd'.repeat(40) : state.commit})});
-    await assert.rejects(publishContent({fingerprint}, deps), /changed during publishing/);
+    await assert.rejects(publishContent({fingerprint}, deps), /changed during publishing.*did not activate new content.*rerun the publish command/);
     assert.equal(calls.includes('checkpoint'), false);
     assert.equal(calls.includes('upload'), changeAt === 3);
   }
@@ -125,6 +125,15 @@ test('subprocess arguments containing spaces and shell characters remain literal
   const value = 'a path with spaces; $(literal) `literal` & unicode é';
   const result = await runCommand(process.execPath, ['-e', 'console.log(process.argv[1])', value]);
   assert.equal(result.stdout.trim(), value);
+});
+
+test('publisher CLI failures show a prominent error and exit unsuccessfully', async () => {
+  await assert.rejects(runCommand(process.execPath, ['scripts/publish-content.mjs', '--unknown']), error => {
+    assert.equal(error.code, 1);
+    assert.match(error.stderr, /ERROR: PUBLISH COMMAND FAILED\r?\n\r?\nUnknown argument: --unknown/);
+    assert.doesNotMatch(error.stdout, /Content published/);
+    return true;
+  });
 });
 
 test('publisher requires a complete export using the current publication policy',()=>{

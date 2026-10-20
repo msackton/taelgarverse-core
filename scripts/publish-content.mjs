@@ -159,7 +159,7 @@ export async function publishContent(options, deps) {
   const unchanged = async () => {
     const state = await deps.repositoryState();
     if (state.commit !== before.commit || state.repository !== before.repository || (!before.dirty && state.dirty)) {
-      throw new Error('Taelgar changed during publishing; the R2 commit checkpoint was not updated. Run again.');
+      throw new Error('Taelgar changed during publishing. This run did not activate new content. Finish saving, syncing, and any Git changes, then rerun the publish command.');
     }
     await deps.verifyInputs?.();
   };
@@ -280,7 +280,7 @@ export async function main(options) {
         const currentSettings = loadSettings(options.config, {vault: options.vault});
         if (currentSettings.vault_dir !== vault || buildFingerprint(currentSettings, options, current) !== fingerprint || current.name !== config.name ||
             current.account_id !== config.account_id || current.r2_buckets?.find(item => item.binding === 'CONTENT')?.bucket_name !== binding.bucket_name) {
-          throw new Error('Publisher code, settings, or destination changed during the build; run again before publishing.');
+          throw new Error('Publisher code, settings, website files, or destination changed during the build. This run did not activate new content. Let edits, syncing, and repository updates finish, then rerun the publish command.');
         }
       },
       async build(sourceVersion) {
@@ -364,5 +364,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
     const options = parseOptions(process.argv.slice(2));
     if (options.help) console.log(help);
     else await main(options);
-  } catch (error) { console.error(error.message); process.exitCode = 1; }
+  } catch (error) {
+    const title = 'ERROR: PUBLISH COMMAND FAILED';
+    const heading = process.stderr.isTTY && !('NO_COLOR' in process.env) ? '\x1b[1;31m' + title + '\x1b[0m' : title;
+    console.error('\n' + heading + '\n\n' + error.message + '\n');
+    process.exitCode = 1;
+  }
 }
