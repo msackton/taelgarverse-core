@@ -41,7 +41,6 @@ export class Store extends ContentStore {
       }
     };
     walk(settings.source_dir);
-    super(entries,warnings);
-    this.settings = settings;
+    super(entries,warnings,settings);
   }
 }

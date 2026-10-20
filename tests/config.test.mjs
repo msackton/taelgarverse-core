@@ -169,3 +169,16 @@ test('website source overrides are relative to their file, and null explicitly d
   assert.equal(load().home_source, null);
   assert.equal(load().nav_source, null);
 });
+
+test('POV date restrictions default off and accept only a boolean site setting',t=>{
+  const {write,load}=fixture(t);
+  assert.equal(load().respect_pov_dates,false);
+  for (const respect_pov_dates of [true,false]) {
+    write('config.local.json',{respect_pov_dates});
+    assert.equal(load().respect_pov_dates,respect_pov_dates);
+  }
+  for (const respect_pov_dates of ['true','false',1,0,null,[],{}]) {
+    write('config.local.json',{respect_pov_dates});
+    assert.throws(()=>load(),/respect_pov_dates must be a boolean/);
+  }
+});

@@ -79,6 +79,34 @@ Campaign-home images join normal image processing. Sources always come from the
 original vault's `_website`, including when `source_dir` selects a materialized
 export or `home_source` overrides the shared homepage.
 
+## POV date filtering
+
+A microsite can enforce POV filtering in its landing-page frontmatter:
+
+```yaml
+---
+campaigns: [clee]
+enforcePoV: 1
+---
+```
+
+Use `enforcePoV: 1` to hide pages whose dated POV is after the microsite's date.
+Use `enforcePoV: 0` to keep POV filtering off. The setting applies across that
+microsite: its landing page links and embeds, articles, search, navigation,
+diagram links, and backlinks. Other date and publication restrictions still
+apply. Plural POV years such as `1740s` mean January 1, 1740.
+
+This field takes precedence over both the reader's `pov` URL parameter and the
+shared `respect_pov_dates` default. If omitted, readers retain the hidden
+`pov=1` / `pov=0` opt-in, with the shared setting used when no URL preference is
+supplied. Use 1 or 0 (quoted values also work); other values fail homepage
+validation. The field is optional, so existing microsites retain their behavior.
+
+Deploy core support first, then publish the edited `_website/<subdomain>.md`
+through the normal content workflow. Later field changes require only content
+publication. The raw landing page is already part of the snapshot and publisher
+fingerprint; no schema or database migration is needed.
+
 ## Locked context
 
 The request hostname selects the campaign set and date on the server. One

@@ -111,7 +111,7 @@ export function prepareCorpus({store,contexts,config,views=['public-all'],style=
     const start=documents.length;
     try{
       for(const view of selected){
-        if(!availableInContext(entry,view.context))continue;
+        if(!availableInContext(entry,view.context,store.settings))continue;
         const dmNotes=[], filtered=filterComments(authoredBody(entry.note),{...view.context,source:id,notes:dmNotes});
         const rendered=renderMarkdown(md,filtered,{store,entry,date:view.context.date,context:view.context,notesMarkdown,dmNotes,noteEmbeds:[],warnings:[]});
         const sections=proseSections(rendered.html);

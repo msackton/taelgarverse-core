@@ -99,7 +99,7 @@ function inlineExtensions(md) {
       const entry = resolution.entry, href = pageUrl(entry.slug,env.date,env.context) + (fragment ? '#' + fragmentId(fragment) : '');
       // Capture the authored reference without expanding it in the backlink compiler.
       env.pageLinks?.add(entry.slug);
-      if (availableInContext(entry,env.context || {date:env.date,campaigns:[]})) {
+      if (availableInContext(entry,env.context || {date:env.date,campaigns:[]},env.store.settings)) {
         const index = (env.noteEmbeds ??= []).length;
         env.noteEmbeds.push({entry,fragment,label,href});
         state.push('html_inline','',0).content = '<span class="note-embed-slot" data-note-embed="' + index + '"><a href="' + escapeHtml(href) + '">' + escapeHtml(label) + '</a></span>';
@@ -268,7 +268,7 @@ export function renderMarkdown(md, source, env) {
     const entry = pageLinkEntry(env.store,el.attr('href'));
     if (entry) {
       env.pageLinks?.add(entry.slug);
-      if (!availableInContext(entry,context)) el.replaceWith(el.contents());
+      if (!availableInContext(entry,context,env.store.settings)) el.replaceWith(el.contents());
       else el.attr('href',pageUrl(entry.slug,env.date,env.context) + (el.attr('href').includes('#') ? '#' + el.attr('href').split('#').slice(1).join('#') : ''));
     }
   });

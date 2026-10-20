@@ -32,7 +32,7 @@ export function homepage(home,context,store) {
   const lead = first.is('p') ? $.html(first) : '';
   if (lead) first.remove();
   const cards = (campaign ? [] : destinations).map(item => {
-    const entry = store.bySlug.get(item.slug), available = availableInContext(entry,context);
+    const entry = store.bySlug.get(item.slug), available = availableInContext(entry,context,store.settings);
     const icon = '<svg viewBox="0 0 24 24" aria-hidden="true">' + item.icon + '</svg>';
     const copy = '<span class="home-entry-copy"><span class="home-entry-title">' + item.label + '</span><span class="home-entry-description">' +
       (available ? item.description : 'Not available in this view.') + '</span></span>';

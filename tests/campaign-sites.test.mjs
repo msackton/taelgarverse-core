@@ -13,7 +13,7 @@ import {buildFingerprint,parseOptions} from '../scripts/publish-content.mjs';
 import {collectImageUsages} from '../scripts/image-usage.mjs';
 
 const source = (id,body='# Campaign\n\nWelcome.\n\n[[Story]]')=>'---\ncampaigns: ['+id+']\n---\n'+body;
-function engine(campaignHomes={}) {
+function engine(campaignHomes={},settings={}) {
   const registry={campaigns:{cleenseau:{name:'Cleenseau',code:'clee'},'dunmar-frontier':{name:'Dunmar Frontier',code:'dufr'},'lost-in-the-feywild':{name:'Lost in the Feywild',code:'feywild',aliases:['litf']},'mawar-adventures':{name:'Mawar Adventures',code:'mawar'}}};
   const notes={
     'Story.md':'# Story\n\n%%^Campaign:clee%%\nCleenseau text\n%%^End%%\n%%^Campaign:dufr%%\nDunmar text\n%%^End%%\n%% Private comment %%\n\n![[Embedded]]',
@@ -21,10 +21,11 @@ function engine(campaignHomes={}) {
     'Cleenseau Session.md':'---\ntags: [session-note]\ncampaign: Cleenseau\nDR: 1720-01-01\n---\n[[Story]]',
     'Dunmar Session.md':'---\ntags: [session-note]\ncampaign: Dunmar Frontier\nDR: 1740-01-01\n---\n[[Story]]',
     'Future.md':'---\ncreated: 1730-01-01\n---\nFuture',
+    'POV.md':'---\nPOV: 1730s\n---\nPerspective body marker.',
   };
   const store=new ContentStore(Object.entries(notes).map(([id,value])=>({id,target:id.toLowerCase().replaceAll(' ','-'),slug:id.slice(0,-3).toLowerCase().replaceAll(' ','-'),name:id.slice(0,-3),title:id.slice(0,-3),note:parseNote(value),extension:'.md'})));
-  return new RenderEngine({settings:{default_date:'1750-01-01'},store,headers:{registry},renderHeader:()=>'',
-    navigationSource:'- [Home](index.md)\n- Stories\n    - [Story](story.md)\n    - [Future](future.md)\n',homeSource:'# Main home\n\nShared world.',
+  return new RenderEngine({settings:{default_date:'1750-01-01',...settings},store,headers:{registry},renderHeader:()=>'',
+    navigationSource:'- [Home](index.md)\n- Stories\n    - [Story](story.md)\n    - [Future](future.md)\n    - [POV](pov.md)\n',homeSource:'# Main home\n\nShared world.',
     campaignHomes:{cleenseau:source('cleenseau','# Cleenseau home\n\nWelcome.\n\n![[Embedded]]\n\n[[Story]]'),dunmar:source('dunmar-frontier','# Dunmar home\n\nWelcome.\n\n[[Story]]'),...campaignHomes}});
 }
 const request=(app,host,url='/')=>handleRequest(new Request('https://'+host+url),app);
@@ -104,6 +105,9 @@ test('discovery opts in only explicit Markdown homes; fingerprints notice edits,
   assert.equal(readCampaignHomes(settings).dunmar,source('dunmar-frontier'));
   const added=buildFingerprint(settings,options);assert.notEqual(added,original);
   fs.writeFileSync(file,source('dunmar-frontier').replaceAll('\n','\r\n'));assert.equal(buildFingerprint(settings,options),added);
+  fs.writeFileSync(file,source('dunmar-frontier').replace('campaigns:','enforcePoV: 1\ncampaigns:'));
+  assert.notEqual(buildFingerprint(settings,options),added);
+  fs.writeFileSync(file,source('dunmar-frontier'));
   fs.appendFileSync(file,'\nUpdated');assert.notEqual(buildFingerprint(settings,options),added);
   fs.unlinkSync(file);assert.equal(buildFingerprint(settings,options),original);
   fs.writeFileSync(path.join(website,'Bad Host.md'),source('cleenseau'));assert.throws(()=>readCampaignHomes(settings),/filename/);
@@ -192,4 +196,46 @@ test('discovery and publication fingerprints include multi-campaign metadata',t=
   fs.unlinkSync(file);assert.equal(buildFingerprint(settings,options),before);
   fs.writeFileSync(file,'---\ncontext: cleenseau\n---\n# Old homepage');
   assert.throws(()=>new CampaignSites(readCampaignHomes(settings),engine().contexts),/context is no longer supported/);
+});
+
+test('microsite enforcePoV overrides URL choices and site defaults across all page surfaces',async()=>{
+  const home=value=>'---\ncampaigns: [clee]\n'+(value===undefined?'':'enforcePoV: '+value+'\n')+'---\n# Perspective home\n\n[[POV]]\n\n![[POV]]';
+  for (const respect_pov_dates of [false,true]) {
+    const app=engine({enabled:home(1),disabled:home(0),inherited:home(),combined:'---\ncampaigns: [clee, dufr]\ndate: 1720-01-01\nenforcePoV: 1\n---\n# Combined'}, {respect_pov_dates});
+    for (const [host,enforced] of [['enabled',true],['disabled',false],['combined',true]]) for (const pov of [undefined,'0','1','invalid']) {
+      const query=pov===undefined?'':'pov='+pov;
+      const visible=!enforced,domain=host+'.taelgar.org';
+      assert.equal((await request(app,domain,'/api/page?page=POV&'+query)).status,visible?200:404);
+      assert.equal((await request(app,domain,'/page/pov?'+query)).status,visible?200:404);
+      const story=await (await request(app,domain,'/api/page?page=Story&'+query)).json();
+      assert.equal(story.context.pov,enforced);assert.equal(story.date,'1720-01-01');
+      const result=await (await request(app,domain,'/api/search?q=POV&'+query)).json();
+      assert.equal(result.context.pov,enforced);assert.equal(result.results.length,visible?1:0);
+      const links=await (await request(app,domain,'/api/diagram-links?source=Story&target=POV&'+query)).json();
+      assert.equal(Boolean(links.links[0]),visible);
+      const $=load(await (await request(app,domain,'/?'+query)).text());
+      assert.equal($('#context-controls input[name="pov"]').val(),enforced?'1':'0');
+      if (host!=='combined') assert.equal($('.home-prose').text().includes('Perspective body marker.'),visible);
+      const lazy=$('[data-nav-url]').first().attr('data-nav-url');
+      const branch=await (await request(app,domain,lazy+'&'+query)).json();
+      assert.equal(branch.html.includes('/page/pov?'),visible);
+    }
+    for (const pov of [undefined,'0','1']) {
+      const enabled=pov===undefined?respect_pov_dates:pov==='1';
+      const response=await request(app,'inherited.taelgar.org','/api/page?page=POV'+(pov===undefined?'':'&pov='+pov));
+      assert.equal(response.status,enabled?404:200);
+    }
+    assert.equal(app.settings.respect_pov_dates,respect_pov_dates);
+  }
+});
+
+test('microsite enforcePoV accepts 1 or 0 and rejects malformed landing-page values',()=>{
+  const contexts=engine().contexts;
+  for (const value of [1,0,'"1"','"0"']) {
+    const sites=new CampaignSites({forced:'---\ncampaigns: [clee]\nenforcePoV: '+value+'\n---\n# Home'},contexts);
+    assert.equal(sites.byHost.get('forced').enforcePoV,String(value).includes('1'));
+  }
+  for (const value of ['2','-1','null','true','false','[]','{}','yes','""']) {
+    assert.throws(()=>new CampaignSites({forced:'---\ncampaigns: [clee]\nenforcePoV: '+value+'\n---\n# Home'},contexts),/_website\/forced\.md: enforcePoV must be 1 or 0/);
+  }
 });

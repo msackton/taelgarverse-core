@@ -354,9 +354,26 @@ The shared defaults are in [config.json](../config.json):
 | --- | --- | --- |
 | `vault_dir` | `"../taelgar"` | Your Taelgar vault. Used for notes, media, supporting scripts, and metadata by previews and publishing. This is the only folder you normally need to set. |
 | `default_date` | `"1750-01-01"` | The in-world fallback date when no campaign session date is available. Use a full year-month-day date. Campaign dates normally come from session notes. |
+| `respect_pov_dates` | `false` | Default for POV date filtering. Readers can override it with `pov=1` or `pov=0` in URLs. Plural years such as `1740s` mean January 1, 1740. |
 | `source_dir` (optional) | Uses `vault_dir` | Selects content for internal preparation/server tools. Quick `dev` deliberately reads the live vault; full `dev` prepares its own materialized snapshot. |
 | `nav_source` (optional) | `_website/navigation.md` inside the vault | Uses a different menu file. Set it to `null` to build the menu from the note folders. |
 | `home_source` (optional) | `_website/home.md` inside the vault | Uses a different homepage file. Set it to `null` to show the page finder as the homepage. |
+
+To trial POV filtering without changing the default, deploy the updated core
+and open a URL with `pov=1` (or `pov=0` to turn it off). The preference stays in
+links and forms as you browse. Existing snapshots already contain POV metadata;
+this reader opt-in works with existing production search indexes and needs no
+content publication. It adds no visible control to the normal website.
+
+To change the default for URLs that omit `pov`, add `"respect_pov_dates": true`
+to `config.local.json`. Use a JSON boolean, without quotes around `true` or
+`false`. Restart the local preview after changing it. For the hosted site, deploy
+updated core first, then publish content to store the new default. Changing this
+configuration default requires content publication; a code deployment alone does
+not change it. Readers can still override the default with either URL value.
+A microsite can enforce either mode with `enforcePoV: 1` or `enforcePoV: 0` in
+its `_website/<subdomain>.md` frontmatter; this overrides URL choices. See
+[campaign landing pages](campaign-sites.md#pov-date-filtering).
 
 To use a vault in another location, create `config.local.json` in
 `taelgarverse-core` with:

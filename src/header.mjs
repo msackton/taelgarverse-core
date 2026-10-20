@@ -6,6 +6,7 @@ const searchIcon = icon('<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 
 const control = (id,label,svg) => '<button type="button" class="icon-button" id="' + id + '-toggle" aria-label="' + label + '" aria-haspopup="dialog" aria-controls="' + id + '-dialog" hidden>' + svg + '</button>';
 export function siteHeader(context, options, {query,searchType='',sections = '',navigation = true} = {}) {
   const brand = context.locked ? context.label : 'TaelgarVerse';
+  const fullSite = 'https://www.taelgar.org/' + (typeof context.pov === 'boolean' ? '?pov='+(context.pov ? '1' : '0') : '');
   const custom = context.kind === 'custom';
   const choices = options.map(option => '<option value="' + escapeHtml(option.id) + '"' +
     (option.id === context.id ? ' selected' : '') + (!option.available ? ' disabled' : '') + '>' +
@@ -31,8 +32,8 @@ export function siteHeader(context, options, {query,searchType='',sections = '',
     '<label class="sr-only" for="site-search">Search TaelgarVerse</label><input id="site-search" type="search" name="q" maxlength="256" value="' + escapeHtml(query || '') + '" placeholder="Search TaelgarVerse"><button aria-label="Search">' + searchIcon + '</button></form></div>' +
     '<div id="header-context-slot"><form id="context-controls" class="context-form" method="get" '+(context.locked ? 'data-context-locked' : 'data-context-form')+'>' +
     (query !== undefined ? '<input type="hidden" name="q" value="' + escapeHtml(query) + '">' : '') +
-    typeField +
-    (context.locked ? '<input type="hidden" name="context" value="'+escapeHtml(context.id)+'"><span class="context-locked">'+escapeHtml(context.label+' · '+context.date+' DR')+'</span><a class="full-site-link" href="https://www.taelgar.org/">Full site</a>' :
+    typeField + (typeof context.pov === 'boolean' ? '<input type="hidden" name="pov" value="'+(context.pov ? '1' : '0')+'">' : '') +
+    (context.locked ? '<input type="hidden" name="context" value="'+escapeHtml(context.id)+'"><span class="context-locked">'+escapeHtml(context.label+' · '+context.date+' DR')+'</span><a class="full-site-link" href="'+escapeHtml(fullSite)+'">Full site</a>' :
     '<label class="context-label" for="site-context">Context:</label><select id="site-context" name="context" aria-label="Context">' + choices + '</select>' +
     '<div class="custom-date-controls" data-custom-date' + (custom ? '' : ' hidden') + '>' +
     '<label class="sr-only" for="context-date">Custom date (DR)</label><input id="context-date" type="date" name="date" aria-label="Custom date (DR)" value="' +

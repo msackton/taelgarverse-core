@@ -4,11 +4,11 @@ import {load} from 'cheerio';
 import {createMarkdown,renderMarkdown} from '../src/markdown.mjs';
 import {ContentStore} from '../src/content-store.mjs';
 
-function render(source, {metadata = {}, context = {id:'custom',kind:'custom',date:'1730-01-01',campaigns:[]}} = {}) {
+function render(source, {metadata = {}, settings = {}, context = {id:'custom',kind:'custom',date:'1730-01-01',campaigns:[]}} = {}) {
   const store = new ContentStore([
     {id:'Places/Target.md',name:'Target',target:'places/target.md',note:{metadata:{aliases:['Sovereign'],...metadata}},slug:'places/target'},
     {id:'assets/portrait.png',extension:'.png',target:'assets/portrait.png'},
-  ]);
+  ],[],settings);
   const env = {entry:{id:'People/Example.md',target:'people/example.md'},date:context.date,context,warnings:[],store};
   return {...renderMarkdown(createMarkdown(),source,env),warnings:env.warnings};
 }
@@ -64,11 +64,13 @@ test('page links follow campaign exclusions and date boundaries across link form
     [{born:'1730-04-02'},[],'1730-04-02',true],
     [{created:'1730-04-02'},[],'1730-04-01',false],
     [{created:'1730-04-02'},[],'1730-04-02',true],
+    [{POV:'1740s'},[],'1739-12-31',false],
+    [{POV:'1740s'},[],'1740-01-01',true],
     [{activeYear:1740},[],'1739-12-31',false],
     [{activeYear:1740},[],'1740-01-01',true],
   ]) for (const dm of [false,true]) {
     const context = {id:'custom',kind:'custom',date,campaigns,dm};
-    const result = render(source,{metadata,context}), $ = load(result.html,{},false);
+    const result = render(source,{metadata,context,settings:{respect_pov_dates:true}}), $ = load(result.html,{},false);
     assert.equal($('a').length,visible ? 9 : 0,JSON.stringify({metadata,context}));
     assert.match($.text(),/the old king/);
     assert.match($.text(),/his history/);
@@ -131,4 +133,13 @@ test('Mermaid fences preserve escaped source as a readable fallback without affe
   assert.match($('code.language-js').text(),/const x = 1/);
   assert.equal(load(result.toc)('a').text(),'Family');
   assert.deepEqual(result.warnings,[]);
+});
+
+test('future POV links stay clickable when the site has not opted into filtering',()=>{
+  for (const settings of [{},{respect_pov_dates:false},{respect_pov_dates:true}]) {
+    const result=render('[[Target|perspective]]',{metadata:{POV:'1740s'},settings});
+    const $=load(result.html,{},false);
+    assert.equal($('a').length,settings.respect_pov_dates?0:1);
+    assert.equal($.text().trim(),'perspective');
+  }
 });

@@ -1,4 +1,4 @@
-import {RenderError,escapeHtml,pageUrl,parseDM} from './common.mjs';
+import {RenderError,escapeHtml,pageUrl,parseDM,parsePOV} from './common.mjs';
 import {document} from './render-engine.mjs';
 import {contextQuery} from './header.mjs';
 import {searchInput,searchPages} from './search.mjs';
@@ -42,12 +42,16 @@ const apiSpec = {
       {name:'dm',in:'query',schema:{type:'boolean'}}],responses:{200:{description:'Branch title and HTML list items'},404:{description:'Unavailable branch'}}}},
   },
 };
+for (const path of ['/api/page','/api/search','/api/navigation','/api/diagram-links']) {
+  apiSpec.paths[path].get.parameters.push({name:'pov',in:'query',schema:{type:'boolean'},
+    description:'Optional reader preference: 1/true hides pages before their POV date; 0/false overrides the site default; ignored when the microsite enforces a mode'});
+}
 function send(status,body,type='application/json') { return new Response(type==='application/json' ? JSON.stringify(body) : body,{status,headers:{'Content-Type':type+'; charset=utf-8'}}); }
 function shell(title, content,header = '') {
   return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>' + escapeHtml(title) + '</title><link rel="stylesheet" href="/theme/preview.css"></head><body>' + header + '<main>' + content + '</main></body></html>';
 }
-async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)=>engine.render(page,date,context,dm,undefined,campaigns),renderHome=(context,siteHost)=>engine.renderHome(context,undefined,siteHost),search=engine.search?.bind(engine),assets,theme,runtime='node',revision,releases=engine.releases}={}) {
+async function route(request,engine,{renderPage=(page,date,context,dm,campaigns,pov)=>engine.render(page,date,context,dm,undefined,campaigns,undefined,pov),renderHome=(context,siteHost)=>engine.renderHome(context,undefined,siteHost),search=engine.search?.bind(engine),assets,theme,runtime='node',revision,releases=engine.releases}={}) {
       if (!['GET','HEAD'].includes(request.method)) { return new Response(JSON.stringify({detail:'Method not allowed'}),{status:405,headers:{Allow:'GET, HEAD','Content-Type':'application/json'}}); }
       const url = new URL(request.url);
       const pathname = decodeURIComponent(url.pathname);
@@ -62,10 +66,12 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
       const contextId = site ? site.contextId : url.searchParams.get('context') ?? undefined;
       const selectedCampaigns = site ? site.campaigns : url.searchParams.has('campaigns') ? url.searchParams.getAll('campaigns') : undefined;
       const dm = parseDM(url.searchParams.get('dm'));
+      const pov = site?.enforcePoV ?? parsePOV(url.searchParams.get('pov'));
+      const preference = pov === undefined ? {} : {pov};
       const lock = context => site ? {...context,label:site.label || context.label,locked:true,site:site.host} : context;
-      const resolveContext = () => lock({...engine.contexts.resolve(contextId,date,selectedCampaigns),dm});
+      const resolveContext = () => lock({...engine.contexts.resolve(contextId,date,selectedCampaigns),dm,...preference});
       const contextOptions = site ? site.contextId==='custom' ? [resolveContext()] : engine.contexts.list().filter(context=>context.id===site.contextId) : engine.contexts.list();
-      const renderArticle = async (...args) => { const result=await renderPage(...args);return {...result,context:lock(result.context)}; };
+      const renderArticle = async (...args) => { const result=await renderPage(...args,pov);return {...result,context:lock(result.context)}; };
       if (pathname === '/health') return send(200,{status:'ok',pages:engine.store.bySlug.size,index_warnings:engine.store.warnings,context_warnings:engine.contexts.warnings,runtime,revision});
       if (pathname === '/api/contexts') return send(200,{contexts:contextOptions,warnings:engine.contexts.warnings,...(site ? {locked:true,site:site.host} : {})});
       if (pathname === '/openapi.json') return send(200,apiSpec);
@@ -74,7 +80,7 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
         if (!source || !targets.length || targets.length > 100 || targets.some(target => target.length > 2048)) {
           throw new RenderError(400,'source and 1–100 targets of at most 2048 characters are required');
         }
-        const {entry,context} = engine.resolvePage(source,date,contextId,dm,selectedCampaigns);
+        const {entry,context} = engine.resolvePage(source,date,contextId,dm,selectedCampaigns,pov);
         return send(200,{links:targets.map(target => resolveDiagramLink(target,{store:engine.store,entry,context,origin:url.origin}))});
       }
       if (pathname === '/api/navigation') {

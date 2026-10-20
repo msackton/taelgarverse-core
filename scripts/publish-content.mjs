@@ -203,7 +203,7 @@ export function buildFingerprint(settings, options, config={}) {
   hash.update(JSON.stringify({excludedFolders:readFolderExclusions(settings.vault_dir)}));
   for (const [host,source] of Object.entries(readCampaignHomes(settings))) hash.update(JSON.stringify([host,source.replace(/\r\n/g,'\n')]));
   hash.update(JSON.stringify({version: 1, image: {maxSize: options.maxSize, quality: options.quality, ...IMAGE_VERSION},
-    strict: !options.noStrict, default_date: settings.default_date,searchDestination:{account:config.account_id,databases:config.d1_databases || []}}));
+    strict: !options.noStrict, default_date: settings.default_date, respect_pov_dates: settings.respect_pov_dates === true,searchDestination:{account:config.account_id,databases:config.d1_databases || []}}));
   for (const filename of [settings.nav_source, settings.home_source,
     new URL('./publish-content.mjs', import.meta.url), new URL('./optimize-images.mjs', import.meta.url),
     new URL('./build-images.mjs', import.meta.url), new URL('./derivative-cache.mjs', import.meta.url), new URL('../src/images.mjs', import.meta.url),

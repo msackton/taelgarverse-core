@@ -161,6 +161,7 @@ These properties hide a whole page:
 | `excludePublish: [dufr]` | Hide the page when Dunmar Frontier is selected, including in Custom. It can still appear in Modern or selections that omit Dunmar Frontier. |
 | `born` or `created` after the selected date | Hide the page until that date. If both are present, `born` is used. |
 | `activeYear` after the selected date | Hide the page until it becomes active. |
+| Dated `POV` after the selected date, with `pov=1` or an enabled site default | Treat the page as not yet born; hide it until its POV date. |
 
 `excludePublish` can also contain several campaign codes, as a YAML list or a
 comma-separated string. Codes are matched regardless of capitalization.
@@ -179,13 +180,36 @@ Partial birth/creation dates have different meanings depending on how they are w
 The same rules apply to `created`. Missing or unknown birth/creation dates do not
 hide the page. `activeYear` uses the start of the specified year.
 
+POV filtering is an optional reader preference. Add `pov=1` to a website URL
+to try it, for example `/?context=addermarch&pov=1`, or `&pov=1` when the URL
+already has query parameters. Use `pov=0` to turn it off. The choice travels
+through article links, navigation, search, and context changes, including
+campaign sites. It is kept in URLs, so a bookmark or shared link keeps the choice;
+a fresh URL without `pov` follows the site default. No new control appears for
+ordinary visitors. The API also accepts `pov=true` and `pov=false`.
+
+The site-wide `respect_pov_dates` setting supplies the default when `pov` is
+omitted. It defaults to `false`, including in older snapshots. A reader can
+override either default unless the microsite landing page sets `enforcePoV: 1`
+or `enforcePoV: 0`, which fixes that host's mode. See
+[microsite POV filtering](campaign-sites.md#pov-date-filtering) and
+[configuration settings](deploy.md#configuration-settings).
+Birth/creation, activity, and campaign exclusions still apply in both modes.
+
+When enabled, dated `POV` uses the beginning of its stated period: `POV: 1740`,
+`POV: "1740"`, and `POV: 1740s` all make the page available on January 1,
+1740. A year-month starts on its first day; a full date starts on that day.
+The page becomes available on the latest of its birth/creation, activity, and POV
+dates. Missing, invalid, or nondated POV values such as `modern` and `undated`
+add no date restriction.
+
 Hidden pages disappear from search and navigation. Links to them keep their text
 but cannot be clicked; opening their address gives “Page unavailable.”
 
 **Readers can choose any campaign and turn on See Behind the Curtain.** These
 choices do not require a login. That option reveals comments, but never overrides
-the whole-page rules above. `knownTo`, POV/audience notes, and status tags do not
-limit who can read a page.
+the whole-page rules above. `knownTo`, nondated POV/audience notes, and status
+tags do not limit who can read a page.
 
 A hidden page's properties may still contribute to other pages' headers. Its
 images and other media can still be opened separately. Ordinary prose does not

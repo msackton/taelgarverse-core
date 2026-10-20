@@ -41,7 +41,7 @@ before(async () => {
   fs.mkdirSync(path.join(directory,'_website'));
   const navSource = path.join(directory,'_website','navigation.md'), homeSource = path.join(directory,'_website','home.md');
   fs.copyFileSync(new URL('./fixtures/home.md',import.meta.url),homeSource);
-  fs.writeFileSync(navSource,'- [Home](index.md)\n- People\n    - {glob: people/}\n- Places\n    - {glob: places/}\n- [Future](future.md)\n');
+  fs.writeFileSync(navSource,'- [Home](index.md)\n- People\n    - {glob: people/}\n- Places\n    - {glob: places/}\n- [Future](future.md)\n- [POV Year](pov-year.md)\n- [POV Plural](pov-plural.md)\n');
   engine = new Engine({...loadSettings(),source_dir:directory,ignore_file:path.join(directory,'ignore.txt'),nav_source:navSource,home_source:homeSource,campaigns:['dufr','adma']});
   server = createServer(engine);
   await new Promise((resolve,reject) => { server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
@@ -506,4 +506,54 @@ test('Custom campaigns filter article blocks and persist through article, search
   const links=await(await fetch(base+'/api/page?page=Backlink%20Source&date=1720-01-02&campaigns=all')).json();
   const $=load(links.html,{},false);
   for (const link of $('a[href^="/page/"]').toArray()) assert.equal(new URL($(link).attr('href'),'https://example.test').searchParams.get('campaigns'),'all');
+});
+
+test('reader POV preference follows browsing and search, overrides defaults, and stays request-local',async()=>{
+  for (const respect_pov_dates of [false,true]) {
+    const app=new Engine({...engine.settings,respect_pov_dates}),server=createServer(app);
+    await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+    const base='http://127.0.0.1:'+server.address().port;
+    try {
+      for (const pov of [undefined,'1','0']) for (const date of ['1739-12-31','1740-01-01']) for (const dm of ['0','1']) {
+        const enabled=pov===undefined?respect_pov_dates:pov==='1';
+        const visible=!enabled || date==='1740-01-01',query='date='+date+'&dm='+dm+(pov===undefined?'':'&pov='+pov);
+        const $=load(await (await fetch(base+'/?q=POV&'+query)).text());
+        for (const slug of ['pov-year','pov-plural']) {
+          assert.equal($('main a[href^="/page/'+slug+'?"]').length,visible?1:0);
+          assert.equal($('.site-sidebar a[href*="/page/'+slug+'?"]').length,visible?1:0);
+          assert.equal((await fetch(base+'/page/'+slug+'?'+query)).status,visible?200:404);
+        }
+        for (const form of ['#context-controls','#header-search','.search-form']) {
+          assert.equal($(form+' input[name="pov"]').length,pov===undefined?0:1);
+          if (pov!==undefined) assert.equal($(form+' input[name="pov"]').val(),pov);
+        }
+        const results=await (await fetch(base+'/api/search?q=POV&'+query)).json();
+        assert.equal(results.source,'full-text');
+        assert.deepEqual(results.results.map(r=>r.page).sort(),visible?['pov-plural','pov-year']:[]);
+        if (pov!==undefined) for (const item of results.results) assert.equal(new URL(item.url,base).searchParams.get('pov'),pov);
+        const host=await (await fetch(base+'/api/page?page=Perspective%20Links&'+query)).json();
+        const article=load(host.html);
+        assert.equal(article('a').filter((_,a)=>article(a).text()==='future viewpoint').length,visible?1:0);
+        assert.equal(article.text().includes('POV plural text.'),visible);
+        assert.equal(host.backlinks.some(link=>link.page==='pov-year'),visible);
+        const diagram=await (await fetch(base+'/api/diagram-links?source=Perspective%20Links&target=POV%20Year&'+query)).json();
+        assert.equal(Boolean(diagram.links[0]),visible);
+        if (pov!==undefined) {
+          for (const link of $('.site-sidebar a[href],.site-brand').toArray()) assert.equal(new URL($(link).attr('href'),base).searchParams.get('pov'),pov);
+          const lazy=$('[data-nav-url]').first().attr('data-nav-url');
+          assert.equal(new URL(lazy,base).searchParams.get('pov'),pov);
+          assert.equal((await fetch(new URL(lazy,base))).status,200);
+        }
+      }
+      const outcomes=await Promise.all(['1','0','1','0'].map(async pov=>{
+        const response=await fetch(base+'/api/page?page=POV%20Year&date=1739-12-31&pov='+pov);
+        return response.status;
+      }));
+      assert.deepEqual(outcomes,[404,200,404,200]);
+      assert.equal(app.store.settings.respect_pov_dates,respect_pov_dates);
+      assert.equal((await fetch(base+'/api/page?page=POV%20Year&date=1739-12-31&pov=invalid')).status,400);
+    } finally {
+      await new Promise(resolve=>server.close(resolve));app.closeSearch();
+    }
+  }
 });

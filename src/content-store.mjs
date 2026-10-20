@@ -58,13 +58,22 @@ function creationDateKey(value) {
   }
   try { return dateKey(date,true); } catch { return null; }
 }
-export function availableFrom(entry) {
-  const metadata=entry.note.metadata,start=creationDateKey(metadata.born || metadata.created);
-  return Math.max(start || 10101,metadata.activeYear ? dateKey(String(metadata.activeYear),true) : 10101);
+// POV dates describe the earliest perspective in which the page exists.
+// Years (quoted or numeric), plural years, and months start at their beginning.
+function povDateKey(value) {
+  if (typeof value !== 'string' && typeof value !== 'number') return null;
+  const date = String(value).trim().replace(/^([0-9]{1,4})s$/, '$1');
+  try { return dateKey(date,true); } catch { return null; }
 }
-export function availableInContext(entry, context) {
+export function availableFrom(entry, settings = {}) {
+  const metadata=entry.note.metadata,start=creationDateKey(metadata.born || metadata.created);
+  const pov = settings.respect_pov_dates === true ? povDateKey(metadata.POV) : null;
+  return Math.max(start || 10101,metadata.activeYear ? dateKey(String(metadata.activeYear),true) : 10101,pov || 10101);
+}
+export function availableInContext(entry, context, settings) {
   if (!entry?.note || excluded(entry.note.metadata,{campaigns:context.campaigns})) return false;
-  return availableFrom(entry)<=dateKey(context.date);
+  const policy = typeof context.pov === 'boolean' ? {respect_pov_dates:context.pov} : settings;
+  return availableFrom(entry,policy)<=dateKey(context.date);
 }
 function addAlias(map, alias, entry) {
   if (!alias) return;
@@ -73,7 +82,8 @@ function addAlias(map, alias, entry) {
   map.set(alias, entries);
 }
 export class ContentStore {
-  constructor(entries,warnings = []) {
+  constructor(entries,warnings = [],settings = {}) {
+    this.settings = settings;
     this.entries = entries;
     this.warnings = warnings;
     this.bySlug = new Map(); this.assets = new Map(); this.canonical = new Map(); this.aliases = new Map();

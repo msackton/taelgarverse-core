@@ -132,7 +132,7 @@ export function expandNoteEmbeds(html, embeds, env, loading) {
       const slot = $(el), embed = descriptors[Number(slot.attr('data-note-embed'))];
       if (!embed) {slot.replaceWith(slot.contents()); return;}
       const {entry,fragment,href,label} = embed;
-      if (!availableInContext(entry,env.context)) {slot.remove(); return;}
+      if (!availableInContext(entry,env.context,env.store.settings)) {slot.remove(); return;}
       const key = entry.id + '#' + fragment;
       const fallback = reason => {
         env.warnings.push(reason + ': ' + entry.id + (fragment ? '#' + fragment : ''));

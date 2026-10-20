@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import {createSearchController,searchParameters,highlightPieces,suggestionPosition} from '../public/search-overlay.js';
 
 test('floating search preserves context, repeated campaign choices and normal query encoding',()=>{
-  const params=searchParameters([['date','1730-01-01'],['context','custom'],['campaigns','dufr'],['campaigns','adma'],['dm','1'],['type','person'],['q','stale'],['offset','100'],['unrelated','discard']], '"Green Sea" & elves',20);
+  const params=searchParameters([['date','1730-01-01'],['context','custom'],['campaigns','dufr'],['campaigns','adma'],['dm','1'],['pov','1'],['type','person'],['q','stale'],['offset','100'],['unrelated','discard']], '"Green Sea" & elves',20);
   assert.deepEqual(params.getAll('campaigns'),['dufr','adma']);
   assert.equal(params.get('date'),'1730-01-01');assert.equal(params.get('context'),'custom');assert.equal(params.get('dm'),'1');
   assert.equal(params.get('q'),'"Green Sea" & elves');assert.equal(params.get('offset'),'20');assert.equal(params.get('limit'),'20');
+  assert.equal(params.get('pov'),'1');
+  assert.equal(searchParameters([['pov','0']],'new query').get('pov'),'0');
   assert.equal(params.has('unrelated'),false);assert.equal(params.get('type'),'person');
   assert.equal(searchParameters(params,'new query').get('type'),'person');
   assert.equal(searchParameters(params,'new query').has('offset'),false);

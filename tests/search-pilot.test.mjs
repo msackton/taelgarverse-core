@@ -148,3 +148,15 @@ test('comparison reports escape source text and local viewer rejects other origi
     assert.equal(searches,0);
   }finally{await new Promise(resolve=>server.close(resolve));}
 });
+
+test('pilot corpus honors the site-wide POV opt-in',()=>{
+  const codec=tokenizer();
+  try {
+    for (const respect_pov_dates of [false,true]) {
+      const app=fixture({'Common.md':'Common reference.','Future POV.md':'---\nPOV: 1760s\n---\nFuture perspective.'});
+      app.store.settings={respect_pov_dates};
+      const result=prepareCorpus({...app,config:configFor(['Common.md','Future POV.md']),codec});
+      assert.equal(result.documents.length,respect_pov_dates?1:2);
+    }
+  } finally {codec.free();}
+});

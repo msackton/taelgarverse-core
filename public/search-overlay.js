@@ -1,7 +1,7 @@
 export function searchParameters(entries,query,offset=0) {
   const params = new URLSearchParams();
   for (const [name,value] of entries) {
-    if (['context','date','campaigns','dm','type'].includes(name) && typeof value === 'string') params.append(name,value);
+    if (['context','date','campaigns','dm','pov','type'].includes(name) && typeof value === 'string') params.append(name,value);
   }
   params.set('q',query);
   params.set('limit','20');

@@ -54,6 +54,8 @@ export function loadSettings(filename, {root = ROOT, env = process.env, vault, v
   if (!Array.isArray(settings.campaigns) || settings.campaigns.some(c => typeof c !== 'string')) {
     throw new Error('campaigns must be an array of strings');
   }
+  if (settings.respect_pov_dates === undefined) settings.respect_pov_dates = false;
+  if (typeof settings.respect_pov_dates !== 'boolean') throw new Error('respect_pov_dates must be a boolean');
   validateDate(settings.default_date);
   return settings;
 }

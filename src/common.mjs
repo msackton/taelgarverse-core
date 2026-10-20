@@ -18,6 +18,13 @@ export function parseDM(value) {
   if (value === true || value === 'true' || value === '1') return true;
   throw new RenderError(400, 'dm must be 1, 0, true, or false');
 }
+// Omission follows the site default; an explicit value travels with the reader.
+export function parsePOV(value) {
+  if (value === undefined || value === null) return undefined;
+  if (value === true || value === 'true' || value === '1') return true;
+  if (value === false || value === 'false' || value === '0') return false;
+  throw new RenderError(400, 'pov must be 1, 0, true, or false');
+}
 export const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const slugify = value => String(value).normalize('NFKD').replace(/[^\x00-\x7f]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'untitled';
 export function targetPath(relative) {
@@ -42,6 +49,7 @@ export function contextQuery(context) {
     else if (context.campaigns?.length) query.set('campaigns',context.campaigns.join(','));
   }
   if (context.dm) query.set('dm','1');
+  if (typeof context.pov === 'boolean') query.set('pov',context.pov ? '1' : '0');
   return query;
 }
 export const pageUrl = (slug, date, context) => '/page/' + slug.split('/').map(encodeURIComponent).join('/') +

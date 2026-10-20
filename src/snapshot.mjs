@@ -6,7 +6,7 @@ import {initializeHeaderRuntime,renderModuleHeader} from './header-runtime.mjs';
 
 export class SnapshotStore extends ContentStore {
   constructor(index,bucket) {
-    super(index.entries,index.warnings);
+    super(index.entries,index.warnings,index.settings);
     this.bucket=bucket;this.revision=index.revision;
     this.shards=new Map();this.pending=new Map();this.maxShards=8;
   }

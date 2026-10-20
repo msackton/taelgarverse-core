@@ -17,8 +17,8 @@ import {stagePreparedSearch} from '../scripts/search.mjs';
 
 const {DatabaseSync}=await import('node:sqlite').catch(()=>({}));
 const sqliteTest=(name,fn)=>test(name,{skip:!DatabaseSync?'Enable node:sqlite with --experimental-sqlite on Node 22.12':false},fn);
-function storeFor(sources){
-  return new ContentStore(Object.entries(sources).map(([id,source])=>({id,name:id.slice(0,-3),title:id.slice(0,-3),target:targetPath(id),slug:targetPath(id).slice(0,-3),note:parseNote(source),extension:'.md'})));
+function storeFor(sources,settings={}){
+  return new ContentStore(Object.entries(sources).map(([id,source])=>({id,name:id.slice(0,-3),title:id.slice(0,-3),target:targetPath(id),slug:targetPath(id).slice(0,-3),note:parseNote(source),extension:'.md'})),[],settings);
 }
 function database(){
   const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON');let failAt;
@@ -138,9 +138,13 @@ test('compiler supports arbitrary dates, campaign subsets and DM mode with whole
     'Excluded.md':'---\nexcludePublish: [dufr]\n---\nExclusion text.',
     'Future.md':'---\ncreated: "1740-05"\n---\nFuture text.',
     'Born.md':'---\nborn: 1740\nactiveYear: 1742\n---\nBorn text.',
+    'POV Year.md':'---\nPOV: 1740\n---\nPOV year text.',
+    'POV Plural.md':'---\nPOV: 1740s\n---\nPOV plural text.',
+    'POV Full.md':'---\nPOV: 1740-05-31\n---\nPOV full text.',
+    'POV Modern.md':'---\nPOV: modern\n---\nPOV modern text.',
     'Never.md':'---\nexcludePublish: all\n---\nDo not index.',
     'Unsafe.md':'Public prefix %% unclosed private data',
-    'Heading.md':'## Searchable heading only'});
+    'Heading.md':'## Searchable heading only'},{respect_pov_dates:true});
   const manifest=validateSearchManifest(compileSearch(store)),md=createMarkdown(),notesMarkdown=createMarkdown({html:false});
   assert.equal(manifest.warnings.length,1);assert.doesNotMatch(JSON.stringify(manifest.documents),/Do not index|unclosed private|adminnever/);
   for(const date of ['1739-09-17','1740-01-01','1740-04-30','1740-05-01','1740-05-30','1740-05-31','1742-01-01','1750-02-05']){
@@ -156,6 +160,11 @@ test('compiler supports arbitrary dates, campaign subsets and DM mode with whole
         if(entry.id==='Host.md')assert.equal(docs[0].text.includes('privatepopup'),dm);
       }
     }
+  }
+  for (const [page,from] of [['pov-year',10101],['pov-plural',10101],['pov-full',10101],['pov-modern',10101]]) {
+    const document=manifest.documents.find(d=>d.page===page);
+    assert.ok(document,page);
+    assert.deepEqual(manifest.rules.filter(r=>r.document===document.id).map(r=>r.from),[from],page);
   }
   assert.ok(manifest.documents.some(d=>d.text.includes('Searchable heading only')));
   assert.equal(compileSearch(store).digest,manifest.digest);
@@ -176,7 +185,7 @@ test('prepared search is revision-bound, stays out of R2 uploads, and tampering 
   const source=path.join(directory,'source');fs.mkdirSync(source);fs.writeFileSync(path.join(source,'One.md'),'Public.\n%% private-fixture-marker %%');
   const report=await prepareContent({...loadSettings(),source_dir:source,home_source:null,nav_source:null},path.join(directory,'output'),{commit:'a'.repeat(40),dirty:false});
   const manifest=readPreparedSearch(report);assert.ok(manifest.documents.some(d=>d.text.includes('private-fixture-marker')));
-  const index=fs.readFileSync(report.indexFile,'utf8');assert.ok(!index.includes('private-fixture-marker'));assert.ok(!index.includes('searchFile'));
+  const index=fs.readFileSync(report.indexFile,'utf8');assert.equal(JSON.parse(index).settings.respect_pov_dates,false);assert.ok(!index.includes('private-fixture-marker'));assert.ok(!index.includes('searchFile'));
   const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));assert.ok(!uploads.some(item=>item.file===report.searchFile || item.key.endsWith('/search.json')));
   fs.writeFileSync(report.searchFile,JSON.stringify({...manifest,digest:'f'.repeat(64)}));
   await assert.rejects(stagePreparedSearch(report),/manifest\/digest/);
@@ -254,4 +263,14 @@ test('production credentials never enable Wrangler auth logging, and configured 
   await assert.rejects(createSearchDatabase(config,{credentials:()=>auth,fetcher:async()=>Response.json({success:false,errors:[{code:10000,message:'fake-secret'}]},{status:403})}),error=>!error.message.includes('fake-secret'));
   const options={maxSize:2560,quality:82},settings={default_date:'1750-01-01'};
   assert.notEqual(buildFingerprint(settings,options,config),buildFingerprint(settings,options,{...config,d1_databases:[{...config.d1_databases[0],database_id:id.replace('1','2')}]}));
+});
+
+test('compiler retains both POV modes and publication fingerprints track the site default',()=>{
+  const sources={'POV.md':'---\nPOV: 1740s\n---\nPerspective text.'};
+  for (const settings of [{},{respect_pov_dates:false},{respect_pov_dates:true}]) {
+    const manifest=validateSearchManifest(compileSearch(storeFor(sources,settings)));
+    assert.deepEqual(manifest.rules.map(rule=>rule.from),[10101]);
+  }
+  const settings=loadSettings(),options={maxSize:2560,quality:82};
+  assert.notEqual(buildFingerprint({...settings,respect_pov_dates:false},options),buildFingerprint({...settings,respect_pov_dates:true},options));
 });

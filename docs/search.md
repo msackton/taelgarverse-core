@@ -86,6 +86,19 @@ and `dm` (true, false, or null for either). Unrelated campaigns have no effect.
 This supports arbitrary Custom dates/subsets and matches across paragraphs.
 The separate campaign-ownership filter used by backlinks is not applied here.
 
+POV filtering is a request-local reader preference: `pov=1` enables it and
+`pov=0` disables it. A microsite's authored `enforcePoV` overrides the URL
+preference when present. Otherwise, when omitted, `respect_pov_dates` supplies the site default
+(`false` in new and older snapshots). See [page visibility](vault.md#when-a-page-is-shown).
+The compiler retains text for both POV modes, while keeping birth/creation,
+activity, campaign, and DM intervals. At query time, snapshot metadata supplies
+the list of available pages for the reader's preference; SQL applies that list
+before ranking, pagination, and limits. This works with existing production
+indexes without article-body reads, database changes, or republication.
+The preference stays in result links, pagination, forms, and floating suggestions.
+Changing the configuration default still invalidates the publication fingerprint
+and requires publication to store the new default.
+
 An unsafe comment omits the entire note and records a warning. More than 4,096
 candidate states in one note, or a document larger than 1.5 MB, stops compilation.
 Sparse notes retain searchable headings, titles, and aliases.
