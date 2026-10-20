@@ -51,20 +51,21 @@ click it to copy the full ID. The core timestamp appears only in its tooltip.
 An asterisk marks uncommitted changes. Older publications without provenance
 show an unavailable date or hash until content is published again.
 
-Wrangler's custom build step captures the core commit and timestamp immediately
-before deployment in `.generated/core-release.mjs`. These travel with the Worker
+Wrangler's custom build step generates the Leaflet map script and stylesheet and
+the Mermaid diagram bundle in `public/generated/`, then captures the core commit
+and timestamp in `.generated/core-release.mjs`. These travel with the Worker
 version, including on rollback. Content commits are stored in the immutable
 snapshot; activation timestamps come from that request's `published/current.json`
 (`completedAt`). Restoring a saved pointer restores its date and commit together.
 Local Node previews show checkout hashes and “Local preview” without publication
 dates. No Git or GitHub requests occur in the deployed Worker or browser.
 
-For maintainers checking the build setup: the Mermaid diagram files must be
-generated before deployment. Using `npm run cf:deploy` as the deploy command
-includes this step. If the deploy command is `npx wrangler deploy`, use
-`npm run build:browser` as the build command. The destination Worker must be
-`taelgarverse`. These are supported setups; the exact current dashboard commands
-were not checked. Cloudflare explains the two commands in its
+For maintainers checking the build setup: both `npm run cf:deploy` and
+`npx wrangler deploy` generate the browser assets before packaging through the
+custom build in [wrangler.json](../wrangler.json). A separate dashboard build
+command is optional; a clean core checkout with its dependencies is sufficient.
+The destination Worker must be `taelgarverse`. The exact current dashboard
+commands were not checked. Cloudflare explains the two commands in its
 [build settings guide](https://developers.cloudflare.com/workers/ci-cd/builds/configuration/).
 
 ## What is stored in R2

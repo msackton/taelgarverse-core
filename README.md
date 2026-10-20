@@ -274,8 +274,10 @@ The library is loaded only on pages containing visible diagrams. The API returns
 the escaped source and diagram containers; the article shell loads the browser renderer.
 
 `npm start`, `npm run dev`, `npm test`, `npm run cf:dev`, `npm run cf:check`, and
-`npm run cf:deploy` rebuild the browser bundle automatically. Run
-`npm run build:browser` after changing `src/browser/diagrams.mjs` while a preview
+`npm run cf:deploy` rebuild the Leaflet and Mermaid browser assets automatically.
+Wrangler's custom build also generates them for plain `npx wrangler deploy`,
+including deployments from a clean Cloudflare Builds checkout. Run
+`npm run build:browser` after changing `src/browser/` while a preview
 is already running. Output lives in ignored `public/generated/`; application
 code and dependency pins are the source of truth. After pulling dependency
 changes, run `npm ci` before starting or deploying.

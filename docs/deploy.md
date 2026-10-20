@@ -352,7 +352,7 @@ changes the live site.
 
 | Command | What it does | Changes the live site? |
 | --- | --- | --- |
-| `npm run build:browser` | Prepares Mermaid diagram support in `public/generated/`. Runs automatically for local previews, tests, and `cf:check` / `cf:dev` / `cf:deploy`. | No |
+| `npm run build:browser` | Prepares Leaflet map scripts/styles and Mermaid diagram support in `public/generated/`. Runs automatically for local previews, tests, and Worker builds, including plain `npx wrangler deploy`. | No |
 | `npm run build:runtime` | Rebuilds local header code from the vault's CustomJS and updates generated icons. It does not update the Worker's header code. | No |
 | `npm run build:worker-headers` | Updates `src/worker-headers.mjs` from those same vault scripts. Review and commit the result so the next core deployment includes it. | No, until the code is deployed |
 | `npm run cf:deploy` | Builds the browser files and deploys the Worker and website files directly from this checkout. Normally GitHub's automatic deployment handles this. | **Yes: website code**, not vault content |
