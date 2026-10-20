@@ -38,7 +38,10 @@ queries; it never contacts production R2/D1. Its cached data stays in core.
 
 The **Tests** workflow runs on pull requests and is reused by website and plugin
 release workflows. **Test and deploy website** runs on pushes to core's `main`.
-It checks out public vault Markdown and header metadata/scripts, excluding assets,
+Both automatic triggers skip changes that only affect `.md` files anywhere in
+the repository; changes that include any other file still run. Explicit plugin
+releases continue to run the reusable tests regardless of changed paths.
+The test job checks out public vault Markdown and header metadata/scripts, excluding assets,
 then runs `npm test`, local R2/D1 integration checks, and the Worker packaging
 check. Testing requires no Obsidian or Cloudflare credentials. The website
 deployment job requires the tests to succeed; failures skip deployment and leave
