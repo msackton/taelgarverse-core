@@ -1,0 +1,9 @@
+{
+  "id": "taelgar-map-tools",
+  "name": "Taelgar Map Tools",
+  "version": "0.1.0",
+  "minAppVersion": "1.8.0",
+  "description": "Interactive image maps with a 24-mile hex ruler, point routes, and freehand path tracing shared with TaelgarVerse.",
+  "author": "Taelgar",
+  "isDesktopOnly": true
+}

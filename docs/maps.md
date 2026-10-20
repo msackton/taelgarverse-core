@@ -15,6 +15,18 @@ The center crosshair appears while the active map has keyboard focus. Each map,
 including repeated note embeds, has its own measurement state. Measurements stay
 in the current browser page and are not saved to notes or published content.
 
+For a winding river or road, turn on **Trace path** while measuring and drag
+with a mouse, pen, or one finger. The total includes the sampled bends rather
+than a straight chord between the start and end. Each stroke is one Undo action.
+Separate strokes add to the total without inserting a straight connecting
+segment. Switch off Trace path to pan or add point segments; zoom buttons remain
+available. Zoom in for finer tracing. A cancelled stroke or a view change during
+drawing discards the unfinished stroke without changing completed measurements.
+
+The [Obsidian companion plugin](../obsidian/taelgar-map-tools/README.md) uses the
+same map viewer, tracing controller, and calibration. It renders existing
+`leaflet` blocks locally without rewriting their source.
+
 ## The 24-mile hex calibration
 
 The existing Taelgar maps use **24 miles between opposite flat sides of a hex**.
@@ -81,4 +93,8 @@ thumbnail, current browser pixels, tile pixels, or the old display bounds.
 Regression coverage includes 24-mile cardinal and diagonal distances for every
 recorded image under different display bounds, the independent 123-hex span,
 changed-image rejection, route totals, multiple maps, keyboard use, controls,
-and Node/Worker map rendering.
+and Node/Worker map rendering. Tracing checks cover curved geometry, disconnected
+strokes, coalesced pointer events, whole-stroke Undo, cancellation, and navigation
+restoration. Obsidian adapter checks cover local image resolution/hash caching,
+component disposal, stale asynchronous work, bundle integrity, and installation
+into a disposable fixture. Real-vault activation is a separate step.

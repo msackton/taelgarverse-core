@@ -279,7 +279,11 @@ also works without JavaScript or if the interactive viewer fails. Mouse-wheel
 scrolling continues to scroll the article.
 
 **Measure distance** adds a temporary route ruler. Click or tap successive
-points for a total; Undo, Clear, and Done controls appear as needed. The current
+points for a total; Undo, Clear, and Done controls appear as needed.
+**Trace path** mode follows winding roads or rivers by dragging, with each
+stroke measured along its bends and removed as one Undo action. The same tools
+are available through the [Obsidian companion plugin](../obsidian/taelgar-map-tools/README.md).
+The current
 Taelgar maps use a verified **24-mile hex** calibration tied to each source
 image, independent of zoom and the older display bounds. A known image that
 changes needs its calibration rechecked. Other maps use authored `unit`/`scale`,

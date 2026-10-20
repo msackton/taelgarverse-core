@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {routeDistance,formatDistance,measurementOptions} from '../src/map-distance.mjs';
 import {MAP_CALIBRATIONS,HEX_GRID} from '../src/map-calibrations.mjs';
 import {addMeasurement} from '../src/browser/map-measurement.mjs';
+import {measurementRoutes} from '../src/map-path.mjs';
 
 test('planar measurement uses calibration once for every segment, regardless of coordinate origin',()=>{
   const points=[{lat:1000,lng:-200},{lat:1003,lng:-196},{lat:1003,lng:-186}];
@@ -46,20 +47,32 @@ function setup({scale=0.5,zoomEnabled=true}={}) {
     append(...children){this.children.push(...children);}
     setAttribute(key,value){this.attributes[key]=value;}
     addEventListener(name,handler){this.listeners[name]=handler;}
+    removeEventListener(name){delete this.listeners[name];}
+    setPointerCapture(id){this.capture=id;}
+    hasPointerCapture(id){return this.capture===id;}
+    releasePointerCapture(){this.capture=null;}
+    remove(){this.removed=true;}
     focus(){focus=this;}
     click(){if(!this.disabled)this.listeners.click?.();}
   }
   const doc={createElement:()=>new Element()},canvas=new Element(),caption=new Element(),figure=new Element();canvas.ownerDocument=doc;
   figure.querySelector=()=>caption;
-  const events={},map={on:(name,handler)=>{events[name]=handler;},center:{lat:3,lng:4},getCenter(){return this.center;},
+  const handler=(initial=true)=>{let enabled=initial;return {enabled:()=>enabled,enable(){enabled=true;},disable(){enabled=false;}};};
+  const events={},map={on:(name,handler)=>{events[name]=handler;},off:name=>{delete events[name];},center:{lat:3,lng:4},getCenter(){return this.center;},
+    mouseEventToLatLng:event=>({lng:event.clientX,lat:event.clientY}),dragging:handler(),touchZoom:handler(),boxZoom:handler(false),
     doubleClickZoom:{enabled:()=>enabled,enable:()=>{enabled=true;},disable:()=>{enabled=false;}}};
   const group={addTo(){return this;},clearLayers(){paths=[];markers=[];}};
   const L={layerGroup:()=>group,polyline:points=>({addTo(){paths.push(structuredClone(points));}}),circleMarker:point=>({addTo(){markers.push({...point});}})};
   const bounds={contains:point=>point.lat>=0 && point.lng>=0 && point.lat<=100 && point.lng<=100};
-  addMeasurement(L,map,canvas,figure,{xScale:scale,yScale:scale,unit:'miles'},bounds);
-  const controls=caption.children[0], [toggle,undo,clear,summary]=controls.children,help=figure.children[0];
-  return {canvas,map,toggle,undo,clear,summary,help,
+  const dispose=addMeasurement(L,map,canvas,figure,{xScale:scale,yScale:scale,unit:'miles'},bounds);
+  const controls=caption.children[0], [toggle,trace,undo,clear,summary]=controls.children,help=figure.children[0];
+  return {canvas,map,toggle,trace,undo,clear,summary,help,dispose,
     click:point=>events.click({latlng:point}),
+    viewChange:()=>events['movestart zoomstart'](),
+    pointer:(name,x,y,extra={})=>{
+      const event={pointerId:1,clientX:x,clientY:y,button:0,target:canvas,preventDefault(){this.prevented=true;},...extra};
+      canvas.listeners[name](event);return event;
+    },
     key:(key,target=canvas)=>{const event={key,target,preventDefault(){this.prevented=true;}};figure.listeners.keydown(event);return event;},
     get focus(){return focus;},get paths(){return paths;},get markers(){return markers;},get zoomEnabled(){return enabled;}};
 }
@@ -76,6 +89,46 @@ test('measurement is opt-in, supports route totals, undo, finish, clear and reje
   m.toggle.click();assert.equal(m.zoomEnabled,true);assert.equal(m.toggle.attributes['aria-pressed'],'false');assert.equal(m.undo.hidden,true);
   m.click({lat:30,lng:40});assert.equal(m.markers.length,2);assert.equal(m.paths.length,1);
   m.clear.click();assert.equal(m.markers.length,0);assert.equal(m.paths.length,0);assert.equal(m.summary.textContent,'');assert.equal(m.focus,m.toggle);
+});
+
+test('freehand measures winding geometry, keeps disconnected strokes separate, and Undo removes one stroke',()=>{
+  const m=setup({scale:1});m.toggle.click();m.trace.click();
+  assert.equal(m.map.dragging.enabled(),false);assert.equal(m.map.touchZoom.enabled(),false);
+  m.pointer('pointerdown',60,50);
+  const points=[{lat:50,lng:60}];
+  for(let i=1;i<=100;i++){
+    const angle=i/100*Math.PI/2,x=50+10*Math.cos(angle),y=50+10*Math.sin(angle);
+    // Coalesced pointer samples retain bends that a single final event misses.
+    points.push({lat:y,lng:x});
+  }
+  m.pointer('pointermove',50,60,{getCoalescedEvents:()=>points.slice(1).map(p=>({pointerId:1,clientX:p.lng,clientY:p.lat}))});
+  m.pointer('pointerup',50,60);
+  assert.ok(Math.abs(routeDistance(m.paths[0])-Math.PI*5)<0.1);
+  assert.ok(routeDistance(m.paths[0])>Math.hypot(10,10)+1);
+  m.pointer('pointerdown',10,10);m.pointer('pointermove',13,14);m.pointer('pointerup',13,14);
+  assert.equal(m.paths.length,2);assert.match(m.summary.textContent,/20[.,]7 miles/);
+  m.undo.click();assert.equal(m.paths.length,1);assert.match(m.summary.textContent,/15[.,]7 miles/);
+  m.trace.click();assert.equal(m.map.dragging.enabled(),true);assert.equal(m.map.touchZoom.enabled(),true);assert.equal(m.map.boxZoom.enabled(),false);
+  m.undo.click();assert.equal(m.paths.length,0);
+});
+
+test('cancelled or secondary-pointer strokes do not change the result, and disposal restores navigation',()=>{
+  const m=setup();m.toggle.click();m.trace.click();
+  m.pointer('pointerdown',5,5,{isPrimary:false});assert.equal(m.paths.length,0);
+  m.pointer('pointerdown',5,5);m.pointer('pointermove',10,10);m.pointer('pointermove',20,20,{pointerId:2});
+  assert.equal(m.paths[0].at(-1).lat,10);
+  m.pointer('pointercancel',10,10);assert.equal(m.paths.length,0);assert.equal(m.canvas.capture,null);
+  m.pointer('pointerdown',5,5);m.pointer('pointermove',10,10);m.viewChange();assert.equal(m.paths.length,0);
+  m.pointer('pointerdown',5,5);m.pointer('pointermove',10,10);m.key('Escape');assert.equal(m.paths.length,0);assert.equal(m.map.dragging.enabled(),true);
+  m.toggle.click();m.pointer('pointerdown',5,5);m.pointer('pointermove',10,10);m.dispose();
+  assert.equal(m.map.dragging.enabled(),true);assert.deepEqual(m.canvas.listeners,{});
+});
+
+test('mixed point and stroke routes add no untraced bridge between strokes',()=>{
+  const p=(lat,lng)=>({lat,lng});
+  const routes=measurementRoutes([{kind:'point',points:[p(0,0)]},{kind:'point',points:[p(3,4)]},
+    {kind:'stroke',points:[p(50,50),p(53,54)]},{kind:'point',points:[p(53,64)]}]);
+  assert.equal(routes.reduce((sum,route)=>sum+routeDistance(route),0),20);
 });
 
 test('keyboard measurement uses the current center, preserves Leaflet controls and isolates maps',()=>{

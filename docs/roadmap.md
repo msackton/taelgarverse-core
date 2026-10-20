@@ -301,8 +301,10 @@ they make collections easier to scan.
 **Status:** Distance measurement completed in core; overlays and map-to-map
 navigation remain open.
 
-Maps have an opt-in route ruler with click/tap points, route totals, Undo, Clear,
-and keyboard controls. The current map exports use a source-image calibration
+Maps have an opt-in route ruler with click/tap points, freehand tracing for roads
+and rivers, route totals, Undo, Clear, and keyboard controls. A desktop Obsidian
+companion plugin shares these tools; real-vault activation is separate from its
+implemented bundle. The current map exports use a source-image calibration
 of 24 miles across each hex, checked independently of the old display bounds,
 zoom, and tiles. See [map calibration and controls](maps.md). Deployment remains
 separate. Switchable overlays and navigation between world and regional maps

@@ -9,6 +9,8 @@
   "scripts": {
     "build:runtime": "node scripts/build-runtime.mjs",
     "build:browser": "node scripts/build-browser.mjs",
+    "build:obsidian-maps": "node scripts/build-obsidian-maps.mjs",
+    "maps:install": "node scripts/install-obsidian-maps.mjs",
     "build:worker-headers": "node scripts/build-worker-headers.mjs",
     "cf:prepare": "node scripts/prepare-cloudflare.mjs",
     "cf:check": "node scripts/cloudflare.mjs check",
