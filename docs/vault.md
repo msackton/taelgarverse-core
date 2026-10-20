@@ -215,7 +215,10 @@ link with a render note; nesting stops at eight levels or 32 inclusions per page
 The site sidebar is organized by `_website/navigation.md` in `taelgar`. A page
 can still appear in search and work through a direct link without being listed
 there. **On this page** comes from the article's headings, excluding its first
-title and popup-comment headings.
+title and popup-comment headings. It has a fixed **On this page** heading without
+a collapse control. The right sidebar flows with the page, with no sticky
+positioning, height cap, or separate scrollbar. The left navigation retains its
+own scrolling.
 
 Main sections appear in the desktop header, with the current section's branch
 on the left. Below 1100px the full navigation moves into a hamburger drawer;

@@ -19,7 +19,8 @@ test('live Quiet Library shell includes accessible settings, context-preserving 
   assert.equal($('.section-navigation [aria-current="location"]').text(),'Places');
   assert.equal($('.nav-tree > .active-section > details > summary').text(),'Places');
   assert.equal($('.layout--no-navigation').length,0);
-  assert.equal($('.page-nav-title').text(),'Town');
+  assert.equal($('.page-nav-title').text(),'On this page');
+  assert.equal($('.page-contents summary,details.page-contents').length,0);
   assert.equal($('#header-search input[name="date"]').val(),'1730-01-01');
   assert.equal($('#header-search input[name="campaigns"]').val(),'dufr');
   assert.equal($('#header-search input[name="dm"]').val(),'1');

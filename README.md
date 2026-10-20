@@ -193,8 +193,11 @@ and Behind the Curtain controls. The page title replaces the wordmark after
 scrolling, and upward scrolling reveals a Back to top button.
 Notes and the authored homepage can use `hide: [navigation, toc]` to omit either
 or both navigation areas; see [vault usage](docs/vault.md#links-navigation-and-media).
-The page TOC nests subheadings, omits the article title, and highlights the
-current section while scrolling. Comment popup headings stay outside the TOC.
+The page TOC uses a plain **On this page** title without a collapse control.
+It nests subheadings, omits the article title, and highlights the current section.
+The right contents list scrolls with the page rather than using a separate scroll
+area. Desktop header rows and the gap above the article are compact; wider screens
+give both sidebars more room. Comment popup headings stay outside the TOC.
 
 | Status | Meaning |
 | --- | --- |
