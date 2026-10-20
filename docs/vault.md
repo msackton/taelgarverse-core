@@ -248,8 +248,28 @@ campaign, and **See Behind the Curtain** controls.
 | An Excalidraw drawing | Use an exported PNG or another supported image; the website does not draw it from Excalidraw data. |
 | A Mermaid code block | A diagram, with its source text available as a fallback. |
 
-Images may be made smaller during publication. See [image settings](deploy.md#image-settings)
-if map labels need more detail.
+## Interactive maps
+
+Existing fenced `leaflet` blocks render as interactive image maps. Their image
+wikilink, bounds, center (`lat`/`long`), zoom limits, default zoom, height, and
+width are preserved. Maps support dragging, zoom buttons, keyboard panning and
+zooming, and touch gestures. **Fit map** shows the complete map; **Open map image**
+also works without JavaScript or if the interactive viewer fails. Mouse-wheel
+scrolling continues to scroll the article.
+
+Large maps use generated WebP tiles, so viewing a map does not fetch its entire
+original image. Smaller regional maps use image overlays. On narrow screens,
+maps allow extra zooming out so **Fit map** can show the complete image. Map images retain
+their resolution during publication. Leaflet and its styles are served locally
+and loaded only on pages with maps. Campaign/date and Behind the Curtain blocks
+filter maps like other article content, including inside note embeds. Missing
+images or invalid definitions produce a map warning without breaking the article.
+
+Distance tools, markers, switchable overlays, and navigation between maps remain
+future work; the website does not execute Obsidian Leaflet plugin scripts.
+
+Other images may be made smaller during publication. See
+[image settings](deploy.md#image-settings).
 
 ## Dataview and other generated content
 
@@ -258,7 +278,7 @@ article content. Those results stay as they were when published; changing the
 website's campaign or date does not rerun the query.
 
 DataviewJS blocks are removed, along with headings left empty by their removal.
-Remaining unsupported queries, inline query expressions, and Leaflet maps show
+Remaining unsupported queries and inline query expressions show
 warnings or unavailable-content messages. The website does not execute these
 scripts. HTML in the normal article body is supported.
 

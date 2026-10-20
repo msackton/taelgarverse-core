@@ -1,7 +1,7 @@
 // Enhance ordinary article images without changing their layout or authored links.
 const viewer = document.createElement('dialog');
 const images = [...document.querySelectorAll('.article-main img[src]')].filter(image =>
-  !image.closest('a,button,dialog,[popover],.twemoji,[role="button"]'));
+  !image.closest('a,button,dialog,[popover],.twemoji,[role="button"],.leaflet-map,.leaflet-container'));
 
 if (typeof viewer.showModal === 'function' && images.length) {
   viewer.className = 'image-viewer';

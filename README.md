@@ -319,8 +319,14 @@ campaign selection apply no campaign-specific exclusions. See Behind the Curtain
 Explicit campaign/date markers are filtered, but knownTo, POV, inferred spoilers,
 viewer permissions, and the chronology of ordinary prose are not interpreted.
 
-General Dataview/DataviewJS body queries and Leaflet blocks show placeholders
-and warnings. Search ranking, maps, and session zoom remain future work.
+Leaflet image-map blocks render with pan, keyboard/touch zoom, a Fit map control,
+and an original-image fallback. Large maps use locally generated WebP tiles,
+packaged as ordinary content-addressed assets for the Worker. Leaflet is pinned
+and bundled locally, and map scripts/styles load only on pages containing maps.
+Publication preserves the resolution of images referenced by map blocks.
+
+General Dataview/DataviewJS body queries show placeholders and warnings.
+Search ranking, advanced map exploration, and session zoom remain future work.
 
 The process renders synchronously. Warm single-request latency measurements do
 not establish concurrent-load throughput. No HTML response cache is enabled.

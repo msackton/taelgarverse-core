@@ -113,12 +113,15 @@ export function document(result,contextOptions,navigation,releases) {
   const pageNav = toc || backlinks ? '<aside class="page-toc' + (toc ? '' : ' page-toc--backlinks-only') + '" aria-label="Page navigation">' +
     (toc ? '<h2 class="page-nav-title">' + escapeHtml(result.title) + '</h2>' : '') + toc + backlinks + '</aside>' : '';
   const diagrams = result.html.includes('class="mermaid-diagram"') ? '<script type="module" src="/theme/diagrams.js"></script>' : '';
+  const maps = result.html.includes('class="leaflet-map"');
   return '<!doctype html><html lang="en" dir="ltr" data-appearance="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><script src="/theme/appearance.js"></script>' +
     '<title>' + escapeHtml(result.title) + ' — TaelgarVerse</title><link rel="stylesheet" href="/theme/material.css">' +
     '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"><link rel="stylesheet" href="/theme/quiet-library.css">' +
+    (maps ? '<link rel="stylesheet" href="/theme/leaflet.css"><link rel="stylesheet" href="/theme/maps.css">' : '') +
     (result.homepage ? '<link rel="stylesheet" href="/theme/homepage.css">' : '') + '</head>' +
     '<body>' + siteHeader(result.context,contextOptions,{query:result.query,sections:showNavigation ? navigation.sections(view) : '',navigation:!!showNavigation}) +
     '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (pageNav ? '' : ' layout--no-toc') + (hasSection ? '' : ' layout--no-navigation') + (result.homepage ? ' layout--home' : '') + '">' + sidebar +
     '<main id="page-content" class="md-typeset article-main" tabindex="-1">' + breadcrumbs + result.html + '</main>' + pageNav +
-    '</div>' + siteDialogs() + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/site-ui.js" defer></script><script src="/theme/image-viewer.js" defer></script>' + diagrams + '</body></html>';
+    '</div>' + siteDialogs() + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/site-ui.js" defer></script><script src="/theme/image-viewer.js" defer></script>' + diagrams +
+    (maps ? '<script type="module" src="/theme/maps.js"></script>' : '') + '</body></html>';
 }

@@ -7,6 +7,7 @@ import {Store} from '../src/store.mjs';
 import {buildBacklinkIndex} from '../src/backlinks.mjs';
 import {headerRevision} from '../src/worker-headers.mjs';
 import {repositoryVersion} from './repository-version.mjs';
+import {prepareMaps} from './build-maps.mjs';
 
 const sha = value=>createHash('sha256').update(value).digest('hex');
 const writeJSON = (file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value)+'\n');};
@@ -27,6 +28,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   output=path.resolve(output);
   if (!isInside(ROOT,output) || output===ROOT) throw new Error('Content staging directory must be inside this project');
   const store=new Store(settings), shards=new Map(), uploads=[];
+  await prepareMaps(store,path.join(ROOT,'.cache/maps'));
   const entries=[];
   for (const original of store.entries) {
     const {filename,note,...entry}=original;

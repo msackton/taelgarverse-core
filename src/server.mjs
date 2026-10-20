@@ -8,14 +8,20 @@ import {ROOT,RenderError,isInside,loadSettings} from './config.mjs';
 import {Engine} from './engine.mjs';
 import {handleRequest} from './application.mjs';
 import {serveAsset,themeFiles,contentTypes} from './http-assets.mjs';
+import {prepareMaps} from '../scripts/build-maps.mjs';
 
 export function createServer(engine) {
+  const mapCache = path.join(ROOT,'.cache/maps');
+  let mapsReady;
+  const ready = () => mapsReady ??= prepareMaps(engine.store,mapCache).catch(error=>{mapsReady=undefined;throw error;});
   return http.createServer(async(req,res)=>{
     try {
       const request=new Request(new URL(req.url,'http://localhost'),{method:req.method,headers:req.headers});
       const response=await handleRequest(request,engine,{
+        async renderPage(page,date,context,dm,campaigns) { await ready();return engine.render(page,date,context,dm,undefined,campaigns); },
+        async renderHome(context) { await ready();return engine.renderHome(context); },
         assets(entry,request) {
-          if (!isInside(engine.settings.source_dir,fs.realpathSync(entry.filename))) throw new RenderError(404,'Asset not found');
+          if (!isInside(entry.generatedMapTile ? mapCache : engine.settings.source_dir,fs.realpathSync(entry.filename))) throw new RenderError(404,'Asset not found');
           const stat=fs.statSync(entry.filename);
           return serveAsset(request,{...entry,size:stat.size,etag:'"'+stat.size+'-'+stat.mtimeMs+'"'},range=>
             Readable.toWeb(fs.createReadStream(entry.filename,{start:range.offset,end:range.offset+range.length-1})));

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {load} from 'cheerio';
+import sharp from 'sharp';
 import {ROOT,loadSettings,isInside} from '../src/config.mjs';
 import {Engine} from '../src/engine.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
@@ -26,12 +27,15 @@ before(async()=>{
   directory=fs.mkdtempSync(path.join(ROOT,'.cache','worker-test-'));
   const source=path.join(directory,'notes');fs.mkdirSync(source);
   const notes=JSON.parse(fs.readFileSync(new URL('./fixtures/notes.json',import.meta.url),'utf8'));
+  Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/maps.json',import.meta.url),'utf8')));
   Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/backlinks.json',import.meta.url),'utf8')));
   Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/embeds.json',import.meta.url),'utf8')));
   for (const [relative,text] of Object.entries(notes)) {
     const file=path.join(source,relative);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,text);
   }
   fs.writeFileSync(path.join(source,'tiny.png'),'fixture asset');
+  fs.writeFileSync(path.join(source,'Tiled Map.md'),'```leaflet\nimage: [[world.png]]\nbounds: [[0,0],[64,4100]]\n```');
+  await sharp({create:{width:4100,height:64,channels:3,background:'red'}}).png().toFile(path.join(source,'world.png'));
   for (const relative of ['assets/audio/song.mp3','assets/session-audio/session/clip.m4a','assets/excalidraw/drawing.png']) {
     const file=path.join(source,relative);fs.mkdirSync(path.dirname(file),{recursive:true});
     fs.writeFileSync(file,'media fixture: ' + relative);
@@ -63,6 +67,29 @@ before(async()=>{
   engine=new Engine(settings);worker=createWorker(instantiate);
 });
 after(()=>{if(directory && isInside(path.join(ROOT,'.cache'),directory))fs.rmSync(directory,{recursive:true});});
+
+test('Worker renders context-filtered maps and serves packaged tile assets without fetching the original image',async()=>{
+  for (const [context,dm,count] of [['modern','0',1],['dunmar-frontier','0',2],['modern','1',2]]) {
+    const $ = load(await (await request('/page/maps?context='+context+'&dm='+dm)).text());
+    assert.equal($('.leaflet-map').length,count);
+    assert.equal($('script[src="/theme/maps.js"]').length,1);
+    assert.equal($('link[href="/theme/leaflet.css"]').length,1);
+  }
+  const page = await (await request('/api/page?page=Tiled%20Map')).json();
+  const config = JSON.parse(load(page.html)('.leaflet-map').attr('data-map'));
+  assert.ok(config.tile);
+  const index = JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  const image = index.entries.find(entry=>entry.id==='world.png');
+  const previousImageReads = bucket.calls.get(image.objectKey) || 0;
+  const tile = await request(config.tile.baseUrl+'/0/8/0.webp');
+  assert.equal(tile.status,200);assert.match(tile.headers.get('content-type'),/image\/webp/);
+  assert.equal((await sharp(Buffer.from(await tile.arrayBuffer())).metadata()).width,512);
+  assert.equal(bucket.calls.get(image.objectKey) || 0,previousImageReads);
+  assert.equal((await request(config.tile.baseUrl+'/0/8/0.webp',{method:'HEAD'})).status,200);
+  assert.equal((await request(config.tile.baseUrl+'/0/999/999.webp')).status,404);
+  assert.equal(await (await request('/theme/maps.js')).text(),'/generated/maps.js');
+  assert.equal(await (await request('/theme/leaflet.css')).text(),'/generated/leaflet.css');
+});
 
 test('footer follows each publication pointer and rollback without cached metadata leaking',async()=>{
   const pointer=path.join(directory,'release-pointer.json');

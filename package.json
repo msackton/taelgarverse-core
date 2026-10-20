@@ -41,6 +41,7 @@
   "devDependencies": {
     "acorn": "8.19.0",
     "esbuild": "0.28.2",
+    "leaflet": "1.9.4",
     "mermaid": "12.2.0",
     "wrangler": "4.151.1"
   }

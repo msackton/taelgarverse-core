@@ -111,9 +111,12 @@ The account ID identifies the account; your login provides permission to use it.
 
 By default, published images are reduced to at most **2,560 pixels** on their
 longest side. They are not cropped or enlarged. JPEG and WebP use quality **82**;
-PNG keeps its transparency. Animation and audio are left unchanged.
+PNG keeps its transparency. Animation and audio are left unchanged. Images
+referenced by Leaflet map blocks retain their resolution; large maps also get
+WebP tiles for interactive viewing. Tile generation runs during content
+preparation and uses a local cache.
 
-If map labels need more detail, publish with larger images:
+To retain more detail in other images, publish with a larger image limit:
 
 ```sh
 npm run content:publish -- --no-strict --max-image-size 4096 --image-quality 85
@@ -134,7 +137,7 @@ Add these after `npm run content:publish --`. You can combine them unless noted.
 | `--allow-dirty` | Allows uncommitted vault changes. Useful for local checks; if used for a live publication, the next publication will rebuild. |
 | `--vault "path/to/taelgar"` | Uses this vault instead of `vault_dir` for one publication. Use the root of its Git repository. |
 | `--config preview.json` | Uses a different settings file instead of `config.local.json`, keeping shared defaults for anything omitted. See [configuration settings](#configuration-settings). |
-| `--max-image-size 4096` | Sets the longest image edge in pixels. Default: `2560`. |
+| `--max-image-size 4096` | Sets the longest image edge in pixels, except Leaflet map images. Default: `2560`. |
 | `--image-quality 85` | Sets JPEG/WebP quality from 1 to 100. Default: `82`. |
 | `--obsidian-command "path/to/Obsidian"` | Tells the script where Obsidian's command-line program is if it cannot find it automatically. |
 | `--obsidian-vault "Taelgar"` | Selects the vault by its Obsidian name or ID when needed. |

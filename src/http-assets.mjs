@@ -1,4 +1,5 @@
-export const themeFiles = {'material.css':'vendor/material.css','taelgarverse.css':'taelgarverse.css','preview.css':'preview.css','release.js':'release.js','context.js':'context.js','navigation.js':'navigation.js','image-viewer.js':'image-viewer.js','diagrams.js':'generated/diagrams.js'};
+export const themeFiles = {'material.css':'vendor/material.css','taelgarverse.css':'taelgarverse.css','preview.css':'preview.css','release.js':'release.js','context.js':'context.js','navigation.js':'navigation.js','image-viewer.js':'image-viewer.js','diagrams.js':'generated/diagrams.js',
+  'maps.js':'generated/maps.js','maps.css':'maps.css','leaflet.css':'generated/leaflet.css'};
 Object.assign(themeFiles,{'quiet-library.css':'quiet-library.css','appearance.js':'appearance.js','site-ui.js':'site-ui.js'});
 Object.assign(themeFiles,{'homepage.css':'homepage.css','home-map.webp':'images/home-map.webp'});
 export const contentTypes = {'.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg',
