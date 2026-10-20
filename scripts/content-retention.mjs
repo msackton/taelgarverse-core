@@ -1,7 +1,10 @@
 import path from 'node:path';
+import fs from 'node:fs/promises';
+import {createReadStream} from 'node:fs';
 import {ROOT} from '../src/config.mjs';
-import {searchCredentials} from './search-database.mjs';
+import {createCloudflareClient,searchCredentials} from './cloudflare-client.mjs';
 import {validateSearchDescriptor} from './search-index.mjs';
+import {DERIVATIVE_MANIFEST_KEY,manifestRecords} from './derivative-cache.mjs';
 
 export const POINTER_KEY='published/current.json';
 const revisionPattern=/^[a-f0-9]{64}$/;
@@ -34,7 +37,7 @@ export function activationPointer(current,next){
 
 // Same account/bucket as publication. Remote operations use the documented R2
 // object API; local operations share Wrangler's persisted Miniflare bucket.
-export async function createRetentionStorage(config,{local=false,persistTo=path.join(ROOT,'.wrangler/state'),fetcher=fetch,credentials=searchCredentials}={}){
+export async function createRetentionStorage(config,{local=false,persistTo=path.join(ROOT,'.wrangler/state'),fetcher=fetch,credentials=searchCredentials,client,wait,log=()=>{}}={}){
   const bindings=config.r2_buckets?.filter(b=>b.binding==='CONTENT');
   if(bindings?.length!==1 || !/^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$/.test(bindings[0].bucket_name || '') || bindings[0].jurisdiction || bindings[0].remote)throw new Error('Retention requires one standard CONTENT bucket');
   const bucket=bindings[0].bucket_name;
@@ -46,32 +49,41 @@ export async function createRetentionStorage(config,{local=false,persistTo=path.
     try{
       const r2=await mf.getR2Bucket('CONTENT');
       return {getJSON:async key=>(await r2.get(key))?.json() ?? null,
+        putFile:async(key,file)=>{await r2.put(key,await fs.readFile(file));},
         putPointer:async pointer=>{validatePointer(pointer);await r2.put(POINTER_KEY,JSON.stringify(pointer)+'\n',{httpMetadata:{contentType:'application/json'}});},
+        putDerivativeManifest:async manifest=>{await r2.put(DERIVATIVE_MANIFEST_KEY,JSON.stringify({schemaVersion:1,records:manifestRecords(manifest)}),{httpMetadata:{contentType:'application/json'}});},
         async list(prefix){const objects=[];let cursor;do{const page=await r2.list({prefix,cursor,limit:1000});objects.push(...page.objects);cursor=page.truncated?page.cursor:undefined;}while(cursor);return objects;},
         delete:keys=>r2.delete(keys),close:()=>mf.dispose()};
     }catch(error){await mf.dispose();throw error;}
   }
-  const {account,token}=credentials(config),base=`https://api.cloudflare.com/client/v4/accounts/${account}/r2/buckets/${bucket}/objects`;
+  client ??=await createCloudflareClient(config,{fetcher,credentials,wait,log});
+  const base=`/r2/buckets/${bucket}/objects`;
   const request=async(suffix,method='GET',body)=>{
-    let response;
-    try{response=await fetcher(base+suffix,{method,redirect:'error',signal:AbortSignal.timeout(30000),headers:{Authorization:'Bearer '+token,...(body?{'Content-Type':'application/json'}:{})},body});}
-    catch{throw new Error('R2 retention request did not complete; retry publication to resume cleanup');}
+    const response=await client.request(base+suffix,()=>({method,headers:body?{'Content-Type':'application/json'}:{},body}),{retry:true});
     if(response.status===404 && method==='GET' && suffix.startsWith('/')){
-      // Object-404 bodies vary across API deployments. Confirm the bucket
-      // exists rather than mistaking an account/bucket failure for first build.
-      let info;
-      try{
-        const check=await fetcher(base.slice(0,-'/objects'.length),{redirect:'error',signal:AbortSignal.timeout(30000),headers:{Authorization:'Bearer '+token}});
-        if(check.ok)info=await check.json();
-      }catch{throw new Error('Could not verify the R2 bucket after an object-404');}
+      // Confirm the bucket exists; missing accounts/buckets are not first builds.
+      await response.body?.cancel();
+      const check=await client.request(base.slice(0,-'/objects'.length),()=>({method:'GET'}),{retry:true});
+      const info=check.ok?await check.json():null;
       if(info?.success===true && info.result?.name===bucket)return null;
     }
-    if(!response.ok)throw new Error('R2 retention request failed (HTTP '+response.status+')');
+    if(!response.ok){await response.body?.cancel();throw new Error('R2 request failed (HTTP '+response.status+')');}
     return response;
   };
   return {
     async getJSON(key){const response=await request('/'+key.split('/').map(encodeURIComponent).join('/'));return response?response.json():null;},
-    async putPointer(pointer){validatePointer(pointer);await request('/'+POINTER_KEY,'PUT',JSON.stringify(pointer)+'\n');},
+    async putPointer(pointer){validatePointer(pointer);const response=await request('/'+POINTER_KEY,'PUT',JSON.stringify(pointer)+'\n');await response.body?.cancel();},
+    async putDerivativeManifest(manifest){const response=await request('/'+DERIVATIVE_MANIFEST_KEY,'PUT',JSON.stringify({schemaVersion:1,records:manifestRecords(manifest)}));await response.body?.cancel();},
+    async putFile(key,file){
+      if(!assetPattern.test(key) && !snapshotPattern.test(key))throw new Error('Invalid immutable upload key');
+      const {size}=await fs.stat(file);
+      if(size>300000000)throw new Error('R2 REST uploads are limited to 300 MB per object: '+key);
+      const response=await client.request(base+'/'+key.split('/').map(encodeURIComponent).join('/'),()=>({
+        method:'PUT',body:createReadStream(file),duplex:'half',headers:{'Content-Length':String(size)},
+      }),{retry:true,timeoutMs:300000});
+      await response.body?.cancel();
+      if(!response.ok)throw new Error('R2 upload failed for '+key+' (HTTP '+response.status+')');
+    },
     async list(prefix){
       const objects=[],seen=new Set();let cursor,startAfter;
       do{
@@ -94,7 +106,7 @@ export async function createRetentionStorage(config,{local=false,persistTo=path.
     },
     async delete(keys){
       // Bounded parallelism; retries are idempotent after a partial failure.
-      for(let offset=0;offset<keys.length;offset+=8){const result=await Promise.allSettled(keys.slice(offset,offset+8).map(key=>request('/'+key.split('/').map(encodeURIComponent).join('/'),'DELETE')));const failure=result.find(r=>r.status==='rejected');if(failure)throw failure.reason;}
+      for(let offset=0;offset<keys.length;offset+=8){const result=await Promise.allSettled(keys.slice(offset,offset+8).map(async key=>{const response=await request('/'+key.split('/').map(encodeURIComponent).join('/'),'DELETE');await response.body?.cancel();}));const failure=result.find(r=>r.status==='rejected');if(failure)throw failure.reason;}
     },close:async()=>{},
   };
 }

@@ -124,6 +124,15 @@ sqliteTest('schema-1 database upgrades transactionally without dropping ready ge
   await index.withPublicationLock(()=>index.prune([rev('a')]));db.close();
 });
 
+sqliteTest('failed lock release preserves the original publication error and explains recovery',async t=>{
+  const {db,adapter,fail}=database();t.after(()=>db.close());const index=new SearchIndex(adapter);
+  await assert.rejects(index.withPublicationLock(async()=>{
+    fail(sql=>sql.startsWith('DELETE FROM tv_search_publish_lock'));
+    throw new Error('original upload failure');
+  }),/original upload failure[\s\S]*Could not release[\s\S]*--unblock/);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM tv_search_publish_lock').get().n,1);
+});
+
 test('compiler supports arbitrary dates, campaign subsets and DM mode with whole-note renderer parity',()=>{
   const store=storeFor({'Host.md':'---\naliases: ["Other Name"]\n---\nPublic phrase beginning.\n%%^Campaign:dufr%%frontiertext%%^End%%\n%%^Campaign:adma%%addertext%%^End%%\n%%^Date:1740-05%%afterdate%%^End%%\n%%^Date:1740-05b%%beforedate%%^End%%\n%% privatepopup %%\n%%^Campaign:none%%dmonlyblock%%^End%%\n%%^Metadata:lint%%adminnever%%^End%%\nEnd of public phrase.',
     'Excluded.md':'---\nexcludePublish: [dufr]\n---\nExclusion text.',

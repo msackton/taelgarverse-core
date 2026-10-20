@@ -234,6 +234,7 @@ Add these after `npm run publish --`. You can combine them unless noted.
 | --- | --- |
 | `--no-strict` | Continues when a Dataview query cannot be converted, and reports the problem. Without this option, query problems stop the export. |
 | `--force` | Publishes again even when the saved Git version and settings appear unchanged. |
+| `--assets-only` | Exports/packages content and uploads missing images/media only. Does not activate notes, stage search, or run retention cleanup. Uses production storage unless combined with `--local`; cannot be combined with `--build-only`. |
 | `--unblock` | Clears an observed stale D1 publication lock and continues publishing. Supplying it confirms no publisher, staging, cleanup, or rollback is running on any computer. Uses production D1 by default, or the emulator with `--local`; cannot be combined with `--build-only`. |
 | `--build-only` | Prepares the notes and images on this computer without contacting Cloudflare storage. Useful for checking an export. |
 | `--local` | Publishes into a local copy of Cloudflare storage for previewing. The live site stays unchanged. Use this or `--build-only`, not both. |
@@ -253,6 +254,77 @@ npm run publish -- --build-only --allow-dirty --no-strict
 ```
 
 For the complete local materialization and publication dry run, use `npm run dev -- --full`. It starts the local Worker after preparing its local R2/D1 data. Press Ctrl+C to stop it.
+
+### Incremental assets and interrupted uploads
+
+The publisher handles images and other media separately from notes. Assets use
+content hashes as their keys. Before uploading, it lists the destination bucket
+and reuses matching asset keys with matching sizes, including assets saved by a
+failed earlier run. Missing assets and size mismatches are uploaded first, then
+the note shards and index. Only after those transfers and D1 verification does
+the publisher activate the revision. No local upload receipt is trusted as proof
+that an asset still exists in the bucket.
+
+Normal publication automatically uses this behavior:
+
+```sh
+npm run publish -- --no-strict
+```
+
+To stage a large media update separately, first run:
+
+```sh
+npm run publish -- --no-strict --assets-only
+```
+
+This writes assets to production but leaves the live notes/search unchanged.
+Then run the normal command to publish the notes using those assets. Both runs
+still export/package the current vault; image derivatives reuse the R2 recipe
+manifest or the local image cache. Assets-only does not record a successful publication or run cleanup.
+Staged assets are not pinned forever: another successful publication or explicit
+cleanup can collect unreferenced assets. A later publish checks storage again
+and uploads anything missing. The same publication lock protects both modes.
+
+Before generating responsive images or map tiles, the publisher reads
+`build-cache/derivatives-v1.json` from the destination bucket. Each recipe key
+includes the source bytes, generation settings, planned sizes/bounds, recipe
+version, and encoder versions. Matching recipes reuse the recorded output hashes
+and sizes after checking the bucket inventory. A machine with an empty local
+cache still reads/hashes original files and their image metadata, but does no
+derivative encoding or downloading for these hits. The log reports reused image
+recipes and map pyramids.
+
+The first asset upload with this publisher seeds the manifest, using existing
+local derivatives when available. Subsequent runs save new recipes only after
+all asset transfers succeed, including `--assets-only` runs. Missing, malformed,
+or outdated records fall back to local generation; authentication/network errors
+still stop the run. A prepared snapshot containing remote references is checked
+again during upload. If those objects disappeared, prepare it again before
+publishing. Normal reruns do this automatically.
+
+The manifest is a cache hint and does not pin unused assets against retention.
+Stale records are removed when the manifest is next saved. `--local` uses only
+the local emulator's manifest; `--build-only` and standalone preparation remain
+offline. Generation algorithm changes must bump the relevant recipe version as
+described in [architecture](architecture.md#change-and-release-rules); `--force`
+alone does not invalidate image/map recipes. This cache support does not add a
+GitHub asset workflow or remove the current publisher's Obsidian export step.
+
+Transfers use four concurrent uploads with request pacing. Transient network,
+429, and 5xx errors retry the individual R2 request up to four times, with backoff
+and bounded `Retry-After` waits. Each upload retry opens a fresh file stream.
+R2 and D1 share credentials that are reloaded periodically; a 401 triggers one
+credential reload and retry. Persistent authentication/permission errors stop
+with login instructions. D1 writes are not blindly replayed after a connection
+failure because their transaction may already have committed.
+The direct R2 object API retains its [300 MB per-object upload limit](https://developers.cloudflare.com/api/resources/r2/subresources/buckets/subresources/objects/methods/upload/);
+larger media needs a future multipart/S3 upload path. Internal prepared upload
+and publication commands use the same transfer implementation and accept no
+extra Wrangler flags; configure their destination before preparation.
+
+If a run still fails, rerun the same command. It rechecks source files and reuses
+completed assets; it does not resume the old export blindly. Use `--unblock` only
+if the command reports a leftover D1 lock and all publishers have stopped.
 
 ## Configuration settings
 
@@ -388,6 +460,7 @@ fields in either JSON file.
 | Materializer plugin needs updating | Update the plugin, restart Obsidian, and try again. |
 | Dataview query failed | Read the reported note/query. Fix it, or use `--no-strict` if you accept that part being unavailable online. |
 | Export, image processing, or upload failed | Read the error, fix the cause, and rerun the command. These failures leave the previous content online. |
+| Cloudflare authentication/permission failure (401/403) | Run `npx wrangler login`, or check your API token's R2 and D1 permissions. Rerun the same publish command; completed assets will be reused. |
 | “changed during publishing” or “changed during the build” | This run did not activate new content. Finish saving, syncing, and any Git changes, then rerun the command without editing or updating either repository while it runs. `--no-strict` does not bypass this check. |
 | A publish lock exists | Check that no publishing command is still running. If a previous run was killed, remove only `.cache/publish/publish.lock` and retry. |
 | Another publisher holds the D1 publication lock | Confirm no publisher, staging, cleanup, or rollback is running on any computer, then rerun with `--unblock`, keeping your other options; for example, `npm run publish -- --no-strict --unblock`. This clears the stale D1 lock and continues publication. |
@@ -407,7 +480,7 @@ Most people can use the browser login above. A token is useful if you want a
 script to publish without that login. Treat it like a password.
 
 In Cloudflare, create an API token with **Account → Workers R2 Storage → Edit**
-permission for the account that owns TaelgarVerse. Use a token that works with
+and **Account → D1 → Edit** permissions for the account that owns TaelgarVerse. Use a token that works with
 Cloudflare's API; the R2 “Object Read & Write” option is for S3 tools and does not
 work with this publisher. See [Cloudflare's token guide](https://developers.cloudflare.com/r2/api/tokens/).
 

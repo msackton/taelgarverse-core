@@ -25,7 +25,7 @@ test('real D1 staging, FTS, persisted restart and R2 activation gate preserve pr
   });
   const configFile=path.join(directory,'wrangler.json'),config={name:'search-publication-test',compatibility_date:'2026-10-19',r2_buckets:[{binding:'CONTENT',bucket_name:'search-publication-test'}]};
   await fs.writeFile(configFile,JSON.stringify(config));
-  const storage=createStorage({bucket:'search-publication-test',configFile,local:true,persistTo});
+  const storage=createStorage({storage:async()=>retention});
   const fixture=text=>compileSearch(new ContentStore([{id:'One.md',name:'One',title:'One',slug:'one',target:targetPath('One.md'),note:parseNote(text)}]));
   const first=fixture('oldmarker\n%% privatepopup %%'),second=fixture('newmarker\n%% privatepopup %%'),third=fixture('currentmarker');
   const revision='a'.repeat(64),next='b'.repeat(64),fingerprint='c'.repeat(64),commit='d'.repeat(40);

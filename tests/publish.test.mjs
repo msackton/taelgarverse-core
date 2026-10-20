@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {publishContent, parseOptions, repositoryIdentity, findObsidianCommand,
-  createStorage, CHECKPOINT_KEY, validateCheckpoint, isMissingCheckpoint, runCommand, buildFingerprint,
+  createStorage, CHECKPOINT_KEY, validateCheckpoint, runCommand, buildFingerprint,
   validateMaterializationReport} from '../scripts/publish-content.mjs';
 
 const state = {repository: 'github.com/tsackton/taelgar', commit: 'a'.repeat(40), dirty: false};
@@ -88,6 +88,8 @@ test('build-only performs no R2 reads, uploads, or pointer writes', async () => 
 
 test('CLI options and native executable detection support Windows and macOS paths', () => {
   assert.equal(parseOptions([]).maxSize, 2560);
+  assert.equal(parseOptions(['--assets-only', '--local']).assetsOnly, true);
+  assert.throws(() => parseOptions(['--assets-only', '--build-only']), /Choose/);
   assert.equal(parseOptions([]).unblock, false);
   assert.equal(parseOptions(['--no-strict', '--unblock']).unblock, true);
   assert.equal(parseOptions(['--local', '--unblock']).local, true);
@@ -186,27 +188,29 @@ test('R2 storage distinguishes missing object, legacy pointer, invalid data, and
   });
   const filename = path.join(directory, 'checkpoint.json');
   let response = checkpoint, failure, recorded;
-  const storage = createStorage({bucket: 'test-bucket', configFile: 'config path.json', run: async (exe, args) => {
-    assert.equal(exe, process.execPath);
-    assert.ok(args.includes('--remote'));
-    assert.ok(args.includes('test-bucket/' + CHECKPOINT_KEY));
-    if (failure) throw failure;
-    if (args.includes('get')) await fs.writeFile(filename, JSON.stringify(response));
-    else recorded = JSON.parse(await fs.readFile(filename, 'utf8'));
-  }});
+  const storage = createStorage({storage:async()=>({
+    getJSON:async key=>{assert.equal(key,CHECKPOINT_KEY);if(failure)throw failure;return response;},
+    putPointer:async value=>{recorded=value;},
+  })});
   assert.deepEqual(await storage.readCheckpoint(filename), checkpoint);
-  response = {revision};
-  assert.equal(await storage.readCheckpoint(filename), null);
-  response = {revision,completedAt:'2026-10-19T12:00:00Z'};
-  assert.equal(await storage.readCheckpoint(filename), null);
-  response = {commit: state.commit};
-  await assert.rejects(storage.readCheckpoint(filename), /Invalid R2 build checkpoint/);
-  failure = {stderr: 'The specified key does not exist.'};
-  assert.equal(await storage.readCheckpoint(filename), null);
-  failure = Object.assign(new Error('Authentication error'), {stderr: 'Authentication error'});
-  await assert.rejects(storage.readCheckpoint(filename), /Authentication/);
-  assert.equal(isMissingCheckpoint({stderr: 'The specified bucket does not exist.'}), false);
-  failure = undefined;
-  await storage.writeCheckpoint(checkpoint, filename);
-  assert.deepEqual(recorded, checkpoint);
+  response = {revision};assert.equal(await storage.readCheckpoint(filename), null);
+  response = {revision,completedAt:'2026-10-19T12:00:00Z'};assert.equal(await storage.readCheckpoint(filename), null);
+  response = {commit: state.commit};await assert.rejects(storage.readCheckpoint(filename), /Invalid R2 build checkpoint/);
+  response = null;assert.equal(await storage.readCheckpoint(filename), null);
+  failure = new Error('Authentication error');await assert.rejects(storage.readCheckpoint(filename), /Authentication/);
+  failure = undefined;await storage.writeCheckpoint(checkpoint, filename);assert.deepEqual(recorded, checkpoint);
+});
+
+test('assets-only stages media under the lock without checkpoint, search, activation or cleanup',async()=>{
+  const {deps,calls}=harness({
+    readCheckpoint:async()=>assert.fail('must not skip based on active notes'),
+    stageSearch:async()=>assert.fail('must not stage search'),
+    verifySearch:async()=>assert.fail('must not verify search'),
+    prune:async()=>assert.fail('must not prune staged media'),
+    withPublicationLock:async action=>{calls.push('lock');return action();},
+    upload:async(_report,options)=>{assert.deepEqual(options,{assetsOnly:true});calls.push('assets');return {uploadedAssets:1};},
+  });
+  const result=await publishContent({fingerprint,assetsOnly:true},deps);
+  assert.equal(result.assetsOnly,true);assert.equal(result.uploadedAssets,1);
+  assert.deepEqual(calls,['lock','build','assets']);
 });

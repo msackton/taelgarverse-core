@@ -14,6 +14,7 @@ import {collectImageUsages} from './image-usage.mjs';
 import {readCampaignHomes} from '../src/website-sources.mjs';
 import {CampaignSites} from '../src/campaign-sites.mjs';
 import {Contexts} from '../src/contexts.mjs';
+import {DerivativeCache} from './derivative-cache.mjs';
 
 const sha = value=>createHash('sha256').update(value).digest('hex');
 const writeJSON = (file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value)+'\n');};
@@ -30,7 +31,7 @@ async function hashFile(file) {
   return hash.digest('hex');
 }
 
-export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare'),sourceVersion=repositoryVersion(settings.vault_dir),imageOptions={},imageProgress) {
+export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare'),sourceVersion=repositoryVersion(settings.vault_dir),imageOptions={},imageProgress,derivativeCache=new DerivativeCache()) {
   output=path.resolve(output);
   if (!isInside(ROOT,output) || output===ROOT) throw new Error('Content staging directory must be inside this project');
   const store=new Store(settings), shards=new Map(), uploads=[];
@@ -39,28 +40,28 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const campaignHomes=readCampaignHomes(settings);
   new CampaignSites(campaignHomes,new Contexts(store,registry,settings));
   const usages=collectImageUsages(store,{homeSource,campaignHomes});
-  const images=await prepareImages(store,path.join(ROOT,'.cache/images'),{...imageOptions,usages},undefined,imageProgress);
-  await prepareMaps(store,path.join(ROOT,'.cache/maps'));
+  const images=await prepareImages(store,path.join(ROOT,'.cache/images'),{...imageOptions,usages},undefined,imageProgress,derivativeCache);
+  await prepareMaps(store,path.join(ROOT,'.cache/maps'),derivativeCache);
   const entries=[];
   for (const original of store.entries) {
-    const {filename,note,...entry}=original;
+    const {filename,note,remoteAsset,...entry}=original;
     if (note) {
       const shard=(Number.parseInt(sha(entry.id).slice(0,2),16)%32).toString(16).padStart(2,'0');
       const notes=shards.get(shard) || {};
       notes[entry.id]=note.source;shards.set(shard,notes);
       entry.note={metadata:note.metadata,shard,sha256:sha(note.source)};
     } else {
-      const hash=await hashFile(filename);
+      const hash=remoteAsset ? remoteAsset.key.slice('assets/'.length) : await hashFile(filename);
       const cached=path.join(output,'objects',hash);
-      if (!fs.existsSync(cached)) {
+      if (!remoteAsset && !fs.existsSync(cached)) {
         fs.mkdirSync(path.dirname(cached),{recursive:true});
         const temporary=cached+'.tmp';
         fs.copyFileSync(filename,temporary);
         if (await hashFile(temporary)!==hash) throw new Error('Asset changed while packaging: '+entry.id+'; prepare the snapshot again');
         fs.renameSync(temporary,cached);
       }
-      entry.size=fs.statSync(cached).size;entry.sha256=hash;entry.etag='"'+hash+'"';entry.objectKey='assets/'+hash;
-      uploads.push({key:entry.objectKey,file:cached});entry.note=null;
+      entry.size=remoteAsset ? remoteAsset.size : fs.statSync(cached).size;entry.sha256=hash;entry.etag='"'+hash+'"';entry.objectKey='assets/'+hash;
+      uploads.push(remoteAsset ? {key:entry.objectKey,size:entry.size,remoteOnly:true} : {key:entry.objectKey,file:cached});entry.note=null;
     }
     entries.push(entry);
   }
@@ -87,6 +88,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   // A binary can occur at multiple vault paths. Upload its content only once.
   const unique=[...new Map(uploads.map(upload=>[upload.key,upload])).values()];
   const manifestFile=path.join(directory,'uploads.json');writeJSON(manifestFile,unique);
+  const derivativeManifestFile=path.join(directory,'derivatives.json');writeJSON(derivativeManifestFile,derivativeCache.manifest(entries));
   const config=loadCloudflareConfig();
   config.main=path.join(ROOT,'src/worker.mjs');
   config.assets.directory=path.join(ROOT,'public');
@@ -94,7 +96,8 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const pointerFile=path.join(output,'current.json');writeJSON(pointerFile,{revision});
   const report={revision,indexFile,manifestFile,configFile,bucket:config.r2_buckets.find(b=>b.binding==='CONTENT').bucket_name,
     notes:entries.filter(e=>e.note).length,assets:entries.filter(e=>!e.note).length,objects:unique.length,
-    assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision,search,searchFile,searchStats:searchManifest.stats,images};
+    assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision,search,searchFile,searchStats:searchManifest.stats,images,
+    derivativeManifestFile,derivativeCacheHits:{...derivativeCache.hits}};
   writeJSON(path.join(output,'latest.json'),report);
   return report;
 }

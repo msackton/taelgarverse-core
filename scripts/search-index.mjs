@@ -106,7 +106,14 @@ export class SearchIndex {
     }
     if(rows[0]?.owner!==owner)throw new Error('Another publisher holds the D1 publication lock since '+rows[0]?.started_at+'. After confirming no publisher, staging, cleanup, or rollback is running on any computer, rerun your npm run publish command with --unblock added after -- (keep your existing options). This clears the stale D1 lock and continues publishing.');
     this.lockOwner=owner;
-    try{return await action();}finally{this.lockOwner=null;await this.query([{sql:'DELETE FROM tv_search_publish_lock WHERE slot=1 AND owner=?',params:[owner]}]);}
+    let failure;
+    try{return await action();}
+    catch(error){failure=error;throw error;}
+    finally{
+      this.lockOwner=null;
+      try{await this.query([{sql:'DELETE FROM tv_search_publish_lock WHERE slot=1 AND owner=?',params:[owner]}]);}
+      catch(error){throw new Error((failure?failure.message:'The publication operation completed.')+'\nCould not release the D1 publication lock: '+error.message+' After confirming all publishers have stopped, rerun with --unblock.');}
+    }
   }
   async prune(retained){
     if(!this.lockOwner)throw new Error('Search retention requires the publication lock');

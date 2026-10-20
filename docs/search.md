@@ -190,6 +190,13 @@ There is no automatic retry or expiry. `--local --unblock` targets only local D1
 file lock; see [local lock recovery](deploy.md#if-something-goes-wrong).
 Direct Wrangler object/SQL writes bypass this coordination.
 
+Full publication and `--assets-only` share the same lock. Assets-only stages
+missing media but does not stage D1 search, activate a snapshot, or prune storage.
+The normal run rechecks the destination and reuses those assets before staging
+search. R2 and D1 share refreshable credentials so a long media transfer does not
+leave D1 using the token captured at startup. An unsuccessful lock release
+preserves the original failure in the error message and explains `--unblock`.
+
 Cleanup failure reports that the new content is already active and leaves both
 retained snapshots available. An unchanged full publication retries cleanup
 without rebuilding. Maintenance commands require an explicit destination:
@@ -214,6 +221,12 @@ stored content history, not Cloudflare-managed Time Travel history or a guarante
 that the displayed database file size immediately shrinks.
 
 ## Verification and measured scope
+
+Image/map recipe records in `build-cache/derivatives-v1.json` are build hints,
+not retained content roots. They are saved after successful asset transfers under
+the same publication lock; this neither stages search nor activates a revision.
+Retention can collect unreferenced derivatives, and the next build regenerates
+them when the catalog's output inventory check fails.
 
 Fast tests cover live Worker API/HTML routing, ranking/prefix/phrase/Unicode
 queries, escaped highlighted excerpts, bounded pagination, fallback, revision

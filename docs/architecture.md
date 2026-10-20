@@ -52,9 +52,11 @@ flowchart LR
 | Code | Responsibility |
 | --- | --- |
 | `scripts/publish-content.mjs` | Git checkpoint, Obsidian export, image optimization, upload, then activation. |
+| `scripts/upload-content.mjs`, `scripts/cloudflare-client.mjs` | Separate incremental asset and snapshot transfers, bounded retries, request pacing, and shared refreshable Cloudflare credentials. Used by full and manual publication. |
 | `scripts/dev.mjs`, `scripts/test.mjs`, `.github/workflows/tests.yml` | Public development/test entry points, live-vault watching, full local publication preview, plugin installation, and GitHub test/package gates. |
 | `.github/workflows/website.yml` | Reuse CI tests, then deploy Worker/static assets on `main`. Serialize production pipelines; deployment credentials are available only in the deployment step. See the one-time cutover in [Deploy](deploy.md#one-time-github-website-deployment-setup). |
 | `scripts/prepare-cloudflare.mjs` | Package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. |
+| `scripts/derivative-cache.mjs` | R2 recipe catalog for responsive images/map pyramids, output inventory validation, and publication of reusable records after successful asset uploads. Local/offline consumers retain filesystem generation. |
 | `scripts/compile-search.mjs`, `src/search-text.mjs` | Compile deduplicated whole-note text versions and date/campaign/DM visibility rules. |
 | `scripts/search-index.mjs`, `scripts/search-database.mjs`, `scripts/search.mjs` | Immutable D1 staging, verification, remote/local adapters, and explicit staging CLI. |
 | `scripts/content-retention.mjs`, `scripts/maintain-content.mjs` | Coordinated R2/D1 retention of active plus one previous good snapshot; shared publication lock, orphan cleanup and verified rollback. |
@@ -194,6 +196,19 @@ uses a prepared snapshot and must be rerun after vault edits.
 Core provenance is also generated locally under `.generated/` by Wrangler before
 packaging. Content source commits travel with snapshots, while publication dates
 come from their activation pointers; see [footer provenance](cloudflare.md#how-updates-reach-the-site).
+
+Image cache maintenance is also mandatory: any generation algorithm, output
+format, or compression-logic change in `scripts/build-images.mjs` must bump the
+recipe `version` in its cache-key calculation in the same change. This includes
+changes to shared helpers that affect generated images. Apply the same rule to
+the separate recipe version in `scripts/build-maps.mjs` for map tiles. Settings
+values and source bytes already participate in these keys; code edits do not.
+The publication fingerprint and `--force` trigger a build but do not bypass these
+derivative caches. Comment-only edits do not require a recipe bump.
+The R2 catalog uses those same recipe keys. Keep cache metadata out of the
+published index, verify referenced output keys and sizes before reuse and upload,
+and save records under the publication lock only after their assets exist.
+Cache records must not become retention roots. See [asset caching](deploy.md#incremental-assets-and-interrupted-uploads).
 
 Agents must update the relevant core docs in the same change:
 

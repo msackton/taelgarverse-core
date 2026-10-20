@@ -4,6 +4,8 @@ import {spawn} from 'node:child_process';
 import {ROOT} from '../src/config.mjs';
 import {loadCloudflareConfig} from './prepare-cloudflare.mjs';
 import {buildBrowser} from './build-browser.mjs';
+import {uploadContent} from './upload-content.mjs';
+import {createCloudflareClient} from './cloudflare-client.mjs';
 import {createSearchDatabase} from './search-database.mjs';
 import {SearchIndex,readPreparedSearch} from './search-index.mjs';
 import {activationPointer,validatePublicationUploads,createRetentionStorage,prunePublication,POINTER_KEY} from './content-retention.mjs';
@@ -38,26 +40,25 @@ function verifiedUpload(report,config) {
   }
 }
 
-async function uploadPrepared(report,config,flags,{local=false,activate=false}={}) {
+async function uploadPrepared(report,config,{local=false,activate=false}={}) {
   const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
   validatePublicationUploads(report.revision,uploads);
   if(config.r2_buckets?.find(b=>b.binding==='CONTENT')?.bucket_name!==report.bucket)throw new Error('Prepared content and retention bucket disagree');
   if(extra.some(arg=>/^--(?:config|env|local|remote|persist-to)(?:=|$)/.test(arg) || ['-c','-e'].includes(arg)))throw new Error('Publishing destination overrides must be configured before preparation');
+  if(extra.length)throw new Error('Prepared upload/publication commands do not accept extra flags; configure the destination before preparation');
   const manifest=report.search?readPreparedSearch(report):null;
-  const db=await createSearchDatabase(config,{local});let retention;
+  const client=local?undefined:await createCloudflareClient(config,{log:console.log});
+  const db=await createSearchDatabase(config,{local,client});let retention;
   try{
-    retention=await createRetentionStorage(config,{local});const index=new SearchIndex(db,{log:console.log});
+    retention=await createRetentionStorage(config,{local,client,log:console.log});const index=new SearchIndex(db,{log:console.log});
     await index.withPublicationLock(async()=>{
-      const target=local?['--local','--persist-to',path.join(ROOT,'.wrangler/state')]:['--remote'];
-      // Re-upload under the lock at activation too: an intervening publication
-      // may have collected this previously uploaded but unactivated snapshot.
-      await run(['r2','bulk','put',report.bucket,...flags,'--filename',report.manifestFile,...target,'--concurrency','8','--force']);
+      await uploadContent(report,retention,{log:console.log});
       if(!activate)return;
       if(manifest)await index.stage(report.revision,manifest);
       const pointer=activationPointer(await retention.getJSON(POINTER_KEY),{revision:report.revision,
         completedAt:new Date().toISOString(),...(report.search?{search:report.search}:{})});
       fs.writeFileSync(report.pointerFile,JSON.stringify(pointer)+'\n');
-      await run(['r2','object','put',report.bucket+'/'+POINTER_KEY,...flags,'--file',report.pointerFile,...target,'--force']);
+      await retention.putPointer(pointer);
       try{await prunePublication(retention,index,pointer,{log:console.log});}
       catch(error){throw new Error('Content is published, but cleanup failed; retry node scripts/cloudflare.mjs publish: '+error.message);}
     });
@@ -82,17 +83,17 @@ if (task==='check' || task==='deploy') {
   const {flags}=prepared();
   await run(['dev',...flags,'--ip','127.0.0.1','--port','8787','--persist-to',path.join(ROOT,'.wrangler/state')]);
 } else if (task==='upload-local' || task==='upload-remote') {
-  const {report,config,flags}=prepared();
+  const {report,config}=prepared();
   const local=task==='upload-local';
-  await uploadPrepared(report,config,flags,{local,activate:local});
+  await uploadPrepared(report,config,{local,activate:local});
   if (!local) {
     fs.writeFileSync(receiptFile,JSON.stringify({revision:report.revision,bucket:report.bucket,
       worker:config.name,account:config.account_id,uploadedAt:new Date().toISOString()})+'\n');
   }
 } else if (task==='publish') {
-  const {report,config,flags}=prepared();
+  const {report,config}=prepared();
   verifiedUpload(report,config);
-  await uploadPrepared(report,config,flags,{activate:true});
+  await uploadPrepared(report,config,{activate:true});
 } else {
   throw new Error('Unknown Cloudflare task');
 }

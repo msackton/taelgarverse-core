@@ -25,15 +25,25 @@ export function usedImageWidths(width,height,usages,maxSize=IMAGE_DEFAULTS.maxSi
   return [...new Set([...inline,limit])].sort((a,b)=>a-b).map(width=>({width,inline:inline.includes(width)}));
 }
 
-async function variants(entry,cacheDir,settings,usages) {
+async function variants(entry,cacheDir,settings,usages,derivativeCache) {
   const input = await fs.readFile(entry.filename), metadata = await sharp(input).metadata();
   if ((metadata.pages || 1)>1 || animatedPNG(input)) return null;
   const rotated = metadata.orientation>=5 && metadata.orientation<=8;
   const width = rotated ? metadata.height : metadata.width, height = rotated ? metadata.width : metadata.height;
   const widths = usedImageWidths(width,height,usages,settings.maxSize);
   const sourceHash = createHash('sha256').update(input).digest('hex');
+  // Maintenance: bump this recipe version whenever the generation algorithm,
+  // output format, or compression logic changes (including shared helpers).
+  // Code changes and --force trigger publication but do not bypass this cache.
   const key = createHash('sha256').update(JSON.stringify({version:2,widths,sourceHash,...settings,...IMAGE_VERSION})).digest('hex');
   const directory = path.join(cacheDir,key), marker = path.join(directory,'complete.json');
+  const remote=derivativeCache?.get('images',key,({data,outputs})=>
+    data?.width===width && data.height===height && data.sourceBytes===input.length && Array.isArray(data.variants) &&
+    data.variants.length===outputs.length && data.variants.every((item,index)=>item &&
+      widths.some(plan=>plan.width===item.width && plan.inline===item.inline) && item.file===item.width+'.webp' &&
+      Number.isSafeInteger(item.height) && item.height>0 && item.height<=height &&
+      outputs[index].target==='image-variants/'+key+'/'+item.file && outputs[index].size===item.bytes));
+  if(remote)return {...remote.data,key,directory,remoteOutputs:new Map(remote.outputs.map(o=>[o.target,o]))};
   let result;
   try {
     result = JSON.parse(await fs.readFile(marker,'utf8'));
@@ -61,7 +71,7 @@ async function variants(entry,cacheDir,settings,usages) {
 
 // Original exports are never rewritten. Every generated asset is an ordinary
 // snapshot entry, so uploads, deduplication, retention and rollback work as usual.
-export async function prepareImages(store,cacheDir,options={},entries=store.entries,onProgress=()=>{}) {
+export async function prepareImages(store,cacheDir,options={},entries=store.entries,onProgress=()=>{},derivativeCache) {
   const {usages=collectImageUsages(store),...imageOptions} = options;
   const settings = {...IMAGE_DEFAULTS,...imageOptions};
   if (!Number.isInteger(settings.maxSize) || settings.maxSize<1 || !Number.isInteger(settings.quality) || settings.quality<1 || settings.quality>100) throw new Error('Invalid image variant settings');
@@ -71,10 +81,10 @@ export async function prepareImages(store,cacheDir,options={},entries=store.entr
     const used = usages.get(entry.id);
     if (!used?.length) continue;
     const taskKey = JSON.stringify([entry.filename,cacheDir,settings,used]);
-    let task = pending.get(taskKey);
+    let task = derivativeCache ? undefined : pending.get(taskKey);
     if (!task) {
-      task = variants(entry,cacheDir,settings,used);pending.set(taskKey,task);
-      task.finally(()=>pending.delete(taskKey)).catch(()=>{});
+      task = variants(entry,cacheDir,settings,used,derivativeCache);
+      if(!derivativeCache){pending.set(taskKey,task);task.finally(()=>pending.delete(taskKey)).catch(()=>{});}
     }
     let result;
     try { result = await task; }
@@ -95,11 +105,13 @@ export async function prepareImages(store,cacheDir,options={},entries=store.entr
       const target = 'image-variants/'+key+'/'+file;
       if (!store.assets.has(target)) {
         const asset = {id:target,target,filename:path.join(directory,file),extension:'.webp',note:null,generatedImageVariant:true};
+        if(result.remoteOutputs)asset.remoteAsset=result.remoteOutputs.get(target);
         store.assets.set(target,asset);store.entries.push(asset);
       }
       return {url:'/assets/'+target,width,height,bytes,inline};
     });
     entry.image = {width,height,variants:images};
+    derivativeCache?.record('images',key,{width,height,sourceBytes:result.sourceBytes,variants:efficient},images.map(image=>image.url.slice('/assets/'.length)));
     stats.images++;stats.variants+=images.length;stats.sourceBytes+=result.sourceBytes;
     stats.variantBytes+=images.reduce((sum,item)=>sum+item.bytes,0);
     onProgress({...stats,currentFile:entry.id});

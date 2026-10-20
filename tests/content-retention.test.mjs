@@ -81,7 +81,7 @@ test('remote R2 retention lists every cursor page, rejects incomplete listings, 
   assert.equal((await storage.list('assets/')).length,2);assert.match(calls[1].url,/cursor=next/);
   await storage.delete([asset('a')]);assert.equal(calls[2].method,'DELETE');
   broken=true;await assert.rejects(storage.list('assets/'),/pagination/);
-  const bad=await createRetentionStorage(config,{credentials:()=>({account:'a'.repeat(32),token:'private-token'}),fetcher:async()=>{throw new Error('private-token');}});
+  const bad=await createRetentionStorage(config,{wait:async()=>{},credentials:()=>({account:'a'.repeat(32),token:'private-token'}),fetcher:async()=>{throw new Error('private-token');}});
   await assert.rejects(bad.list('assets/'),error=>!error.message.includes('private-token'));
 });
 test('R2 deployments without cursor metadata walk start_after through an empty page and refuse non-progress',async()=>{

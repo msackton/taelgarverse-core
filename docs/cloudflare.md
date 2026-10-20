@@ -55,6 +55,25 @@ deployment is needed for subsequent content updates.
 The homepage and menu come from `taelgar/_website` and are included in the same
 publication.
 
+The publisher's asset phase checks the existing `assets/` inventory and uploads
+only missing objects or size mismatches. Notes/index objects are uploaded in a
+separate phase, followed by D1 verification and activation. `--assets-only` stages
+media without activating a revision; it uses the same bucket and publication
+lock. These behaviors are implemented by
+[`upload-content.mjs`](../scripts/upload-content.mjs) and
+[`content-retention.mjs`](../scripts/content-retention.mjs), with per-request
+retries, pacing, and refreshable credentials in
+[`cloudflare-client.mjs`](../scripts/cloudflare-client.mjs). They require no
+Worker deployment or storage migration. See [publishing recovery and asset
+staging](deploy.md#incremental-assets-and-interrupted-uploads).
+
+[`derivative-cache.mjs`](../scripts/derivative-cache.mjs) adds an R2 build catalog
+for image variants and map tiles. On publication it checks recipe keys and the
+current asset inventory before generation, allowing a fresh machine to reference
+existing derivatives without encoding or downloading them. Catalog writes follow
+successful asset uploads under the publication lock; the Worker does not read it.
+This is publisher behavior in this checkout, not evidence of a production rollout.
+
 The publisher uses your local Cloudflare login or API token. The GitHub build
 has its own Cloudflare authorization. These are separate from how visitors
 read the site.
@@ -86,15 +105,19 @@ so it cannot deploy independently of these checks. Cloudflare documents the
 ## What is stored in R2
 
 Each publication gets a long unique ID, called a **revision**. The storage
-contains three kinds of files:
+contains the following files:
 
 | Location | What it contains |
 | --- | --- |
 | `published/current.json` | A small file saying which revision the website should use. It also records the Git version and publishing settings so unchanged content can be skipped next time. |
 | `revisions/<revision>/` | A saved version of the notes and supporting data. `index.json` holds the homepage and menu Markdown, plus the page list, campaign information, metadata, backlinks, and media locations. The `notes/` folder holds article Markdown in groups of files. |
 | `assets/` | Images, audio, and other published attachments. Identical files share one stored copy, even across publications. |
+| `build-cache/derivatives-v1.json` | Disposable recipe-to-output catalog with dimensions, generated asset targets, content hashes, and sizes; no source paths or image bytes. |
 
-Older publications and media remain in storage. There is no automatic cleanup.
+Successful publication retains the active and previous good snapshots and
+collects other revision objects and unreferenced media. The build catalog does
+not protect assets from cleanup: reuse checks their existence, and later catalog
+writes discard stale records. Deleting the catalog only loses build reuse.
 The metadata index now includes a search descriptor (version, digest, and counts),
 while search text/rules stay in D1. The local `search.json` compiler payload is
 excluded from R2 upload manifests. Older indexes without search still render.
