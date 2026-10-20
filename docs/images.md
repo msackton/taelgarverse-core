@@ -17,6 +17,8 @@ text is preserved independently. Caption selection happens after visibility
 filtering and note expansion; repeated uses of one image can have different
 captions. Existing published Markdown supports this after a core deployment;
 no new image derivatives or content republication are needed for captions.
+Inline captions, including gallery callout text, follow the selected light/dark
+theme rather than Material's default callout foreground color.
 
 ## Obsidian
 

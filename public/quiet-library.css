@@ -30,6 +30,7 @@ body {
   --md-default-fg-color: var(--text); --md-default-fg-color--light: var(--muted);
   --md-default-fg-color--lighter: var(--accent); --md-default-fg-color--lightest: var(--line);
   --md-default-bg-color: var(--bg); --md-primary-fg-color: var(--link);
+  --md-admonition-fg-color: var(--text);
   --md-accent-fg-color: var(--link); --md-typeset-a-color: var(--link);
   --md-code-bg-color: var(--surface); --md-code-fg-color: var(--text);
   --md-typeset-table-color: var(--line); --md-typeset-table-color--light: var(--soft);
