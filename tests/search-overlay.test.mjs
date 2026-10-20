@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createSearchController,searchParameters,highlightPieces} from '../public/search-overlay.js';
+import {createSearchController,searchParameters,highlightPieces,suggestionPosition} from '../public/search-overlay.js';
 
 test('floating search preserves context, repeated campaign choices and normal query encoding',()=>{
   const params=searchParameters([['date','1730-01-01'],['context','custom'],['campaigns','dufr'],['campaigns','adma'],['dm','1'],['type','person'],['q','stale'],['offset','100'],['unrelated','discard']], '"Green Sea" & elves',20);
@@ -67,4 +67,17 @@ test('a selected content type can browse pages without a search phrase',async()=
   assert.deepEqual(queries,['q=&type=place']);assert.equal(idle,0);
   await controller.update(new URLSearchParams({q:'',type:''}),{immediate:true});
   assert.equal(queries.length,1);assert.equal(idle,1);
+});
+
+test('search suggestions fit below the field and stay within narrow or shifted viewports',()=>{
+  const desktop=suggestionPosition({left:280,top:10,bottom:48},{left:0,top:0,width:1280,height:720});
+  assert.equal(desktop.edge,54);assert.equal(desktop.left,280);assert.equal(desktop.above,false);
+  const phone=suggestionPosition({left:18,top:70,bottom:114},{left:0,top:0,width:390,height:400});
+  assert.equal(phone.width,366);assert.equal(phone.left,12);assert.equal(phone.edge,120);
+  assert.equal(phone.maxHeight,268);
+  const bottom=suggestionPosition({left:600,top:600,bottom:644},{left:0,top:0,width:800,height:720});
+  assert.equal(bottom.above,true);assert.equal(bottom.edge,594);assert.equal(bottom.left+bottom.width,788);
+  assert.equal(suggestionPosition({left:0,top:900,bottom:944},{left:0,top:0,width:390,height:400}),null);
+  const shifted=suggestionPosition({left:10,top:100,bottom:144},{left:5,top:80,width:320,height:300});
+  assert.ok(shifted.left>=17);assert.ok(shifted.edge+shifted.maxHeight<=368);
 });

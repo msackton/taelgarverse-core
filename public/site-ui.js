@@ -33,7 +33,7 @@
       dialog.addEventListener('pointerdown',event => { startedOutside = outside(event); });
       dialog.addEventListener('click',event => { if (event.target === dialog && startedOutside && outside(event)) dialog.close(); });
     });
-    document.querySelectorAll('[data-close-dialog]:not([data-close-dialog="search-dialog"])').forEach(button => button.addEventListener('click',() => get(button.dataset.closeDialog).close()));
+    document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click',() => get(button.dataset.closeDialog).close()));
     function configure() {
       panels.forEach(panel => {
         const dialog = get(panel.name+'-dialog');

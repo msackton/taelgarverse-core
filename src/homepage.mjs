@@ -1,5 +1,5 @@
 import {load} from 'cheerio';
-import {escapeHtml,pageUrl,contextQuery} from './common.mjs';
+import {escapeHtml,pageUrl} from './common.mjs';
 import {availableInContext} from './content-store.mjs';
 
 const destinations = [
@@ -37,12 +37,9 @@ export function homepage(home,context,store) {
     return '<li>' + (available ? '<a class="home-entry" aria-label="' + item.label + '" href="' + escapeHtml(pageUrl(entry.slug,context.date,context)) + '">' + icon + copy + '<span class="home-entry-arrow" aria-hidden="true">↗</span></a>' :
       '<div class="home-entry home-entry-unavailable" role="group" aria-label="' + item.label + '">' + icon + copy + '</div>') + '</li>';
   }).join('');
-  const fields = [...contextQuery(context)].map(([key,value]) => '<input type="hidden" name="' + key + '" value="' + escapeHtml(value) + '">').join('');
   return {...home,homepage:true,toc:'',html:
     '<section class="home-hero" aria-label="Welcome to TaelgarVerse"><div class="home-map" aria-hidden="true"></div><div class="home-hero-copy">' +
     '<span class="home-ornament" aria-hidden="true">◆</span>' + heading + '<div class="home-lead">' + lead + '</div></div></section>' +
     '<nav class="home-destinations" aria-label="Explore Taelgar"><ul>' + cards + '</ul></nav>' +
-    '<section class="home-introduction" aria-label="About TaelgarVerse"><div class="home-section-label" aria-hidden="true">A world of stories</div><div class="home-prose">' + $.html() + '</div></section>' +
-    '<section class="home-find" aria-labelledby="home-find-title"><div><h2 id="home-find-title">Looking for something?</h2><p>Search names, phrases, and words from the notes.</p></div>' +
-    '<form role="search" aria-label="Search Taelgar" action="/">' + fields + '<label class="sr-only" for="home-search">Search Taelgar</label><input id="home-search" type="search" name="q" maxlength="256" placeholder="Search notes…"><button>Search</button></form></section>'};
+    '<section class="home-introduction" aria-label="About TaelgarVerse"><div class="home-section-label" aria-hidden="true">A world of stories</div><div class="home-prose">' + $.html() + '</div></section>'};
 }

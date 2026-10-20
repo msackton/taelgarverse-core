@@ -399,7 +399,8 @@ test('homepage renders authored Markdown with context links and keeps search sep
   assert.match($('main').text(),/Website introduction|Addermarch homepage content/);
   assert.doesNotMatch($('main').text(),/Private homepage note|Up to 100 matching pages/);
   assert.equal($('main a[href="/page/people/example?context=addermarch"]').length,1);
-  assert.equal($('main form[role="search"] input[name="context"]').val(),'addermarch');
+  assert.equal($('main form[role="search"]').length,0);
+  assert.equal($('#header-search input[name="context"]').val(),'addermarch');
   assert.equal(engine.store.entries.some(entry=>entry.id.startsWith('_website/')),false);
   const finder = load(await (await fetch(base + '/?q=&context=addermarch')).text());
   assert.equal(finder('main h1').text(),'Browse pages');
