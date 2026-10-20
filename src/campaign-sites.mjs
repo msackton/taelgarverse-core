@@ -3,6 +3,7 @@ import {parseNote} from './content-store.mjs';
 
 export const validCampaignHost = name => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(name) && !['www','home','navigation'].includes(name);
 
+// Campaign selections come from homepage campaigns metadata.
 // Immutable publication data. Host selection and the context lock are request-local.
 export class CampaignSites {
   constructor(sources = {}, contexts) {
