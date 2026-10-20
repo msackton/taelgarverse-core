@@ -10,6 +10,7 @@ import {expandNoteEmbeds} from './embeds.mjs';
 import {releaseFooter} from './release-footer.mjs';
 import {responsiveImages} from './images.mjs';
 import {CampaignSites} from './campaign-sites.mjs';
+import {articleLayout} from './article-layout.mjs';
 
 export class RenderEngine {
   constructor({settings,store,headers,renderHeader,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex}) {
@@ -63,6 +64,7 @@ export class RenderEngine {
     const rendered = this.renderBody(body,entry,context,embedLoading);
     if (hide.includes('toc')) rendered.toc = '';
     return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,hide,
+      ...(metadata.layout === 'wide' ? {layout:'wide'} : {}),
       ...rendered, backlinks:this.backlinkIndex && (this.backlinkIndex.version>=2 || context.campaigns.length<=1)
         ? linkedFrom(this.backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
   }
@@ -106,12 +108,13 @@ export class RenderEngine {
     const noteEmbeds = [], env = {store:this.store,entry,date,context,warnings,dmNotes,notesMarkdown:this.notesMarkdown,noteEmbeds};
     const rendered = renderMarkdown(this.markdown,body,env);
     if (noteEmbeds.length) rendered.html = expandNoteEmbeds(rendered.html,noteEmbeds,{...env,markdown:this.markdown},embedLoading);
-    rendered.html = responsiveImages(rendered.html,this.store);
+    rendered.html = responsiveImages(rendered.html,this.store,{wide:entry.note?.metadata.layout === 'wide'});
     return {...rendered,warnings: [...new Set(warnings)]};
   }
 }
 
 export function document(result,contextOptions,navigation,releases) {
+  const article = result.homepage ? result.html : articleLayout(result.html,{wide:result.layout === 'wide'});
   const view = navigation?.view(result.context,result.page,result.navigationId);
   const showNavigation = view && view.roots.length > 0 && !result.hide?.includes('navigation');
   const sidebar = showNavigation ? navigation.sidebar(view) : '';
@@ -133,7 +136,7 @@ export function document(result,contextOptions,navigation,releases) {
     (result.homepage ? '<link rel="stylesheet" href="/theme/homepage.css">' : '') + '</head>' +
     '<body>' + siteHeader(result.context,contextOptions,{query:result.query,searchType:result.searchType,sections:showNavigation ? navigation.sections(view) : '',navigation:!!showNavigation}) +
     '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (pageNav ? '' : ' layout--no-toc') + (hasSection ? '' : ' layout--no-navigation') + (result.homepage ? ' layout--home' : '') + '">' + sidebar +
-    '<main id="page-content" class="md-typeset article-main" tabindex="-1">' + breadcrumbs + result.html + '</main>' + pageNav +
+    '<main id="page-content" class="md-typeset article-main" tabindex="-1">' + breadcrumbs + article + '</main>' + pageNav +
     '</div>' + siteDialogs() + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/site-ui.js" defer></script><script type="module" src="/theme/search-overlay.js"></script><script src="/theme/image-viewer.js" defer></script>' + diagrams +
     (maps ? '<script type="module" src="/theme/maps.js"></script>' : '') + '</body></html>';
 }

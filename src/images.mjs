@@ -2,16 +2,23 @@ import {load} from 'cheerio';
 
 export const imageUrl = entry=>'/assets/'+entry.target.split('/').map(encodeURIComponent).join('/');
 
+// 2000px shell minus two 32px gutters; standalone maps/media have no sidebars.
+const expandedWidth = 1936;
+const expandedImage = (image,{wide=false}={})=>image.is('.taelgar-image--hero') ||
+  image.closest('.taelgar-image--hero,.taelgar-image-gallery,.admonition.gallery,details.gallery').length > 0 ||
+  (wide && !image.attr('align') && !image.closest('.taelgar-image--aside,.image.inline').length &&
+    (image.parent().is('figure') || (image.closest('p').length > 0 && !image.closest('p').text().trim())));
+
 // Match the site's rem-based image roles (the Material root is 20px), table
 // limits, and mobile overrides. Bounds in one usage describe its widest layout.
-export function imageDisplayBounds(image) {
+export function imageDisplayBounds(image,options) {
   const inClass = name=>image.hasClass(name) || image.closest('.'+name).length;
   if (image.closest('table').length) return [{width:90,height:90}];
   const size = ['small','large'].find(size=>inClass('taelgar-image--size-'+size)) || 'standard';
   const aside = inClass('taelgar-image--aside'), figure = inClass('taelgar-image--figure');
   const width = Number(image.attr('width')), height = Number(image.attr('height'));
   const bounds = [{width:aside ? {small:250,standard:400,large:520}[size]
-    : figure ? {small:480,standard:720,large:960}[size] : width || (height ? undefined : 1040),
+    : figure ? {small:480,standard:720,large:960}[size] : expandedImage(image,options) ? expandedWidth : width || (height ? undefined : 900),
     ...(!aside && !figure && height ? {height} : {})}];
   if (aside || image.attr('align')) bounds.push({width:764,height:480});
   else if (image.closest('.admonition.image.inline,details.image.inline').length) {
@@ -21,7 +28,7 @@ export function imageDisplayBounds(image) {
   return bounds;
 }
 
-export function collectHtmlImageUsages(store,html,usages=new Map()) {
+export function collectHtmlImageUsages(store,html,usages=new Map(),options) {
   const $ = load(html,{},false);
   $('img[src^="/assets/"]').each((_,element)=>{
     const image = $(element);
@@ -30,7 +37,7 @@ export function collectHtmlImageUsages(store,html,usages=new Map()) {
     try { target = decodeURIComponent(image.attr('src').split(/[?#]/)[0].slice(8)); } catch { return; }
     const entry = store.assets.get(target);
     if (!entry || entry.generatedImageVariant || entry.generatedMapTile) return;
-    const bounds = imageDisplayBounds(image), found = usages.get(entry.id) || [];
+    const bounds = imageDisplayBounds(image,options), found = usages.get(entry.id) || [];
     if (!found.some(item=>JSON.stringify(item)===JSON.stringify(bounds))) found.push(bounds);
     usages.set(entry.id,found);
   });
@@ -48,19 +55,20 @@ export function imageEntries(store,html) {
   return [...entries];
 }
 
-function imageSizes(image) {
+function imageSizes(image,options) {
   const inClass = name=>image.hasClass(name) || image.closest('.'+name).length;
   if (image.closest('table').length) return '(max-width: 719px) 3.25rem, 4.5rem';
   const size = ['small','large'].find(size=>inClass('taelgar-image--size-'+size)) || 'standard';
   const aside = inClass('taelgar-image--aside'), figure = inClass('taelgar-image--figure');
   const authored = Number(image.attr('width'));
-  const width = aside ? {small:'12.5rem',standard:'20rem',large:'26rem'}[size] : figure ? {small:'24rem',standard:'36rem',large:'48rem'}[size] : (authored || 1040)+'px';
+  const width = aside ? {small:'12.5rem',standard:'20rem',large:'26rem'}[size] : figure ? {small:'24rem',standard:'36rem',large:'48rem'}[size] : expandedImage(image,options) ? expandedWidth+'px' : (authored || 900)+'px';
+  if (expandedImage(image,options)) return '(max-width: 800px) calc(100vw - 36px), (max-width: 1100px) calc(100vw - 48px), min(calc(100vw - 64px), '+width+')';
   return '(max-width: 800px) min(calc(100vw - 40px), '+width+'), min('+width+', 100vw)';
 }
 
 // Run after embeds and generated headers have been included. It covers both
 // Markdown images and authored HTML without requiring changes to vault notes.
-export function responsiveImages(html,store) {
+export function responsiveImages(html,store,options) {
   const $ = load(html,{},false);
   let lead = true;
   $('img[src]').each((_,element)=>{
@@ -77,7 +85,7 @@ export function responsiveImages(html,store) {
     const entry = store.assets.get(target), info = entry?.image;
     if (!info?.variants?.length || image.attr('srcset')) return;
     const authoredWidth = Number(image.attr('width')), authoredHeight = Number(image.attr('height'));
-    image.attr('sizes',image.attr('sizes') || (image.attr('loading')==='lazy' ? 'auto, ' : '')+imageSizes(image));
+    image.attr('sizes',image.attr('sizes') || (image.attr('loading')==='lazy' ? 'auto, ' : '')+imageSizes(image,options));
     // Retain authored layout dimensions, and supply the missing aspect ratio.
     if (!authoredWidth) image.attr('width',String(authoredHeight ? Math.round(authoredHeight*info.width/info.height) : info.width));
     if (!authoredHeight) image.attr('height',String(authoredWidth ? Math.round(authoredWidth*info.height/info.width) : info.height));

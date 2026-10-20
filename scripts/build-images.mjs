@@ -15,7 +15,8 @@ export function usedImageWidths(width,height,usages,maxSize=IMAGE_DEFAULTS.maxSi
     // Wide layouts also need a phone-sized choice. Fixed small images just
     // need their displayed width and a 2x copy for high-density screens.
     const bases = display>640 ? [360,display] : [display];
-    return bases.flatMap(base=>[base,base*2]).map(size=>Math.max(1,Math.min(1440,limit,Math.ceil(size))));
+    const inlineLimit = display > 1440 ? 2560 : 1440;
+    return bases.flatMap(base=>[base,base*2]).map(size=>Math.max(1,Math.min(inlineLimit,limit,Math.ceil(size))));
   });
   const inline = [];let groupStart;
   for (const size of [...new Set(requested)].sort((a,b)=>a-b)) {
@@ -35,7 +36,7 @@ async function variants(entry,cacheDir,settings,usages,derivativeCache) {
   // Maintenance: bump this recipe version whenever the generation algorithm,
   // output format, or compression logic changes (including shared helpers).
   // Code changes and --force trigger publication but do not bypass this cache.
-  const key = createHash('sha256').update(JSON.stringify({version:2,widths,sourceHash,...settings,...IMAGE_VERSION})).digest('hex');
+  const key = createHash('sha256').update(JSON.stringify({version:3,widths,sourceHash,...settings,...IMAGE_VERSION})).digest('hex');
   const directory = path.join(cacheDir,key), marker = path.join(directory,'complete.json');
   const remote=derivativeCache?.get('images',key,({data,outputs})=>
     data?.width===width && data.height===height && data.sourceBytes===input.length && Array.isArray(data.variants) &&

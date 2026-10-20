@@ -67,6 +67,7 @@ flowchart LR
 | `src/snapshot.mjs` | Load the R2 index and fetch/cache Markdown shards on demand. |
 | `src/application.mjs` | Shared Fetch API router: homepage, articles, search HTML/JSON, contexts, navigation, assets, health. |
 | `src/render-engine.mjs` | Resolve context/page, generate header, filter comments, render Markdown and page shell. |
+| `src/article-layout.mjs` | Shell-only prose grouping and semantic media breakouts, retaining float contexts and embedded-note boundaries. |
 | `src/homepage.mjs`, `public/homepage.css`, `public/images/home-map.webp` | Homepage composition, entry buttons, responsive layout, and decorative map asset. Introductory content remains in the vault's `_website/home.md`. |
 | `src/contexts.mjs`, `src/navigation.mjs` | Session-derived dates and context-filtered navigation. |
 | `src/backlinks.mjs` | Index authored incoming links and filter them by source availability and visible comment states. |
@@ -97,6 +98,15 @@ components; the Quiet Library stylesheet overrides its colors with shared light/
 Appearance defaults to the operating system, is applied before styles load, and
 explicit choices persist in `localStorage` under `taelgarverse-appearance`.
 This preference does not alter content context or server caching.
+
+The shell allows up to 2000px including navigation, page navigation, and gutters.
+Article prose stays within 80ch; consecutive ordinary blocks share a flow root
+so floated portraits still wrap with their associated text. Semantic maps, heroes,
+galleries, large figures, and Mermaid diagrams use the available article column.
+Small diagrams retain their intrinsic size. The homepage keeps its separate
+composition, and API article fragments retain their original structure.
+Authoring and the exceptional `layout: wide` override are specified in
+[vault usage](vault.md#article-width).
 
 The homepage route passes the rendered, context-filtered `home.md` through
 `src/homepage.mjs` before the shared page shell. Its heading and lead paragraph

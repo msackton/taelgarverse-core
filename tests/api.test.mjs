@@ -85,6 +85,16 @@ test('hide: toc omits the article TOC in the API and shell while retaining headi
   }
 });
 
+test('wide article metadata reaches the shell without widening prose or changing API fragment structure',async()=>{
+  const result=await (await fetch(base+'/api/page?page=Wide%20Article')).json();
+  assert.equal(result.layout,'wide');
+  assert.equal(load(result.html)('.article-prose,.article-breakout').length,0);
+  const $=load(await (await fetch(base+'/page/wide-article')).text());
+  assert.equal($('.article-prose > p').text(),'Readable prose.');
+  assert.equal($('.article-main > .article-table > table:not([class])').length,1);
+  assert.equal($('.article-main > p.article-breakout > img').length,1);
+});
+
 test('diagram links resolve aliases, relative notes and anchors with context and reject hidden or unsafe destinations',async()=>{
   const query = new URLSearchParams({source:'People/Example.md',context:'custom',date:'1730-01-01',campaigns:'all',dm:'1'});
   const targets = ['First Town','../Places/First Town.md#History','/page/places/first-town?date=1800-01-01#History',

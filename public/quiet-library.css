@@ -6,7 +6,8 @@
   --line: #d9ddd7; --link: #38634f; --accent: #718e79; --soft: #e8ece6;
   --header-bg: #bacbb7; --header-control-bg: #cad7c8; --header-border: #8c9e88;
   --header-muted: #495645; --header-link: #294c35; --header-hover: #afc1ab;
-  --layout-width: 1600px; --layout-gutter: 32px; --header-height: 100px;
+  --layout-width: 2000px; --layout-gutter: 32px; --header-height: 100px;
+  --article-prose-width: 80ch;
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
@@ -88,7 +89,20 @@ form { background: var(--surface); }
 .layout--no-navigation { grid-template-columns: minmax(0,1fr) 215px; grid-template-areas: "article toc"; }
 .layout--no-navigation.layout--no-toc { grid-template-columns: minmax(0,1fr); grid-template-areas: "article"; }
 .layout--no-navigation > .site-sidebar { display: none; }
-.layout .article-main { max-width: 1040px; width: 100%; margin: 0; }
+.layout .article-main { max-width: none; width: 100%; margin: 0; }
+/* Continuous prose preserves floats; semantic visual blocks use the available
+   article column without intruding into navigation or page navigation. */
+.article-prose { display: flow-root; width: 100%; max-width: var(--article-prose-width); margin-inline: auto; }
+.article-main > .breadcrumbs { max-width: var(--article-prose-width); margin-inline: auto; }
+.article-main .article-breakout { clear: both; min-width: 0; max-width: 100%; }
+.article-main > .article-breakout { margin-inline: auto; }
+.article-main p.article-breakout:has(> img.taelgar-image--hero),
+.article-main p.article-breakout:has(> a > img.taelgar-image--hero) { width: 100%; }
+.article-main .article-breakout img { height: auto; }
+/* Tables scroll within their containing block, including the wide override. */
+.article-main table { display: block; max-width: 100%; overflow-x: auto; }
+.article-main pre { max-width: 100%; overflow-x: auto; }
+.article-main .article-breakout.note-embed > .note-embed-title { max-width: var(--article-prose-width); margin-inline: auto; }
 .site-sidebar, .page-toc { top: calc(var(--header-height) + 20px); max-height: calc(100dvh - var(--header-height) - 40px); color: var(--muted); }
 .site-sidebar { padding-right: 20px; border-right: 1px solid var(--line); }
 .page-toc { position: static; top: auto; max-height: none; overflow: visible; overscroll-behavior: auto; border-color: var(--line); padding-left: 20px; }
@@ -206,7 +220,6 @@ html .md-typeset :is(blockquote,.admonition.quote,details.quote) > :last-child {
   .nav-tree > .active-section > details > ul { padding: 0; margin: 0; border: 0; }
 }
 @media (min-width:1660px) {
-  :root { --layout-width: 1660px; }
   .layout { grid-template-columns: 260px minmax(0,1fr) 245px; }
   .layout--no-toc { grid-template-columns: 260px minmax(0,1fr); }
   .layout--no-navigation { grid-template-columns: minmax(0,1fr) 245px; }

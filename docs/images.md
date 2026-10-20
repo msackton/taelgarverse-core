@@ -29,7 +29,10 @@ are inspected through their source notes. Materialized queries are ordinary
 exported content and participate automatically.
 
 The planner uses the widest desktop/mobile bounds for each occurrence. Each use
-requests a 1× and 2× inline size, capped at 1440px and native dimensions. Wide
+requests a 1× and 2× inline size, capped at 1440px and native dimensions. Semantic
+heroes and galleries allow up to 1936 CSS pixels (the 2000px shell minus gutters),
+with inline derivatives capped at 2560px, the configured longest edge, and native
+dimensions. Narrower uses retain the 1440px cap. Wide
 layouts also request a phone-sized choice. Multiple uses combine into one set;
 widths within 25% merge upward. For example, a single fixed 300px image needs
 300px and 600px inline copies, plus the popup version. Images with no inline use
@@ -62,7 +65,10 @@ The first visible-content image is eager; subsequent images and images inside
 closed details/popovers are lazy. Browsers can fetch lazy images near the viewport
 before they become visible. Lazy images use `sizes="auto"` with layout fallbacks.
 
-Inline choices use only the planned inline sizes and stop at 1440 pixels wide.
+Inline choices use only the planned inline sizes and stop at 1440 pixels wide
+for ordinary uses or 2560 pixels for expanded heroes/galleries. Eager expanded
+images use viewport/gutter bounds as a conservative fallback; lazy `sizes="auto"`
+uses the actual gallery cell/article width when supported.
 The popup-only choice and the original URL
 appear only as inert metadata, which does not fetch their bytes. Opening the viewer
 shows the inline image immediately, then selects a screen-sized derivative from

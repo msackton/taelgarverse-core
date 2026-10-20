@@ -31,7 +31,7 @@ export function collectImageUsages(store,{homeSource=null,campaignHomes={},maxSt
       const dmNotes = [], body = filterComments(source,{...context,source:entry.id,notes:dmNotes});
       const key = JSON.stringify([body,dmNotes]);if (seen.has(key)) continue;seen.add(key);
       const rendered = renderMarkdown(md,body,{store,entry,date:context.date,context,dmNotes,notesMarkdown,noteEmbeds:[],warnings:[]});
-      collectHtmlImageUsages(store,rendered.html,usages);
+      collectHtmlImageUsages(store,rendered.html,usages,{wide:entry.note.metadata.layout === 'wide'});
     }
   }
   return usages;

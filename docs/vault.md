@@ -281,8 +281,29 @@ below 800px the page contents disappear. In note or homepage frontmatter,
 `hide: [navigation]` omits the section links and left navigation, and
 `hide: [toc]` omits page contents. Both may be combined. For articles,
 `hide: toc` also works, and hidden contents are omitted from the page API.
-Search, settings, and
-backlinks remain available, and unused navigation columns release their space.
+Search, settings, and backlinks remain available, and unused navigation columns
+release their space.
+
+### Article width
+
+Prose, lists, ordinary figures, and floated asides keep a readable width (up to
+80ch). Maps (`.leaflet-map`), hero image roles, both semantic and callout galleries,
+large figure roles, and Mermaid diagrams automatically use the wider article
+column. Navigation and page navigation keep their own space; on narrow screens
+media fits the available width. Mermaid drawings retain their intrinsic size
+within that space. No per-page metadata is needed for these semantic roles.
+
+Consecutive prose blocks share a formatting context, preserving image-callout
+floats and their text. Breakouts clear those floats. Embedded notes retain their
+title, boundary, and scoped anchors while allowing semantic media inside them to
+expand. Media nested in ordinary prose callouts or lists stays inside its parent.
+Wide tables and code scroll within their container rather than widening the page.
+
+For an exceptional media page, frontmatter `layout: wide` also expands top-level
+tables, nonfloated figures, and paragraphs containing only an image or linked
+image. It does not widen prose or promote portraits/asides. Unknown layout values
+use the normal semantic rules. This affects the website shell; the page API
+retains the fragment structure and reports `layout: "wide"` for that override.
 
 **Linked from** lists other articles that link to the current one. Only pages and
 passages visible in the selected view contribute links. Campaign notes contribute
