@@ -103,9 +103,10 @@ hostname selection and context enforcement as production.
 ## One-time Cloudflare setup
 
 `wrangler.json` preserves the apex and `www` Custom Domains and declares the route
-`*.taelgar.org/*` on zone `taelgar.org`. Cleenseau also has an explicit Custom
-Domain attachment so it can work before wildcard DNS is configured. Deploy the updated core through the normal
-website deployment workflow. In Cloudflare DNS, add a **proxied** wildcard record
+`*.taelgar.org/*` on zone `taelgar.org`. Campaign subdomains, including Cleenseau,
+use this shared wildcard route without dedicated Custom Domain attachments.
+Deploy the updated core through the normal website deployment workflow.
+In Cloudflare DNS, add a **proxied** wildcard record
 (`A`, name `*`, address `192.0.2.1` is Cloudflare's documented example). The Worker
 answers these requests directly; it does not fetch the placeholder origin.
 
@@ -120,6 +121,14 @@ the Markdown file and publication. If the deployment identity lacks DNS edit
 permission, an individual Worker Custom Domain can provision a campaign's DNS and
 certificate instead, but each additional campaign then needs a domain attachment
 until wildcard DNS is configured.
+
+On **2026-10-20**, Cleenseau's dedicated Custom Domain attachment was removed
+through the Cloudflare API. The API confirmed that the shared wildcard route and
+the apex/`www` attachments remained. Cleenseau's homepage and contexts API still
+returned HTTP 200 over HTTPS, with the Cleenseau campaign locked. An unconfigured
+subdomain also reached the Worker's expected campaign-not-found response over
+HTTPS. DNS record details were not inspected because the login lacked DNS read
+permission.
 
 References: [Cloudflare wildcard DNS](https://developers.cloudflare.com/dns/manage-dns-records/reference/wildcard-dns-records/),
 [Worker routes](https://developers.cloudflare.com/workers/configuration/routing/routes/),

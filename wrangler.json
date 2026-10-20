@@ -9,7 +9,6 @@
   "routes": [
     {"pattern": "taelgar.org", "custom_domain": true},
     {"pattern": "www.taelgar.org", "custom_domain": true},
-    {"pattern": "cleenseau.taelgar.org", "custom_domain": true},
     {"pattern": "*.taelgar.org/*", "zone_name": "taelgar.org"}
   ],
   "assets": {
