@@ -385,7 +385,8 @@ Excalidraw presentation after MVP. Exported images are sufficient for MVP.
 
 ### P-11: Image optimization and bandwidth reduction
 
-**Status:** Agreed direction; implementation and performance targets remain open.
+**Status:** Responsive variants and on-demand image viewing implemented and
+verified locally; broader full-vault performance measurement remains open.
 
 Reduce image download sizes substantially. Large source images currently incur
 unnecessary bandwidth costs when displayed at small or fixed sizes on the page.
@@ -402,5 +403,10 @@ unnecessary bandwidth costs when displayed at small or fixed sizes on the page.
 
 Measure image bytes transferred on representative image-heavy pages, including
 mobile views, and compare before/after results alongside visual quality. The
-image-generation approach, formats, size variants, and performance targets
-remain to be decided.
+implementation preserves full-resolution exports, produces cached WebP sizes,
+and uses small responsive images with offscreen loading deferred. An expand
+icon opens a fitted screen-sized image; Download and Pan / zoom request the
+original on demand. PNG derivatives retain transparency and use lossless encoding.
+Generated assets use the existing publication, retention and rollback lifecycle.
+See [image delivery and verification](images.md). Performance targets and broader
+full-vault measurements remain to be decided.

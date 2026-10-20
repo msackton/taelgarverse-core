@@ -247,7 +247,7 @@ campaign, and **See Behind the Curtain** controls.
 
 | In the note | On the website |
 | --- | --- |
-| `![[map.png]]` | An image that readers can open in the image viewer. Size and alignment options work, including `aside`, `figure`, or `hero` with `small`, `standard`, or `large`. |
+| `![[map.png]]` | A responsive image with an expand icon. The viewer fits the screen and offers full-resolution download and pan/zoom. Size and alignment options work, including `aside`, `figure`, or `hero` with `small`, `standard`, or `large`. |
 | `![[clip.m4a]]` | An audio player. Other supported audio formats work the same way. |
 | A PDF link/embed | A link to the PDF. |
 | An Excalidraw drawing | Use an exported PNG or another supported image; the website does not draw it from Excalidraw data. |

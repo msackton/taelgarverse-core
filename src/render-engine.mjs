@@ -8,6 +8,7 @@ import {siteHeader,siteDialogs} from './header.mjs';
 import {Navigation} from './navigation.mjs';
 import {expandNoteEmbeds} from './embeds.mjs';
 import {releaseFooter} from './release-footer.mjs';
+import {responsiveImages} from './images.mjs';
 
 export class RenderEngine {
   constructor({settings,store,headers,renderHeader,navigationSource,homeSource = null,backlinkIndex}) {
@@ -99,6 +100,7 @@ export class RenderEngine {
     const noteEmbeds = [], env = {store:this.store,entry,date,context,warnings,dmNotes,notesMarkdown:this.notesMarkdown,noteEmbeds};
     const rendered = renderMarkdown(this.markdown,body,env);
     if (noteEmbeds.length) rendered.html = expandNoteEmbeds(rendered.html,noteEmbeds,{...env,markdown:this.markdown},embedLoading);
+    rendered.html = responsiveImages(rendered.html,this.store);
     return {...rendered,warnings: [...new Set(warnings)]};
   }
 }

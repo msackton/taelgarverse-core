@@ -6,13 +6,11 @@ import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {ROOT, loadSettings, isInside} from '../src/config.mjs';
-import {Store} from '../src/store.mjs';
 import {prepareContent, loadCloudflareConfig} from './prepare-cloudflare.mjs';
-import {IMAGE_DEFAULTS, IMAGE_VERSION, optimizeImages} from './optimize-images.mjs';
+import {IMAGE_DEFAULTS, IMAGE_VERSION} from './optimize-images.mjs';
 import {createSearchDatabase,searchBinding} from './search-database.mjs';
 import {SearchIndex,readPreparedSearch,validateSearchDescriptor} from './search-index.mjs';
 import {activationPointer,validatePointer,validatePublicationUploads,createRetentionStorage,prunePublication} from './content-retention.mjs';
-import {mapImages} from '../src/maps.mjs';
 
 export const CHECKPOINT_KEY = 'published/current.json';
 const CACHE = path.join(ROOT, '.cache/publish');
@@ -206,6 +204,7 @@ export function buildFingerprint(settings, options, config={}) {
     strict: !options.noStrict, default_date: settings.default_date,searchDestination:{account:config.account_id,databases:config.d1_databases || []}}));
   for (const filename of [settings.nav_source, settings.home_source,
     new URL('./publish-content.mjs', import.meta.url), new URL('./optimize-images.mjs', import.meta.url),
+    new URL('./build-images.mjs', import.meta.url), new URL('../src/images.mjs', import.meta.url),
     new URL('./build-maps.mjs', import.meta.url), new URL('../src/maps.mjs', import.meta.url),
     new URL('./prepare-cloudflare.mjs', import.meta.url), new URL('../src/store.mjs', import.meta.url),
     new URL('../src/content-store.mjs', import.meta.url), new URL('../src/backlinks.mjs', import.meta.url),
@@ -291,19 +290,17 @@ export async function main(options) {
         validateMaterializationReport(report, output);
         await fs.copyFile(reportFile, path.join(CACHE, 'materialization-report.json'));
         const preparedSettings = {...settings, source_dir: output};
-        const store = new Store(preparedSettings);
-        mapImages(store);
-        console.log('Optimizing exported JPEG, PNG, and WebP images…');
+        console.log('Preparing responsive images; preserving full-resolution exports…');
         let lastLog = 0;
-        const images = await optimizeImages(store.entries, path.join(CACHE, 'images'),
+        const prepared = await prepareContent(preparedSettings,undefined,sourceVersion,
           {maxSize: options.maxSize, quality: options.quality}, progress => {
             if (Date.now() - lastLog > 5000) {
               console.log(`Images: ${progress.images} processed | ${progress.currentFile}`);
               lastLog = Date.now();
             }
           });
-        console.log(`Images: ${images.optimized}/${images.images} smaller; ${(images.inputBytes / 1048576).toFixed(1)} → ${(images.outputBytes / 1048576).toFixed(1)} MiB`);
-        const prepared = await prepareContent(preparedSettings,undefined,sourceVersion);
+        const images = prepared.images;
+        console.log(`Images: ${images.images} originals retained; ${images.variants} responsive variants (${(images.variantBytes / 1048576).toFixed(1)} MiB stored)`);
         const preparedConfig = JSON.parse(await fs.readFile(prepared.configFile, 'utf8'));
         if (prepared.bucket !== binding.bucket_name || preparedConfig.account_id !== config.account_id || preparedConfig.name !== config.name) {
           throw new Error('Cloudflare destination changed during preparation.');
@@ -345,8 +342,8 @@ Settings: config.json, plus config.local.json automatically when present.
   --no-strict               Permit failed/unsupported queries, reporting each one
   --force                   Rebuild even when the R2 commit/settings match
   --allow-dirty             Publish uncommitted changes, marked dirty; subsequent runs rebuild
-  --max-image-size PIXELS   Longest image edge; default 2560, no enlargement
-  --image-quality 1-100     JPEG/WebP quality; default 82 (PNG uses lossless compression)
+  --max-image-size PIXELS   Largest responsive image edge; default 2560; originals retained
+  --image-quality 1-100     JPEG/WebP derivative quality; default 82 (PNG derivatives are lossless)
   --build-only              Export, optimize, compile search, and package without contacting R2/D1
   --local                   Use local R2/D1 emulators instead of remote resources
   --help                    Show this help

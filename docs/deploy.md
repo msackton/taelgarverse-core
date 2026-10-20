@@ -33,7 +33,7 @@ If this is your first time publishing from this computer, follow
    Then open the website and check the pages you changed, including their images
    and any relevant campaign/date views.
 
-The command prepares copies of your notes, makes large images smaller, and
+The command prepares copies of your notes, generates small image variants, and
 uploads the results and stages the matching D1 search index. It switches the site
 to new content after both are verified. Your original notes and images stay
 unchanged. If the same saved version/settings are online, it checks search
@@ -112,20 +112,31 @@ The account ID identifies the account; your login provides permission to use it.
 
 ## Image settings
 
-By default, published images are reduced to at most **2,560 pixels** on their
-longest side. They are not cropped or enlarged. JPEG and WebP use quality **82**;
-PNG keeps its transparency. Animation and audio are left unchanged. Images
-referenced by Leaflet map blocks retain their resolution; large maps also get
-WebP tiles for interactive viewing. Tile generation runs during content
-preparation and uses a local cache.
+Original exported images are retained at full resolution for download and
+detailed pan/zoom. Publication also generates cached WebP variants, normally at
+96, 192, 320, 480, 640, 960, 1440, 1920 and 2560 pixels wide, bounded by the source
+dimensions and a **2,560-pixel longest edge**. Variants are never cropped or
+enlarged. Smaller derivatives that cost more bytes than a sharper alternative
+are omitted from the choices sent to browsers.
 
-To retain more detail in other images, publish with a larger image limit:
+JPEG/WebP derivatives use quality **82**. PNG derivatives use lossless WebP
+encoding and retain transparency. Animation, unsupported formats and audio keep
+their existing delivery. Leaflet maps retain full-resolution imagery and their
+separate WebP tile pipeline. Vault originals remain untouched.
+
+Article images select a small variant for their actual layout and screen density;
+offscreen images are deferred. The popup loads a screen-sized version only when
+opened. Detailed pan/zoom and **Download** request the original. Both the updated
+core and a fresh content publication are needed for responsive delivery; old
+snapshots continue working with their existing images. See [image delivery](images.md).
+
+To increase the largest popup derivative, publish with a larger image limit:
 
 ```sh
 npm run content:publish -- --no-strict --max-image-size 4096 --image-quality 85
 ```
 
-This changes only the website's copies of your images.
+These settings affect derivatives; the downloadable original stays unchanged.
 
 ## Publishing options
 
@@ -140,8 +151,8 @@ Add these after `npm run content:publish --`. You can combine them unless noted.
 | `--allow-dirty` | Allows uncommitted vault changes. Useful for local checks; if used for a live publication, the next publication will rebuild. |
 | `--vault "path/to/taelgar"` | Uses this vault instead of `vault_dir` for one publication. Use the root of its Git repository. |
 | `--config preview.json` | Uses a different settings file instead of `config.local.json`, keeping shared defaults for anything omitted. See [configuration settings](#configuration-settings). |
-| `--max-image-size 4096` | Sets the longest image edge in pixels, except Leaflet map images. Default: `2560`. |
-| `--image-quality 85` | Sets JPEG/WebP quality from 1 to 100. Default: `82`. |
+| `--max-image-size 4096` | Sets the longest responsive-image edge in pixels. Default: `2560`; originals remain full resolution. |
+| `--image-quality 85` | Sets JPEG/WebP derivative quality from 1 to 100. Default: `82`; PNG derivatives use lossless encoding. |
 | `--obsidian-command "path/to/Obsidian"` | Tells the script where Obsidian's command-line program is if it cannot find it automatically. |
 | `--obsidian-vault "Taelgar"` | Selects the vault by its Obsidian name or ID when needed. |
 | `--help` | Prints the available options and exits. |
@@ -368,7 +379,7 @@ already handles normal publication.
 
 | Command | What it does | Changes the live site? |
 | --- | --- | --- |
-| `npm run cf:prepare` | Packages content, homepage/menu and a context-aware search manifest into `.cache/cloudflare/`. Does not export Obsidian queries or resize images. | No |
+| `npm run cf:prepare` | Packages content, homepage/menu, responsive images, map tiles and a context-aware search manifest into `.cache/cloudflare/`. Uses default image settings and does not export Obsidian queries. | No |
 | `npm run cf:seed` | Loads R2 content and stages local D1 before selecting the local publication. Run after preparation. | No |
 | `npm run cf:upload` | Uploads prepared content to the configured R2 bucket, leaving the site's selected publication unchanged. | Writes live storage; readers still see the previous content |
 | `npm run cf:publish` | Rechecks/re-uploads prepared content and stages matching D1 under the publication lock, activates it, then retains one previous good snapshot. Requires a matching `cf:upload` receipt. | **Yes: vault content** |

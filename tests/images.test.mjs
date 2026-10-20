@@ -1,0 +1,120 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import {load} from 'cheerio';
+import sharp from 'sharp';
+import {prepareImages} from '../scripts/build-images.mjs';
+import {ContentStore} from '../src/content-store.mjs';
+import {responsiveImages} from '../src/images.mjs';
+import {ROOT,loadSettings,isInside} from '../src/config.mjs';
+import {Engine} from '../src/engine.mjs';
+import {createServer} from '../src/server.mjs';
+import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
+import {createWorker} from '../src/worker-handler.mjs';
+import {instantiate} from '../src/worker-headers.mjs';
+
+async function fixture(t) {
+  await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
+  const directory = await fs.mkdtemp(path.join(ROOT,'.cache','responsive-test-'));
+  t.after(async()=>{
+    const resolved = await fs.realpath(directory);
+    assert.ok(isInside(await fs.realpath(path.join(ROOT,'.cache')),resolved));
+    await fs.rm(resolved,{recursive:true});
+  });
+  const filename = path.join(directory,'portrait.jpg');
+  const pixels = Buffer.alloc(1800*1200*3);
+  for (let i=0;i<pixels.length;i++) pixels[i] = (i*37+(i>>>9)*19)%256;
+  await sharp(pixels,{raw:{width:1800,height:1200,channels:3}}).jpeg({quality:95}).toFile(filename);
+  const entry = {id:'portrait.jpg',target:'portrait.jpg',extension:'.jpg',filename,note:null};
+  return {directory,entry,store:new ContentStore([entry],[])};
+}
+
+test('responsive derivatives retain original bytes, cache safely, never upscale, and keep full size out of inline candidates',async t=>{
+  const {directory,entry,store} = await fixture(t), original = await fs.readFile(entry.filename);
+  const cache = path.join(directory,'cache');
+  const stats = await prepareImages(store,cache);
+  assert.equal(stats.images,1);assert.ok(stats.variants>=7);
+  assert.deepEqual(await fs.readFile(entry.filename),original);
+  assert.equal(entry.image.width,1800);assert.equal(entry.image.variants.at(-1).width,1800);
+  const small = entry.image.variants.find(item=>item.width===320);
+  assert.ok(small.bytes<original.length/4);
+  const asset = store.assets.get(small.url.slice(8)), timestamp = (await fs.stat(asset.filename)).mtimeMs;
+  await prepareImages(store,cache);
+  assert.equal((await fs.stat(asset.filename)).mtimeMs,timestamp);
+  await fs.unlink(asset.filename);
+  await prepareImages(store,cache);
+  assert.equal((await sharp(await fs.readFile(asset.filename)).metadata()).width,320);
+  const html = responsiveImages('<p><img src="/assets/portrait.jpg" width="200" alt="Portrait"></p><p><img src="/assets/portrait.jpg"></p>',store), $ = load(html);
+  assert.match($('img').first().attr('src'),/image-variants/);
+  assert.equal($('img').first().attr('data-image-full'),'/assets/portrait.jpg');
+  assert.equal($('img').first().attr('height'),'133');assert.match($('img').first().attr('sizes'),/200px/);
+  assert.equal($('img').first().attr('loading'),'eager');assert.equal($('img').last().attr('loading'),'lazy');
+  assert.match($('img').last().attr('sizes'),/^auto, /);
+  assert.doesNotMatch($('img').first().attr('srcset'),/1800w|1920w|2560w|portrait.jpg/);
+  assert.equal(JSON.parse($('img').first().attr('data-image-variants')).at(-1).width,1800);
+});
+
+test('PNG transparency and pixels survive lossless conversion; animations and authored image choices stay intact',async t=>{
+  const {directory,store} = await fixture(t);
+  const png = path.join(directory,'drawing.png'), bytes = await sharp({create:{width:80,height:40,channels:4,background:'#468acf80'}}).png().toBuffer();
+  await fs.writeFile(png,bytes);
+  const drawing = {id:'drawing.png',target:'drawing.png',extension:'.png',filename:png,note:null};
+  store.entries.push(drawing);store.assets.set(drawing.target,drawing);
+  const animation = path.join(directory,'animated.webp');
+  const frames = Buffer.alloc(8*16*3,180);frames.fill(230,frames.length/2);
+  await sharp(frames,{raw:{width:8,height:16,channels:3,pageHeight:8}}).webp({loop:0,delay:[100,100]}).toFile(animation);
+  const animated = {id:'animated.webp',target:'animated.webp',extension:'.webp',filename:animation,note:null};
+  store.entries.push(animated);store.assets.set(animated.target,animated);
+  await prepareImages(store,path.join(directory,'cache'));
+  assert.equal(animated.image,undefined);
+  const converted = store.assets.get(drawing.image.variants[0].url.slice(8));
+  assert.equal((await sharp(await fs.readFile(converted.filename)).metadata()).hasAlpha,true);
+  assert.deepEqual(await sharp(await fs.readFile(converted.filename)).raw().toBuffer(),await sharp(bytes).raw().toBuffer());
+  const $ = load(responsiveImages('<details><summary>Hidden</summary><img src="/assets/drawing.png"></details><img src="/assets/drawing.png" loading="lazy" srcset="custom.webp 2x"><span class="twemoji"><img src="emoji.png"></span>',store));
+  assert.equal($('details img').attr('loading'),'lazy');assert.equal($('img').eq(1).attr('srcset'),'custom.webp 2x');
+  assert.equal($('.twemoji img').attr('loading'),undefined);
+});
+
+test('Node and Worker serve small image variants with original downloads, ranges, cache validation and context filtering',async t=>{
+  const {directory,entry} = await fixture(t), original = await fs.readFile(entry.filename);
+  await fs.writeFile(path.join(directory,'Gallery.md'),'# Gallery\n\n![[portrait.jpg|200]]\n\n%%^Campaign:none%%\n![[portrait.jpg]]\n%%^End%%\n');
+  const settings = {...loadSettings(),source_dir:directory,nav_source:null,home_source:null};
+  const engine = new Engine(settings), server = createServer(engine);
+  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const base = 'http://127.0.0.1:'+server.address().port;
+  const local = await (await fetch(base+'/api/page?page=Gallery')).json(), $local = load(local.html);
+  assert.equal($local('img').length,1);
+  const smallURL = $local('img').attr('src');
+  const small = await fetch(base+smallURL);assert.match(small.headers.get('content-type'),/image\/webp/);
+  assert.ok((await small.arrayBuffer()).byteLength<original.length/4);
+  assert.deepEqual(Buffer.from(await (await fetch(base+'/assets/portrait.jpg')).arrayBuffer()),original);
+  const report = await prepareContent(settings,path.join(directory,'package'));
+  const uploads = JSON.parse(await fs.readFile(report.manifestFile,'utf8')), index = JSON.parse(await fs.readFile(report.indexFile,'utf8'));
+  const objects = new Map(uploads.map(item=>[item.key,item.file])), reads = [];
+  const bucket = {async get(key,options={}) {
+    reads.push(key);
+    if (key==='published/current.json') return {json:async()=>({revision:report.revision})};
+    if (!objects.has(key)) return null;
+    const data = await fs.readFile(objects.get(key)), range = options.range;
+    return {size:data.length,json:async()=>JSON.parse(data),body:new Blob([range ? data.subarray(range.offset,range.offset+range.length) : data]).stream()};
+  }};
+  const worker = createWorker(instantiate), env = {CONTENT:bucket,ASSETS:{fetch:async()=>new Response('')}};
+  const request = (url,headers={},method='GET')=>worker.fetch(new Request('https://example.test'+url,{headers,method}),env);
+  const page = await (await request('/api/page?page=Gallery')).json(), $ = load(page.html);
+  assert.equal($('img').length,1);assert.equal($('img').attr('src'),smallURL);
+  const full = index.entries.find(item=>item.id==='portrait.jpg');
+  assert.ok(!reads.includes(full.objectKey),'rendering must not fetch original image bytes');
+  assert.equal(load((await (await request('/api/page?page=Gallery&dm=1')).json()).html)('img').length,2);
+  const response = await request(smallURL), data = Buffer.from(await response.arrayBuffer());
+  assert.equal(response.status,200);assert.match(response.headers.get('content-type'),/image\/webp/);
+  assert.match(response.headers.get('cache-control'),/immutable/);
+  assert.equal((await request(smallURL,{'If-None-Match':response.headers.get('etag')})).status,304);
+  assert.equal((await request(smallURL,{},'HEAD')).headers.get('content-length'),String(data.length));
+  const range = await request(smallURL,{Range:'bytes=0-15'});assert.equal(range.status,206);
+  assert.deepEqual(Buffer.from(await range.arrayBuffer()),data.subarray(0,16));
+  assert.deepEqual(Buffer.from(await (await request('/assets/portrait.jpg')).arrayBuffer()),original);
+  assert.ok(index.entries.some(item=>item.generatedImageVariant && item.objectKey));
+  assert.ok(!JSON.stringify(index).includes(directory));
+});

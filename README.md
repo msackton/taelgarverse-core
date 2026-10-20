@@ -216,15 +216,21 @@ Responses use Cache-Control: no-store.
 
 ## Images and audio
 
-Click an unlinked article image to open the image viewer, or focus it and press
-Enter or Space. The viewer fits the image to the screen; **Open image** opens
-the published image in a new tab for closer inspection. Close it with the Close
-button, Escape, or a click on the backdrop. Keyboard focus stays within the
-viewer and returns to the image when closed. Images with authored links retain
-their destinations, and ordinary inline images still render without JavaScript.
-Exported Excalidraw PNGs use this same presentation; no drawing export is run by
-the website. The viewer uses the published image, including any resizing done
-during [content publication](docs/deploy.md#image-settings).
+Click an unlinked article image or its expand icon to open a screen-filling
+viewer. Keyboard users can activate the expand button with Enter or Space.
+The default view fits the image to the screen. **Download** saves the original
+full-resolution export. **Pan / zoom** loads that original for detailed inspection,
+with dragging, zoom buttons, arrow keys, wheel/pinch zoom, and **Fit to screen**.
+Close with the Close button, Escape, or the fitted view's backdrop. Keyboard
+focus stays within the viewer and returns to the expand button when closed.
+Images with authored links retain their destinations; inline images still
+render without JavaScript. Exported Excalidraw PNGs use the same presentation.
+
+Publication preserves originals and generates cached WebP sizes for articles and
+popups. Articles use responsive small images and defer offscreen loading;
+screen-sized images load on opening the viewer, and originals load only for
+pan/zoom or download. See [image delivery and verification](docs/images.md) and
+[publication settings](docs/deploy.md#image-settings).
 
 Obsidian audio embeds such as `![[song.mp3]]` and
 `![[assets/session-audio/session/clip.m4a]]` render native audio players.
