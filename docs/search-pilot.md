@@ -1,5 +1,8 @@
 # AI Search pilot
 
+This is Phase 3 presentation work under [P-04: Better search](roadmap.md#p-04-better-search).
+The completed MVP full-text implementation is documented in [production search](search.md).
+
 **Status:** Pilot tooling implemented, 2026-10-19. The separate Cloudflare
 `taelgarverse-search-pilot` instance contains the 22-note sample. Initial retrieval,
 chunking, visibility, and update experiments are complete and ready for user review.
