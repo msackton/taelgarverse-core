@@ -230,6 +230,7 @@ Add these after `npm run publish --`. You can combine them unless noted.
 | --- | --- |
 | `--no-strict` | Continues when a Dataview query cannot be converted, and reports the problem. Without this option, query problems stop the export. |
 | `--force` | Publishes again even when the saved Git version and settings appear unchanged. |
+| `--unblock` | Clears an observed stale D1 publication lock and continues publishing. Supplying it confirms no publisher, staging, cleanup, or rollback is running on any computer. Uses production D1 by default, or the emulator with `--local`; cannot be combined with `--build-only`. |
 | `--build-only` | Prepares the notes and images on this computer without contacting Cloudflare storage. Useful for checking an export. |
 | `--local` | Publishes into a local copy of Cloudflare storage for previewing. The live site stays unchanged. Use this or `--build-only`, not both. |
 | `--allow-dirty` | Allows uncommitted vault changes. Useful for local checks; if used for a live publication, the next publication will rebuild. |
@@ -384,10 +385,16 @@ fields in either JSON file.
 | Dataview query failed | Read the reported note/query. Fix it, or use `--no-strict` if you accept that part being unavailable online. |
 | Export, image processing, or upload failed | Read the error, fix the cause, and rerun the command. These failures leave the previous content online. |
 | A publish lock exists | Check that no publishing command is still running. If a previous run was killed, remove only `.cache/publish/publish.lock` and retry. |
+| Another publisher holds the D1 publication lock | Confirm no publisher, staging, cleanup, or rollback is running on any computer, then rerun with `--unblock`, keeping your other options; for example, `npm run publish -- --no-strict --unblock`. This clears the stale D1 lock and continues publication. |
 | The wrong content is online | Fix the local vault, commit it, and publish again. For restoring an older version, see [recovery instructions](cloudflare.md#restore-older-content). |
 
 Run only one publisher at a time, even if you use more than one computer. Failed
 runs keep their temporary files and print the location so you can inspect them.
+Use `--unblock` only for recovery, not in your usual publishing command. It does
+not detect publishers on other computers. Recovery removes only the D1 owner it
+observed and stops if another owner wins the lock in the meantime. The separate
+local `.cache/publish/publish.lock` file still needs the recovery step above if
+present.
 
 ## Optional: use an API token instead of signing in
 

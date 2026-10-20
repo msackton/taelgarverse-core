@@ -45,10 +45,15 @@ test('real D1 staging, FTS, persisted restart and R2 activation gate preserve pr
   const checkpointFile=path.join(directory,'checkpoint.json'),state={repository:'github.com/example/taelgar',commit,dirty:false};
   let pending=first;
   const deps={repositoryState:async()=>state,readCheckpoint:()=>storage.readCheckpoint(checkpointFile),log:()=>{},recordBuild:async()=>{},
-    withPublicationLock:action=>index.withPublicationLock(action),readPointer:()=>retention.getJSON(POINTER_KEY),prune:pointer=>prunePublication(retention,index,pointer),
+    withPublicationLock:(action,options)=>index.withPublicationLock(action,options),readPointer:()=>retention.getJSON(POINTER_KEY),prune:pointer=>prunePublication(retention,index,pointer),
     build:()=>build(pending===first?revision:pending===second?next:'e'.repeat(64),searchDescriptor(pending)),upload:r=>storage.upload(r),
     stageSearch:r=>index.stage(r.revision,pending),verifySearch:r=>index.verify(r.revision,r.search),writeCheckpoint:value=>storage.writeCheckpoint(value,checkpointFile)};
-  await publishContent({fingerprint},deps);assert.equal((await storage.readCheckpoint(checkpointFile)).revision,revision);
+  await index.ensure();
+  await database.query([{sql:'INSERT INTO tv_search_publish_lock VALUES(1,?,?)',params:['interrupted-publisher','2026-10-20T18:19:04.423Z']}]);
+  await assert.rejects(publishContent({fingerprint},deps),/--unblock/);
+  await publishContent({fingerprint,unblock:true},deps);
+  assert.equal((await database.query([{sql:'SELECT owner FROM tv_search_publish_lock'}]))[0].results.length,0);
+  assert.equal((await storage.readCheckpoint(checkpointFile)).revision,revision);
   const rows=await database.query([{sql:"SELECT text FROM tv_search_fts WHERE tv_search_fts MATCH 'oldmarker'"}]);assert.ok(rows[0].results.length);
   const resumed=await index.stage(revision,first);assert.equal(resumed.usage.rowsWritten,0);
   const search=createIndexSearch(statements=>database.query(statements),{revision,descriptor:searchDescriptor(first),store:new ContentStore([{id:'One.md',name:'One',title:'One',slug:'one',target:targetPath('One.md'),note:parseNote('oldmarker')}])});

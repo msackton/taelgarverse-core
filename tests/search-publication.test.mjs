@@ -64,6 +64,53 @@ sqliteTest('D1 retention keeps only two generations, removes orphan FTS text and
   await other.withPublicationLock(async()=>{});db.close();
 });
 
+sqliteTest('explicit unblock recovers a stale lock, preserves content, and releases after success or failure',async t=>{
+  const {db,adapter}=database();t.after(()=>db.close());
+  const index=new SearchIndex(adapter),manifest=compileSearch(storeFor({'One.md':'publishedmarker'}));
+  await index.stage(rev('a'),manifest);
+  const seed=()=>db.prepare('INSERT INTO tv_search_publish_lock VALUES(1,?,?)').run('stale-owner','2026-10-20T18:19:04.423Z');
+  const current=()=>db.prepare('SELECT owner FROM tv_search_publish_lock').get()?.owner;
+  seed();
+  await assert.rejects(index.withPublicationLock(async()=>assert.fail('must not publish')),/confirming.*any computer.*--unblock/);
+  assert.equal(current(),'stale-owner');
+  for(const fail of [false,true]){
+    if(fail)seed();
+    const action=async()=>{
+      assert.ok(current());assert.notEqual(current(),'stale-owner');assert.equal(index.lockOwner,current());
+      await index.verify(rev('a'),searchDescriptor(manifest));
+      await assert.rejects(new SearchIndex(adapter).withPublicationLock(async()=>assert.fail('must remain locked')),/Another publisher/);
+      if(fail)throw new Error('publication failed');
+      return 'published';
+    };
+    if(fail)await assert.rejects(index.withPublicationLock(action,{unblock:true}),/publication failed/);
+    else assert.equal(await index.withPublicationLock(action,{unblock:true}),'published');
+    assert.equal(current(),undefined);assert.equal(index.lockOwner,null);
+  }
+  await index.withPublicationLock(async()=>assert.ok(current()),{unblock:true});
+  assert.equal(current(),undefined);
+});
+
+sqliteTest('unblock never removes a replacement owner and rolls back failed recovery',async t=>{
+  const {db,adapter,fail}=database();t.after(()=>db.close());
+  const index=new SearchIndex(adapter);await index.ensure();
+  db.prepare('INSERT INTO tv_search_publish_lock VALUES(1,?,?)').run('stale-owner','old-time');
+  let replaced=false;
+  const racing=new SearchIndex({...adapter,query:async statements=>{
+    if(!replaced && statements[0].sql.startsWith('DELETE FROM tv_search_publish_lock')){
+      replaced=true;
+      db.prepare('UPDATE tv_search_publish_lock SET owner=?,started_at=?').run('new-publisher','new-time');
+    }
+    return adapter.query(statements);
+  }});
+  await assert.rejects(racing.withPublicationLock(async()=>assert.fail('must not publish'),{unblock:true}),/lock changed during --unblock/);
+  assert.equal(db.prepare('SELECT owner FROM tv_search_publish_lock').get().owner,'new-publisher');
+  assert.ok(!racing.lockOwner);
+  let inserts=0;
+  fail(sql=>sql.startsWith('INSERT INTO tv_search_publish_lock') && ++inserts===2);
+  await assert.rejects(index.withPublicationLock(async()=>assert.fail('must not publish'),{unblock:true}),/injected D1 failure/);
+  assert.equal(db.prepare('SELECT owner FROM tv_search_publish_lock').get().owner,'new-publisher');
+});
+
 sqliteTest('schema-1 database upgrades transactionally without dropping ready generations',async()=>{
   const {db,adapter}=database(),index=new SearchIndex(adapter),manifest=compileSearch(storeFor({'One.md':'oldmarker'}));
   await index.stage(rev('a'),manifest);

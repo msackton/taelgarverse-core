@@ -88,6 +88,10 @@ test('build-only performs no R2 reads, uploads, or pointer writes', async () => 
 
 test('CLI options and native executable detection support Windows and macOS paths', () => {
   assert.equal(parseOptions([]).maxSize, 2560);
+  assert.equal(parseOptions([]).unblock, false);
+  assert.equal(parseOptions(['--no-strict', '--unblock']).unblock, true);
+  assert.equal(parseOptions(['--local', '--unblock']).local, true);
+  assert.throws(() => parseOptions(['--build-only', '--unblock']), /cannot be combined/);
   assert.equal(parseOptions(['--max-image-size', '4096', '--image-quality', '75']).quality, 75);
   for (const args of [['--max-image-size', '0'], ['--image-quality', '101'], ['--vault'], ['--local', '--build-only'], ['--unknown']]) {
     assert.throws(() => parseOptions(args));
@@ -100,6 +104,21 @@ test('CLI options and native executable detection support Windows and macOS path
   assert.equal(findObsidianCommand(null, 'darwin', {OBSIDIAN_COMMAND: '/env/path'}, () => false), '/env/path');
   assert.equal(repositoryIdentity('git@github.com:tsackton/taelgar.git'), state.repository);
   assert.equal(repositoryIdentity('https://user:token@github.com/tsackton/taelgar.git'), state.repository);
+});
+
+test('publisher forwards explicit unblock confirmation to the lock before publishing', async () => {
+  for (const unblock of [false, true]) {
+    const {calls, deps} = harness();
+    deps.withPublicationLock = async (action, options) => {
+      assert.deepEqual(options, {unblock});
+      calls.push('lock');
+      return action();
+    };
+    await publishContent({fingerprint, unblock}, deps);
+    assert.deepEqual(calls, ['lock', 'build', 'upload', 'checkpoint', 'record']);
+  }
+  const {deps} = harness({withPublicationLock: async () => { assert.fail('build-only must not acquire or unblock D1'); }});
+  await publishContent({fingerprint, buildOnly: true}, deps);
 });
 
 test('subprocess arguments containing spaces and shell characters remain literal', async () => {

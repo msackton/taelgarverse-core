@@ -178,9 +178,16 @@ artifacts and the separate AI Search pilot are outside this policy.
 A D1 publication lock serializes supported publishers, manual uploads, search
 staging, cleanup and rollback across machines. It has no automatic expiry, so a
 slow publisher cannot lose its lock while uploading. Normal completion/failure
-releases it; after a killed process, confirm **all publishers have stopped**,
-inspect `tv_search_publish_lock`, then delete only that stale owner row using
-Wrangler D1 execute. The full publisher also retains its local file lock.
+releases it; after a killed process, confirm **all publishers, staging, cleanup,
+and rollback operations have stopped on every computer**, then rerun the full
+publisher with `--unblock` added to the existing options, for example
+`npm run publish -- --no-strict --unblock`. The flag is that confirmation; it
+clears only the observed owner in `tv_search_publish_lock` and acquires the new
+lock in one transaction before continuing publication. If a different owner
+acquires the lock during recovery, the command stops without stealing it.
+There is no automatic retry or expiry. `--local --unblock` targets only local D1;
+`--build-only --unblock` is rejected. The full publisher also retains its local
+file lock; see [local lock recovery](deploy.md#if-something-goes-wrong).
 Direct Wrangler object/SQL writes bypass this coordination.
 
 Cleanup failure reports that the new content is already active and leaves both

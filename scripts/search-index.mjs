@@ -86,13 +86,25 @@ export class SearchIndex {
       await this.query([...schema,...retentionSchema].map(sql=>({sql})).concat({sql:'INSERT INTO tv_search_meta VALUES(?,?)',params:[OWNER,SCHEMA]}));
     }
   }
-  async withPublicationLock(action){
+  async withPublicationLock(action,{unblock=false}={}){
     await this.ensure();const owner=randomUUID();
-    const [,rows]=await this.query([
+    const acquire=[
       {sql:'INSERT INTO tv_search_publish_lock VALUES(1,?,?) ON CONFLICT(slot) DO NOTHING',params:[owner,new Date().toISOString()]},
       {sql:'SELECT owner,started_at FROM tv_search_publish_lock WHERE slot=1'},
-    ]);
-    if(rows[0]?.owner!==owner)throw new Error('Another publisher holds the D1 publication lock since '+rows[0]?.started_at+'. If it crashed, confirm it has stopped before clearing tv_search_publish_lock.');
+    ];
+    let [,rows]=await this.query(acquire);
+    if(rows[0]?.owner!==owner && rows[0] && unblock){
+      const stale=rows[0];
+      // Delete only the observed owner, then acquire in the same transaction.
+      // A competing recovery must not remove a newly acquired publication lock.
+      const result=await this.query([
+        {sql:'DELETE FROM tv_search_publish_lock WHERE slot=1 AND owner=? AND started_at=?',params:[stale.owner,stale.started_at]},
+        ...acquire,
+      ]);
+      rows=result[2];
+      if(rows[0]?.owner!==owner)throw new Error('The D1 publication lock changed during --unblock; another publisher may have started. No publication was performed. Confirm all publishers have stopped before retrying.');
+    }
+    if(rows[0]?.owner!==owner)throw new Error('Another publisher holds the D1 publication lock since '+rows[0]?.started_at+'. After confirming no publisher, staging, cleanup, or rollback is running on any computer, rerun your npm run publish command with --unblock added after -- (keep your existing options). This clears the stale D1 lock and continues publishing.');
     this.lockOwner=owner;
     try{return await action();}finally{this.lockOwner=null;await this.query([{sql:'DELETE FROM tv_search_publish_lock WHERE slot=1 AND owner=?',params:[owner]}]);}
   }

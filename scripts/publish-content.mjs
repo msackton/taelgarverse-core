@@ -20,10 +20,10 @@ const WRANGLER = path.join(ROOT, 'node_modules/wrangler/bin/wrangler.js');
 const json = async (file, value) => fs.writeFile(file, JSON.stringify(value, null, 2) + '\n');
 
 export function parseOptions(argv) {
-  const options = {force: false, allowDirty: false, noStrict: false, local: false, buildOnly: false,
+  const options = {force: false, allowDirty: false, noStrict: false, local: false, buildOnly: false, unblock: false,
     maxSize: IMAGE_DEFAULTS.maxSize, quality: IMAGE_DEFAULTS.quality};
   const flags = {'--force': 'force', '--allow-dirty': 'allowDirty', '--no-strict': 'noStrict',
-    '--local': 'local', '--build-only': 'buildOnly', '--help': 'help', '-h': 'help'};
+    '--local': 'local', '--build-only': 'buildOnly', '--unblock': 'unblock', '--help': 'help', '-h': 'help'};
   const values = {'--config': 'config', '--vault': 'vault', '--obsidian-command': 'obsidianCommand',
     '--obsidian-vault': 'obsidianVault', '--max-image-size': 'maxSize', '--image-quality': 'quality'};
   for (let i = 0; i < argv.length; i++) {
@@ -40,6 +40,7 @@ export function parseOptions(argv) {
     throw new Error('Image size must be a positive integer and quality must be 1–100.');
   }
   if (options.local && options.buildOnly) throw new Error('Choose --local or --build-only.');
+  if (options.unblock && options.buildOnly) throw new Error('--unblock requires publication; it cannot be combined with --build-only.');
   return options;
 }
 
@@ -137,7 +138,7 @@ export function createStorage({bucket, configFile, local = false, persistTo = pa
 
 // Separating orchestration lets tests prove that failures never advance R2 state.
 export async function publishContent(options, deps) {
-  if(!options.buildOnly && deps.withPublicationLock)return deps.withPublicationLock(()=>publishContent(options,{...deps,withPublicationLock:null}));
+  if(!options.buildOnly && deps.withPublicationLock)return deps.withPublicationLock(()=>publishContent(options,{...deps,withPublicationLock:null}),{unblock:options.unblock === true});
   const before = await deps.repositoryState();
   if (before.dirty && !options.allowDirty) {
     throw new Error('Taelgar has uncommitted changes. Commit them first, or use --allow-dirty for a build marked dirty that will never skip subsequent builds.');
@@ -262,7 +263,7 @@ export async function main(options) {
     let publicationIndex;
     const retainedStorage=async()=>retentionStorage ??=await createRetentionStorage(config,{local:options.local});
     const result = await publishContent({...options, fingerprint}, {
-      withPublicationLock:async action=>{publicationIndex=await index();return publicationIndex.withPublicationLock(action);},
+      withPublicationLock:async (action,lockOptions)=>{publicationIndex=await index();return publicationIndex.withPublicationLock(action,lockOptions);},
       readPointer:async()=>(await retainedStorage()).getJSON(CHECKPOINT_KEY),
       prune:async pointer=>prunePublication(await retainedStorage(),publicationIndex,pointer,{log:console.log}),
       repositoryState: () => repositoryState(vault),
@@ -349,6 +350,8 @@ Settings: config.json, plus config.local.json automatically when present.
   --obsidian-vault NAME     Optional Obsidian vault name or ID
   --no-strict               Permit failed/unsupported queries, reporting each one
   --force                   Rebuild even when the R2 commit/settings match
+  --unblock                 Clear a stale D1 publication lock and continue publishing
+                            Confirms no publisher, staging, cleanup, or rollback is running on any computer
   --allow-dirty             Publish uncommitted changes, marked dirty; subsequent runs rebuild
   --max-image-size PIXELS   Largest responsive image edge; default 2560; originals retained
   --image-quality 1-100     JPEG/WebP derivative quality; default 82 (PNG derivatives are lossless)
