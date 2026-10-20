@@ -24,7 +24,9 @@ test('homepage gives authored title and introduction a dedicated layout, with co
     assert.equal(url.searchParams.get('date'),'1730-01-01');
     assert.equal(url.searchParams.get('campaigns'),'adma'); assert.equal(url.searchParams.get('dm'),'1');
   });
-  assert.equal($('.home-find input[name="campaigns"]').val(),'adma');
+  assert.equal($('.home-find, #home-search, main form[role="search"]').length,0);
+  assert.equal($('form[role="search"]').length,1);
+  assert.equal($('#header-search input[name="campaigns"]').val(),'adma');
   assert.equal($('link[href="/theme/homepage.css"]').length,1);
 });
 

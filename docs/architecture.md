@@ -65,6 +65,7 @@ flowchart LR
 | `src/worker.mjs`, `src/worker-handler.mjs`, `src/header-runtime.mjs` | Worker adapter and fresh instances of generated header classes. |
 | `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs` | Translate trusted vault classes into ordinary JavaScript modules. |
 | `public/`, `src/browser/`, `scripts/build-browser.mjs` | Application styles/scripts and the generated Leaflet/Mermaid browser assets; Wrangler builds these before packaging. |
+| `public/search-overlay.js` | Search suggestions attached to the original query field, context/type preservation, keyboard controls, and stale-request cancellation. |
 | `public/quiet-library.css`, `public/site-ui.js`, `public/appearance.js` | Quiet Library layout, responsive dialogs and scroll controls, and browser-local System/Light/Dark appearance. |
 | `src/release-footer.mjs`, `public/release.js`, `scripts/build-core-release.mjs` | Version footer, copy behavior, and core provenance captured by Wrangler's custom build. |
 | `experiments/ai-search/` | Isolated D1 full-text baseline and optional AI Search pilot: allowlisted exports, usage limits, explicit independent syncs, local viewer, fallback, and repeatable comparisons; no production imports. |
@@ -72,10 +73,11 @@ flowchart LR
 ## Configuration
 
 The page shell uses Quiet Library typography with the Sage & stone palette.
-`src/header.mjs` owns header controls and dialog markup; `src/navigation.mjs`
+`src/header.mjs` owns header controls, dialogs, and search suggestion markup; `src/navigation.mjs`
 renders context-filtered section links and the lazy navigation tree. Browser
-code moves the same navigation, search, and context controls into dialogs below
-1100px. Backlinks use the right sidebar even without a contents list, and remain
+code moves navigation and context controls into dialogs below 1100px. Search
+uses the original field with a nonmodal suggestions dropdown; its phone icon
+reveals the field in the header. Backlinks use the right sidebar even without a contents list, and remain
 accessible below the article on mobile. Material CSS still provides article
 components; the Quiet Library stylesheet overrides its colors with shared light/dark tokens.
 Appearance defaults to the operating system, is applied before styles load, and

@@ -7,7 +7,8 @@ search contacts no AI service.
 
 ## App search
 
-The header and homepage search forms open `/?q=...`. `/api/search` returns the
+The header search shows suggestions as you type. Without JavaScript, its form
+opens `/?q=...`. `/api/search` returns the
 same results as JSON: query, resolved context, source (`full-text` or `page-names`),
 fallback status/notice, selected `type`, results, and `hasMore`/`limit`/`offset`. Each result contains
 page/title/context URL, a plain-text excerpt, and UTF-16 highlight ranges into that

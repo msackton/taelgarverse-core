@@ -37,7 +37,7 @@ export function siteHeader(context, options, {query,searchType='',sections = '',
     context.date + '" min="0001-01-01" max="9999-12-31"' + (custom ? ' required' : ' disabled') + '>' + picker + '<button type="submit">Apply</button></div>' +
     '<label class="dm-toggle"><input type="checkbox" name="dm" value="1"' + (context.dm ? ' checked' : '') + '> See Behind the Curtain</label>' +
     '<noscript><button type="submit">Apply context</button></noscript></form></div><div class="header-tools">' +
-    control('search','Open search',searchIcon) +
+    '<button type="button" class="icon-button" id="search-toggle" aria-label="Open search" aria-controls="header-search-slot" aria-expanded="false" hidden><span class="search-open-icon">' + searchIcon + '</span><span class="search-close-icon">' + icon('<path d="m6 6 12 12M18 6 6 18"/>') + '</span></button>' +
     control('settings','Open settings',icon('<path d="m9 3-.6 2.4-2.1 1.2L4 6l-2 3 1.8 1.8v2.4L2 15l2 3 2.3-.6 2.1 1.2L9 21h4l.6-2.4 2.1-1.2 2.3.6 2-3-1.8-1.8v-2.4L20 9l-2-3-2.3.6-2.1-1.2L13 3Z"/><circle cx="11" cy="12" r="3"/>')) +
     '</div>' + sections + '</header>' +
     '<script src="/theme/context.js" defer></script>';
@@ -46,14 +46,14 @@ export function siteHeader(context, options, {query,searchType='',sections = '',
 export function siteDialogs() {
   const dialog = (name,title,body) => '<dialog class="site-dialog' + (name==='navigation' ? ' nav-drawer' : '') + '" id="' + name + '-dialog" aria-labelledby="' + name + '-dialog-title"><div class="dialog-heading"><h2 id="' + name + '-dialog-title">' + title + '</h2><button type="button" data-close-dialog="' + name + '-dialog" aria-label="Close ' + title.toLowerCase() + '">×</button></div>' + body + '</dialog>';
   return dialog('navigation','Explore Taelgar','<div id="navigation-dialog-body"></div>') +
-    dialog('search','Search TaelgarVerse','<form id="search-dialog-form" class="floating-search-form" action="/" role="search" aria-label="Search notes"><label class="sr-only" for="search-dialog-query">Search notes</label><div class="floating-search-input-row"><input id="search-dialog-query" type="search" name="q" maxlength="256" autocomplete="off" placeholder="Names, phrases, or words from a note" aria-describedby="search-dialog-status" aria-controls="search-dialog-results"><button>Search</button></div>' +
-      '<div class="floating-search-filter"><label for="search-dialog-type">Content type</label><select id="search-dialog-type" name="type"><option value="">All content</option>' +
-      searchTypes.map(([value,label])=>'<option value="' + value + '">' + label + '</option>').join('') + '</select></div></form>' +
-      '<p id="search-dialog-status" class="floating-search-status" role="status" aria-live="polite">Search names, phrases, and words from the notes.</p>' +
-      '<p id="search-dialog-error" class="floating-search-error" role="alert" hidden></p>' +
-      '<a id="search-dialog-fallback" class="floating-search-fallback" href="/?q=" hidden>Open search page</a>' +
-      '<div id="search-dialog-results" class="floating-search-results" role="region" aria-label="Search results" aria-busy="false"></div>' +
-      '<nav id="search-dialog-pagination" class="floating-search-pagination" aria-label="Search result pages" hidden><button type="button" id="search-dialog-previous">Previous</button><button type="button" id="search-dialog-next">Next</button></nav>') +
+    '<section id="search-suggestions" class="search-suggestions" role="dialog" aria-label="Search results" aria-modal="false" hidden>' +
+      '<div class="floating-search-filter"><label for="suggestions-type">Content type</label><select id="suggestions-type"><option value="">All content</option>' +
+      searchTypes.map(([value,label])=>'<option value="' + value + '">' + label + '</option>').join('') + '</select></div>' +
+      '<p id="search-status" class="floating-search-status" role="status" aria-live="polite"></p>' +
+      '<p id="search-error" class="floating-search-error" role="alert" hidden></p>' +
+      '<a id="search-fallback" class="floating-search-fallback" href="/?q=" hidden>Open search page</a>' +
+      '<div id="search-results" class="floating-search-results" role="region" aria-label="Matching pages" aria-busy="false"></div>' +
+      '<nav id="search-pagination" class="floating-search-pagination" aria-label="Search result pages" hidden><button type="button" id="search-previous">Previous</button><button type="button" id="search-next">Next</button></nav></section>' +
     dialog('settings','Settings','<label class="appearance-control" for="site-appearance">Appearance <select id="site-appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><div id="settings-dialog-body"></div>') +
     '<button id="back-to-top" class="back-to-top" type="button" hidden>↑ Back to top</button>';
 }

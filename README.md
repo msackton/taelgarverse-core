@@ -146,8 +146,9 @@ Edit `_website/home.md` in the `taelgar` vault to change the homepage text and
 links within the introduction. Core owns the dedicated Quiet Library homepage
 template, decorative map, and prominent Current Games, Gazetteer, and World Map
 buttons. The heading and first paragraph from `home.md` appear in the banner;
-the remaining prose appears below the buttons. The buttons and homepage search
-retain the selected context. Submitting a search opens the page finder at `/?q=...`.
+the remaining prose appears below the buttons. The buttons and header search
+retain the selected context. Use the header field for search suggestions, or
+open the page finder directly at `/?q=...`.
 Publish homepage changes with the usual [content publishing command](docs/deploy.md).
 
 ## Site navigation and page TOC
@@ -188,11 +189,10 @@ with the original dragon home icon and top-level section links. Generated bio
 summaries use slightly larger text for readability. At 1100px the left navigation becomes a
 hamburger drawer and header search becomes a magnifying-glass button. At 800px
 page contents disappear, while backlinks remain available below the article.
-Search opens in a floating panel over the current page. Results update while
-typing, keep the selected viewing context and content-type filter, and paginate
-inside the panel. Escape
-or Close returns to the article; regular search URLs and forms still work without
-JavaScript. The header gear offers System (default), Light, and Dark appearance and remembers
+Search results appear in a dropdown beneath the field as you type, keeping the
+selected viewing context and content-type filter. Escape or a click outside
+dismisses the suggestions. On phones, the search icon reveals the field in the
+header. Regular search URLs and forms still work without JavaScript. The header gear offers System (default), Light, and Dark appearance and remembers
 the selection in the browser. On smaller screens it also contains the context
 and Behind the Curtain controls. The page title replaces the wordmark after
 scrolling while the home icon stays visible, and upward scrolling reveals a Back to top button.
