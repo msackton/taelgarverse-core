@@ -9,6 +9,8 @@ import {headerRevision} from '../src/worker-headers.mjs';
 import {repositoryVersion} from './repository-version.mjs';
 import {compileSearch,searchDescriptor} from './compile-search.mjs';
 import {prepareMaps} from './build-maps.mjs';
+import {prepareImages} from './build-images.mjs';
+import {collectImageUsages} from './image-usage.mjs';
 
 const sha = value=>createHash('sha256').update(value).digest('hex');
 const writeJSON = (file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value)+'\n');};
@@ -25,10 +27,13 @@ async function hashFile(file) {
   return hash.digest('hex');
 }
 
-export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare'),sourceVersion=repositoryVersion(settings.vault_dir)) {
+export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare'),sourceVersion=repositoryVersion(settings.vault_dir),imageOptions={},imageProgress) {
   output=path.resolve(output);
   if (!isInside(ROOT,output) || output===ROOT) throw new Error('Content staging directory must be inside this project');
   const store=new Store(settings), shards=new Map(), uploads=[];
+  const homeSource=settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null;
+  const usages=collectImageUsages(store,{homeSource});
+  const images=await prepareImages(store,path.join(ROOT,'.cache/images'),{...imageOptions,usages},undefined,imageProgress);
   await prepareMaps(store,path.join(ROOT,'.cache/maps'));
   const entries=[];
   for (const original of store.entries) {
@@ -58,7 +63,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     registry:JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'_scripts/session_note_campaigns.json'),'utf8')),
     coreMeta:JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'.obsidian/metadata.json'),'utf8')),
     navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,
-    homeSource:settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null,
+    homeSource,
     search,warnings:[...store.warnings,...backlinks.warnings,...searchManifest.warnings],entries};
   const revision=sha(JSON.stringify(base)), prefix='revisions/'+revision;
   const directory=path.join(output,'revisions',revision);
@@ -82,7 +87,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const pointerFile=path.join(output,'current.json');writeJSON(pointerFile,{revision});
   const report={revision,indexFile,manifestFile,configFile,bucket:config.r2_buckets.find(b=>b.binding==='CONTENT').bucket_name,
     notes:entries.filter(e=>e.note).length,assets:entries.filter(e=>!e.note).length,objects:unique.length,
-    assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision,search,searchFile,searchStats:searchManifest.stats};
+    assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision,search,searchFile,searchStats:searchManifest.stats,images};
   writeJSON(path.join(output,'latest.json'),report);
   return report;
 }

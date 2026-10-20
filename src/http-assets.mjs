@@ -8,7 +8,7 @@ export const contentTypes = {'.css':'text/css; charset=utf-8','.js':'text/javasc
 
 export async function serveAsset(request,entry,read) {
   const headers=new Headers({'Content-Type':contentTypes[entry.extension] || 'application/octet-stream','Accept-Ranges':'bytes',
-    'Cache-Control':'public, max-age=0, must-revalidate',ETag:entry.etag});
+    'Cache-Control':entry.generatedImageVariant ? 'public, max-age=31536000, immutable' : 'public, max-age=0, must-revalidate',ETag:entry.etag});
   const condition=request.headers.get('If-None-Match');
   if (condition && (condition==='*' || condition.split(',').map(s=>s.trim().replace(/^W\//,'')).includes(entry.etag))) return new Response(null,{status:304,headers});
   let start=0,end=entry.size-1,status=200;
