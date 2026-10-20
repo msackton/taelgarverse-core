@@ -16,7 +16,8 @@ async function fixture(t,{failUpload=false,existing=false}={}){
   const dependencies={build:async()=>output,verify:async()=>commit,test:()=>{},request:async(endpoint,options={})=>{
     calls.push({endpoint,...options});
     if(endpoint.includes('/releases?'))return existing?[{tag_name:'0.1.0'}]:[];
-    if(options.method==='POST' && endpoint.endsWith('/releases'))return {id:42,html_url:url,upload_url:'https://uploads.github.com/repos/'+distributionRepo+'/releases/42/assets{?name,label}'};
+    if(options.method==='POST' && endpoint.endsWith('/releases'))return {id:42,html_url:'https://github.com/'+distributionRepo+'/releases/tag/untagged-fixture',upload_url:'https://uploads.github.com/repos/'+distributionRepo+'/releases/42/assets{?name,label}'};
+    if(options.method==='PATCH')return {html_url:url};
     if(failUpload && endpoint.includes('name=main.js'))throw new Error('Upload failed');
     return {};
   }};
@@ -27,6 +28,7 @@ test('BRAT release is published only after every asset uploads and records the e
   const f=await fixture(t);
   const result=await releaseObsidian({notes:'Maps only',publish:true},f.dependencies);
   assert.equal(result.published,true);
+  assert.equal(result.url,'https://github.com/'+distributionRepo+'/releases/tag/0.1.0');
   assert.equal(f.calls[0].endpoint,'/repos/'+sourceRepo+'/commits/'+f.commit);
   const created=f.calls.find(call=>call.endpoint.endsWith('/releases') && call.method==='POST');
   assert.equal(created.body.draft,true);assert.equal(created.body.tag_name,'0.1.0');

@@ -78,6 +78,7 @@ export async function releaseObsidian({notes,publish=false,initRepository=false}
   const release=await request('/repos/'+distributionRepo+'/releases',{method:'POST',body:{tag_name:manifest.version,name:manifest.version,
     body:notes.trim()+'\n\nSource: '+sourceUrl,draft:true,prerelease:false}});
   let publishing=false;
+  let releaseUrl=release.html_url;
   try{
     for(const file of [...releaseFiles,'versions.json','LICENSE','release.json']){
       const upload=release.upload_url.replace(/\{.*$/,'')+'?name='+encodeURIComponent(file);
@@ -86,13 +87,14 @@ export async function releaseObsidian({notes,publish=false,initRepository=false}
     }
     if(publish){
       publishing=true;
-      await request('/repos/'+distributionRepo+'/releases/'+release.id,{method:'PATCH',body:{draft:false,make_latest:'true'}});
+      const published=await request('/repos/'+distributionRepo+'/releases/'+release.id,{method:'PATCH',body:{draft:false,make_latest:'true'}});
+      releaseUrl=published.html_url;
     }
   }catch(error){
     throw new Error(error.message+(publishing?'. Uploads completed, but publication status must be checked at '+release.html_url:
       '. The incomplete draft remains at '+release.html_url+'; it has not been published.'));
   }
-  return {url:release.html_url,version:manifest.version,published:publish};
+  return {url:releaseUrl,version:manifest.version,published:publish};
 }
 
 if(process.argv[1] && import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href){
