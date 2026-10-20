@@ -19,6 +19,15 @@ test('live Quiet Library shell includes accessible settings, context-preserving 
   assert.equal($('.section-navigation [aria-current="location"]').text(),'Places');
   assert.equal($('.nav-tree > .active-section > details > summary').text(),'Places');
   assert.equal($('.layout--no-navigation').length,0);
+  assert.equal($('.site-brand').attr('aria-label'),'TaelgarVerse home');
+  assert.equal($('.site-brand-label').text(),'TaelgarVerse');
+  assert.equal($('.site-brand img').attr('src'),'/theme/site-logo.webp');
+  assert.equal($('.site-brand img').attr('alt'),'');
+  assert.equal(themeFiles['site-logo.webp'],'images/site-logo.webp');
+  assert.equal($('script[type="module"][src="/theme/search-overlay.js"]').length,1);
+  assert.equal($('#search-dialog-form input[name="q"]').attr('maxlength'),'256');
+  assert.equal($('#search-dialog-results').attr('aria-busy'),'false');
+  assert.equal($('#search-dialog-status').attr('aria-live'),'polite');
   assert.equal($('.page-nav-title').text(),'On this page');
   assert.equal($('.page-contents summary,details.page-contents').length,0);
   assert.equal($('#header-search input[name="date"]').val(),'1730-01-01');
@@ -26,7 +35,7 @@ test('live Quiet Library shell includes accessible settings, context-preserving 
   assert.equal($('#header-search input[name="dm"]').val(),'1');
   const ids = $('[id]').map((_,el)=>$(el).attr('id')).get();
   assert.equal(new Set(ids).size,ids.length);
-  for (const file of ['appearance.js','site-ui.js','quiet-library.css']) assert.equal(themeFiles[file],file);
+  for (const file of ['appearance.js','site-ui.js','quiet-library.css','search-overlay.js']) assert.equal(themeFiles[file],file);
 });
 test('optional navigation omissions reclaim space while retaining search/settings and backlinks',() => {
   for (const hide of [['navigation'],['toc'],['navigation','toc']]) {

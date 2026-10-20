@@ -6,7 +6,6 @@
   const sidebar = get('site-navigation'), layout = document.querySelector('.layout');
   const panels = [
     {name:'navigation',content:sidebar,home:layout,first:'.nav-tree a'},
-    {name:'search',content:get('header-search'),home:get('header-search-slot'),first:'input[type="search"]'},
     {name:'settings',content:get('context-controls'),home:get('header-context-slot'),first:'#site-appearance'}
   ];
   // Keep the server-rendered links/forms usable when dialogs aren't supported.
@@ -34,7 +33,7 @@
       dialog.addEventListener('pointerdown',event => { startedOutside = outside(event); });
       dialog.addEventListener('click',event => { if (event.target === dialog && startedOutside && outside(event)) dialog.close(); });
     });
-    document.querySelectorAll('[data-close-dialog]').forEach(button => button.addEventListener('click',() => get(button.dataset.closeDialog).close()));
+    document.querySelectorAll('[data-close-dialog]:not([data-close-dialog="search-dialog"])').forEach(button => button.addEventListener('click',() => get(button.dataset.closeDialog).close()));
     function configure() {
       panels.forEach(panel => {
         const dialog = get(panel.name+'-dialog');
@@ -59,7 +58,8 @@
     configureBacklinks(); mobile.addEventListener('change',configureBacklinks);
   }
   const title = document.querySelector('.article-main h1'), back = get('back-to-top');
-  const originalBrand = brand.textContent;
+  const brandLabel = brand.querySelector('.site-brand-label') || brand;
+  const originalBrand = brandLabel.textContent;
   const links = [...document.querySelectorAll('.page-contents a[href^="#"]')];
   const sections = links.map(link => document.getElementById(decodeURIComponent(link.hash.slice(1))));
   // Clamp elastic overscroll so bouncing at the page ends is not a direction change.
@@ -84,10 +84,10 @@
     const bottom = header.getBoundingClientRect().bottom;
     const past = title && title.getBoundingClientRect().bottom <= bottom;
     const label = past ? title.textContent : originalBrand;
-    if (brand.textContent !== label) brand.textContent = label;
+    if (brandLabel.textContent !== label) brandLabel.textContent = label;
     brand.classList.toggle('is-page-title',!!past);
     brand.title = past ? label + ' — TaelgarVerse home' : originalBrand;
-    brand.setAttribute('aria-label',past ? label + ' — TaelgarVerse home' : originalBrand);
+    brand.setAttribute('aria-label',past ? label + ' — TaelgarVerse home' : originalBrand + ' home');
     let active = 0;
     sections.forEach((section,index) => { if (section && section.getBoundingClientRect().top <= bottom+24) active = index; });
     links.forEach((link,index) => {

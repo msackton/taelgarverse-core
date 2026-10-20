@@ -23,7 +23,7 @@ export function siteHeader(context, options, {query,sections = '',navigation = t
   const searchFields = [...contextQuery(context)].map(([key,value])=>'<input type="hidden" name="' + key + '" value="' + escapeHtml(value) + '">').join('');
   return '<header class="site-header" id="site-header">' +
     (navigation ? control('navigation','Open navigation',icon('<path d="M3 6h18M3 12h18M3 18h18"/>')) : '') +
-    '<a class="site-brand" href="/?' + escapeHtml(contextQuery(context).toString()) + '">TaelgarVerse</a>' +
+    '<a class="site-brand" href="/?' + escapeHtml(contextQuery(context).toString()) + '" aria-label="TaelgarVerse home"><img class="site-logo" src="/theme/site-logo.webp" alt="" width="32" height="32"><span class="site-brand-label">TaelgarVerse</span></a>' +
     '<div id="header-search-slot"><form class="header-search" id="header-search" role="search" action="/">' + searchFields +
     '<label class="sr-only" for="site-search">Search TaelgarVerse</label><input id="site-search" type="search" name="q" maxlength="256" value="' + escapeHtml(query || '') + '" placeholder="Search TaelgarVerse"><button aria-label="Search">' + searchIcon + '</button></form></div>' +
     '<div id="header-context-slot"><form id="context-controls" class="context-form" method="get" data-context-form>' +
@@ -43,7 +43,12 @@ export function siteHeader(context, options, {query,sections = '',navigation = t
 export function siteDialogs() {
   const dialog = (name,title,body) => '<dialog class="site-dialog' + (name==='navigation' ? ' nav-drawer' : '') + '" id="' + name + '-dialog" aria-labelledby="' + name + '-title"><div class="dialog-heading"><h2 id="' + name + '-title">' + title + '</h2><button type="button" data-close-dialog="' + name + '-dialog" aria-label="Close ' + title.toLowerCase() + '">×</button></div>' + body + '</dialog>';
   return dialog('navigation','Explore Taelgar','<div id="navigation-dialog-body"></div>') +
-    dialog('search','Search TaelgarVerse','<div id="search-dialog-body"></div>') +
+    dialog('search','Search TaelgarVerse','<form id="search-dialog-form" class="floating-search-form" action="/" role="search" aria-label="Search notes"><label class="sr-only" for="search-dialog-query">Search notes</label><div class="floating-search-input-row"><input id="search-dialog-query" type="search" name="q" maxlength="256" autocomplete="off" placeholder="Names, phrases, or words from a note" aria-describedby="search-dialog-status" aria-controls="search-dialog-results"><button>Search</button></div></form>' +
+      '<p id="search-dialog-status" class="floating-search-status" role="status" aria-live="polite">Search names, phrases, and words from the notes.</p>' +
+      '<p id="search-dialog-error" class="floating-search-error" role="alert" hidden></p>' +
+      '<a id="search-dialog-fallback" class="floating-search-fallback" href="/?q=" hidden>Open search page</a>' +
+      '<div id="search-dialog-results" class="floating-search-results" role="region" aria-label="Search results" aria-busy="false"></div>' +
+      '<nav id="search-dialog-pagination" class="floating-search-pagination" aria-label="Search result pages" hidden><button type="button" id="search-dialog-previous">Previous</button><button type="button" id="search-dialog-next">Next</button></nav>') +
     dialog('settings','Settings','<label class="appearance-control" for="site-appearance">Appearance <select id="site-appearance"><option value="system">System</option><option value="light">Light</option><option value="dark">Dark</option></select></label><div id="settings-dialog-body"></div>') +
     '<button id="back-to-top" class="back-to-top" type="button" hidden>↑ Back to top</button>';
 }

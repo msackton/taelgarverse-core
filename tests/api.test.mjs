@@ -407,7 +407,7 @@ test('homepage renders authored Markdown with context links and keeps search sep
   assert.doesNotMatch(finder('main').text(),/Website introduction/);
   assert.equal(finder('.context-form input[name="q"]').val(),'');
   assert.equal(finder('.home-hero').length,0);
-  for (const [file,type] of [['homepage.css','text/css'],['home-map.webp','image/webp']]) {
+  for (const [file,type] of [['homepage.css','text/css'],['home-map.webp','image/webp'],['site-logo.webp','image/webp'],['search-overlay.js','text/javascript']]) {
     const asset = await fetch(base+'/theme/'+file);
     assert.equal(asset.status,200); assert.ok(asset.headers.get('content-type').startsWith(type));
   }

@@ -183,14 +183,18 @@ explicitly set to null, navigation follows the content directory tree.
 Only the current branch's immediate siblings and ancestors are sent with the
 article. Expanding another branch loads its children through `/api/navigation`.
 Without JavaScript, **Browse section** links provide ordinary section pages.
-Quiet Library uses serif prose, a neutral Sage & stone palette, and top-level
-section links in the desktop header. At 1100px the left navigation becomes a
+Quiet Library uses serif prose, neutral article surfaces, and a sage green header
+with the original dragon home icon and top-level section links. Generated bio
+summaries use slightly larger text for readability. At 1100px the left navigation becomes a
 hamburger drawer and header search becomes a magnifying-glass button. At 800px
 page contents disappear, while backlinks remain available below the article.
-The header gear offers System (default), Light, and Dark appearance and remembers
+Search opens in a floating panel over the current page. Results update while
+typing, keep the selected viewing context, and paginate inside the panel. Escape
+or Close returns to the article; regular search URLs and forms still work without
+JavaScript. The header gear offers System (default), Light, and Dark appearance and remembers
 the selection in the browser. On smaller screens it also contains the context
 and Behind the Curtain controls. The page title replaces the wordmark after
-scrolling, and upward scrolling reveals a Back to top button.
+scrolling while the home icon stays visible, and upward scrolling reveals a Back to top button.
 Notes and the authored homepage can use `hide: [navigation, toc]` to omit either
 or both navigation areas; see [vault usage](docs/vault.md#links-navigation-and-media).
 `hide: toc` also hides page contents, and hidden contents are omitted from the page API.

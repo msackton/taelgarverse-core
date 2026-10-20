@@ -305,7 +305,12 @@ scripts. HTML in the normal article body is supported.
 
 ## Search
 
-Search the header or homepage for names, aliases, or words from a note. Words
+Search the header or homepage for names, aliases, or words from a note. Search
+opens in a floating panel and updates results while typing, leaving the current
+article in place. Previous and Next stay inside the panel. Use Escape, Close, or
+click outside to return; select a result to open its article. Arrow keys move
+between the search input and result links. Regular search URLs and forms remain
+available without JavaScript. Words
 match together and include word beginnings; use double quotes for an exact phrase.
 Results show relevant excerpts with highlighted matches and keep the selected
 date, campaigns and Behind the Curtain view. Conditional and private prose only
