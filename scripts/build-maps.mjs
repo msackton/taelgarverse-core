@@ -4,7 +4,6 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import sharp from 'sharp';
 import {mapImages} from '../src/maps.mjs';
-import {hasHexCalibration} from '../src/map-distance.mjs';
 
 const tileSize = 512, quality = 85;
 const pending = new Map();
@@ -54,7 +53,7 @@ async function pyramid(entry, bounds, cacheDir) {
 export async function prepareMaps(store, cacheDir) {
   const generated = [];
   for (const {entry,config} of mapImages(store)) {
-    if(hasHexCalibration(entry) && !entry.sha256){
+    if(!entry.sha256){
       const hash=createHash('sha256');
       for await(const chunk of createReadStream(entry.filename))hash.update(chunk);
       entry.sha256=hash.digest('hex');

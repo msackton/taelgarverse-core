@@ -61,6 +61,18 @@ test('Obsidian adapter resolves authored image links, hashes original bytes, cac
   h.fail=false;await h.obsidianMapConfig(h.app,source,'Places/Map.md',cache);assert.equal(h.reads,4);
 });
 
+test('Obsidian reads calibration from the note block, applies edits without rebuilding, and checks the image fingerprint',async()=>{
+  const h=host(),cache=new Map();
+  const fingerprint=createHash('sha256').update(Buffer.from([1,2,3,4])).digest('hex');
+  const block=source+'calibration:\n  hexMiles: 24\n  hexPixels: 40\n  imageSize: [400, 100]\n  imageSha256: '+fingerprint+'\n';
+  const initial=await h.obsidianMapConfig(h.app,block,'Places/Map.md',cache);
+  assert.equal(initial.measurement.xScale,1.2);assert.equal(initial.measurement.yScale,0.6);
+  const edited=await h.obsidianMapConfig(h.app,block.replace('hexPixels: 40','hexPixels: 80'),'Places/Map.md',cache);
+  assert.equal(edited.measurement.xScale,0.6);assert.equal(edited.measurement.yScale,0.3);assert.equal(h.reads,1);
+  const changed=await h.obsidianMapConfig(h.app,block.replace(fingerprint,'a'.repeat(64)),'Places/Map.md',cache);
+  assert.equal(changed.measurement,null);
+});
+
 test('Obsidian map components mount the shared controller and dispose observers and Leaflet state when notes unload',async()=>{
   const h=host(),plugin=new h.default();plugin.app=h.app;plugin.onload();assert.equal(plugin.language,'leaflet');
   let child;

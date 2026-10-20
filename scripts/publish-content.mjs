@@ -207,7 +207,7 @@ export function buildFingerprint(settings, options, config={}) {
     new URL('./build-images.mjs', import.meta.url), new URL('../src/images.mjs', import.meta.url),
     new URL('./image-usage.mjs', import.meta.url),
     new URL('./build-maps.mjs', import.meta.url), new URL('../src/maps.mjs', import.meta.url),
-    new URL('../src/map-distance.mjs', import.meta.url), new URL('../src/map-calibrations.mjs', import.meta.url),
+    new URL('../src/map-distance.mjs', import.meta.url),
     new URL('./prepare-cloudflare.mjs', import.meta.url), new URL('../src/store.mjs', import.meta.url),
     new URL('../src/content-store.mjs', import.meta.url), new URL('../src/backlinks.mjs', import.meta.url),
     new URL('../src/markdown.mjs', import.meta.url), new URL('../src/comments.mjs', import.meta.url),

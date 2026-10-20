@@ -283,11 +283,17 @@ points for a total; Undo, Clear, and Done controls appear as needed.
 **Trace path** mode follows winding roads or rivers by dragging, with each
 stroke measured along its bends and removed as one Undo action. The same tools
 are available through the [Obsidian companion plugin](../obsidian/taelgar-map-tools/README.md).
-The current
-Taelgar maps use a verified **24-mile hex** calibration tied to each source
-image, independent of zoom and the older display bounds. A known image that
-changes needs its calibration rechecked. Other maps use authored `unit`/`scale`,
-or show map units if no unit is supplied. See [map calibration and controls](maps.md).
+Returning to the start or choosing **Close shape** closes an outline and shows
+its enclosed area in square miles alongside the distance. Separate outlines
+have separate readings; crossed outlines report that area is unavailable.
+The current Taelgar maps record their verified **24-mile hex** calibration inside
+each `leaflet` block: `calibration.hexMiles`, `hexPixels` in original image pixels,
+`imageSize: [width, height]`, and an optional `imageSha256` fingerprint. The vault
+owns this data; the website and Obsidian read the same fields. The fingerprint
+disables measurement after an image changes until its calibration is rechecked.
+Zoom and the older display bounds do not affect calibrated distance. Blocks
+without calibration use authored `unit`/`scale`, or show map units if no unit is
+supplied. See [map calibration and controls](maps.md).
 
 Large maps use generated WebP tiles, so viewing a map does not fetch its entire
 original image. Smaller regional maps use image overlays. On narrow screens,

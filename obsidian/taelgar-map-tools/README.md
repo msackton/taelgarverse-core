@@ -3,8 +3,9 @@
 This companion plugin renders the vault's existing `leaflet` fences in Obsidian
 Reading view and rendered Live Preview blocks. It shares the website's image-map
 viewer, point ruler, freehand tracing controller, and source-image calibration.
-Each map hex is 24 miles across, using the same checked image hashes and pixel
-scale as TaelgarVerse. It requires desktop Obsidian 1.8.0 or newer.
+Calibration lives in each vault `leaflet` block, including its hex distance,
+source-pixel hex width, original image dimensions, and optional image fingerprint.
+Both surfaces read the same data. It requires desktop Obsidian 1.8.0 or newer.
 
 The plugin reads map image files locally and renders image overlays. It makes
 no network requests, publishes nothing, and does not write measurements or
@@ -47,7 +48,9 @@ obsidian vault=taelgar plugin:reload id=taelgar-map-tools
 
 The source and build remain in core. An installed copy in the vault is a build
 artifact and can be reproduced with the command above. Rebuild and reinstall
-after changing the shared renderer, ruler, calibration, or plugin adapter.
+after changing the shared renderer, ruler, or plugin adapter. Changing a map's
+calibration only requires editing its `leaflet` block in the vault and rendering
+it again; no plugin rebuild is needed.
 
 ## Measure a river or road
 
@@ -56,8 +59,14 @@ one finger to follow the feature; the running total uses the traced bends.
 Lift to finish a stroke. Further strokes contribute to the total without adding
 an untraced bridge between their endpoints. **Undo** removes the last stroke.
 Turn off **Trace path** to pan or place point-by-point route segments. Zoom in
-to trace small bends more precisely. **Clear** removes the route and **Done
+to trace small bends more precisely. **Clear** removes the route, turns off
+tracing, and restores panning. **Done
 measuring** retains its result while returning to navigation.
 
 The website and Obsidian use the same control code and distance calculations.
+For area, return to the outline's starting point or choose **Close shape**. The
+enclosed region is lightly filled and its square mileage appears beside the
+distance. Nearby endpoints snap closed; tiny outlines can use the button.
+Multiple outlines have separate readings, and crossed or retraced outlines
+report that area is unavailable. Areas remain temporary, like route distances.
 See [calibration and verification](../../docs/maps.md).

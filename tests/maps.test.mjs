@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 import sharp from 'sharp';
 import {load} from 'cheerio';
 import {ContentStore,parseNote} from '../src/content-store.mjs';
@@ -58,6 +59,37 @@ test('map measurement preserves authored scale and unit; invalid calibration lea
     assert.equal(JSON.parse($('.leaflet-map').attr('data-map')).measurement,null);
     assert.match(result.warnings[0],/distance measurement disabled/);
   }
+});
+
+test('leaflet blocks carry their own source-pixel calibration through website rendering',()=>{
+  const {store,author,entry}=fixture();entry.sha256='a'.repeat(64);
+  const calibration='calibration:\n  hexMiles: 24\n  hexPixels: 40\n  imageSize: [200, 100]\n  imageSha256: '+entry.sha256+'\n';
+  const source='```leaflet\n'+definition+'scale: 999\n'+calibration+'```';
+  const result=render(source,store,author),$=load(result.html);
+  const options=JSON.parse($('.leaflet-map').attr('data-map')).measurement;
+  assert.equal(options.unit,'miles');assert.equal(options.hexMiles,24);
+  assert.equal(options.xScale,200*0.6/4100);assert.equal(options.yScale,100*0.6/64);
+  assert.deepEqual(result.warnings,[]);
+  entry.sha256='b'.repeat(64);
+  const changed=render(source,store,author);
+  assert.equal(JSON.parse(load(changed.html)('.leaflet-map').attr('data-map')).measurement,null);
+  assert.match(changed.warnings[0],/distance measurement disabled/);
+});
+
+test('local preparation fingerprints new calibrated maps without a registered path or tile pyramid',async t=>{
+  const directory=await fs.mkdtemp(path.join(ROOT,'.cache','map-calibration-test-'));
+  t.after(()=>fs.rm(directory,{recursive:true,force:true}));
+  const filename=path.join(directory,'custom.png');
+  await sharp({create:{width:200,height:100,channels:3,background:'#ef2020'}}).png().toFile(filename);
+  const {entry,author,store}=fixture(filename);
+  const fingerprint=createHash('sha256').update(await fs.readFile(filename)).digest('hex');
+  author.note.body='```leaflet\nimage: [[map with spaces.png]]\nbounds: [[0,0],[100,200]]\ncalibration:\n  hexMiles: 24\n  hexPixels: 40\n  imageSize: [200,100]\n  imageSha256: '+fingerprint+'\n```';
+  assert.equal(JSON.parse(load(render(author.note.body,store,author).html)('.leaflet-map').attr('data-map')).measurement,null);
+  assert.deepEqual(await prepareMaps(store,path.join(directory,'tiles')),[]);
+  assert.equal(entry.sha256,fingerprint);
+  const ready=render(author.note.body,store,author);
+  assert.deepEqual(JSON.parse(load(ready.html)('.leaflet-map').attr('data-map')).measurement,{unit:'miles',hexMiles:24,xScale:0.6,yScale:0.6});
+  assert.deepEqual(ready.warnings,[]);
 });
 
 test('map images retain full resolution and tiled maps include aligned edge tiles, native zooms and a reusable cache',async t=>{

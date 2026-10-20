@@ -7,11 +7,11 @@ projection. Zoom, viewport size, source resolution, and tile resolution do not
 change a route's measured distance.
 
 Choose **Measure distance**, then click or tap points along a route. **Undo**
-removes the last point, **Clear** removes the route, and **Done measuring** leaves
+removes the last point, **Clear** removes the route and exits tracing mode, and **Done measuring** leaves
 the result visible while returning to ordinary navigation. Maps remain draggable
 and zoomable while measuring. Keyboard users can pan with arrow keys and add the
 map center with Enter or Space; Backspace undoes a point and Escape finishes.
-The center crosshair appears while the active map has keyboard focus. Each map,
+The center crosshair appears only with visible keyboard focus in point mode. Each map,
 including repeated note embeds, has its own measurement state. Measurements stay
 in the current browser page and are not saved to notes or published content.
 
@@ -23,19 +23,72 @@ segment. Switch off Trace path to pan or add point segments; zoom buttons remain
 available. Zoom in for finer tracing. A cancelled stroke or a view change during
 drawing discards the unfinished stroke without changing completed measurements.
 
+To measure a region, draw its outline and return to the start, or choose
+**Close shape** to add a straight segment back to the first point. An endpoint
+within 10 screen pixels of the start snaps closed after the outline has extended
+more than 20 screen pixels away; this avoids closing short open paths by accident.
+Small outlines can always be closed explicitly. A closed outline gains a light
+fill and an **Area** reading in **square miles**, alongside its perimeter distance.
+Point routes and freehand traces use the same calculation. Undo removes an
+explicit closing segment (or an entire trace), and Clear removes area results.
+Further points start a separate route after a closed outline.
+
+Area uses the polygon's original bends and the calibrated horizontal and vertical
+scales, without a projection. Concave outlines and either drawing direction are
+supported. Crossed, touching, retraced, or zero-area outlines keep their distance
+but report that area is unavailable. Multiple outlines show separate numbered
+areas; overlapping outlines are not combined into a union or interpreted as holes.
+Maps authored with other units show square units instead of square miles.
+
 The [Obsidian companion plugin](../obsidian/taelgar-map-tools/README.md) uses the
 same map viewer, tracing controller, and calibration. It renders existing
 `leaflet` blocks locally without rewriting their source.
 
-## The 24-mile hex calibration
+## Calibration belongs in the map block
+
+Each `leaflet` block owns its distance calibration in the vault. Both the website
+and Obsidian read it directly; there is no bundled table of Taelgar map scales.
+For example, the Sembara map includes:
+
+```yaml
+calibration:
+  hexMiles: 24
+  hexPixels: 40.333333333333336
+  imageSize: [2308, 2468]
+  imageSha256: d9f0f94036483065b5a15e86afdc84c2f7bb2704b81abb4a3ca4b8532dda8913
+```
+
+`hexMiles` is the distance between opposite flat sides of one hex. `hexPixels`
+is that same distance in **original image pixels**. It also works for an image
+without a visible grid when its scale is established against another map.
+`imageSize` is `[width, height]` of the original image, independent of the block's
+display bounds, height, and width. These three fields are required for an
+explicit calibration and must contain positive numbers (integer image sizes).
+
+`imageSha256` is an optional SHA-256 fingerprint of the original image. Existing
+Taelgar blocks include it so replacing, resizing, or cropping an image disables
+measurement until the calibration and fingerprint are checked. The image remains
+viewable. A missing hash in the renderer or a mismatched hash also disables
+measurement when the block specifies a fingerprint. Invalid explicit calibration
+never falls back to the older `scale` field.
+
+An explicit calibration takes priority over `scale` and `unit` and reports miles.
+Blocks without `calibration` retain their authored `scale` and `unit`; without
+either field they show **map units**. These legacy scale values apply to display
+coordinates, so use source-pixel calibration for accurate image measurement.
+
+Editing these values takes effect when Obsidian renders the block again, without
+rebuilding the plugin. The website receives changes through content publication.
+
+## Verification of the existing 24-mile hex scale
 
 The existing Taelgar maps use **24 miles between opposite flat sides of a hex**.
 Their older `bounds` and `scale` fields are display settings and are not a reliable
 distance calibration. Some bounds stretch the image nonuniformly, and some
 exports resize or remove the original hex grid.
 
-[`src/map-calibrations.mjs`](../src/map-calibrations.mjs) records the audited
-source images, dimensions, hashes, and relative pixel scales. The gridded
+The map blocks record the audited source dimensions, hashes, and hex pixel
+widths. The following table documents the original verification. The gridded
 `assets/world-map-regions-new.png` is the reference. In an unobstructed ocean
 sample (`x=6000..7000`, `y=1500..4000`), 245 horizontal grid edges spanning
 123 hexes fit a hex height of **20.166667 pixels**, with an edge-fit RMS residual
@@ -66,35 +119,38 @@ features. Median fit residuals are in reference-image pixels:
 
 For each segment, the renderer first undoes the display bounds' horizontal and
 vertical scaling to recover source-pixel differences. It multiplies those by
-`24 × referenceScale / (121/6)` miles per source pixel, takes the planar distance,
+`hexMiles / hexPixels` miles per source pixel, takes the planar distance,
 and adds it to the route. The old authored `scale` is not applied again.
 
-The source SHA-256 must match a recorded calibration. Publication already records
-this hash; local map preparation hashes the known images before rendering them.
-A replaced or cropped image at a known path disables measurement until its
-calibration is checked and updated. New maps without a recorded hex calibration
-use their explicitly authored `scale` and `unit`; if neither is supplied, distances
-are labeled **map units**. Invalid scale/unit values disable measurement while
-leaving the map and original-image link available.
+Publication records original-image SHA-256 hashes; local map preparation and the
+Obsidian adapter hash the source bytes before rendering calibrated measurements.
+The same block therefore produces the same physical distance on both surfaces.
 
 ## Delivery and maintenance
 
 The controller is bundled into the existing map-only browser asset. The Worker
-uses source hashes already present in published snapshots, so current content
-does not need republishing to enable measurement. Deploy the updated core.
+uses source hashes already present in published snapshots. For migration from
+the previous bundled table, **publish the blocks with calibration first**, then
+deploy the updated core. The older renderer ignores the new fields and retains
+its existing table until upgraded. Deploying this renderer against unmigrated
+content instead uses that content's older `scale`/`unit` values.
 Local previews must restart after core or source-image changes.
 
 When replacing a calibrated image, compare several complete hexes or register
 the replacement against the verified reference. Check horizontal and vertical
-scale, record the replacement dimensions/hash, and update the calibration and
-its documentation together. Do not infer miles per pixel from a compressed
+scale, and update `hexPixels`, `imageSize`, and `imageSha256` in every block using
+that image. New maps only need an authored block; no core code or plugin rebuild
+is required. Do not infer miles per pixel from a compressed
 thumbnail, current browser pixels, tile pixels, or the old display bounds.
 
-Regression coverage includes 24-mile cardinal and diagonal distances for every
-recorded image under different display bounds, the independent 123-hex span,
+Regression coverage includes 24-mile cardinal and diagonal distances at different
+source resolutions and display bounds, the independent 123-hex span,
 changed-image rejection, route totals, multiple maps, keyboard use, controls,
 and Node/Worker map rendering. Tracing checks cover curved geometry, disconnected
 strokes, coalesced pointer events, whole-stroke Undo, cancellation, and navigation
 restoration. Obsidian adapter checks cover local image resolution/hash caching,
 component disposal, stale asynchronous work, bundle integrity, and installation
 into a disposable fixture. Real-vault activation is a separate step.
+Area checks cover known shapes, concavity, reversed winding, large coordinate
+origins, stretched display bounds, dense traces, invalid rings, automatic and
+explicit closure, independent outlines, Undo, and Clear.

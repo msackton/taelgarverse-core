@@ -10,7 +10,7 @@
 .leaflet-map .map-measure-help[hidden], .map-measure-controls [hidden] { display:none; }
 .map-canvas.map-measuring, .map-canvas.map-measuring .leaflet-interactive { cursor:crosshair; }
 .map-canvas.map-tracing { touch-action:none; }
-.map-measuring:focus::after { content:'+'; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:450; pointer-events:none; color:#fff; text-shadow:0 0 2px #000,0 0 4px #000; font:bold 28px/1 sans-serif; }
+.map-measuring:not(.map-tracing):focus-visible::after { content:'+'; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); z-index:450; pointer-events:none; color:#fff; text-shadow:0 0 2px #000,0 0 4px #000; font:bold 28px/1 sans-serif; }
 .map-measure-line { filter:drop-shadow(0 0 1px #fff); }
 .article-main .leaflet-container img { max-width:none !important; max-height:none !important; margin:0; border-radius:0; }
 .article-main .leaflet-control-zoom a { text-decoration:none; color:#333; }

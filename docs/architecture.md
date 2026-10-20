@@ -60,7 +60,7 @@ flowchart LR
 | `src/contexts.mjs`, `src/navigation.mjs` | Session-derived dates and context-filtered navigation. |
 | `src/backlinks.mjs` | Index authored incoming links and filter them by source availability and visible comment states. |
 | `src/embeds.mjs` | Expand visible note/heading/block embeds, bound recursion, preserve source-relative rendering, and isolate anchors/popups. |
-| `src/maps.mjs`, `src/map-distance.mjs`, `src/map-calibrations.mjs`, `src/map-path.mjs`, `src/browser/map-view.mjs`, `src/browser/map-measurement.mjs` | Map rendering, source-image hex calibration, flat point/stroke routes, and shared measurement controls. See [maps](maps.md). |
+| `src/maps.mjs`, `src/map-distance.mjs`, `src/map-path.mjs`, `src/browser/map-view.mjs`, `src/browser/map-measurement.mjs` | Map rendering, calibration read from vault `leaflet` blocks, flat point/stroke routes, and shared measurement controls. See [maps](maps.md). |
 | `obsidian/taelgar-map-tools/`, `scripts/build-obsidian-maps.mjs`, `scripts/install-obsidian-maps.mjs` | Desktop Obsidian adapter and a reproducible local release using the shared map viewer, ruler, and calibration. The plugin reads vault images and owns map-component cleanup. |
 | `src/comments.mjs`, `src/markdown.mjs`, `src/dm.mjs` | Conditional prose, Obsidian syntax, link handling, Behind the Curtain notes. |
 | `src/engine.mjs`, `src/server.mjs`, `src/headers.mjs` | Node initialization, HTTP adapter, fresh VM context for trusted CustomJS. |
