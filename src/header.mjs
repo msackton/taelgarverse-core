@@ -1,9 +1,10 @@
 import {escapeHtml,contextQuery} from './common.mjs';
+import {searchTypes} from './search-types.mjs';
 export {contextQuery};
 const icon = paths => '<svg viewBox="0 0 24 24" aria-hidden="true">' + paths + '</svg>';
 const searchIcon = icon('<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>');
 const control = (id,label,svg) => '<button type="button" class="icon-button" id="' + id + '-toggle" aria-label="' + label + '" aria-haspopup="dialog" aria-controls="' + id + '-dialog" hidden>' + svg + '</button>';
-export function siteHeader(context, options, {query,sections = '',navigation = true} = {}) {
+export function siteHeader(context, options, {query,searchType='',sections = '',navigation = true} = {}) {
   const custom = context.kind === 'custom';
   const choices = options.map(option => '<option value="' + escapeHtml(option.id) + '"' +
     (option.id === context.id ? ' selected' : '') + (!option.available ? ' disabled' : '') + '>' +
@@ -21,13 +22,15 @@ export function siteHeader(context, options, {query,sections = '',navigation = t
       (all || selected.has(option.campaigns[0]) ? ' checked' : '') + (custom ? '' : ' disabled') + '> ' + escapeHtml(option.label) + '</label>').join('') +
     '</fieldset></details>';
   const searchFields = [...contextQuery(context)].map(([key,value])=>'<input type="hidden" name="' + key + '" value="' + escapeHtml(value) + '">').join('');
+  const typeField = searchType ? '<input type="hidden" name="type" value="' + escapeHtml(searchType) + '">' : '';
   return '<header class="site-header" id="site-header">' +
     (navigation ? control('navigation','Open navigation',icon('<path d="M3 6h18M3 12h18M3 18h18"/>')) : '') +
     '<a class="site-brand" href="/?' + escapeHtml(contextQuery(context).toString()) + '" aria-label="TaelgarVerse home"><img class="site-logo" src="/theme/site-logo.webp" alt="" width="32" height="32"><span class="site-brand-label">TaelgarVerse</span></a>' +
-    '<div id="header-search-slot"><form class="header-search" id="header-search" role="search" action="/">' + searchFields +
+    '<div id="header-search-slot"><form class="header-search" id="header-search" role="search" action="/">' + searchFields + typeField +
     '<label class="sr-only" for="site-search">Search TaelgarVerse</label><input id="site-search" type="search" name="q" maxlength="256" value="' + escapeHtml(query || '') + '" placeholder="Search TaelgarVerse"><button aria-label="Search">' + searchIcon + '</button></form></div>' +
     '<div id="header-context-slot"><form id="context-controls" class="context-form" method="get" data-context-form>' +
     (query !== undefined ? '<input type="hidden" name="q" value="' + escapeHtml(query) + '">' : '') +
+    typeField +
     '<label class="context-label" for="site-context">Context:</label><select id="site-context" name="context" aria-label="Context">' + choices + '</select>' +
     '<div class="custom-date-controls" data-custom-date' + (custom ? '' : ' hidden') + '>' +
     '<label class="sr-only" for="context-date">Custom date (DR)</label><input id="context-date" type="date" name="date" aria-label="Custom date (DR)" value="' +
@@ -41,9 +44,11 @@ export function siteHeader(context, options, {query,sections = '',navigation = t
 }
 
 export function siteDialogs() {
-  const dialog = (name,title,body) => '<dialog class="site-dialog' + (name==='navigation' ? ' nav-drawer' : '') + '" id="' + name + '-dialog" aria-labelledby="' + name + '-title"><div class="dialog-heading"><h2 id="' + name + '-title">' + title + '</h2><button type="button" data-close-dialog="' + name + '-dialog" aria-label="Close ' + title.toLowerCase() + '">×</button></div>' + body + '</dialog>';
+  const dialog = (name,title,body) => '<dialog class="site-dialog' + (name==='navigation' ? ' nav-drawer' : '') + '" id="' + name + '-dialog" aria-labelledby="' + name + '-dialog-title"><div class="dialog-heading"><h2 id="' + name + '-dialog-title">' + title + '</h2><button type="button" data-close-dialog="' + name + '-dialog" aria-label="Close ' + title.toLowerCase() + '">×</button></div>' + body + '</dialog>';
   return dialog('navigation','Explore Taelgar','<div id="navigation-dialog-body"></div>') +
-    dialog('search','Search TaelgarVerse','<form id="search-dialog-form" class="floating-search-form" action="/" role="search" aria-label="Search notes"><label class="sr-only" for="search-dialog-query">Search notes</label><div class="floating-search-input-row"><input id="search-dialog-query" type="search" name="q" maxlength="256" autocomplete="off" placeholder="Names, phrases, or words from a note" aria-describedby="search-dialog-status" aria-controls="search-dialog-results"><button>Search</button></div></form>' +
+    dialog('search','Search TaelgarVerse','<form id="search-dialog-form" class="floating-search-form" action="/" role="search" aria-label="Search notes"><label class="sr-only" for="search-dialog-query">Search notes</label><div class="floating-search-input-row"><input id="search-dialog-query" type="search" name="q" maxlength="256" autocomplete="off" placeholder="Names, phrases, or words from a note" aria-describedby="search-dialog-status" aria-controls="search-dialog-results"><button>Search</button></div>' +
+      '<div class="floating-search-filter"><label for="search-dialog-type">Content type</label><select id="search-dialog-type" name="type"><option value="">All content</option>' +
+      searchTypes.map(([value,label])=>'<option value="' + value + '">' + label + '</option>').join('') + '</select></div></form>' +
       '<p id="search-dialog-status" class="floating-search-status" role="status" aria-live="polite">Search names, phrases, and words from the notes.</p>' +
       '<p id="search-dialog-error" class="floating-search-error" role="alert" hidden></p>' +
       '<a id="search-dialog-fallback" class="floating-search-fallback" href="/?q=" hidden>Open search page</a>' +

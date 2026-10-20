@@ -72,7 +72,7 @@ The website reads the properties at the top of each note—the YAML section betw
 | --- | --- |
 | `name`, `title` | Displayed names and search labels. The website address comes from the filename and folder, so changing `name` does not change the address. |
 | `aliases` | Alternative names the website can use to find a linked note. Filenames and paths are checked first. |
-| `headerVersion`, `tags` | Whether and how the usual note header is generated. Keep these from the appropriate vault template. |
+| `headerVersion`, `tags` | Whether and how the usual note header is generated. Existing type tags also supply the website's [search content-type filters](search.md#app-search). Keep these from the appropriate vault template. |
 | `species`, `ancestry`, `typeOf`, `pronunciation` | Descriptions and pronunciation in the header. |
 | `displayDefaults`, `ddbLink` | Header formatting and a link to game mechanics. |
 | `born`, `created`, `died`, `destroyed`, `DR`, `DR_end` | Ages, lifespans, and event dates. |
@@ -247,7 +247,7 @@ campaign, and **See Behind the Curtain** controls.
 
 | In the note | On the website |
 | --- | --- |
-| `![[map.png]]` | An image that readers can open in the image viewer. Size and alignment options work, including `aside`, `figure`, or `hero` with `small`, `standard`, or `large`. |
+| `![[map.png]]` | A responsive image with an expand icon. The viewer fits the screen and offers full-resolution download and pan/zoom. Size and alignment options work, including `aside`, `figure`, or `hero` with `small`, `standard`, or `large`. |
 | `![[clip.m4a]]` | An audio player. Other supported audio formats work the same way. |
 | A PDF link/embed | A link to the PDF. |
 | An Excalidraw drawing | Use an exported PNG or another supported image; the website does not draw it from Excalidraw data. |

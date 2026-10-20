@@ -265,6 +265,9 @@ html .md-typeset :is(blockquote,.admonition.quote,details.quote) > :last-child {
 .floating-search-input-row input { flex: 1; min-width: 0; width: 100%; font-size: 16px; }
 .floating-search-input-row input::placeholder { color: var(--muted); opacity: 1; }
 .floating-search-input-row button { margin: 0; }
+.floating-search-filter { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.floating-search-filter label { flex: none; color: var(--muted); font-size: 13px; }
+.floating-search-filter select { min-width: 0; max-width: 100%; font-size: 14px; }
 .floating-search-status { flex: none; color: var(--muted); margin: 12px 0; font-size: 13px; }
 .floating-search-error { color: var(--text); border-left: 3px solid var(--accent); padding: 8px 12px; margin: 12px 0; background: var(--surface); }
 .floating-search-results { min-height: 0; overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; }

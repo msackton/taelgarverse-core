@@ -1,7 +1,7 @@
 export function searchParameters(entries,query,offset=0) {
   const params = new URLSearchParams();
   for (const [name,value] of entries) {
-    if (['context','date','campaigns','dm'].includes(name) && typeof value === 'string') params.append(name,value);
+    if (['context','date','campaigns','dm','type'].includes(name) && typeof value === 'string') params.append(name,value);
   }
   params.set('q',query);
   params.set('limit','20');
@@ -21,7 +21,7 @@ export function createSearchController({search,onPending,onResults,onError,onIdl
   function update(params,{immediate=false}={}) {
     cancel();
     const current=version,snapshot=new URLSearchParams(params);
-    if (!snapshot.get('q')?.trim()) { onIdle(); return; }
+    if (!snapshot.get('q')?.trim() && !snapshot.get('type')) { onIdle(); return; }
     onPending();
     const run=async()=>{
       const controller=new AbortController();
@@ -56,11 +56,12 @@ export function initializeSearch(doc) {
   const get=id=>doc.getElementById(id),dialog=get('search-dialog'),headerForm=get('header-search');
   if (!dialog || typeof dialog.showModal!=='function' || !headerForm || typeof fetch!=='function') return;
   const form=get('search-dialog-form'),input=get('search-dialog-query'),results=get('search-dialog-results');
+  const type=get('search-dialog-type');
   const status=get('search-dialog-status'),errorNotice=get('search-dialog-error'),fallback=get('search-dialog-fallback');
   const pagination=get('search-dialog-pagination'),previous=get('search-dialog-previous'),next=get('search-dialog-next');
   const toggle=get('search-toggle'),root=doc.documentElement;
-  let context=[],sourceInput,opener,readingPosition,offset=0,limit=20,startedOutside=false;
-  const params=page=>searchParameters(context,input.value,page);
+  let context=[],sourceForm,sourceInput,opener,readingPosition,offset=0,limit=20,startedOutside=false;
+  const params=page=>searchParameters([...context,['type',type.value]],input.value,page);
   const busy=value=>{results.setAttribute('aria-busy',String(value));previous.disabled=value;next.disabled=value;};
   const clear=()=>{results.replaceChildren();pagination.hidden=true;errorNotice.hidden=true;fallback.hidden=true;};
   const controller=createSearchController({
@@ -113,6 +114,13 @@ export function initializeSearch(doc) {
   });
   function update(immediate=false,page=0) {
     if (sourceInput) sourceInput.value=input.value;
+    if (sourceForm) {
+      let field=sourceForm.querySelector('[name="type"]');
+      if (!field && type.value) {
+        field=doc.createElement('input');field.type='hidden';field.name='type';sourceForm.append(field);
+      }
+      if (field) field.value=type.value;
+    }
     controller.update(params(page),{immediate});
   }
   function searchForm(element) {
@@ -122,7 +130,9 @@ export function initializeSearch(doc) {
     return url.origin===location.origin && url.pathname==='/' ? candidate : null;
   }
   function open(source=headerForm,trigger=toggle,immediate=true) {
+    sourceForm=source;
     sourceInput=source.querySelector('input[name="q"]');
+    type.value=new FormData(source).get('type') || '';
     input.value=sourceInput?.value || '';
     context=[...new FormData(source)].filter(([name,value])=>['context','date','campaigns','dm'].includes(name) && typeof value==='string');
     form.querySelectorAll('input[type="hidden"]').forEach(field=>field.remove());
@@ -161,6 +171,7 @@ export function initializeSearch(doc) {
   form.addEventListener('submit',event=>{event.preventDefault();update(true);});
   input.addEventListener('input',event=>{if (!event.isComposing) update();});
   input.addEventListener('compositionend',()=>update());
+  type.addEventListener('change',()=>update(true));
   previous.addEventListener('click',()=>update(true,Math.max(0,offset-limit)));
   next.addEventListener('click',()=>update(true,offset+limit));
   dialog.querySelector('[data-close-dialog="search-dialog"]').addEventListener('click',()=>dialog.close());

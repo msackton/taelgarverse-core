@@ -8,6 +8,7 @@ import {siteHeader,siteDialogs} from './header.mjs';
 import {Navigation} from './navigation.mjs';
 import {expandNoteEmbeds} from './embeds.mjs';
 import {releaseFooter} from './release-footer.mjs';
+import {responsiveImages} from './images.mjs';
 
 export class RenderEngine {
   constructor({settings,store,headers,renderHeader,navigationSource,homeSource = null,backlinkIndex}) {
@@ -99,6 +100,7 @@ export class RenderEngine {
     const noteEmbeds = [], env = {store:this.store,entry,date,context,warnings,dmNotes,notesMarkdown:this.notesMarkdown,noteEmbeds};
     const rendered = renderMarkdown(this.markdown,body,env);
     if (noteEmbeds.length) rendered.html = expandNoteEmbeds(rendered.html,noteEmbeds,{...env,markdown:this.markdown},embedLoading);
+    rendered.html = responsiveImages(rendered.html,this.store);
     return {...rendered,warnings: [...new Set(warnings)]};
   }
 }
@@ -123,7 +125,7 @@ export function document(result,contextOptions,navigation,releases) {
     (maps ? '<link rel="stylesheet" href="/theme/leaflet.css"><link rel="stylesheet" href="/theme/maps.css">' : '') +
     (result.search ? '<link rel="stylesheet" href="/theme/search.css">' : '') +
     (result.homepage ? '<link rel="stylesheet" href="/theme/homepage.css">' : '') + '</head>' +
-    '<body>' + siteHeader(result.context,contextOptions,{query:result.query,sections:showNavigation ? navigation.sections(view) : '',navigation:!!showNavigation}) +
+    '<body>' + siteHeader(result.context,contextOptions,{query:result.query,searchType:result.searchType,sections:showNavigation ? navigation.sections(view) : '',navigation:!!showNavigation}) +
     '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (pageNav ? '' : ' layout--no-toc') + (hasSection ? '' : ' layout--no-navigation') + (result.homepage ? ' layout--home' : '') + '">' + sidebar +
     '<main id="page-content" class="md-typeset article-main" tabindex="-1">' + breadcrumbs + result.html + '</main>' + pageNav +
     '</div>' + siteDialogs() + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/site-ui.js" defer></script><script type="module" src="/theme/search-overlay.js"></script><script src="/theme/image-viewer.js" defer></script>' + diagrams +

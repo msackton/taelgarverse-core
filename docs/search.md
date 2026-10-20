@@ -2,23 +2,45 @@
 
 The D1 compiler, publication lifecycle, Worker search API and results page are
 implemented. Local previews use SQLite with the same compiler and query. AI
-Search remains independent and optional; production search contacts no AI service.
+Search remains independent; production AI integration is deferred and production
+search contacts no AI service.
 
 ## App search
 
 The header and homepage search forms open `/?q=...`. `/api/search` returns the
 same results as JSON: query, resolved context, source (`full-text` or `page-names`),
-fallback status/notice, results, and `hasMore`/`limit`/`offset`. Each result contains
+fallback status/notice, selected `type`, results, and `hasMore`/`limit`/`offset`. Each result contains
 page/title/context URL, a plain-text excerpt, and UTF-16 highlight ranges into that
 excerpt. No SQL, provider errors or raw HTML are returned.
 
 Words match together and support word beginnings; double quotes request an exact
 phrase, including across paragraph boundaries. Unicode names and aliases use the
-FTS tokenizer's accent-insensitive matching. Search boosts exact titles/aliases,
-then uses weighted FTS5 ranking (title 10, aliases 6, prose 1) with a stable page
+FTS tokenizer's accent-insensitive matching. Search puts exact page filenames,
+display titles, and metadata names first, exact aliases second, then uses weighted
+FTS5 ranking (title 10, aliases 6, prose 1) with a stable page
 tie-break. Queries are limited to 256 characters and 16 terms, with 20 results by
 default, maximum 50 per page, and offsets through 1,000. FTS operators are always
-quoted as literal words. Empty queries browse available page names without D1.
+quoted as literal words. Exact-name preference ignores case, accents, surrounding
+phrase quotes, and repeated whitespace. It is applied before pagination; a short
+partial-title match cannot displace an exact name because of its FTS score.
+Empty queries browse available page names without D1.
+
+The results form offers a **Content type** selector, also supported by `type` on
+`/?q=...` and `/api/search`. Omit it or use an empty string for all content. Values
+are `person`, `place`, `group`, `session-note`, `event`, `object`, `power`,
+`ancestry`, `creature`, and `other`. Types come from existing frontmatter tags,
+including scalar/list tags, optional leading `#`, and nested tags such as
+`place/settlement`. The first recognized type tag wins; notes without one are
+Other. This does not infer types from folders or require new vault metadata.
+Unknown filter values return HTTP 400.
+
+Type filtering happens in SQL before ranking and pagination, using a JSON list
+of matching page slugs from the active snapshot's metadata. Exact-name ranking
+also uses snapshot metadata. Neither needs a database migration, content
+republication, or article-body reads. The same filter applies to empty-query
+browsing and page-name fallback. Pagination, header searches, and context/Behind
+the Curtain controls preserve the selection; changing a query or type starts
+at the first page.
 
 `src/search.mjs` builds two read-only queries in one D1 batch: a readiness check
 against the active R2 index's search descriptor, and the ranked query restricted
@@ -44,7 +66,7 @@ path. A full vault can take several seconds to initialize the first search.
 Deploy the updated core to add the route and UI, then publish content to stage
 the matching production index. Either order is supported because older snapshots
 fall back to page names. Local checks do not index the vault remotely. Production
-AI enrichment remains a separate future integration; the isolated pilot is not
+AI enrichment is deferred; the isolated pilot is not
 imported into the app.
 
 ## Compiler and visibility

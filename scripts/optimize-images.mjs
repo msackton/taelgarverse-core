@@ -8,7 +8,7 @@ export const IMAGE_DEFAULTS = {maxSize: 2560, quality: 82};
 export const IMAGE_VERSION = {sharp: sharp.versions.sharp, vips: sharp.versions.vips};
 const formats = new Map([['.jpg', 'jpeg'], ['.jpeg', 'jpeg'], ['.png', 'png'], ['.webp', 'webp']]);
 
-function animatedPNG(input) {
+export function animatedPNG(input) {
   if (!input.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) return false;
   for (let offset = 8; offset + 12 <= input.length;) {
     const size = input.readUInt32BE(offset);

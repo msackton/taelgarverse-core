@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import {createSearchController,searchParameters,highlightPieces} from '../public/search-overlay.js';
 
 test('floating search preserves context, repeated campaign choices and normal query encoding',()=>{
-  const params=searchParameters([['date','1730-01-01'],['context','custom'],['campaigns','dufr'],['campaigns','adma'],['dm','1'],['q','stale'],['offset','100'],['unrelated','discard']], '"Green Sea" & elves',20);
+  const params=searchParameters([['date','1730-01-01'],['context','custom'],['campaigns','dufr'],['campaigns','adma'],['dm','1'],['type','person'],['q','stale'],['offset','100'],['unrelated','discard']], '"Green Sea" & elves',20);
   assert.deepEqual(params.getAll('campaigns'),['dufr','adma']);
   assert.equal(params.get('date'),'1730-01-01');assert.equal(params.get('context'),'custom');assert.equal(params.get('dm'),'1');
   assert.equal(params.get('q'),'"Green Sea" & elves');assert.equal(params.get('offset'),'20');assert.equal(params.get('limit'),'20');
-  assert.equal(params.has('unrelated'),false);
+  assert.equal(params.has('unrelated'),false);assert.equal(params.get('type'),'person');
+  assert.equal(searchParameters(params,'new query').get('type'),'person');
   assert.equal(searchParameters(params,'new query').has('offset'),false);
   assert.equal(new URLSearchParams(params.toString()).get('q'),'"Green Sea" & elves');
 });
@@ -57,4 +58,13 @@ test('excerpt highlights preserve literal text and reject malformed or overlappi
   assert.equal(pieces.map(part=>part.text).join(''),excerpt);
   assert.deepEqual(pieces.filter(part=>part.match).map(part=>part.text),['<script>','Green']);
   assert.deepEqual(highlightPieces('safe',null),[{text:'safe',match:false}]);
+});
+
+test('a selected content type can browse pages without a search phrase',async()=>{
+  const queries=[];let idle=0;
+  const controller=createSearchController({search:async params=>{queries.push(params.toString());return {};},onPending(){},onResults(){},onError(){},onIdle(){idle++;}});
+  await controller.update(new URLSearchParams({q:'',type:'place'}),{immediate:true});
+  assert.deepEqual(queries,['q=&type=place']);assert.equal(idle,0);
+  await controller.update(new URLSearchParams({q:'',type:''}),{immediate:true});
+  assert.equal(queries.length,1);assert.equal(idle,1);
 });

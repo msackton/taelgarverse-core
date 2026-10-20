@@ -2,6 +2,7 @@ import {RenderError,escapeHtml,pageUrl,parseDM} from './common.mjs';
 import {document} from './render-engine.mjs';
 import {contextQuery} from './header.mjs';
 import {searchInput,searchPages} from './search.mjs';
+import {searchTypes} from './search-types.mjs';
 import {searchView,searchErrorView} from './search-view.mjs';
 import {homepage} from './homepage.mjs';
 import {resolveDiagramLink} from './diagram-links.mjs';
@@ -11,6 +12,7 @@ const apiSpec = {
   paths:{
     '/api/search':{get:{summary:'Search visible note text, titles and aliases',parameters:[
       {name:'q',in:'query',schema:{type:'string',maxLength:256},description:'Words match together; quotes request an exact phrase'},
+      {name:'type',in:'query',schema:{type:'string',enum:['',...searchTypes.map(([type])=>type)]},description:'Filter by the existing vault content-type tags; empty means all content'},
       {name:'limit',in:'query',schema:{type:'integer',minimum:1,maximum:50,default:20}},
       {name:'offset',in:'query',schema:{type:'integer',minimum:0,maximum:1000,default:0}},
       {name:'context',in:'query',schema:{type:'string'}},{name:'date',in:'query',schema:{type:'string'}},
@@ -77,7 +79,7 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
       }
       if(pathname==='/api/search'){
         const context={...engine.contexts.resolve(contextId,date,selectedCampaigns),dm};
-        const input=searchInput(url.searchParams.get('q') || '',{limit:url.searchParams.get('limit') ?? 20,offset:url.searchParams.get('offset') ?? 0});
+        const input=searchInput(url.searchParams.get('q') || '',{limit:url.searchParams.get('limit') ?? 20,offset:url.searchParams.get('offset') ?? 0,type:url.searchParams.get('type') ?? ''});
         return send(200,await searchPages(engine,search,input,context));
       }
       if (pathname.startsWith('/page/')) {
@@ -114,10 +116,11 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
           if (home) return send(200,document({...homepage(home,context,engine.store),title:'TaelgarVerse',context},engine.contexts.list(),engine.navigation,releases),'text/html');
         }
         let input;
-        try{input=searchInput(query,{limit:url.searchParams.get('limit') ?? 20,offset:url.searchParams.get('offset') ?? 0});}
-        catch(error){if(error.status!==400)throw error;return send(400,document({title:'Search Taelgar',html:searchErrorView(query,context,error.message),toc:'',warnings:[],context,query,search:true},engine.contexts.list(),engine.navigation,releases),'text/html');}
+        const type=url.searchParams.get('type') ?? '';
+        try{input=searchInput(query,{limit:url.searchParams.get('limit') ?? 20,offset:url.searchParams.get('offset') ?? 0,type});}
+        catch(error){if(error.status!==400)throw error;return send(400,document({title:'Search Taelgar',html:searchErrorView(query,context,error.message,type),toc:'',warnings:[],context,query,searchType:searchTypes.some(([value])=>value===type)?type:'',search:true},engine.contexts.list(),engine.navigation,releases),'text/html');}
         const results=await searchPages(engine,search,input,context);
-        return send(200,document({title:query?'Search: '+query:'Search Taelgar',html:searchView(results),toc:'',warnings:[],context,query,search:true},engine.contexts.list(),engine.navigation,releases),'text/html');
+        return send(200,document({title:query?'Search: '+query:'Search Taelgar',html:searchView(results),toc:'',warnings:[],context,query,searchType:input.type,search:true},engine.contexts.list(),engine.navigation,releases),'text/html');
       }
       if (pathname.startsWith('/assets/')) {
         const entry=engine.store.assets.get(pathname.slice(8));

@@ -4,6 +4,7 @@ import {load} from 'cheerio';
 import {document} from '../src/render-engine.mjs';
 import {Navigation} from '../src/navigation.mjs';
 import {themeFiles} from '../src/http-assets.mjs';
+import {searchView} from '../src/search-view.mjs';
 
 const context = {id:'custom',kind:'custom',date:'1730-01-01',campaigns:['dufr'],dm:true};
 const entry = {id:'Places/Town.md',target:'places/town.md',slug:'places/town',title:'Town',note:{metadata:{}}};
@@ -51,4 +52,16 @@ test('optional navigation omissions reclaim space while retaining search/setting
   const $ = load(document({...result,page:undefined,toc:''},[],nav));
   assert.equal($('.layout--no-navigation.layout--no-toc').length,1);
   assert.equal($('.section-navigation a').length,2);
+});
+
+test('floating search retains content types and has unique labels on a full search page',()=>{
+  const html=searchView({query:'river',type:'place',context,results:[],offset:0,limit:20,hasMore:false});
+  const $=load(document({...result,html,query:'river',searchType:'place',search:true},[],nav));
+  assert.equal($('#header-search input[name="type"]').val(),'place');
+  assert.equal($('#search-dialog-type option[value="person"]').text(),'People');
+  assert.equal($('#search-dialog-type option[value="place"]').text(),'Places');
+  assert.equal($('#search-dialog-type option[value="session-note"]').text(),'Session notes');
+  assert.equal($('#search-dialog').attr('aria-labelledby'),'search-dialog-title');
+  assert.equal($('#search-dialog-title').text(),'Search TaelgarVerse');
+  const ids=$('[id]').map((_,el)=>$(el).attr('id')).get();assert.equal(new Set(ids).size,ids.length);
 });

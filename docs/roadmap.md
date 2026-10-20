@@ -16,12 +16,13 @@ feature inventory or implementation plan.
 
 Establish the capabilities needed for the dynamic website's MVP, using the
 existing Taelgarverse as the compatibility reference and the exclusions below
-as explicit scope boundaries. The list is still being developed; ordering does
-not establish implementation priority.
+as explicit scope boundaries. All ten agreed MVP items are completed in the core.
+Deployment and content publication remain separate operational steps; completion
+here records implementation, not the state of a deployed website.
 
 ### MVP-01: Table of contents and navigation
 
-**Status:** Curated-only site navigation implemented; article TOC details remain open.
+**Status:** Completed.
 
 Recreate a navigation experience close to the existing Taelgarverse, using one
 shared, curated site table of contents.
@@ -33,17 +34,18 @@ shared, curated site table of contents.
 - Other campaigns' material may remain visible. Campaign-specific navigation
   variants are not required for MVP.
 
-Sensible article table-of-contents management remains in scope; its detailed
-behavior is still to be discussed.
+The article TOC nests subheadings, omits the article title and popup/embedded
+headings, highlights the current section, and supports per-page hiding.
 
 The automatic "More pages" branch is removed. Unlisted pages remain accessible
 through search and direct links, without fabricated breadcrumbs. Empty curated
 definitions stay empty; the explicit no-template configuration still produces
-a directory tree. Existing article TOC behavior is retained pending discussion.
+a directory tree. The article TOC has a plain **On this page** heading and flows
+with the page without a separate scrollbar; page contents are hidden on mobile.
 
 ### MVP-02: Generic HTML extensions, including Taelgar II
 
-**Status:** Taelgar II addressed through existing authored links.
+**Status:** Completed through existing authored links.
 
 Provide a general mechanism for incorporating generic HTML pages or sections
 into the dynamic website. Taelgar II is a required MVP use case for that
@@ -58,20 +60,20 @@ links remains unspecified.
 
 ### MVP-03: Basic full-text search
 
-**Status:** Isolated Cloudflare AI Search hybrid pilot implemented; production
-integration pending evaluation.
+**Status:** Completed; D1 full-text search integrated with publication and the app.
 
-Restore basic full-text search across article content, beyond the current
-title/path finder. Use Cloudflare AI Search to explore both exact names/phrases
-and meaning-based questions. Begin with an isolated, explicitly selected subset
-of Markdown and compare retrieval quality, chunking, context visibility, updates,
-and costs before full-corpus indexing or production integration. See the
-[search pilot plan](search-pilot.md). Further presentation improvements remain
-under P-04.
+Search article content, titles, and aliases with word-prefix and exact-phrase
+matching, ranked results, highlighted excerpts, and pagination. Results respect
+the selected date, campaigns, and Behind the Curtain setting. Production uses
+D1 FTS5; local previews use SQLite with the same compiler and query. If the
+matching index is unavailable, search falls back to visible page names with a
+notice. See [production search](search.md).
+
+Optional AI Search evaluation and integration belong to Phase 3, P-04.
 
 ### MVP-04: Backlinks
 
-**Status:** Implemented; local browser and publication-index verification complete.
+**Status:** Completed; local browser and publication-index verification complete.
 
 Restore a basic display of pages linking to the current page, comparable to the
 existing Taelgarverse. Richer backlink presentation can follow later.
@@ -90,7 +92,7 @@ a fresh content publication. See [backlink behavior and indexing](backlinks.md).
 
 ### MVP-05: Existing tiled maps
 
-**Status:** Implemented; local browser and Node/Worker publication verification complete.
+**Status:** Completed; local browser and Node/Worker publication verification complete.
 
 Restore the existing interactive map experience, including tiled maps and basic
 pan/zoom behavior. Additional map capabilities can follow under Presentation
@@ -107,7 +109,7 @@ separate.
 
 ### MVP-06: Click-to-enlarge images
 
-**Status:** Implemented; local browser verification complete.
+**Status:** Completed; local browser verification complete.
 
 Let readers click page images to view them enlarged, restoring the existing
 site's basic image-viewing capability. Further image presentation improvements
@@ -120,7 +122,7 @@ real article images at desktop and mobile sizes; deployment remains separate.
 
 ### MVP-07: Audio embeds
 
-**Status:** Existing support verified locally for the current MP3/M4A embeds.
+**Status:** Completed; existing support verified locally for the current MP3/M4A embeds.
 
 Support in-page playback of audio embeds used in the current vault. Verify the
 existing audio support as part of MVP compatibility.
@@ -133,7 +135,7 @@ both Node and Worker handlers. No audio publication-pipeline change is needed.
 
 ### MVP-08: Note embeds
 
-**Status:** Implemented; real-vault, Node, and Worker verification complete.
+**Status:** Completed; real-vault, Node, and Worker verification complete.
 
 Render embedded notes as included content rather than ordinary links. Embedded
 content respects the selected campaign/date context and applicable publication
@@ -148,24 +150,27 @@ their syntax. No new publication schema or embed index is required.
 
 ### MVP-09: Mermaid diagrams
 
-**Status:** Diagram rendering implemented and verified locally; diagram-link behavior remains open.
+**Status:** Completed; diagram rendering, links, and article previews implemented.
 
 Render Mermaid blocks as diagrams, including the existing family trees in the
-vault. Further styling and diagram-link behavior remain to be discussed.
+vault, with context-aware links and optional previews of linked articles.
 
 Mermaid is pinned and bundled locally, loaded only for pages with diagrams, and
-uses strict rendering with links/callbacks disabled. Existing node styles are
+uses strict rendering with authored JavaScript callbacks disabled. Existing node styles are
 preserved. Diagrams fit within the article width and viewport height. "See bigger"
 opens a full-size popup with a fit-to-window option, and "See source" opens the
 Mermaid text in a popup. Both support keyboard closing and focus restoration.
 Readable source remains available without JavaScript or after a rendering error.
 Both existing family trees, mobile containment, and recovery after an invalid
 diagram were checked in the browser. Node and Worker tests cover context
-filtering and asset routing.
+filtering and asset routing. Family-tree nodes marked `internal-link` and explicit
+Mermaid destinations resolve to ordinary links. Internal destinations preserve
+the reader context and open article previews, with a toggle for direct navigation.
+Links work in the enlarged diagram; unavailable or ambiguous pages stay unlinked.
 
 ### MVP-10: Excalidraw through exported images
 
-**Status:** Implemented through exported PNGs; local compatibility verified.
+**Status:** Completed through exported PNGs; local compatibility verified.
 
 Display Excalidraw drawings through exported images, using the normal image
 presentation and enlargement support. Automatic export and interactive drawing
@@ -270,7 +275,7 @@ handling, and the decisions needed to preserve, replace, or deliberately omit
 it. This audit does not change the agreed exclusion of DataviewJS support and
 output parity from MVP.
 
-## Presentation improvements
+## Phase 3: Presentation improvements
 
 Website-only improvements that do not change the vault. Discussion areas include
 UI, table-of-contents and navigation management, search, map structures, image
@@ -278,10 +283,11 @@ zoom and popups, and backlink generation.
 
 ### P-01: Reading experience
 
-**Status:** Agreed direction; detailed design remains open.
+**Status:** Completed in core.
 
-Improve typography, spacing, mobile layouts, and theme choices, informed by
-the existing UI design work.
+Quiet Library provides the typography, spacing, responsive layouts, and
+System/Light/Dark appearance choices. Further reading polish can be scoped from
+specific feedback rather than remaining an open implementation requirement.
 
 ### P-02: Tables and cards
 
@@ -299,13 +305,24 @@ and navigation between world and regional maps.
 
 ### P-04: Better search
 
-**Status:** Cloudflare AI Search selected for a small-subset hybrid experiment;
-ranking and presentation details remain open.
+**Status:** Full-text search and content-type filters implemented; production AI
+integration deferred.
 
-Improve ranking and snippets beyond basic MVP full-text search, with optional
-filters for types of content. Evaluate keyword, vector, and hybrid retrieval in
-the [search pilot](search-pilot.md) before choosing production settings or
-integrating with the redesigned UI.
+Build on the completed D1 full-text search from MVP-03. Basic ranking, highlighted
+excerpts, and pagination are implemented. Content-type filters use existing vault
+tags and work in full-text search, page-name fallback, and browsing. Exact page
+filenames, display titles, and metadata names precede exact aliases and partial
+matches, with normalized comparison and ranking applied before pagination. See
+[production search](search.md). Further ranking and snippet changes can follow
+specific feedback.
+
+AI Search is deferred because its current benefit does not justify production
+integration. The isolated, explicitly selected 22-note pilot
+compares exact names/phrases and meaning-based questions, keyword/vector/hybrid
+retrieval, chunking, context visibility, updates, latency, and costs. See the
+[search pilot plan](search-pilot.md) and [measured results](search-pilot-results.md).
+Keep those results as a reference if AI Search is reconsidered. Full-corpus AI
+indexing and production integration are outside the current work.
 
 ### P-05: More informative backlinks
 
@@ -372,7 +389,8 @@ Excalidraw presentation after MVP. Exported images are sufficient for MVP.
 
 ### P-11: Image optimization and bandwidth reduction
 
-**Status:** Agreed direction; implementation and performance targets remain open.
+**Status:** Responsive variants and on-demand image viewing implemented and
+verified locally; broader full-vault performance measurement remains open.
 
 Reduce image download sizes substantially. Large source images currently incur
 unnecessary bandwidth costs when displayed at small or fixed sizes on the page.
@@ -389,5 +407,11 @@ unnecessary bandwidth costs when displayed at small or fixed sizes on the page.
 
 Measure image bytes transferred on representative image-heavy pages, including
 mobile views, and compare before/after results alongside visual quality. The
-image-generation approach, formats, size variants, and performance targets
-remain to be decided.
+implementation preserves full-resolution exports, produces cached WebP sizes
+from actual authored widths and layout roles (combining reused image sizes),
+and uses small responsive images with offscreen loading deferred. An expand
+icon opens a fitted screen-sized image; Download and Pan / zoom request the
+original on demand. PNG derivatives retain transparency and use lossless encoding.
+Generated assets use the existing publication, retention and rollback lifecycle.
+See [image delivery and verification](images.md). Performance targets and broader
+full-vault measurements remain to be decided.
