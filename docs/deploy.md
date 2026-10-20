@@ -34,9 +34,10 @@ If this is your first time publishing from this computer, follow
    and any relevant campaign/date views.
 
 The command prepares copies of your notes, makes large images smaller, and
-uploads the results. It switches the site to the new content after the upload
-succeeds. Your original notes and images stay unchanged. If the same saved
-version and publishing settings are already online, it skips the work.
+uploads the results and stages the matching D1 search index. It switches the site
+to new content after both are verified. Your original notes and images stay
+unchanged. If the same saved version/settings are online, it checks search
+readiness and skips rebuilding. Search UI integration remains a separate step.
 
 `--no-strict` means “continue if a Dataview query cannot be converted.” Read the
 warnings: those queries may appear as unavailable content on the website. Leave
@@ -89,8 +90,9 @@ access to the account that owns TaelgarVerse. You do **not** need an API token
 when using this login method.
 
 The project already knows the website name (`taelgarverse`) and the Cloudflare
-storage location (`taelgarverse-content`). You do not need to create either one
-or change configuration files for a normal update.
+storage location (`taelgarverse-content`), and search database
+(`taelgarverse-search`). These are already configured. Your login needs D1
+Read/Write permissions as well as R2 access; Wrangler login includes them.
 
 On Windows, if PowerShell blocks `npm` or `npx`, use `npm.cmd` or `npx.cmd` instead.
 
@@ -229,6 +231,7 @@ These settings are already supplied for the live site:
 | `name` | `taelgarverse` | The website program's name in Cloudflare. |
 | `main` | `src/worker.mjs` | The code file Cloudflare starts when running the website. |
 | `r2_buckets` | `taelgarverse-content`, named `CONTENT` in the code | The storage location for published notes and media. |
+| `d1_databases` | `taelgarverse-search`, named `SEARCH_DB` | Revision-matched full-text search storage; indexed during publication. |
 | `assets` | `public/`, named `ASSETS` in the code | The styles, scripts, and icons uploaded with website code. |
 | `workers_dev` | `true` | Makes the site available at its Cloudflare `workers.dev` address. |
 | `preview_urls` | `false` | Turns off Cloudflare's separate version and preview addresses. |
@@ -259,6 +262,7 @@ It can contain only these supported settings:
 | `account_id` | Select the Cloudflare account used by this computer. |
 | `name` | Deliberately deploy website code to a different Worker. |
 | `r2_buckets` | Deliberately publish to different storage. Supply the complete bucket list and keep the code's connection name `CONTENT`. |
+| `d1_databases` | Override the explicit search database ID. Keep binding `SEARCH_DB` and database name `taelgarverse-search`; the pilot database is not a production destination. |
 | `limits` | Set Worker processing limits, such as `cpu_ms` for CPU time. No extra limit is set by this repository. |
 
 If you have an old local file, check it before publishing: it may send an update
@@ -360,15 +364,24 @@ already handles normal publication.
 
 | Command | What it does | Changes the live site? |
 | --- | --- | --- |
-| `npm run cf:prepare` | Packages the configured content folder, plus the vault's homepage and menu, into `.cache/cloudflare/`. It does **not** export Obsidian queries or resize images. | No |
-| `npm run cf:seed` | Loads the prepared content into local Cloudflare storage and selects it for the local Worker. Run after preparation. | No |
+| `npm run cf:prepare` | Packages content, homepage/menu and a context-aware search manifest into `.cache/cloudflare/`. Does not export Obsidian queries or resize images. | No |
+| `npm run cf:seed` | Loads R2 content and stages local D1 before selecting the local publication. Run after preparation. | No |
 | `npm run cf:upload` | Uploads prepared content to the configured R2 bucket, leaving the site's selected publication unchanged. | Writes live storage; readers still see the previous content |
-| `npm run cf:publish` | Selects the uploaded content for readers. Requires a successful `cf:upload` for the same content and destination. | **Yes: vault content** |
+| `npm run cf:publish` | Selects uploaded content after checking the matching D1 index is ready. Requires `cf:upload` and search staging for the same revision. | **Yes: vault content** |
+| `npm run search:index -- stage --dry-run` | Validates/reports the prepared search manifest without authentication or storage calls. | No |
+| `npm run search:index -- stage --remote` | Stages/verifies only the prepared D1 search revision; `--local` targets the emulator. | Writes search storage; does not activate content |
+| `npm run search:index -- verify --remote` | Checks prepared-revision readiness; accepts `--report FILE` for retained builds. | No; reads D1 |
 | `npm run cf:bucket` | Creates the bucket named by the prepared configuration. The existing site already has one. | Creates Cloudflare storage; does not publish content |
 
 Prepare again after changing settings before using these separate commands.
-The manual `cf:publish` command records only the revision ID, so the next full
+For the manual flow, run search staging after `cf:upload` and before `cf:publish`.
+The full publisher does this automatically. The manual `cf:publish` command records
+the revision and activation time without a build fingerprint, so the next full
 `content:publish` run rebuilds instead of skipping unchanged content.
+
+[Search publication](search.md) documents visibility compilation, local artifacts,
+failed-stage recovery, database setup, retention, and rollback. `--build-only`
+makes no R2/D1 requests, and this pipeline never invokes AI Search.
 
 ## Isolated search experiment
 

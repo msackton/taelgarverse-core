@@ -12,6 +12,7 @@ For publishing steps, commands, and account setup, see [Update the website](depl
 | --- | --- |
 | **Worker: `taelgarverse`** | The program that turns notes into web pages. It chooses what to show for the reader's selected campaign and date. |
 | **R2 storage: `taelgarverse-content`** | Holds the published notes, images, audio, homepage, menu, and supporting data. Cloudflare calls this storage container a “bucket.” |
+| **D1 database: `taelgarverse-search`** | Stores revision-matched text versions, visibility rules, and the full-text index. Worker search/UI integration is deferred. |
 | **Website files from `public/`** | The styles, browser scripts, icons, and diagram support used by the site. These are uploaded with the website code. Vault images and audio go in R2 instead. |
 | **Workers Builds** | The connection to GitHub that updates the website code when changes merge into `taelgarverse-core/main`. |
 | **Logs** | Records of website errors and build failures, available in Cloudflare. Logging is enabled in the project configuration. |
@@ -21,7 +22,7 @@ files through one named `ASSETS`. Cloudflare calls these connections “bindings
 They let the Worker use those resources without a saved API token in its code.
 See Cloudflare's [R2 connection guide](https://developers.cloudflare.com/r2/api/workers/workers-api-usage/).
 
-The project declares no separate database or scheduled publishing job. Its
+The project declares D1 through `SEARCH_DB` and no scheduled publishing job. Its
 configuration is in [wrangler.json](../wrangler.json); the
 [settings reference](deploy.md#cloudflare-settings) explains each setting.
 
@@ -34,8 +35,9 @@ a copy of the vault.
 
 **Vault content:** run `npm run content:publish -- --no-strict` on your computer.
 The script asks Obsidian to prepare the notes, makes copies of large images
-smaller, and uploads a complete saved version to R2. Once the upload succeeds,
-it tells the Worker to use that version. No website code deployment is needed.
+smaller, and uploads a complete saved version to R2. It then stages/verifies the
+matching D1 search revision before activating the R2 pointer. No website code
+deployment is needed for subsequent content updates.
 The homepage and menu come from `taelgar/_website` and are included in the same
 publication.
 
@@ -77,6 +79,9 @@ contains three kinds of files:
 | `assets/` | Images, audio, and other published attachments. Identical files share one stored copy, even across publications. |
 
 Older publications and media remain in storage. There is no automatic cleanup.
+The metadata index now includes a search descriptor (version, digest, and counts),
+while search text/rules stay in D1. The local `search.json` compiler payload is
+excluded from R2 upload manifests. Older indexes without search still render.
 The JavaScript that generates note headers is part of the Worker code, so changing
 those rules requires a [code update](architecture.md#change-and-release-rules).
 
@@ -154,6 +159,23 @@ settings, including the live bucket connection and exact build commands, were
 not independently checked because the local Cloudflare login had expired.
 The move to vault-authored homepage and menu files is implemented in this checkout;
 the live site needs the updated core deployment and a new content publication.
+
+## Production D1 publication
+
+The `SEARCH_DB` binding declares database `taelgarverse-search` with ID
+`983f12bb-3952-4ff1-9224-a87f6d5c0b4f` in `wrangler.json`. Creation and schema
+initialization were verified through the Cloudflare API on 2026-10-19 in the
+Taelgar account. A count check found zero documents, visibility rules, and index
+revisions. The binding is configured in source; no Worker deployment or live
+content publication was performed for this change.
+
+The publisher stages whole-note text versions and visibility rules for the exact
+R2 revision, verifies stored content and FTS integrity, then marks the D1 revision
+ready. Only afterward can the supported publication flow move the R2 pointer.
+Older ready generations remain immutable and available for rollback. AI Search
+is independent and is never part of this gate. The current Worker does not query
+D1 yet; its search API/UI integration is a later phase. See
+[search publication](search.md) for the schema, lifecycle, and local/remote commands.
 
 ## Isolated search pilot
 

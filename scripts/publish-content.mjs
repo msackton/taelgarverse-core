@@ -9,6 +9,8 @@ import {ROOT, loadSettings, isInside} from '../src/config.mjs';
 import {Store} from '../src/store.mjs';
 import {prepareContent, loadCloudflareConfig} from './prepare-cloudflare.mjs';
 import {IMAGE_DEFAULTS, IMAGE_VERSION, optimizeImages} from './optimize-images.mjs';
+import {createSearchDatabase,searchBinding} from './search-database.mjs';
+import {SearchIndex,readPreparedSearch,validateSearchDescriptor} from './search-index.mjs';
 
 export const CHECKPOINT_KEY = 'published/current.json';
 const CACHE = path.join(ROOT, '.cache/publish');
@@ -92,6 +94,7 @@ export function validateCheckpoint(value) {
       !/^[a-f0-9]{64}$/.test(value.fingerprint || '') || typeof value.dirty !== 'boolean') {
     throw new Error('Invalid R2 build checkpoint; inspect ' + CHECKPOINT_KEY + ' before rebuilding.');
   }
+  if(value.search)validateSearchDescriptor(value.search);
   return value;
 }
 
@@ -139,6 +142,10 @@ export async function publishContent(options, deps) {
   const previous = options.buildOnly ? null : await deps.readCheckpoint();
   if (!options.force && !before.dirty && previous?.dirty === false && previous?.commit === before.commit &&
       previous.repository === before.repository && previous.fingerprint === options.fingerprint) {
+    if(previous.search){
+      if(!deps.verifySearch)throw new Error('Search readiness verification is required before skipping this publication');
+      await deps.verifySearch(previous);
+    }
     deps.log(`Taelgar ${before.commit.slice(0, 12)} is already in R2; skipping export, images, and upload.`);
     return {skipped: true, ...previous};
   }
@@ -158,6 +165,12 @@ export async function publishContent(options, deps) {
     completedAt: new Date().toISOString()};
   if (!options.buildOnly) {
     await deps.upload(build);
+    if(build.search){
+      if(!deps.stageSearch || !deps.verifySearch)throw new Error('Search indexing and readiness verification are required before activation');
+      await deps.stageSearch(build);
+      await deps.verifySearch(build);
+      result.search=validateSearchDescriptor(build.search);
+    }
     await unchanged();
     result.completedAt = new Date().toISOString();
     await deps.writeCheckpoint(result);
@@ -177,10 +190,10 @@ export function validateMaterializationReport(report, output) {
   }
 }
 
-export function buildFingerprint(settings, options) {
+export function buildFingerprint(settings, options, config={}) {
   const hash = createHash('sha256');
   hash.update(JSON.stringify({version: 1, image: {maxSize: options.maxSize, quality: options.quality, ...IMAGE_VERSION},
-    strict: !options.noStrict, default_date: settings.default_date}));
+    strict: !options.noStrict, default_date: settings.default_date,searchDestination:{account:config.account_id,databases:config.d1_databases || []}}));
   for (const filename of [settings.nav_source, settings.home_source,
     new URL('./publish-content.mjs', import.meta.url), new URL('./optimize-images.mjs', import.meta.url),
     new URL('./prepare-cloudflare.mjs', import.meta.url), new URL('../src/store.mjs', import.meta.url),
@@ -191,6 +204,7 @@ export function buildFingerprint(settings, options) {
     // invalidate the shared R2 checkpoint for an otherwise identical build.
     hash.update(filename ? readFileSync(filename, 'utf8').replace(/\r\n/g, '\n') : '<no-website-source>');
   }
+  for(const filename of ['./compile-search.mjs','./search-index.mjs','./search-database.mjs','../src/search-text.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
   return hash.digest('hex');
 }
 
@@ -210,6 +224,7 @@ export async function main(options) {
   const config = loadCloudflareConfig();
   const binding = config.r2_buckets?.find(item => item.binding === 'CONTENT');
   if (!binding?.bucket_name || binding.jurisdiction) throw new Error('Configure a standard CONTENT R2 bucket in wrangler.local.json.');
+  if(!options.buildOnly)searchBinding(config,{local:options.local});
   await fs.mkdir(CACHE, {recursive: true});
   const lockFile = path.join(CACHE, 'publish.lock');
   let lock;
@@ -218,22 +233,28 @@ export async function main(options) {
     if (error.code === 'EEXIST') throw new Error('A publish lock exists at ' + lockFile + '. If no publisher is running, remove that file and retry.');
     throw error;
   }
-  let working;
+  let working,searchDatabase;
   try {
     await lock.writeFile(JSON.stringify({pid: process.pid, startedAt: new Date().toISOString()}) + '\n');
     const destinationFile = path.join(CACHE, 'destination.json');
     await json(destinationFile, {name: config.name, account_id: config.account_id, r2_buckets: config.r2_buckets});
     const storage = createStorage({bucket: binding.bucket_name, configFile: destinationFile, local: options.local});
-    const fingerprint = buildFingerprint(settings, options);
+    const fingerprint = buildFingerprint(settings, options, config);
+    const index=async()=>{searchDatabase ??=await createSearchDatabase(config,{local:options.local});return new SearchIndex(searchDatabase,{log:console.log});};
     const result = await publishContent({...options, fingerprint}, {
       repositoryState: () => repositoryState(vault),
       readCheckpoint: () => storage.readCheckpoint(path.join(CACHE, 'previous-checkpoint.json')),
       writeCheckpoint: value => storage.writeCheckpoint(value, path.join(CACHE, 'checkpoint.json')),
       log: console.log,
+      stageSearch:async report=>{
+        const receipt=await (await index()).stage(report.revision,readPreparedSearch(report));
+        await json(path.join(CACHE,'search-receipt.json'),receipt);
+      },
+      verifySearch:async report=>{await (await index()).verify(report.revision,report.search);},
       async verifyInputs() {
         const current = loadCloudflareConfig();
         const currentSettings = loadSettings(options.config, {vault: options.vault});
-        if (currentSettings.vault_dir !== vault || buildFingerprint(currentSettings, options) !== fingerprint || current.name !== config.name ||
+        if (currentSettings.vault_dir !== vault || buildFingerprint(currentSettings, options, current) !== fingerprint || current.name !== config.name ||
             current.account_id !== config.account_id || current.r2_buckets?.find(item => item.binding === 'CONTENT')?.bucket_name !== binding.bucket_name) {
           throw new Error('Publisher code, settings, or destination changed during the build; run again before publishing.');
         }
@@ -283,20 +304,20 @@ export async function main(options) {
     });
     if (working) { await removeWorkingDirectory(working); working = undefined; }
     if (!result.skipped) console.log(options.buildOnly ?
-      'Prepared locally; no R2 reads or writes. Run npm run cf:check to verify the Worker package.' :
+      'Prepared content and search locally; no R2/D1 reads or writes. Run npm run cf:check to verify the Worker package.' :
       `Content published (${result.revision.slice(0, 12)}). The Worker will read the new revision from R2.`);
     return result;
   } catch (error) {
     if (working) console.error('Export files retained for inspection: ' + working);
     throw error;
   } finally {
-    await lock.close();
-    await fs.rm(lockFile, {force: true});
+    try{await searchDatabase?.close();}
+    finally{await lock.close();await fs.rm(lockFile, {force: true});}
   }
 }
 
 const help = `Usage: npm run content:publish -- [options]
-Checks the Taelgar commit in R2, exports via Obsidian, optimizes images, then uploads.
+Checks the Taelgar commit in R2, exports via Obsidian, optimizes images, uploads, and verifies D1 search before activation.
 Requires Node 22+, Git, the vault open in Obsidian with Dataview ready, and Wrangler login.
 Settings: config.json, plus config.local.json automatically when present.
 
@@ -309,8 +330,8 @@ Settings: config.json, plus config.local.json automatically when present.
   --allow-dirty             Publish uncommitted changes, marked dirty; subsequent runs rebuild
   --max-image-size PIXELS   Longest image edge; default 2560, no enlargement
   --image-quality 1-100     JPEG/WebP quality; default 82 (PNG uses lossless compression)
-  --build-only              Export, optimize, package locally without contacting R2
-  --local                   Use local R2 emulator instead of remote R2
+  --build-only              Export, optimize, compile search, and package without contacting R2/D1
+  --local                   Use local R2/D1 emulators instead of remote resources
   --help                    Show this help
 `;
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

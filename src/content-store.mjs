@@ -34,9 +34,13 @@ export function authoredBody(note) {
   if (next >= 0) end = next - 1;
   return lines.slice(0,end).some(line => line.trim().startsWith('#')) ? lines.slice(end).join('\n') : note.body;
 }
-export function excluded(metadata, settings) {
+export function publicationExclusions(metadata) {
   const raw = metadata.excludePublish;
   const exclusions = (typeof raw === 'string' ? raw.split(',') : Array.isArray(raw) ? raw : []).map(x => String(x).trim().toLowerCase());
+  return exclusions;
+}
+export function excluded(metadata, settings) {
+  const exclusions=publicationExclusions(metadata);
   return exclusions.includes('all') || settings.campaigns.some(c => exclusions.includes(c.toLowerCase()));
 }
 // Match CustomJS DateManager's start dates: numeric years start on January 1;
@@ -54,12 +58,13 @@ function creationDateKey(value) {
   }
   try { return dateKey(date,true); } catch { return null; }
 }
+export function availableFrom(entry) {
+  const metadata=entry.note.metadata,start=creationDateKey(metadata.born || metadata.created);
+  return Math.max(start || 10101,metadata.activeYear ? dateKey(String(metadata.activeYear),true) : 10101);
+}
 export function availableInContext(entry, context) {
   if (!entry?.note || excluded(entry.note.metadata,{campaigns:context.campaigns})) return false;
-  const metadata = entry.note.metadata, target = dateKey(context.date);
-  const start = creationDateKey(metadata.born || metadata.created);
-  return (start === null || start <= target) &&
-    (!metadata.activeYear || dateKey(String(metadata.activeYear),true) <= target);
+  return availableFrom(entry)<=dateKey(context.date);
 }
 function addAlias(map, alias, entry) {
   if (!alias) return;

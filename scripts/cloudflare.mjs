@@ -4,6 +4,7 @@ import {spawn} from 'node:child_process';
 import {ROOT} from '../src/config.mjs';
 import {loadCloudflareConfig} from './prepare-cloudflare.mjs';
 import {buildBrowser} from './build-browser.mjs';
+import {stagePreparedSearch} from './search.mjs';
 
 const task=process.argv[2], extra=process.argv.slice(3);
 const output=path.join(ROOT,'.cache/cloudflare');
@@ -69,6 +70,7 @@ if (task==='check' || task==='deploy') {
   const storage=local ? ['--local','--persist-to',path.join(ROOT,'.wrangler/state')] : ['--remote'];
   await run(['r2','bulk','put',report.bucket,...flags,'--filename',report.manifestFile,...storage,'--concurrency','8','--force']);
   if (local) {
+    if(report.search)await stagePreparedSearch(report,{config,local:true});
     publicationPointer(report);
     await run(['r2','object','put',report.bucket+'/published/current.json',...flags,'--file',report.pointerFile,...storage,'--force']);
   } else {
@@ -78,6 +80,7 @@ if (task==='check' || task==='deploy') {
 } else if (task==='publish') {
   const {report,config,flags}=prepared();
   verifiedUpload(report,config);
+  if(report.search)await stagePreparedSearch(report,{config,verifyOnly:true});
   publicationPointer(report);
   await run(['r2','object','put',report.bucket+'/published/current.json',...flags,
     '--file',report.pointerFile,'--remote','--force']);

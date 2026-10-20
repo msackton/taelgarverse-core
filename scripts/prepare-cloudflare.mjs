@@ -7,6 +7,7 @@ import {Store} from '../src/store.mjs';
 import {buildBacklinkIndex} from '../src/backlinks.mjs';
 import {headerRevision} from '../src/worker-headers.mjs';
 import {repositoryVersion} from './repository-version.mjs';
+import {compileSearch,searchDescriptor} from './compile-search.mjs';
 
 const sha = value=>createHash('sha256').update(value).digest('hex');
 const writeJSON = (file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value)+'\n');};
@@ -14,7 +15,7 @@ export function loadCloudflareConfig() {
   const config=JSON.parse(fs.readFileSync(path.join(ROOT,'wrangler.json'),'utf8'));
   const localFile=path.join(ROOT,'wrangler.local.json');
   const local=fs.existsSync(localFile) ? JSON.parse(fs.readFileSync(localFile,'utf8')) : {};
-  for (const key of ['name','account_id','r2_buckets','limits']) if (local[key]) config[key]=local[key];
+  for (const key of ['name','account_id','r2_buckets','d1_databases','limits']) if (local[key]) config[key]=local[key];
   return config;
 }
 async function hashFile(file) {
@@ -50,13 +51,13 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     }
     entries.push(entry);
   }
-  const backlinks=buildBacklinkIndex(store);
+  const backlinks=buildBacklinkIndex(store),searchManifest=compileSearch(store),search=searchDescriptor(searchManifest);
   const base={schemaVersion:1,sourceVersion:{commit:sourceVersion.commit,dirty:sourceVersion.dirty},settings:{default_date:settings.default_date,campaigns:settings.campaigns},backlinks,
     registry:JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'_scripts/session_note_campaigns.json'),'utf8')),
     coreMeta:JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'.obsidian/metadata.json'),'utf8')),
     navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,
     homeSource:settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null,
-    warnings:[...store.warnings,...backlinks.warnings],entries};
+    search,warnings:[...store.warnings,...backlinks.warnings,...searchManifest.warnings],entries};
   const revision=sha(JSON.stringify(base)), prefix='revisions/'+revision;
   const directory=path.join(output,'revisions',revision);
   for (const [shard,notes] of shards) {
@@ -65,6 +66,9 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   }
   const index={...base,revision};
   const indexFile=path.join(directory,'index.json');writeJSON(indexFile,index);
+  // Search text can include DM material. Keep the compiler payload local; only
+  // its descriptor enters the R2 metadata index. D1 gets it via explicit stage.
+  const searchFile=path.join(directory,'search.json');writeJSON(searchFile,searchManifest);
   uploads.push({key:prefix+'/index.json',file:indexFile});
   // A binary can occur at multiple vault paths. Upload its content only once.
   const unique=[...new Map(uploads.map(upload=>[upload.key,upload])).values()];
@@ -76,7 +80,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const pointerFile=path.join(output,'current.json');writeJSON(pointerFile,{revision});
   const report={revision,indexFile,manifestFile,configFile,bucket:config.r2_buckets.find(b=>b.binding==='CONTENT').bucket_name,
     notes:entries.filter(e=>e.note).length,assets:entries.filter(e=>!e.note).length,objects:unique.length,
-    assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision};
+    assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision,search,searchFile,searchStats:searchManifest.stats};
   writeJSON(path.join(output,'latest.json'),report);
   return report;
 }
