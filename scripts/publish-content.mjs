@@ -10,6 +10,7 @@ import {prepareContent, loadCloudflareConfig} from './prepare-cloudflare.mjs';
 import {DerivativeCache} from './derivative-cache.mjs';
 import {withPublicationProgress} from './publication-progress.mjs';
 import {readCampaignHomes} from '../src/website-sources.mjs';
+import {readNameDecisions} from './name-sources.mjs';
 import {readFolderExclusions} from '../src/folder-exclusions.mjs';
 import {IMAGE_DEFAULTS, IMAGE_VERSION} from './optimize-images.mjs';
 import {createSearchDatabase,searchBinding} from './search-database.mjs';
@@ -200,6 +201,7 @@ export function validateMaterializationReport(report, output) {
 
 export function buildFingerprint(settings, options, config={}) {
   const hash = createHash('sha256');
+  hash.update(JSON.stringify(readNameDecisions(settings)));
   hash.update(JSON.stringify({excludedFolders:readFolderExclusions(settings.vault_dir)}));
   for (const [host,source] of Object.entries(readCampaignHomes(settings))) hash.update(JSON.stringify([host,source.replace(/\r\n/g,'\n')]));
   hash.update(JSON.stringify({version: 1, image: {maxSize: options.maxSize, quality: options.quality, ...IMAGE_VERSION},
@@ -220,6 +222,7 @@ export function buildFingerprint(settings, options, config={}) {
     // invalidate the shared R2 checkpoint for an otherwise identical build.
     hash.update(filename ? readFileSync(filename, 'utf8').replace(/\r\n/g, '\n') : '<no-website-source>');
   }
+  for (const filename of ['./compile-names.mjs','./name-sources.mjs','../src/names.mjs']) hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
   for(const filename of ['./compile-search.mjs','./search-index.mjs','./search-database.mjs','./content-retention.mjs','./cloudflare-client.mjs','./upload-content.mjs','./publication-progress.mjs','../src/search-text.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
   return hash.digest('hex');
 }

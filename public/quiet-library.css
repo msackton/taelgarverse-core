@@ -76,6 +76,7 @@ form { background: var(--surface); }
 .context-form select option:disabled { color: var(--muted); }
 .context-form .dm-toggle input, .context-form .campaign-options input[type="checkbox"] { accent-color: var(--link); }
 .header-tools { display: flex; gap: 2px; }
+.header-tools .names-link { align-self:center; font-size:13px; padding:9px 5px; white-space:nowrap; }
 #navigation-toggle, #search-toggle { display: none; }
 .section-navigation { flex: 0 0 100%; border-top: 1px solid var(--line); padding-top: 2px; }
 .section-navigation ul { display: flex; flex-wrap: wrap; gap: 4px 24px; list-style: none; margin: 0; padding: 0; }

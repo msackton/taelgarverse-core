@@ -7,6 +7,8 @@ import {ROOT} from './config.mjs';
 import {repositoryVersion} from '../scripts/repository-version.mjs';
 import {LocalSearch} from './local-search.mjs';
 import {readCampaignHomes} from './website-sources.mjs';
+import {compileNames} from '../scripts/compile-names.mjs';
+import {readNameDecisions} from '../scripts/name-sources.mjs';
 export {document} from './render-engine.mjs';
 
 export class Engine extends RenderEngine {
@@ -25,5 +27,6 @@ export class Engine extends RenderEngine {
     this.releases = {core:repositoryVersion(ROOT),content:repositoryVersion(settings.vault_dir),local:true};
   }
   search(input,context){this.localSearch ??= new LocalSearch(this.store);return this.localSearch.search(input,context);}
+  getNameIndex(){return this.nameIndex ??= compileNames(this.store,readNameDecisions(this.settings));}
   closeSearch(){this.localSearch?.close();this.localSearch=null;}
 }

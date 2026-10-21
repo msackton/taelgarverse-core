@@ -110,6 +110,13 @@ so it cannot deploy independently of these checks. Cloudflare documents the
 
 ## What is stored in R2
 
+The name explorer's optional version-1 **names** field is compiled into
+**revisions/<revision>/index.json** by
+[compile-names.mjs](../scripts/compile-names.mjs) and consumed by
+[snapshot.mjs](../src/snapshot.mjs). It needs no new binding or migration.
+Requests query this index without fetching note shards. This describes checkout
+behavior, not a verified production rollout; see [name publication](names.md).
+
 Each publication gets a long unique ID, called a **revision**. The storage
 contains the following files:
 

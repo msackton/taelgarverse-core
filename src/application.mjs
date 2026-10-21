@@ -6,10 +6,21 @@ import {searchTypes} from './search-types.mjs';
 import {searchView,searchErrorView} from './search-view.mjs';
 import {homepage} from './homepage.mjs';
 import {resolveDiagramLink} from './diagram-links.mjs';
+import {nameInput,queryNames} from './names.mjs';
+import {namesView} from './names-view.mjs';
 
 const apiSpec = {
   openapi:'3.1.0', info:{title:'TaelgarVerse rendering API',version:'0.2.0'},
   paths:{
+    '/api/names':{get:{summary:'Browse recorded names across the published vault',parameters:[
+      {name:'view',in:'query',schema:{type:'string',enum:['parts','names'],default:'parts'},description:'First names/surnames, or all recorded whole names. Existing subject-type and whole-name selection URLs select the whole-name view when omitted.'},
+      {name:'language',in:'query',schema:{type:'string',maxLength:120}},
+      {name:'kind',in:'query',schema:{type:'string'},description:'In parts view: given or family. In names view: person, place, group, power, object, creature, ancestry, event, religion, source, or other'},
+      {name:'find',in:'query',schema:{type:'string',maxLength:256}},
+      {name:'name',in:'query',schema:{type:'string',maxLength:2048},description:'Selected name ID'},
+      {name:'offset',in:'query',schema:{type:'integer',minimum:0,maximum:100000}},
+      ...['context','date','campaigns','dm','pov'].map(name=>({name,in:'query',schema:{type:'string'}}))],
+      responses:{200:{description:'Language counts, grouped name forms, selected details, related names and rendered explorer HTML'},400:{description:'Invalid filter or context'}}}},
     '/api/search':{get:{summary:'Search visible note text, titles and aliases',parameters:[
       {name:'q',in:'query',schema:{type:'string',maxLength:256},description:'Words match together; quotes request an exact phrase'},
       {name:'type',in:'query',schema:{type:'string',enum:['',...searchTypes.map(([type])=>type)]},description:'Filter by the existing vault content-type tags; empty means all content'},
@@ -75,6 +86,13 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns,
       if (pathname === '/health') return send(200,{status:'ok',pages:engine.store.bySlug.size,index_warnings:engine.store.warnings,context_warnings:engine.contexts.warnings,runtime,revision});
       if (pathname === '/api/contexts') return send(200,{contexts:contextOptions,warnings:engine.contexts.warnings,...(site ? {locked:true,site:site.host} : {})});
       if (pathname === '/openapi.json') return send(200,apiSpec);
+      if (pathname === '/names' || pathname === '/api/names') {
+        const context=resolveContext(),input=nameInput(url.searchParams);
+        const result=queryNames(await engine.getNameIndex(),engine.store,context,input),html=namesView(result);
+        if (pathname==='/api/names') return send(200,{...result,html});
+        return send(200,document({title:'Names of Taelgar',html,toc:'',warnings:[],context,names:true,
+          hide:['navigation'],contextFields:input},contextOptions,engine.navigation,releases),'text/html');
+      }
       if (pathname === '/api/diagram-links') {
         const source = url.searchParams.get('source'), targets = url.searchParams.getAll('target');
         if (!source || !targets.length || targets.length > 100 || targets.some(target => target.length > 2048)) {

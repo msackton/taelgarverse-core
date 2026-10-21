@@ -14,6 +14,7 @@ independent release paths.
 | [Vault usage](vault.md) | Which vault files and fields are consumed, rendering semantics, and limitations. |
 | [Cloudflare](cloudflare.md) | Current hosted topology, bindings, storage layout, and operational behavior. |
 | [Search publication](search.md) | Production D1 compiler, visibility rules, revision staging, readiness, and rollback contract. |
+| [Name explorer](names.md) | Read-only language shelves, structured name sources, publication and context policy. |
 | [Agent plugin releases](obsidian-releases.md) | Agent-driven change review, version policy, release notes, local/BRAT testing, and GitHub publication. Discovered through root `AGENTS.md`. |
 
 [Roadmap](roadmap.md) is a planning artifact. Keep its proposals distinct from
@@ -154,6 +155,14 @@ to file selection, merging, or path resolution must update that guide and the
 configuration tests in `tests/config.test.mjs`.
 
 ## Runtime boundaries
+
+The [name explorer](names.md) compiles selected structured name fields and
+direct vault-explorer decisions into a snapshot index. Its shelves cover the
+published vault independently of reader context; editorial notes stay out.
+Compilation belongs to scripts/compile-names.mjs and scripts/name-sources.mjs.
+The shared src/names.mjs owns querying and the unconfirmed first-name/surname
+projection over indexed personal names. src/names-view.mjs owns presentation, and
+public/names.js and public/names.css own progressive browsing and layout.
 
 Each render resolves a date/campaign and checks page availability before loading
 the body. It then regenerates the header, filters comments/conditional blocks,
