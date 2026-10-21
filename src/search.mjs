@@ -1,12 +1,13 @@
 import {RenderError,dateKey,pageUrl} from './common.mjs';
 import {availableInContext} from './content-store.mjs';
 import {searchType,searchTypes} from './search-types.mjs';
+import {normalizeName} from './search-metadata.mjs';
 
 const OPEN='\ue000',CLOSE='\ue001';
-const normalize=value=>String(value).normalize('NFKD').replace(/\p{M}/gu,'').toLowerCase();
-const nameQuery=query=>normalize(query).replaceAll('"','').replace(/\s+/g,' ').trim();
+const nameQuery=normalizeName;
 function nameRank(entry,query){
   if(!query)return 2;
+  if(entry.searchMetadata)return entry.searchMetadata.names.includes(query)?0:entry.searchMetadata.aliases.includes(query)?1:2;
   const names=[entry.title,entry.name,entry.note.metadata.name].filter(Boolean);
   if(names.some(name=>nameQuery(name)===query))return 0;
   const raw=entry.note.metadata.aliases ?? [],aliases=Array.isArray(raw)?raw:[raw];
@@ -35,7 +36,7 @@ export function pageNameSearch(store,input,context,notice){
   const entries=[...store.bySlug.values()].filter(entry=>{
     const raw=entry.note.metadata.aliases || [],aliases=Array.isArray(raw)?raw:[raw];
     return availableInContext(entry,context,store.settings) && (!input.type || searchType(entry)===input.type) &&
-      nameQuery([entry.slug,entry.name,entry.title,entry.note.metadata.name,...aliases].filter(Boolean).join(' ')).includes(query);
+      (entry.searchMetadata?.text ?? nameQuery([entry.slug,entry.name,entry.title,entry.note.metadata.name,...aliases].filter(Boolean).join(' '))).includes(query);
   }).sort((a,b)=>{
     return nameRank(a,query)-nameRank(b,query) || a.title.localeCompare(b.title) || a.slug.localeCompare(b.slug);
   });
@@ -72,33 +73,44 @@ export function createIndexSearch(query,{revision,descriptor,store}){
     if(!/^[a-f0-9]{64}$/.test(revision || '') || descriptor?.version!==1 || !/^[a-f0-9]{64}$/.test(descriptor.digest || '') ||
       !Number.isSafeInteger(descriptor.documents) || descriptor.documents<0 || !Number.isSafeInteger(descriptor.rules) || descriptor.rules<0)throw new Error('Search revision descriptor unavailable');
     const day=dateKey(context.date),campaigns=JSON.stringify(context.campaigns);
+    const prepared=descriptor.metadataVersion===1;
+    if(descriptor.metadataVersion!==undefined && (!prepared || !Number.isSafeInteger(descriptor.metadata) || descriptor.metadata<0))throw new Error('Search metadata descriptor unavailable');
     // Metadata is already in the revision snapshot. Pass only matching slugs,
     // so reader POV visibility, ranking, and type filtering happen before LIMIT without a schema change
     // or reads of article bodies. JSON parameters avoid per-page SQL bindings.
     const exact=[],aliases=[],typed=[],visible=[],name=nameQuery(input.query);
-    for(const entry of store.bySlug.values()){
+    if(!prepared)for(const entry of store.bySlug.values()){
       if (availableInContext(entry,context,store.settings)) visible.push(entry.slug);
       const rank=nameRank(entry,name);
       if(rank===0)exact.push(entry.slug);else if(rank===1)aliases.push(entry.slug);
       if(input.type && searchType(entry)===input.type)typed.push(entry.slug);
     }
+    const rankSQL=prepared ? `CASE WHEN EXISTS(SELECT 1 FROM json_each(m.names) WHERE value=?) THEN 0
+      WHEN EXISTS(SELECT 1 FROM json_each(m.aliases) WHERE value=?) THEN 1 ELSE 2 END` :
+      `CASE WHEN d.page IN (SELECT value FROM json_each(?)) THEN 0 WHEN d.page IN (SELECT value FROM json_each(?)) THEN 1 ELSE 2 END`;
+    const metadataSQL=prepared ? `m.from_date<=? AND (?=0 OR m.pov_date<=?)
+      AND NOT EXISTS(SELECT 1 FROM json_each(m.exclusions) x WHERE x.value='all' OR x.value IN (SELECT value FROM json_each(?)))
+      ${input.type?'AND m.type=?':''}` : `d.page IN (SELECT value FROM json_each(?)) ${input.type?'AND d.page IN (SELECT value FROM json_each(?))':''}`;
+    const metadataParams=prepared ? [day,(context.pov ?? store.settings?.respect_pov_dates)===true?1:0,day,campaigns,...(input.type?[input.type]:[])] :
+      [JSON.stringify(visible),...(input.type?[JSON.stringify(typed)]:[])];
     const output=await query([
       {sql:`SELECT revision FROM tv_search_revisions WHERE revision=? AND state='ready' AND digest=? AND compiler=? AND documents=? AND rules=?
-        AND EXISTS(SELECT 1 FROM tv_search_meta WHERE owner='taelgarverse-core-search' AND version IN (1,2))`,
-        params:[revision,descriptor.digest,descriptor.version,descriptor.documents,descriptor.rules]},
+        AND EXISTS(SELECT 1 FROM tv_search_meta WHERE owner='taelgarverse-core-search' AND version IN (1,2,3))
+        ${prepared?'AND (SELECT COUNT(*) FROM tv_search_page_metadata WHERE revision=tv_search_revisions.revision)=?':''}`,
+        params:[revision,descriptor.digest,descriptor.version,descriptor.documents,descriptor.rules,...(prepared?[descriptor.metadata]:[])]},
       {sql:`SELECT d.page,d.title,bm25(tv_search_fts,10,6,1) AS rank,
         substr(snippet(tv_search_fts,2,?,?,' … ',36),1,1200) AS marked,
-        CASE WHEN d.page IN (SELECT value FROM json_each(?)) THEN 0
-          WHEN d.page IN (SELECT value FROM json_each(?)) THEN 1 ELSE 2 END AS exact
+        ${rankSQL} AS exact
         FROM tv_search_fts JOIN tv_search_documents d ON d.rowid=tv_search_fts.rowid
-        WHERE tv_search_fts MATCH ? AND d.page IN (SELECT value FROM json_each(?)) ${input.type?'AND d.page IN (SELECT value FROM json_each(?))':''} AND EXISTS(
+        ${prepared?'JOIN tv_search_page_metadata m ON m.revision=? AND m.page=d.page':''}
+        WHERE tv_search_fts MATCH ? AND ${metadataSQL} AND EXISTS(
           SELECT 1 FROM tv_search_rules r JOIN tv_search_revisions v ON v.revision=r.revision
           WHERE r.document=d.id AND r.revision=? AND v.state='ready' AND v.digest=? AND r.from_date<=? AND (r.before_date IS NULL OR r.before_date>?)
           AND (r.dm IS NULL OR r.dm=?)
           AND NOT EXISTS(SELECT 1 FROM json_each(r.campaigns) c WHERE c.value NOT IN (SELECT value FROM json_each(?)))
           AND NOT EXISTS(SELECT 1 FROM json_each(r.except_campaigns) c WHERE c.value IN (SELECT value FROM json_each(?))))
         ORDER BY exact,rank,d.page LIMIT ? OFFSET ?`,
-        params:[OPEN,CLOSE,JSON.stringify(exact),JSON.stringify(aliases),input.match,JSON.stringify(visible),...(input.type?[JSON.stringify(typed)]:[]),
+        params:[OPEN,CLOSE,...(prepared?[name,name,revision]:[JSON.stringify(exact),JSON.stringify(aliases)]),input.match,...metadataParams,
           revision,descriptor.digest,day,day,context.dm?1:0,campaigns,campaigns,input.limit+1,input.offset]},
     ]);
     if(!Array.isArray(output) || output.length!==2 || output.some(r=>r.success===false || !Array.isArray(r.results)) || output[0].results[0]?.revision!==revision)throw new Error('Search revision is not ready');

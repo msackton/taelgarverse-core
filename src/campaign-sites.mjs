@@ -43,4 +43,7 @@ export class CampaignSites {
     if (!site) throw new RenderError(404,'Campaign site not found');
     return site;
   }
+
+  compile() { return [...this.byHost]; }
+  static hydrate(compiled) { return Object.assign(Object.create(CampaignSites.prototype),{byHost:new Map(compiled)}); }
 }

@@ -5,6 +5,7 @@ export const searchTypes = [
   ['power','Powers'],['ancestry','Ancestries'],['creature','Creatures'],['other','Other'],
 ];
 export function searchType(entry) {
+  if(entry.searchMetadata)return entry.searchMetadata.type;
   const raw = entry.note.metadata.tags ?? [];
   const tags = (Array.isArray(raw) ? raw : [raw]).filter(tag=>typeof tag==='string')
     .flatMap(tag=>tag.split(/[\s,]+/)).map(tag=>tag.replace(/^#/,'').toLowerCase().split('/')[0]);

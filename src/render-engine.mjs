@@ -15,21 +15,21 @@ import {leadingBioBlock,leadingHeaderMarker} from './bio-block.mjs';
 import {HeaderDataError} from './header-core/errors.mjs';
 
 export class RenderEngine {
-  constructor({settings,store,headers,renderHeader,renderBio,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex}) {
+  constructor({settings,store,headers,renderHeader,renderBio,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared}) {
     this.settings = settings;
     this.store = store;
     this.store.settings = settings;
     this.headers = headers;
     this.renderHeader = renderHeader;
     this.renderBio = renderBio;
-    this.contexts = new Contexts(this.store,this.headers.registry,settings);
-    this.campaignSites = new CampaignSites(campaignHomes,this.contexts);
+    this.contexts = prepared?.contexts || new Contexts(this.store,this.headers.registry,settings);
+    this.campaignSites = prepared?.campaignSites || new CampaignSites(campaignHomes,this.contexts);
     this.markdown = createMarkdown();
     this.notesMarkdown = createMarkdown({html:false});
-    this.navigation = new Navigation(this.store,navigationSource);
-    this.home = homeSource === null ? null : parseNote(homeSource);
+    this.navigation = prepared?.navigation || new Navigation(this.store,navigationSource);
+    this.home = prepared ? prepared.home : homeSource === null ? null : parseNote(homeSource);
     this.backlinkIndex = backlinkIndex === undefined ? buildBacklinkIndex(store) : backlinkIndex;
-    this.backlinkCampaigns = buildBacklinkCampaigns(store,this.headers.registry);
+    this.backlinkCampaigns = prepared?.backlinkCampaigns || buildBacklinkCampaigns(store,this.headers.registry);
     if (backlinkIndex === undefined) this.store.warnings.push(...this.backlinkIndex.warnings);
   }
 
@@ -49,11 +49,11 @@ export class RenderEngine {
     const metadata = entry.note.metadata;
     const note = loadedNote || entry.note;
     let body = note.body;
-    const bio = leadingBioBlock(body);
+    const bio = Object.hasOwn(note,'bio') ? note.bio : leadingBioBlock(body);
     if (bio?.error) throw new RenderError(422, bio.error);
     // Prepared Markdown places this marker at the start of the body. A leading
     // marker is explicit; examples inside code or prose are left alone.
-    const headerMarker = leadingHeaderMarker(body);
+    const headerMarker = Object.hasOwn(note,'headerMarkerEnd') ? note.headerMarkerEnd ? [body.slice(0,note.headerMarkerEnd)] : null : leadingHeaderMarker(body);
     if (bio || headerMarker || (metadata.headerVersion && metadata.tags)) {
       try {
         let generated;

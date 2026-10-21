@@ -1,5 +1,5 @@
 import {handleRequest} from './application.mjs';
-import {loadSnapshot} from './snapshot.mjs';
+import {openSnapshot} from './runtime-snapshot.mjs';
 import {serveAsset,themeFiles} from './http-assets.mjs';
 import {RenderError} from './common.mjs';
 import {createD1Search} from './search.mjs';
@@ -22,11 +22,12 @@ export function createWorker(coreRelease = {}) {
       const published=await publication.json(), {revision}=published;
       if (!/^[a-f0-9]{64}$/.test(revision || '')) throw new RenderError(503,'Published content pointer is invalid');
       if (!state || state.revision!==revision || state.bucket!==env.CONTENT) {
-        const pending=loadSnapshot(env.CONTENT,revision);
+        const pending=openSnapshot(env.CONTENT,revision);
         const current={revision,bucket:env.CONTENT,pending};state=current;
         pending.catch(()=>{if(state===current)state=undefined;});
       }
-      const {engine,store,index}=await state.pending;
+      const snapshot=await state.pending;
+      const {engine,store,index}=await snapshot.forRequest(request);
       return await handleRequest(request,engine,{
         runtime:'cloudflare-worker',revision,
         search:createD1Search(env.SEARCH_DB,{revision,descriptor:index.search,store}),
@@ -46,7 +47,7 @@ export function createWorker(coreRelease = {}) {
         theme:(name,request)=>env.ASSETS.fetch(new Request(new URL('/'+themeFiles[name],request.url),request)),
       });
     } catch(error) {
-      const status=error.status || 500;
+      const status=error instanceof URIError ? 400 : error.status || 500;
       if (status===500) console.error(error);
       return new Response(JSON.stringify({detail:status===500 ? 'Internal rendering error' : error.message}),{
         status,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'},

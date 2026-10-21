@@ -116,7 +116,9 @@ contains the following files:
 | Location | What it contains |
 | --- | --- |
 | `published/current.json` | A small file saying which revision the website should use. It also records the Git version and publishing settings so unchanged content can be skipped next time. |
-| `revisions/<revision>/` | A saved version of the notes and supporting data. `index.json` holds the homepage and menu Markdown, plus the page list, campaign information, metadata, backlinks, and media locations. The `notes/` folder holds article Markdown in groups of files. |
+| `revisions/<revision>/index.json`, `notes/` | Complete schema-1 snapshot and original Markdown shards, retained for legacy Workers and publication verification. |
+| `revisions/<revision>/runtime.json` | Runtime manifest with precomputed counts, campaign contexts and host policies, plus references to separate route data. |
+| `revisions/<revision>/runtime/` | Compiled renderer lookups, header indexes, backlink ownership, compact search metadata and navigation structure/views. `notes/` holds parsed bodies in roughly 64 KiB shards (an individual larger note remains intact); `assets/` partitions media entries by the first two hex digits of the SHA-256 of their URL target. |
 | `assets/` | Images, audio, and other published attachments. Identical files share one stored copy, even across publications. |
 | `build-cache/derivatives-v1.json` | Disposable recipe-to-output catalog with dimensions, generated asset targets, content hashes, and sizes; no source paths or image bytes. |
 
@@ -125,30 +127,47 @@ collects other revision objects and unreferenced media. The build catalog does
 not protect assets from cleanup: reuse checks their existence, and later catalog
 writes discard stale records. Deleting the catalog only loses build reuse.
 The metadata index now includes a search descriptor (version, digest, and counts),
-while search text/rules stay in D1. The local `search.json` compiler payload is
+while search text/rules and revision-specific ranking/visibility metadata live in D1. The local `search.json` compiler payload is
 excluded from R2 upload manifests. Older indexes without search still render.
 The JavaScript that generates note headers is part of the Worker code, so changing
 those rules requires a [code update](architecture.md#change-and-release-rules).
 
 ## What happens when someone opens a page
 
-1. The Worker checks which content revision is current.
+1. The Worker checks which content revision is current and loads its runtime
+   manifest, falling back to the complete index for older publications.
 2. It finds the requested note and checks whether it is available for the
    selected campaign and date.
-3. It reads the note, creates its header, and turns the Markdown into a web page.
+3. For articles it loads renderer data and the prepared note, creates the header
+   for the selected date, and turns the Markdown into a web page.
 4. The browser loads the page's images and audio through the Worker from R2.
 
 Visible note embeds load their note shards on demand, using the same selected
 campaign/date as the parent. Request-local note data avoids repeated loads during
 nested expansion. Hidden embeds and nested embeds outside a requested section do
-not trigger body reads. No separate embed index or snapshot schema is required.
+not trigger body reads. No HTML is prerendered. Prepared records preserve body
+text and header-block boundaries; metadata comes from the compiled render index.
+
+Health, contexts, docs and the API schema use only the runtime manifest. Media
+requests load their asset partition without initializing headers, Markdown or
+navigation. Search loads compact page metadata, adding navigation for HTML
+results. Article rendering loads the remaining data lazily. Generated image
+variants and map tile entries are omitted from renderer lookups; their entries
+remain in the asset partitions used to serve them.
+
+Compiled artifact descriptors contain hashes. The loader validates each object
+before caching it, deduplicates concurrent loads, and retries failures without
+keeping rejected promises. Retention verifies that every referenced runtime
+object exists before cleanup or rollback. New revisions replace all in-memory
+caches. Complete indexes and raw shards remain alongside compiled data, adding
+publication storage in exchange for backward compatibility.
 
 The homepage uses the published `_website/home.md` text, with links and marked
 content adjusted for the reader's campaign and date. Submitting its search box
 opens search at `/?q=...`. An older publication without homepage text
 shows the search/browse page until content is published again.
 
-The Worker reuses loaded note data to keep this fast, but checks for a new
+The Worker reuses loaded note data and navigation visibility, but checks for a new
 publication on content requests. Page responses are marked not to be cached.
 In `src/http-assets.mjs`, generated map tiles and responsive image variants use
 `Cache-Control: public, max-age=31536000, immutable`; their URLs include a source

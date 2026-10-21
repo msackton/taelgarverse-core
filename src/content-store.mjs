@@ -69,14 +69,20 @@ function povDateKey(value) {
   try { return dateKey(date,true); } catch { return null; }
 }
 export function availableFrom(entry, settings = {}) {
+  if (entry.availability) return settings.respect_pov_dates === true ? entry.availability.povFrom : entry.availability.from;
   const metadata=entry.note.metadata,start=creationDateKey(metadata.born || metadata.created);
   const pov = settings.respect_pov_dates === true ? povDateKey(metadata.POV) : null;
   return Math.max(start || 10101,metadata.activeYear ? dateKey(String(metadata.activeYear),true) : 10101,pov || 10101);
 }
 export function availableInContext(entry, context, settings) {
-  if (!entry?.note || excluded(entry.note.metadata,{campaigns:context.campaigns})) return false;
+  if (!entry?.note) return false;
+  const exclusions=entry.availability?.exclusions;
+  if (exclusions ? exclusions.includes('all') || context.campaigns.some(c=>exclusions.includes(c.toLowerCase())) : excluded(entry.note.metadata,{campaigns:context.campaigns})) return false;
   const policy = typeof context.pov === 'boolean' ? {respect_pov_dates:context.pov} : settings;
   return availableFrom(entry,policy)<=dateKey(context.date);
+}
+export function compileAvailability(entry) {
+  return {from:availableFrom(entry),povFrom:availableFrom(entry,{respect_pov_dates:true}),exclusions:publicationExclusions(entry.note.metadata)};
 }
 function addAlias(map, alias, entry) {
   if (!alias) return;
@@ -85,11 +91,17 @@ function addAlias(map, alias, entry) {
   map.set(alias, entries);
 }
 export class ContentStore {
-  constructor(entries,warnings = [],settings = {}) {
+  constructor(entries,warnings = [],settings = {},lookups) {
     this.settings = settings;
     this.entries = entries;
     this.warnings = warnings;
     this.bySlug = new Map(); this.assets = new Map(); this.canonical = new Map(); this.aliases = new Map();
+    if (lookups) {
+      this.bySlug=new Map(lookups.pages.map(([key,index])=>[key,entries[index]]));
+      this.assets=new Map(lookups.assets.map(([key,index])=>[key,entries[index]]));
+      for(const field of ['canonical','aliases'])this[field]=new Map(lookups[field].map(([key,indices])=>[key,new Set(indices.map(index=>entries[index]))]));
+      return;
+    }
     for (const entry of entries) {
       const relative = entry.id;
       const mapping = entry.note ? this.bySlug : this.assets;
@@ -108,6 +120,13 @@ export class ContentStore {
         addAlias(this.aliases, String(alias).toLowerCase(), entry);
       }
     }
+  }
+
+  compileLookups() {
+    const indices=new Map(this.entries.map((entry,index)=>[entry,index]));
+    return {pages:[...this.bySlug].map(([key,entry])=>[key,indices.get(entry)]),assets:[...this.assets].map(([key,entry])=>[key,indices.get(entry)]),
+      canonical:[...this.canonical].map(([key,entries])=>[key,[...entries].map(entry=>indices.get(entry))]),
+      aliases:[...this.aliases].map(([key,entries])=>[key,[...entries].map(entry=>indices.get(entry))])};
   }
 
   lookup(raw) {

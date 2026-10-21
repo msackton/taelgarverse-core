@@ -45,6 +45,27 @@ Obsidian prerequisite for remaining body queries. Deploy header-block website
 support before publishing with this preparation code. The updated renderer
 continues to read existing R2 snapshots, so deployment needs no R2 rewrite.
 
+### Roll out compiled runtime snapshots
+
+Deploy the updated website through the normal GitHub workflow **before**
+publishing with the runtime compiler. Then publish vault content normally. The
+publisher fingerprint includes the compiler and its lookup/navigation/search
+inputs, so the format change triggers a rebuild even with unchanged vault notes.
+There is no prerendering command; article HTML remains dynamic.
+
+The new Worker reads older snapshots and search descriptors. New publications
+retain the schema-1 index/raw shards and add compiled runtime objects. Search
+staging upgrades D1 transactionally to schema 3, adding immutable, revision-bound
+page metadata without discarding existing ready generations. Activation still
+follows R2 upload and D1 verification. Previous-content rollback remains
+available. Rolling website code back to a version that only accepts D1 schemas
+1–2 causes full-text search to use its page-name fallback after the upgrade;
+keep the updated Worker when rolling back content.
+
+Local validation uses `npm test`, the R2/D1 integration tests, and
+`node scripts/cloudflare.mjs check`. These checks do not publish or deploy.
+Production changes still use the separately authorized deployment/publication.
+
 ## GitHub tests, website deployment, and plugin releases
 
 The **Tests** workflow runs on pull requests and is reused by website and plugin

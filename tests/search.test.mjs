@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {load} from 'cheerio';
-import {ContentStore,parseNote} from '../src/content-store.mjs';
+import {ContentStore,parseNote,compileAvailability} from '../src/content-store.mjs';
+import {compileSearchMetadata} from '../src/search-metadata.mjs';
 import {targetPath,titleCase} from '../src/common.mjs';
 import {compileSearch,searchDescriptor} from '../scripts/compile-search.mjs';
 import {SearchIndex} from '../scripts/search-index.mjs';
@@ -38,6 +39,20 @@ const sources={
   'Excluded.md':'---\nexcludePublish: [dufr]\n---\nexcludedmarker',
   'Future.md':'---\ncreated: "1750-01-01"\n---\nrankmarker future-only.',
 };
+sqliteTest('compiled search filters and ranks in D1 without iterating the vault or sending page lists',async t=>{
+  const store=storeFor(sources),manifest=compileSearch(store),d=database(t);
+  await new SearchIndex(d.adapter).stage(rev('a'),manifest);
+  const entries=new Map([...store.bySlug].map(([slug,entry])=>[slug,{...entry,availability:compileAvailability(entry),searchMetadata:compileSearchMetadata(entry),note:{metadata:{}}}]));
+  const compact={settings:store.settings,bySlug:{get:slug=>entries.get(slug),values(){assert.fail('full vault scan during indexed search');}}};
+  let statements;
+  const search=createIndexSearch(async query=>{statements=query;return d.adapter.query(query);},{revision:rev('a'),descriptor:searchDescriptor(manifest),store:compact});
+  const found=await search(searchInput('Étoile',{type:'place',limit:1}),context());
+  assert.equal(found.results[0].title,'Golden Lantern');
+  assert.ok(statements[1].sql.includes('JOIN tv_search_page_metadata'));
+  assert.ok(!statements[1].params.some(value=>typeof value==='string' && value.includes('golden-lantern')));
+  assert.equal((await search(searchInput('excludedmarker'),context(['dufr']))).results.length,0);
+  assert.equal((await search(searchInput('rankmarker'),context())).results.length,1);
+});
 test('queries quote literal FTS operators, support prefixes/phrases/Unicode and bound pagination before database access',()=>{
   assert.equal(searchInput('bronze fox').match,'"bronze"* AND "fox"*');
   assert.equal(searchInput('"bronze fox"').match,'"bronze fox"');

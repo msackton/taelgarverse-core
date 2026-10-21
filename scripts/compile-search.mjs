@@ -3,14 +3,16 @@ import {authoredBody,availableInContext,availableFrom,publicationExclusions} fro
 import {filterComments} from '../src/comments.mjs';
 import {createMarkdown,renderMarkdown} from '../src/markdown.mjs';
 import {searchText} from '../src/search-text.mjs';
+import {searchMetadataRow} from '../src/search-metadata.mjs';
 
 export const SEARCH_VERSION=1;
 export const searchHash=value=>createHash('sha256').update(typeof value==='string'?value:JSON.stringify(value)).digest('hex');
 const firstDate=10101;
 const fullDate=key=>String(Math.floor(key/10000)).padStart(4,'0')+'-'+String(Math.floor(key/100)%100).padStart(2,'0')+'-'+String(key%100).padStart(2,'0');
 export const documentHash=({page,title,aliases,text})=>searchHash({page,title,aliases,text});
-export function searchDescriptor(manifest){return {version:manifest.version,digest:manifest.digest,documents:manifest.documents.length,rules:manifest.rules.length};}
-const payload=manifest=>({version:manifest.version,documents:manifest.documents,rules:manifest.rules});
+export function searchDescriptor(manifest){return {version:manifest.version,digest:manifest.digest,documents:manifest.documents.length,rules:manifest.rules.length,
+  ...(manifest.metadata?{metadataVersion:1,metadata:manifest.metadata.length}:{})};}
+const payload=manifest=>({version:manifest.version,documents:manifest.documents,rules:manifest.rules,...(manifest.metadata?{metadata:manifest.metadata}:{})});
 export function validateSearchManifest(manifest){
   if(manifest?.version!==SEARCH_VERSION || !Array.isArray(manifest.documents) || !Array.isArray(manifest.rules) || searchHash(payload(manifest))!==manifest.digest)throw new Error('Invalid search manifest/digest');
   const ids=new Set();
@@ -26,6 +28,16 @@ export function validateSearchManifest(manifest){
        new Set([...rule.campaigns,...rule.exceptCampaigns]).size!==rule.campaigns.length+rule.exceptCampaigns.length)throw new Error('Invalid search visibility rule');
   }
   if(new Set(manifest.rules.map(r=>r.document)).size!==ids.size)throw new Error('Search documents must have visibility rules');
+  if(manifest.metadata){
+    const pages=new Set();
+    for(const row of manifest.metadata){
+      if(!row || typeof row.page!=='string' || pages.has(row.page) || typeof row.type!=='string' || typeof row.text!=='string' ||
+        !Number.isSafeInteger(row.from) || !Number.isSafeInteger(row.povFrom) || row.from<firstDate || row.povFrom<row.from ||
+        ['names','aliases','exclusions'].some(key=>!Array.isArray(row[key]) || row[key].some(value=>typeof value!=='string')))throw new Error('Invalid search page metadata');
+      pages.add(row.page);
+    }
+    if(manifest.documents.some(doc=>!pages.has(doc.page)))throw new Error('Search page metadata is incomplete');
+  }
   return manifest;
 }
 
@@ -76,6 +88,7 @@ export function compileSearch(store,{maxStatesPerNote=4096}={}){
     }
   }
   const manifest={version:SEARCH_VERSION,documents:[...documents.values()].sort((a,b)=>a.id.localeCompare(b.id)),
-    rules:rules.sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)))};
+    rules:rules.sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b))),
+    metadata:[...store.bySlug.values()].map(searchMetadataRow).sort((a,b)=>a.page.localeCompare(b.page))};
   return {...manifest,digest:searchHash(manifest),stats:{notes,states,documents:documents.size,rules:rules.length,textBytes:[...documents.values()].reduce((n,d)=>n+Buffer.byteLength(d.text),0)},warnings};
 }

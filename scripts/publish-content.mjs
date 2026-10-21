@@ -220,7 +220,7 @@ export function buildFingerprint(settings, options, config={}) {
     // invalidate the shared R2 checkpoint for an otherwise identical build.
     hash.update(filename ? readFileSync(filename, 'utf8').replace(/\r\n/g, '\n') : '<no-website-source>');
   }
-  for(const filename of ['./compile-search.mjs','./search-index.mjs','./search-database.mjs','./content-retention.mjs','./cloudflare-client.mjs','./upload-content.mjs','./publication-progress.mjs','../src/search-text.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
+  for(const filename of ['./compile-search.mjs','./compile-runtime.mjs','./search-index.mjs','./search-database.mjs','./content-retention.mjs','./cloudflare-client.mjs','./upload-content.mjs','./publication-progress.mjs','../src/search-text.mjs','../src/search-metadata.mjs','../src/search-types.mjs','../src/runtime-format.mjs','../src/navigation.mjs','../src/contexts.mjs','../src/header-core/snapshot.mjs','../src/header-core/campaigns.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
   return hash.digest('hex');
 }
 

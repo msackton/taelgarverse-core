@@ -6,10 +6,14 @@ import {load} from 'cheerio';
 import sharp from 'sharp';
 import {ROOT,loadSettings,isInside} from '../src/config.mjs';
 import {Engine} from '../src/engine.mjs';
-import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
+import {prepareContent as preparePublication} from '../scripts/prepare-cloudflare.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
 import {loadSnapshot} from '../src/snapshot.mjs';
 import {handleRequest} from '../src/application.mjs';
+
+// Keep the legacy publication contract covered after adding compiled snapshots.
+// runtime-snapshot.test.mjs exercises the new format and cross-format parity.
+const prepareContent=(...args)=>{while(args.length<6)args.push(undefined);return preparePublication(...args,{runtime:false});};
 
 let directory,report,bucket,engine,worker,env;
 class LocalBucket {

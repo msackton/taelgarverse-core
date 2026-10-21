@@ -60,6 +60,7 @@ flowchart LR
 | `scripts/dev.mjs`, `scripts/test.mjs`, `.github/workflows/tests.yml` | Public development/test entry points, live-vault watching, full local publication preview, plugin installation, and GitHub test/package gates. |
 | `.github/workflows/website.yml` | Reuse CI tests, then deploy Worker/static assets on `main`. Serialize production pipelines; deployment credentials are available only in the deployment step. See the one-time cutover in [Deploy](deploy.md#one-time-github-website-deployment-setup). |
 | `scripts/prepare-cloudflare.mjs` | Normalize note headers, then package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. |
+| `scripts/compile-runtime.mjs`, `src/runtime-format.mjs` | Compile versioned lookups, availability, campaign contexts, navigation views, parsed notes and separate route manifests during publication. No HTML prerendering. |
 | `scripts/derivative-cache.mjs` | R2 recipe catalog for responsive images/map pyramids, output inventory validation, and publication of reusable records after successful asset uploads. Local/offline consumers retain filesystem generation. |
 | `scripts/compile-search.mjs`, `src/search-text.mjs` | Compile deduplicated whole-note text versions and date/campaign/DM visibility rules. |
 | `scripts/search-index.mjs`, `scripts/search-database.mjs`, `scripts/search.mjs` | Immutable D1 staging, verification, remote/local adapters, and explicit staging CLI. |
@@ -68,6 +69,7 @@ flowchart LR
 | `src/store.mjs`, `src/content-store.mjs` | Local filesystem scan, YAML parsing, page/asset lookup, shared availability rules. |
 | `src/folder-exclusions.mjs` | Discover original-vault `.nopublish` folder markers for local indexing, export packaging, and publication fingerprints. |
 | `src/snapshot.mjs` | Load the R2 index and fetch/cache Markdown shards on demand. |
+| `src/runtime-snapshot.mjs` | Select compiled or legacy snapshots; lazily load route data and verify/cache prepared notes and asset manifests. |
 | `src/application.mjs` | Shared Fetch API router: homepage, articles, search HTML/JSON, contexts, navigation, assets, health. |
 | `src/render-engine.mjs` | Resolve context/page, generate header, filter comments, render Markdown and page shell. |
 | `src/article-layout.mjs` | Shell-only prose grouping and semantic media breakouts, retaining float contexts and embedded-note boundaries. |
@@ -206,11 +208,18 @@ Body Dataview/JavaScript is not executed by either renderer. Supported
 Dataview queries are materialized during publication and do not rerun when a
 visitor changes context.
 
-The Worker shares an index and bounded Markdown cache within an isolate. It reads
-the R2 publication pointer on content requests and replaces that state when the
-revision changes. Node reads a filesystem snapshot at startup and must restart
+The Worker reads the R2 publication pointer on content requests and replaces its
+state when the revision changes. New publications include a small runtime
+manifest: health and contexts need no article data; assets load a partitioned
+asset index; search uses compact metadata; articles initialize the renderer from
+compiled lookups and header indexes. Prepared notes contain parsed bodies rather
+than requiring request-time YAML parsing. Artifact hashes are verified on load,
+with shared pending reads and a bounded 16-object data cache. Navigation compiles
+named-context visibility for both POV modes; Custom views are calculated on
+demand in a bounded 32-view cache. Request context and active-page selection stay
+separate from shared visibility data. Node reads a filesystem snapshot at startup and must restart
 after vault, runtime, settings, homepage, or menu changes. There is no rendered HTML
-cache. The `dev` supervisor restarts Node after vault/source changes; full preview
+cache or prerendered article HTML. The `dev` supervisor restarts Node after vault/source changes; full preview
 uses a prepared snapshot and must be rerun after vault edits.
 [Cloudflare](cloudflare.md) owns the hosted storage/request details.
 

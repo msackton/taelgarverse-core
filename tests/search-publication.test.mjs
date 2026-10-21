@@ -113,13 +113,14 @@ sqliteTest('unblock never removes a replacement owner and rolls back failed reco
 
 sqliteTest('schema-1 database upgrades transactionally without dropping ready generations',async()=>{
   const {db,adapter}=database(),index=new SearchIndex(adapter),manifest=compileSearch(storeFor({'One.md':'oldmarker'}));
+  delete manifest.metadata;manifest.digest=searchHash({version:manifest.version,documents:manifest.documents,rules:manifest.rules});
   await index.stage(rev('a'),manifest);
   db.exec(`DROP TRIGGER tv_search_delete; DROP TRIGGER tv_search_revision_delete; DROP TRIGGER tv_search_rule_delete;
     CREATE TRIGGER tv_search_rule_delete BEFORE DELETE ON tv_search_rules WHEN
       (SELECT state FROM tv_search_revisions WHERE revision=old.revision)='ready'
       BEGIN SELECT RAISE(ABORT,'Ready search membership is immutable'); END;
-    DROP INDEX tv_search_document_membership; DROP TABLE tv_search_gc; DROP TABLE tv_search_publish_lock; UPDATE tv_search_meta SET version=1;`);
-  await index.ensure();assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,2);
+    DROP TABLE tv_search_page_metadata; DROP INDEX tv_search_document_membership; DROP TABLE tv_search_gc; DROP TABLE tv_search_publish_lock; UPDATE tv_search_meta SET version=1;`);
+  await index.ensure();assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,3);
   await index.verify(rev('a'),searchDescriptor(manifest));
   await index.withPublicationLock(()=>index.prune([rev('a')]));db.close();
 });
@@ -131,6 +132,36 @@ sqliteTest('failed lock release preserves the original publication error and exp
     throw new Error('original upload failure');
   }),/original upload failure[\s\S]*Could not release[\s\S]*--unblock/);
   assert.equal(db.prepare('SELECT COUNT(*) n FROM tv_search_publish_lock').get().n,1);
+});
+
+sqliteTest('schema-2 upgrade is atomic and retains old ready search revisions',async t=>{
+  const {db,adapter,fail}=database();t.after(()=>db.close());
+  const index=new SearchIndex(adapter),manifest=compileSearch(storeFor({'One.md':'legacy marker'}));
+  delete manifest.metadata;manifest.digest=searchHash({version:manifest.version,documents:manifest.documents,rules:manifest.rules});
+  await index.stage(rev('a'),manifest);
+  db.exec('DROP TABLE tv_search_page_metadata; UPDATE tv_search_meta SET version=2');
+  fail(sql=>sql.startsWith('CREATE TRIGGER tv_search_metadata_update'));
+  await assert.rejects(index.ensure(),/injected/);
+  assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,2);
+  assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE name='tv_search_page_metadata'").get(),undefined);
+  await index.ensure();await index.verify(rev('a'),searchDescriptor(manifest));
+  assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,3);
+  const next=compileSearch(storeFor({'One.md':'new marker'}));await index.stage(rev('b'),next);
+  assert.throws(()=>db.prepare("UPDATE tv_search_page_metadata SET type='other' WHERE revision=?").run(rev('b')),/immutable/);
+  assert.throws(()=>db.prepare('DELETE FROM tv_search_page_metadata WHERE revision=?').run(rev('b')),/immutable/);
+  await index.withPublicationLock(()=>index.prune([rev('a')]));
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM tv_search_page_metadata').get().n,0);
+});
+
+sqliteTest('resumed search staging validates metadata as well as immutable text before activation',async t=>{
+  const {db,adapter,fail}=database();t.after(()=>db.close());
+  const index=new SearchIndex(adapter),manifest=compileSearch(storeFor({'One.md':'---\nPOV: 1750\n---\nmarker'}));
+  fail(sql=>sql.startsWith('INSERT INTO tv_search_rules'));
+  await assert.rejects(index.stage(rev('a'),manifest),/injected/);
+  db.exec('DROP TRIGGER tv_search_metadata_update');
+  db.prepare('UPDATE tv_search_page_metadata SET pov_date=10101 WHERE revision=?').run(rev('a'));
+  await assert.rejects(index.stage(rev('a'),manifest),/verification/);
+  await assert.rejects(index.verify(rev('a'),searchDescriptor(manifest)),/not ready/);
 });
 
 test('compiler supports arbitrary dates, campaign subsets and DM mode with whole-note renderer parity',()=>{

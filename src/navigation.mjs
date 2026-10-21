@@ -10,6 +10,8 @@ const alphabetical = (a,b) => a.label.localeCompare(b.label,undefined,{numeric:t
 
 export class Navigation {
   constructor(store, template = null) {
+    this.viewCache=new Map();
+    this.preparedViews=new Map();
     this.settings = store.settings;
     this.entries = store.entries.filter(entry=>entry.note);
     this.byTarget = new Map(this.entries.map(entry=>[entry.target,entry]));
@@ -54,6 +56,34 @@ export class Navigation {
       });
     };
     this.roots = index(roots);
+    this.nodePaths=new Map();
+    const paths=(nodes,parents=[])=>{for(const node of nodes){const trail=[...parents,node];this.nodePaths.set(node.id,trail);paths(node.children,trail);}};
+    paths(this.roots);
+  }
+
+  viewKey(context) {
+    return JSON.stringify([context.date,[...context.campaigns].sort(),context.pov ?? (this.settings?.respect_pov_dates===true)]);
+  }
+
+  compile(contexts=[]) {
+    const nodes=[...this.nodes.values()],indices=new Map(nodes.map((node,i)=>[node.id,i]));
+    const views=new Map();
+    for(const context of contexts)for(const pov of [false,true]){
+      const selection={...context,pov},view=this.view(selection);
+      views.set(this.viewKey(selection),[...view.visible].map(([id,node])=>[indices.get(id),!!(node.entry || node.home)]));
+    }
+    return {nodes:nodes.map(node=>({id:node.id,label:node.label,home:node.home,entry:node.entry?.slug,children:node.children.map(child=>indices.get(child.id))})),
+      roots:this.roots.map(node=>indices.get(node.id)),paths:[...this.paths].map(([slug,trail])=>[slug,trail.map(node=>indices.get(node.id))]),
+      trails:[...this.nodePaths].map(([id,trail])=>[id,trail.map(node=>indices.get(node.id))]),views:[...views]};
+  }
+
+  static hydrate(store,compiled) {
+    const nodes=compiled.nodes.map(node=>({...node,entry:node.entry ? store.bySlug.get(node.entry) : undefined}));
+    nodes.forEach((node,i)=>{node.children=compiled.nodes[i].children.map(index=>nodes[index]);});
+    const paths=values=>new Map(values.map(([key,trail])=>[key,trail.map(index=>nodes[index])]));
+    return Object.assign(Object.create(Navigation.prototype),{settings:store.settings,nodes:new Map(nodes.map(node=>[node.id,node])),
+      roots:compiled.roots.map(index=>nodes[index]),paths:paths(compiled.paths),nodePaths:paths(compiled.trails),
+      compiledNodes:nodes,preparedViews:new Map(compiled.views),viewCache:new Map()});
   }
 
   expand(dirs, entries, flatten = false) {
@@ -84,7 +114,10 @@ export class Navigation {
   }
 
   view(context, page, branch) {
-    const visible = new Map(), available = new Map();
+    const key=this.viewKey(context);
+    let cached=this.viewCache.get(key);
+    if(!cached){
+    const visible = new Map(), available = new Map(),prepared=this.preparedViews.get(key);
     const visit = node => {
       const children = node.children.filter(child=>visit(child));
       let link = node.home;
@@ -96,19 +129,19 @@ export class Navigation {
       visible.set(node.id,{...node,entry:link ? node.entry : undefined,children});
       return true;
     };
-    const roots = this.roots.filter(visit);
+    if(prepared){
+      const ids=new Set(prepared.map(([index])=>this.compiledNodes[index].id));
+      for(const [index,link] of prepared){const node=this.compiledNodes[index];visible.set(node.id,{...node,entry:link?node.entry:undefined,children:node.children.filter(child=>ids.has(child.id))});}
+    }
+    const roots = prepared ? this.roots.filter(node=>visible.has(node.id)) : this.roots.filter(visit);
+    cached={visible,roots};this.viewCache.set(key,cached);
+    while(this.viewCache.size>32)this.viewCache.delete(this.viewCache.keys().next().value);
+    }else{this.viewCache.delete(key);this.viewCache.set(key,cached);}
+    const {visible,roots}=cached;
     let trail = this.paths.get(page) || [];
     if (branch) {
       if (!visible.has(branch)) throw new RenderError(404,'Navigation section not found');
-      const find = (nodes,ancestors=[]) => {
-        for (const node of nodes) {
-          const path = [...ancestors,node];
-          if (node.id === branch) return path;
-          const child = find(node.children,path);
-          if (child) return child;
-        }
-      };
-      trail = find(this.roots) || [];
+      trail = this.nodePaths.get(branch) || [];
     }
     trail = trail.filter(node=>visible.has(node.id)).map(node=>visible.get(node.id));
     const selected = page ? this.paths.get(page)?.at(-1)?.id : trail.at(-1)?.id;

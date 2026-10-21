@@ -68,6 +68,13 @@ export class Contexts {
 
   list() { return [...this.byId.values()].map(context => ({...context,campaigns:[...context.campaigns]})); }
 
+  compile() { return {contexts:this.list(),identities:[...this.campaignIdentities],codes:this.campaignCodes,warnings:this.warnings}; }
+
+  static hydrate(compiled,settings) {
+    return Object.assign(Object.create(Contexts.prototype),{settings,warnings:compiled.warnings,
+      byId:new Map(compiled.contexts.map(context=>[context.id,context])),campaignIdentities:new Map(compiled.identities),campaignCodes:compiled.codes});
+  }
+
   resolve(id, date, selectedCampaigns) {
     const context = this.byId.get(id ?? (date === undefined && selectedCampaigns === undefined ? 'modern' : 'custom'));
     if (!context) throw new RenderError(400,'Unknown context');

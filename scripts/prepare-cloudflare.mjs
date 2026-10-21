@@ -16,6 +16,7 @@ import {readCampaignHomes} from '../src/website-sources.mjs';
 import {CampaignSites} from '../src/campaign-sites.mjs';
 import {Contexts} from '../src/contexts.mjs';
 import {DerivativeCache} from './derivative-cache.mjs';
+import {compileRuntime} from './compile-runtime.mjs';
 
 const sha = value=>createHash('sha256').update(value).digest('hex');
 const writeJSON = (file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value)+'\n');};
@@ -32,7 +33,7 @@ async function hashFile(file) {
   return hash.digest('hex');
 }
 
-export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare'),sourceVersion=repositoryVersion(settings.vault_dir),imageOptions={},imageProgress,derivativeCache=new DerivativeCache()) {
+export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare'),sourceVersion=repositoryVersion(settings.vault_dir),imageOptions={},imageProgress,derivativeCache=new DerivativeCache(),{runtime=true}={}) {
   output=path.resolve(output);
   if (!isInside(ROOT,output) || output===ROOT) throw new Error('Content staging directory must be inside this project');
   const store=new Store(settings), shards=new Map(), uploads=[];
@@ -80,6 +81,8 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     homeSource,
     campaignHomes,
     search,warnings:[...store.warnings,...backlinks.warnings,...searchManifest.warnings],entries};
+  const compiled=runtime ? compileRuntime(base,store) : null;
+  if(compiled)base.runtime={version:1,digest:compiled.digest};
   const revision=sha(JSON.stringify(base)), prefix='revisions/'+revision;
   const directory=path.join(output,'revisions',revision);
   for (const [shard,notes] of shards) {
@@ -88,6 +91,14 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   }
   const index={...base,revision};
   const indexFile=path.join(directory,'index.json');writeJSON(indexFile,index);
+  if(compiled){
+    const file=path.join(directory,'runtime.json');writeJSON(file,{...compiled.manifest,revision});
+    uploads.push({key:prefix+'/runtime.json',file});
+    for(const [relative,json] of compiled.objects){
+      const artifact=path.join(directory,relative);fs.mkdirSync(path.dirname(artifact),{recursive:true});fs.writeFileSync(artifact,json);
+      uploads.push({key:prefix+'/'+relative,file:artifact});
+    }
+  }
   // Search text can include DM material. Keep the compiler payload local; only
   // its descriptor enters the R2 metadata index. D1 gets it via explicit stage.
   const searchFile=path.join(directory,'search.json');writeJSON(searchFile,searchManifest);

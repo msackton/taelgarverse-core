@@ -3,7 +3,7 @@ import {randomUUID} from 'node:crypto';
 import {SEARCH_VERSION,searchHash,documentHash,validateSearchManifest,searchDescriptor} from './compile-search.mjs';
 import {withPublicationProgress} from './publication-progress.mjs';
 
-const OWNER='taelgarverse-core-search',SCHEMA=2;
+const OWNER='taelgarverse-core-search',SCHEMA=3;
 const schema=[
   'CREATE TABLE tv_search_meta(owner TEXT PRIMARY KEY,version INTEGER NOT NULL)',
   `CREATE TABLE tv_search_revisions(revision TEXT PRIMARY KEY,digest TEXT NOT NULL,compiler INTEGER NOT NULL,
@@ -43,9 +43,24 @@ const retentionSchema=[
     INSERT INTO tv_search_fts(tv_search_fts,rowid,title,aliases,text) VALUES('delete',old.rowid,old.title,old.aliases,old.text); END`,
   'CREATE INDEX tv_search_document_membership ON tv_search_rules(document)',
 ];
+const metadataSchema=[
+  `CREATE TABLE tv_search_page_metadata(revision TEXT NOT NULL REFERENCES tv_search_revisions(revision),page TEXT NOT NULL,
+    type TEXT NOT NULL,names TEXT NOT NULL,aliases TEXT NOT NULL,search_text TEXT NOT NULL,from_date INTEGER NOT NULL,pov_date INTEGER NOT NULL,
+    exclusions TEXT NOT NULL,PRIMARY KEY(revision,page))`,
+  'CREATE INDEX tv_search_page_type ON tv_search_page_metadata(revision,type)',
+  `CREATE TRIGGER tv_search_metadata_insert BEFORE INSERT ON tv_search_page_metadata WHEN
+    (SELECT state FROM tv_search_revisions WHERE revision=new.revision)<>'staging'
+    BEGIN SELECT RAISE(ABORT,'Ready search metadata is immutable'); END`,
+  `CREATE TRIGGER tv_search_metadata_update BEFORE UPDATE ON tv_search_page_metadata BEGIN SELECT RAISE(ABORT,'Search metadata is immutable'); END`,
+  `CREATE TRIGGER tv_search_metadata_delete BEFORE DELETE ON tv_search_page_metadata WHEN
+    (SELECT state FROM tv_search_revisions WHERE revision=old.revision)='ready'
+    AND NOT EXISTS(SELECT 1 FROM tv_search_gc WHERE revision=old.revision)
+    BEGIN SELECT RAISE(ABORT,'Ready search metadata is immutable'); END`,
+];
 const validRevision=revision=>{if(!/^[a-f0-9]{64}$/.test(revision || ''))throw new Error('Invalid search content revision');};
 export function validateSearchDescriptor(search){
   if(search?.version!==SEARCH_VERSION || !/^[a-f0-9]{64}$/.test(search.digest || '') || !Number.isSafeInteger(search.documents) || search.documents<0 || !Number.isSafeInteger(search.rules) || search.rules<0)throw new Error('Invalid search descriptor');
+  if(search.metadataVersion!==undefined && (search.metadataVersion!==1 || !Number.isSafeInteger(search.metadata) || search.metadata<0))throw new Error('Invalid search metadata descriptor');
   return search;
 }
 export function readPreparedSearch(report){
@@ -80,11 +95,11 @@ export class SearchIndex {
     const [tables]=await this.query([{sql:"SELECT name FROM sqlite_master WHERE type='table' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB '_cf_*'"}]);
     if(tables.some(t=>t.name==='tv_search_meta')){
       const [rows]=await this.query([{sql:'SELECT owner,version FROM tv_search_meta'}]);
-      if(rows.length!==1 || rows[0].owner!==OWNER || ![1,SCHEMA].includes(rows[0].version))throw new Error('Incompatible search database ownership/schema');
-      if(rows[0].version===1)await this.query([...retentionSchema.map(sql=>({sql})),{sql:'UPDATE tv_search_meta SET version=? WHERE owner=?',params:[SCHEMA,OWNER]}]);
+      if(rows.length!==1 || rows[0].owner!==OWNER || ![1,2,SCHEMA].includes(rows[0].version))throw new Error('Incompatible search database ownership/schema');
+      if(rows[0].version<SCHEMA)await this.query([...(rows[0].version===1?retentionSchema:[]),...metadataSchema].map(sql=>({sql})).concat({sql:'UPDATE tv_search_meta SET version=? WHERE owner=?',params:[SCHEMA,OWNER]}));
     }else{
       if(tables.length)throw new Error('Refusing to initialize a nonempty database without the production search marker');
-      await this.query([...schema,...retentionSchema].map(sql=>({sql})).concat({sql:'INSERT INTO tv_search_meta VALUES(?,?)',params:[OWNER,SCHEMA]}));
+      await this.query([...schema,...retentionSchema,...metadataSchema].map(sql=>({sql})).concat({sql:'INSERT INTO tv_search_meta VALUES(?,?)',params:[OWNER,SCHEMA]}));
     }
   }
   async withPublicationLock(action,{unblock=false}={}){
@@ -124,6 +139,7 @@ export class SearchIndex {
     await this.query([
       {sql:'INSERT INTO tv_search_gc SELECT revision FROM tv_search_revisions WHERE revision NOT IN (SELECT value FROM json_each(?))',params:[JSON.stringify(retained)]},
       {sql:'DELETE FROM tv_search_rules WHERE revision IN (SELECT revision FROM tv_search_gc)'},
+      {sql:'DELETE FROM tv_search_page_metadata WHERE revision IN (SELECT revision FROM tv_search_gc)'},
       {sql:'DELETE FROM tv_search_revisions WHERE revision IN (SELECT revision FROM tv_search_gc)'},
       {sql:'DELETE FROM tv_search_documents WHERE NOT EXISTS(SELECT 1 FROM tv_search_rules WHERE document=tv_search_documents.id)'},
       {sql:'DELETE FROM tv_search_gc'},
@@ -136,9 +152,11 @@ export class SearchIndex {
     validRevision(revision);validateSearchDescriptor(descriptor);
     const [rows]=await this.query([{sql:`SELECT r.*,(SELECT COUNT(*) FROM tv_search_rules s WHERE s.revision=r.revision) AS rule_count,
       (SELECT COUNT(DISTINCT s.document) FROM tv_search_rules s JOIN tv_search_documents d ON d.id=s.document WHERE s.revision=r.revision) AS document_count
+      ${descriptor.metadataVersion?',(SELECT COUNT(*) FROM tv_search_page_metadata m WHERE m.revision=r.revision) AS metadata_count':''}
       FROM tv_search_revisions r WHERE revision=?`,params:[revision]}]);
     const row=rows[0];
     if(!row || row.state!=='ready' || row.digest!==descriptor.digest || row.compiler!==descriptor.version || row.rules!==descriptor.rules || row.documents!==descriptor.documents || row.rule_count!==descriptor.rules || row.document_count!==descriptor.documents)throw new Error('Search index is not ready for content revision '+revision.slice(0,12));
+    if(descriptor.metadataVersion && row.metadata_count!==descriptor.metadata)throw new Error('Search metadata is not ready for content revision '+revision.slice(0,12));
     return {revision,...descriptor,database:this.database.identity,ready:true};
   }
   async stage(revision,manifest){
@@ -165,6 +183,12 @@ export class SearchIndex {
         progress(`Search text: ${uploaded+reused}/${manifest.documents.length} checked; ${uploaded} uploaded, ${reused} reused.`);
       }
       let stagedRules=0;
+      for(const group of chunks(manifest.metadata || [])){
+        await this.query([{sql:`INSERT INTO tv_search_page_metadata(revision,page,type,names,aliases,search_text,from_date,pov_date,exclusions)
+          SELECT ?,json_extract(value,'$.page'),json_extract(value,'$.type'),json_extract(value,'$.names'),json_extract(value,'$.aliases'),
+          json_extract(value,'$.text'),json_extract(value,'$.from'),json_extract(value,'$.povFrom'),json_extract(value,'$.exclusions')
+          FROM json_each(?) WHERE true ON CONFLICT(revision,page) DO NOTHING`,params:[revision,JSON.stringify(group)]}]);
+      }
       progress(`Search visibility rules: 0/${manifest.rules.length} staged.`);
       for(const group of chunks(manifest.rules.map((r,ordinal)=>({...r,ordinal})))){
         await this.query([{sql:`INSERT INTO tv_search_rules(revision,ordinal,document,from_date,before_date,campaigns,except_campaigns,dm)
@@ -189,7 +213,15 @@ export class SearchIndex {
         progress(`Search verification: ${verifiedRules.length}/${manifest.rules.length} rules read back.`);
         if(rows.length<500)break;
       }
-      if(searchHash({version:SEARCH_VERSION,documents:verifiedDocuments,rules:verifiedRules})!==manifest.digest)throw new Error('Staged search membership failed verification; content remains inactive');
+      const verifiedMetadata=[];
+      if(manifest.metadata)for(let offset=0;;offset+=500){
+        const [rows]=await this.query([{sql:'SELECT * FROM tv_search_page_metadata WHERE revision=? ORDER BY page LIMIT 500 OFFSET ?',params:[revision,offset]}]);
+        for(const row of rows)verifiedMetadata.push({page:row.page,type:row.type,names:JSON.parse(row.names),aliases:JSON.parse(row.aliases),text:row.search_text,from:row.from_date,povFrom:row.pov_date,exclusions:JSON.parse(row.exclusions)});
+        if(rows.length<500)break;
+      }
+      // Match the compiler's locale-aware page ordering, independently of SQL collation.
+      verifiedMetadata.sort((a,b)=>a.page.localeCompare(b.page));
+      if(searchHash({version:SEARCH_VERSION,documents:verifiedDocuments,rules:verifiedRules,...(manifest.metadata?{metadata:verifiedMetadata}:{})})!==manifest.digest)throw new Error('Staged search membership failed verification; content remains inactive');
       progress('Search: checking full-text index integrity and marking the revision ready.');
       await this.query([{sql:"INSERT INTO tv_search_fts(tv_search_fts,rank) VALUES('integrity-check',1)"},
         {sql:"UPDATE tv_search_revisions SET state='ready' WHERE revision=? AND digest=? AND state='staging'",params:[revision,manifest.digest]}]);

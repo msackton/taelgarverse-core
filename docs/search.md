@@ -35,10 +35,12 @@ including scalar/list tags, optional leading `#`, and nested tags such as
 Other. This does not infer types from folders or require new vault metadata.
 Unknown filter values return HTTP 400.
 
-Type filtering happens in SQL before ranking and pagination, using a JSON list
-of matching page slugs from the active snapshot's metadata. Exact-name ranking
-also uses snapshot metadata. Neither needs a database migration, content
-republication, or article-body reads. The same filter applies to empty-query
+New publications store normalized names/aliases, content types, numeric
+availability dates (with and without POV), and campaign exclusions as immutable
+revision-specific D1 metadata. Filtering and exact-name ranking happen in SQL
+before pagination, without iterating all vault notes or sending page-slug lists
+on each request. Publications without this descriptor retain the legacy
+snapshot-metadata query. Neither path reads article bodies. The same filter applies to empty-query
 browsing and page-name fallback. Pagination, header searches, and context/Behind
 the Curtain controls preserve the selection; changing a query or type starts
 at the first page.
@@ -91,10 +93,11 @@ POV filtering is a request-local reader preference: `pov=1` enables it and
 preference when present. Otherwise, when omitted, `respect_pov_dates` supplies the site default
 (`false` in new and older snapshots). See [page visibility](vault.md#when-a-page-is-shown).
 The compiler retains text for both POV modes, while keeping birth/creation,
-activity, campaign, and DM intervals. At query time, snapshot metadata supplies
-the list of available pages for the reader's preference; SQL applies that list
-before ranking, pagination, and limits. This works with existing production
-indexes without article-body reads, database changes, or republication.
+activity, campaign, and DM intervals. New revisions store both availability
+thresholds in D1; the request selects the effective POV policy in SQL before
+ranking and pagination. Older revisions supply the available-page list from
+snapshot metadata. The Worker validates returned matches against the active
+snapshot's metadata as well.
 The preference stays in result links, pagination, forms, and floating suggestions.
 Changing the configuration default still invalidates the publication fingerprint
 and requires publication to store the new default.
@@ -107,9 +110,10 @@ Sparse notes retain searchable headings, titles, and aliases.
 
 Preparation compiles from the same source snapshot as R2. The local revision
 directory contains `search.json`: compiler version, content-hashed documents,
-rules, digest, statistics, and warnings. It may contain DM prose and stays under
+rules, page metadata, digest, statistics, and warnings. It may contain DM prose and stays under
 the ignored cache, excluded from the R2 upload manifest. R2 `index.json` contains
-only `search: {version, digest, documents, rules}`. This descriptor participates
+only a search descriptor with `version`, `digest`, `documents`, `rules`, and,
+for compiled metadata, `metadataVersion: 1` and a `metadata` row count. It participates
 in the content revision hash. Build reports add `searchFile` and `searchStats`.
 Staging validates the manifest's association with that R2 index before any writes.
 
@@ -120,23 +124,29 @@ ownership or SQL schema versions stop initialization.
 
 | Table | Purpose |
 | --- | --- |
-| `tv_search_meta` | Production ownership marker and SQL schema version, currently 2. |
+| `tv_search_meta` | Production ownership marker and SQL schema version, currently 3. |
 | `tv_search_documents` | Immutable versions: page, title, aliases, prose, and content-hash ID. |
 | `tv_search_fts` | External-content FTS5 index over title, aliases, and prose. |
 | `tv_search_revisions` | R2 revision, compiler version/digest, expected counts, and staging/ready state. |
 | `tv_search_rules` | Revision membership and context rules. |
+| `tv_search_page_metadata` | Per-revision normalized names/aliases, type, search-name text, availability thresholds, and campaign exclusions. |
 | `tv_search_gc` | Transaction-scoped authorization to remove retired ready memberships. |
 | `tv_search_publish_lock` | One shared publisher/cleanup owner across machines. |
 
 Staging inserts only missing text versions and resumes incomplete membership in
-bounded batches. It reads back every document and rule, verifies content hashes
+bounded batches. It reads back every document, rule and metadata row, verifies content hashes
 and the full manifest digest, then checks FTS5 integrity and marks the revision
 ready in one final transaction. A failed batch leaves an inactive staging
 revision. Triggers prevent updates to text and changes to ready membership or
-revisions. Activation and unchanged-publish skips verify ready state, version,
+revisions, including page metadata. Activation and unchanged-publish skips verify ready state, version,
 digest, and membership counts. The query service filters on the active
 R2 revision and context rules before ranking/limiting; `EXISTS` avoids duplicate
 matches from multiple applicable rules.
+
+Staging upgrades schema 1 or 2 to schema 3 transactionally. Older ready revisions
+remain usable through the legacy query, and coordinated retention removes their
+metadata alongside rules when a revision is retired. Deploy the updated Worker
+before publishing; see [runtime snapshot rollout](deploy.md#roll-out-compiled-runtime-snapshots).
 
 ## Publishing and recovery
 
