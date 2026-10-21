@@ -1,6 +1,7 @@
 import path from 'node:path';
 import {parse} from 'yaml';
 import {RenderError,dateKey} from './common.mjs';
+import {leadingBioBlock,leadingHeaderMarker} from './bio-block.mjs';
 
 export const IMAGE_TYPES = new Set(['.png','.jpg','.jpeg','.gif','.webp','.heic']);
 export const AUDIO_TYPES = new Set(['.mp3','.m4a','.wav','.flac','.ogg']);
@@ -24,8 +25,10 @@ export function parseNote(source) {
 // Saved generated headers are not authored article content. This boundary
 // matches OutputHandler.regenerateHeader in the trusted CustomJS runtime.
 export function authoredBody(note) {
-  const marker = /^[ \t\r\n]*<!-- taelgar:header -->[ \t]*(?:\r?\n|$)/;
-  if (marker.test(note.body)) return note.body.replace(marker,'');
+  const bio = leadingBioBlock(note.body);
+  if (bio) return note.body.slice(bio.end);
+  const marker = leadingHeaderMarker(note.body);
+  if (marker) return note.body.slice(marker[0].length);
   if (!note.metadata.headerVersion || !note.metadata.tags) return note.body;
   const lines = note.body.split('\n');
   let end = lines.findIndex(line => line.trim() === '');

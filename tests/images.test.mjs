@@ -13,7 +13,6 @@ import {Engine} from '../src/engine.mjs';
 import {createServer} from '../src/server.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
-import {instantiate} from '../src/worker-headers.mjs';
 import {createMarkdown,renderMarkdown} from '../src/markdown.mjs';
 
 async function fixture(t) {
@@ -188,7 +187,7 @@ test('Node and Worker serve small image variants with original downloads, ranges
     const data = await fs.readFile(objects.get(key)), range = options.range;
     return {size:data.length,json:async()=>JSON.parse(data),body:new Blob([range ? data.subarray(range.offset,range.offset+range.length) : data]).stream()};
   }};
-  const worker = createWorker(instantiate), env = {CONTENT:bucket,ASSETS:{fetch:async()=>new Response('')}};
+  const worker = createWorker(), env = {CONTENT:bucket,ASSETS:{fetch:async()=>new Response('')}};
   const request = (url,headers={},method='GET')=>worker.fetch(new Request('https://example.test'+url,{headers,method}),env);
   const page = await (await request('/api/page?page=Gallery')).json(), $ = load(page.html);
   assert.equal($('img').length,1);assert.equal($('img').attr('src'),smallURL);

@@ -277,7 +277,7 @@ test('indexed leadership equals full-scan reference across dates',() => {
   const reference = initializeHeaders(input), entry = engine.store.resolve('Example');
   for (const date of ['1720-01-01','1730-01-01','1750-01-01']) {
     const request = {source:entry.note.source,name:entry.name,metadata:entry.note.metadata,date};
-    assert.equal(renderHeader(engine.headers,request),renderHeader(reference,request));
+    assert.equal(engine.renderHeader(engine.headers,request),renderHeader(reference,request));
   }
   assert.match(text(render()),/Guardian/);
   assert.match(text(render('Example','1730-01-01')),/Protector/);

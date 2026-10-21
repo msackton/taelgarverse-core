@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {ContentStore,parseNote} from './content-store.mjs';
 import {RenderError} from './common.mjs';
 import {RenderEngine} from './render-engine.mjs';
-import {initializeHeaderRuntime,renderModuleHeader} from './header-runtime.mjs';
+import {createHeaderSnapshot,renderHeader,renderBio} from './header-core/index.mjs';
 
 export class SnapshotStore extends ContentStore {
   constructor(index,bucket) {
@@ -33,7 +33,7 @@ export class SnapshotStore extends ContentStore {
   }
 }
 
-export async function loadSnapshot(bucket,revision,instantiate) {
+export async function loadSnapshot(bucket,revision) {
   if (!/^[a-f0-9]{64}$/.test(revision || '')) throw new RenderError(503,'No content revision has been published');
   const object=await bucket.get('revisions/'+revision+'/index.json');
   if (!object) throw new RenderError(503,'Content revision is not available');
@@ -44,8 +44,8 @@ export async function loadSnapshot(bucket,revision,instantiate) {
   if (index.backlinks && ![1,2].includes(index.backlinks.version)) throw new RenderError(503,'Backlink index format is not supported by this Worker');
   if (index.homeSource != null && typeof index.homeSource !== 'string') throw new RenderError(503,'Homepage content must be Markdown text');
   const store=new SnapshotStore(index,bucket);
-  const headers=initializeHeaderRuntime({pages:store.entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta:index.coreMeta,registry:index.registry},instantiate);
-  const engine=new RenderEngine({settings:index.settings,store,headers,renderHeader:renderModuleHeader,navigationSource:index.navigationSource,
+  const headers=createHeaderSnapshot({pages:store.entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta:index.coreMeta,registry:index.registry});
+  const engine=new RenderEngine({settings:index.settings,store,headers,renderHeader,renderBio,navigationSource:index.navigationSource,
     homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null});
   return {engine,store,index};
 }

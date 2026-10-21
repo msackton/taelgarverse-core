@@ -7,3 +7,16 @@
 .taelgar-image-viewer .image-viewer-caption, .taelgar-image-viewer .image-viewer-status { color:var(--text-muted); }
 .taelgar-image-viewer button, .taelgar-image-viewer a { font:inherit; }
 .taelgar-image-viewer img.image-viewer-preview { max-width:none; max-height:none; }
+
+/* Keep the generated bio's own callout, without Live Preview's code-block frame. */
+.markdown-source-view.mod-cm6 .cm-embed-block.cm-lang-taelgar-header,
+.markdown-source-view.mod-cm6 .cm-embed-block.cm-lang-taelgar-header:hover {
+  --embed-block-shadow-hover: none;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  outline: none;
+}
+.markdown-source-view.mod-cm6 .cm-embed-block.cm-lang-taelgar-header > .embed-actions .edit-block-button {
+  display: none;
+}

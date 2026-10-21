@@ -1,0 +1,5939 @@
+{
+  "provenance": {
+    "captured": "2026-10-20",
+    "source": "taelgar working-copy frontmatter, testcase and testcase/* tags",
+    "headerRevision": "661c012727b13bdc084ad4e9f661aed2b73f1f748cd2a696509c5eb5a0b42ddc",
+    "scope": "Header metadata only; lint bookkeeping and DM ownership/comments omitted. Related metadata is limited to dependencies exercised by these dates."
+  },
+  "pages": [
+    {
+      "path": "Background/Elven Cycle of Generations.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "background",
+          "status/check/lint"
+        ],
+        "name": "Elven Cycle of Generations",
+        "aliases": [
+          "ka"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Campaigns/Dunmari Frontier Campaign/Treasure/Mirror of Soul Trapping.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "ltPerson": "trapped in"
+        },
+        "tags": [
+          "object",
+          "status/check/lint"
+        ],
+        "typeOf": "mirror",
+        "subTypeOf": "magical",
+        "rarity": "very rare",
+        "name": "Mirror of Soul Trapping",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "unknown hobgoblin wizard",
+            "linkText": "by an"
+          },
+          {
+            "type": "home",
+            "location": "dufr"
+          },
+          {
+            "type": "away",
+            "start": "1748-06-08",
+            "end": "1748-06-08",
+            "location": "Karawa"
+          },
+          {
+            "type": "away",
+            "start": "1748-12-05",
+            "end": "1748-12-10",
+            "location": "Uzgukhar"
+          },
+          {
+            "type": "away",
+            "location": "Vindristjarna"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": 1749
+      }
+    },
+    {
+      "path": "Cosmology/Feywild.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "wSecondary": "Sometimes considered one of the <secondary:1>",
+          "defArt": "the"
+        },
+        "tags": [
+          "place",
+          "status/review"
+        ],
+        "typeOf": "plane",
+        "name": "Feywild",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Multiverse",
+            "wHome": "A <typeOf> in the <home:1s>"
+          },
+          {
+            "type": "secondary",
+            "location": "Echo Realms"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Creatures/Bestiary/Undead.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "creature",
+          "status/check/mike",
+          "status/check/lint"
+        ],
+        "name": "Undead",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Creatures/Species/Dwarves.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "creature",
+          "status/wip",
+          "status/check/lint"
+        ],
+        "name": "Dwarves",
+        "aliases": [
+          "dwarf",
+          "Dwarf",
+          "Dwarves",
+          "dwarves",
+          "dwarven"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Creatures/Species/Elves.md",
+      "metadata": {
+        "tags": [
+          "status/wip",
+          "creature",
+          "status/check/lint"
+        ],
+        "name": "Elves",
+        "aliases": [
+          "elf",
+          "elves",
+          "Elf",
+          "Elves",
+          "elven",
+          "Elven",
+          "elvish"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Creatures/Species/Giants.md",
+      "metadata": {
+        "tags": [
+          "creature",
+          "status/wip",
+          "status/check/lint"
+        ],
+        "name": "Giants",
+        "aliases": [
+          "giant"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Creatures/Species/Halflings.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "creature",
+          "status/check/mike",
+          "status/check/lint"
+        ],
+        "name": "Halflings",
+        "aliases": [
+          "halfling",
+          "halflings",
+          "Halfling"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Creatures/Species/Humans.md",
+      "metadata": {
+        "tags": [
+          "creature",
+          "status/wip",
+          "status/check/lint"
+        ],
+        "name": "Humans",
+        "aliases": [
+          "human"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Events/1500s/1545/Battle of Urlich Pass.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "wPastHome": "Fought <home:q>",
+          "dPastHasStart": "Fought in <startDate>"
+        },
+        "tags": [
+          "event",
+          "testcase"
+        ],
+        "typeOf": "battle",
+        "DR": 1545,
+        "partOf": "Great War",
+        "name": "Battle of Urlich Pass",
+        "pronunciation": "BAT-ul uv UR-likh pass",
+        "whereabouts": "Urlich Pass",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Events/1500s/Great War.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "event",
+          "status/review"
+        ],
+        "typeOf": "war",
+        "timelineDescriptor": "Great War",
+        "DR": 1542,
+        "DR_end": 1545,
+        "name": "Great War",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Central Highlands/Ainumarya.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "forest",
+        "name": "Ainumarya",
+        "pronunciation": "EYE-new-mar-ya",
+        "whereabouts": "Central Highlands",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Central Highlands/Central Highlands.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "the"
+        },
+        "tags": [
+          "place",
+          "status/wip",
+          "status/check/ai",
+          "status/check/lint"
+        ],
+        "typeOf": "region",
+        "name": "Central Highlands",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Taelgar",
+            "linkText": "in"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Central Highlands/Elderwood.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "the"
+        },
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "forest",
+        "campaignInfo": null,
+        "name": "Elderwood",
+        "whereabouts": "Ainumarya",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Central Highlands/Neshet.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": ""
+        },
+        "tags": [
+          "place",
+          "status/cleanup/metadata",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "village",
+        "name": "Neshet",
+        "aliases": [
+          "Te'kula village"
+        ],
+        "pronunciation": "neh-SHET",
+        "whereabouts": "Elderwood",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Central Highlands/Urlich Pass.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": ""
+        },
+        "tags": [
+          "place"
+        ],
+        "typeOf": "topographical feature",
+        "typeOfAlias": "pass",
+        "name": "Urlich Pass",
+        "pronunciation": "UR-likh pass",
+        "whereabouts": "Sentinel Range",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Drankorian Hinterland/Desolation of Cha'mutte.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place"
+        ],
+        "typeOf": "region",
+        "name": "Desolation of Cha'mutte",
+        "aliases": [
+          "Drankorian Wastes"
+        ],
+        "pronunciation": "shah-MUTT",
+        "whereabouts": "Drankorian Hinterland",
+        "POV": 1748
+      }
+    },
+    {
+      "path": "Gazetteer/Drankorian Hinterland/Drankor/Drankor.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "ruined city",
+        "name": "Drankor",
+        "pronunciation": "DRAN-kor",
+        "whereabouts": "Desolation of Cha'mutte",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Drankorian Hinterland/Drankorian Hinterland.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "the"
+        },
+        "tags": [
+          "place",
+          "status/wip",
+          "status/check/ai",
+          "status/check/lint"
+        ],
+        "typeOf": "region",
+        "name": "Drankorian Hinterland",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Taelgar",
+            "linkText": "in"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Drankorian Hinterland/Garamjala Plateau/Garamjala Desert.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place"
+        ],
+        "typeOf": "desert",
+        "name": "Garamjala Desert",
+        "aliases": [
+          "Garamjala"
+        ],
+        "pronunciation": "ga-RUM-ja-la",
+        "whereabouts": [
+          {
+            "type": "home",
+            "start": 1545,
+            "location": "Drankorian Hinterland"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Eastern Green Sea/Eastern Green Sea.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "the"
+        },
+        "tags": [
+          "place",
+          "status/cleanup/map"
+        ],
+        "typeOf": "region",
+        "name": "Eastern Green Sea",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Taelgar",
+            "linkText": "in"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Eastern Green Sea/Vermillion Isles.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "island",
+        "typeOfAlias": "archipelago",
+        "campaignInfo": null,
+        "name": "Vermillion Isles",
+        "aliases": [
+          "Chasoka",
+          "Islander"
+        ],
+        "whereabouts": "Eastern Isles",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Eastern Green Sea/Wahacha.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "subTypeOf": null,
+        "typeOfAlias": "port town",
+        "ancestry": "kenku",
+        "name": "Wahacha",
+        "whereabouts": "Vermillion Isles",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Extraplanar/Feywild/Amberglow/Amberglow.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "extraplanar domain",
+        "ancestry": "fey",
+        "name": "Amberglow",
+        "whereabouts": "Feywild",
+        "excludePublish": [
+          "clee"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Chardon/Chardonian Empire/Chardon/Chardon.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/review",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "city",
+        "name": "Chardon",
+        "pronunciation": "CHAR-din",
+        "whereabouts": [
+          {
+            "type": "primary",
+            "location": "Drankorian Empire",
+            "end": 1059
+          },
+          {
+            "type": "primary",
+            "location": "Chardonian Empire",
+            "start": 1545
+          }
+        ],
+        "POV": "1749"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Chardon/Chardonian Empire/Chardonian Empire.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/gameupdate/gl",
+          "status/gameupdate/dufr",
+          "status/cleanup/text",
+          "status/check/lint"
+        ],
+        "typeOf": "realm",
+        "typeOfAlias": "empire",
+        "name": "Chardonian Empire",
+        "aliases": [
+          "Chardonian"
+        ],
+        "pronunciation": "char-DOH-nee-an",
+        "whereabouts": "Greater Chardon",
+        "POV": 1749
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Chardon/Greater Chardon.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": ""
+        },
+        "tags": [
+          "place",
+          "status/wip"
+        ],
+        "typeOf": "region",
+        "name": "Greater Chardon",
+        "pronunciation": "CHAR-din",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Taelgar",
+            "linkText": "in"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Chardon/Gulf of Chardon.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "wSecondary": "Controlled by <secondary:1>"
+        },
+        "tags": [
+          "place"
+        ],
+        "typeOf": "marine feature",
+        "typeOfAlias": "gulf",
+        "name": "Gulf of Chardon",
+        "pronunciation": "gulf of CHAR-din",
+        "whereabouts": [
+          {
+            "type": "primary",
+            "location": "Endless Ocean"
+          },
+          {
+            "type": "secondary",
+            "location": "Chardonian Empire"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Greater Dunmar.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": ""
+        },
+        "tags": [
+          "place",
+          "status/wip",
+          "status/check/lint"
+        ],
+        "typeOf": "region",
+        "name": "Greater Dunmar",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Taelgar",
+            "linkText": "in"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Hara Basin/Gomat.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place"
+        ],
+        "typeOf": "lake",
+        "typeOfAlias": "oasis",
+        "name": "Gomat Oasis",
+        "pronunciation": "GOH-maht oh-AY-sis",
+        "aliases": [
+          "Gomat",
+          "Gomat Oasis"
+        ],
+        "whereabouts": "Eastern Dunmar",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Hara Basin/Hara Basin.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/cleanup/map",
+          "status/check/lint"
+        ],
+        "typeOf": "region",
+        "name": "Hara Basin",
+        "whereabouts": "Greater Dunmar",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Hara Basin/Karawa Desert.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "desert",
+        "name": "Karawa Desert",
+        "whereabouts": "Hara Basin",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Hara Basin/Kharsan.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "dPast": ""
+        },
+        "tags": [
+          "place",
+          "status/gameupdate/dufr",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "city",
+        "ancestry": "Dunmari",
+        "destroyed": 1545,
+        "name": "Kharsan",
+        "whereabouts": [
+          {
+            "type": "home",
+            "end": 1544,
+            "location": "Dunmar",
+            "wOrigin": "Originally part of <origin:1><(, )endstatus> <(in )enddate>"
+          },
+          {
+            "type": "home",
+            "start": 1545,
+            "location": "Nashtkar",
+            "wPastHome": "Ruined <ancestry> <typeOf> <home:2qr>"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Hara Basin/Samtal.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "grassland",
+        "name": "Samtal",
+        "aliases": [
+          "plains of Karawa"
+        ],
+        "whereabouts": "Eastern Dunmar",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Hara Basin/Stormcaller Tower.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": ""
+        },
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "building",
+        "typeOfAlias": "tower",
+        "destroyed": "1748-11-23",
+        "name": "Stormcaller Tower",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Samtal",
+            "wPastHome": "Ruined <typeOf> <current:3qr>"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Hara Basin/Sukal Plains.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "linkText": "on",
+          "ltPlace": "on"
+        },
+        "tags": [
+          "place",
+          "status/check/name",
+          "status/check/lint"
+        ],
+        "typeOf": "grassland",
+        "aliases": [
+          "plains south of Tokra",
+          "Sukal Lands",
+          "Sukalan"
+        ],
+        "whereabouts": "Central Dunmar",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Nashtkar.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": ""
+        },
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "region",
+        "name": "Nashtkar",
+        "whereabouts": "Greater Dunmar",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Realms/Dunmar/Central Dunmar/Central Dunmar.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": ""
+        },
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "region",
+        "name": "Central Dunmar",
+        "whereabouts": "Dunmar",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Realms/Dunmar/Central Dunmar/Melavan Caravanserai.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "linkText": "at"
+        },
+        "tags": [
+          "place",
+          "status/check/name"
+        ],
+        "typeOf": "inn",
+        "name": "Melavan Caravanserai",
+        "pronunciation": "MEH-lah-vahn",
+        "whereabouts": "Stoneway",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Realms/Dunmar/Central Dunmar/Tokra/Lakan Monastery.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "holy site",
+        "typeOfAlias": "monastery",
+        "ancestry": "Dunmari",
+        "name": "Lakan Monastery",
+        "affiliations": [
+          {
+            "org": "Laka",
+            "type": "primary"
+          }
+        ],
+        "whereabouts": "Tokra",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Realms/Dunmar/Central Dunmar/Tokra/Tokra.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/cleanup/text",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "city",
+        "name": "Tokra",
+        "whereabouts": "Central Dunmar",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Realms/Dunmar/Coastal Dunmar/Coastal Dunmar.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": ""
+        },
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "region",
+        "name": "Coastal Dunmar",
+        "whereabouts": "Dunmar",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Realms/Dunmar/Coastal Dunmar/Darba/Darba.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/cleanup/text",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "city",
+        "name": "Darba",
+        "whereabouts": "Coastal Dunmar",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Realms/Dunmar/Dunmar.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/gameupdate/dufr"
+        ],
+        "typeOf": "realm",
+        "typeOfAlias": "theocracy",
+        "created": 1173,
+        "name": "Dunmar",
+        "aliases": [
+          "Dunmari"
+        ],
+        "pronunciation": "DUN-mar",
+        "whereabouts": "Greater Dunmar",
+        "POV": 1748
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Realms/Dunmar/Eastern Dunmar/Eastern Dunmar.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": ""
+        },
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "region",
+        "typeOfAlias": null,
+        "name": "Eastern Dunmar",
+        "whereabouts": "Dunmar",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Realms/Dunmar/Eastern Dunmar/Karawa.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/cleanup/text",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "town",
+        "name": "Karawa",
+        "whereabouts": "Eastern Dunmar",
+        "POV": 1748
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Realms/Nardith/Nardith.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "realm",
+        "ancestry": "dwarven",
+        "name": "Nardith",
+        "aliases": [
+          "Nardikhun"
+        ],
+        "whereabouts": "Yuvanti Mountains",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Realms/Nardith/Tharn Todor.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": ""
+        },
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "city",
+        "ancestry": "dwarven",
+        "campaignInfo": [],
+        "name": "Tharn Todor",
+        "whereabouts": "Nardith",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Roads/Stoneway.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "linkText": "on",
+          "ltPlace": "on",
+          "defArt": "the"
+        },
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "road",
+        "name": "Stoneway",
+        "whereabouts": "Dunmar",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Dunmar/Yuvanti Mountains.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "startStatus": "rose from the ground in"
+        },
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "topographical feature",
+        "typeOfAlias": "mountain range",
+        "campaignInfo": [],
+        "created": 1546,
+        "name": "Yuvanti Mountains",
+        "pronunciation": "yoo-VAHN-tee",
+        "whereabouts": "Greater Dunmar",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Ardlas.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/review",
+          "status/check/mike",
+          "status/check/lint"
+        ],
+        "typeOf": "realm",
+        "name": "Ardlas",
+        "whereabouts": "Greater Sembara",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Greater Sembara.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": ""
+        },
+        "tags": [
+          "place",
+          "status/wip",
+          "status/check/ai"
+        ],
+        "typeOf": "region",
+        "name": "Greater Sembara",
+        "pronunciation": "sem-BAH-rah",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Taelgar",
+            "linkText": "in"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Barony of Aveil.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "realm",
+        "typeOfAlias": "barony",
+        "name": "Barony of Aveil",
+        "pronunciation": "Ah-veh-eel",
+        "whereabouts": "Sembara",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Cleenseau Region/Cleenseau/Cleenseau.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/ai"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "town",
+        "population": 1189,
+        "name": "Cleenseau",
+        "pronunciation": "Klen-sew",
+        "whereabouts": "Manor of Cleenseau",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Cleenseau Region/Cleenseau/Lord's Council of Cleenseau.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "boxInfo": ""
+        },
+        "tags": [
+          "group",
+          "status/check/lint"
+        ],
+        "typeOf": "council",
+        "name": "Lord's Council of Cleenseau",
+        "whereabouts": "Cleenseau",
+        "POV": 1720
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Cleenseau Region/Cleenseau/Lord's Guard of Cleenseau.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "boxInfo": ""
+        },
+        "tags": [
+          "group",
+          "status/check/mike",
+          "status/check/lint"
+        ],
+        "typeOf": "army",
+        "typeOfAlias": "warband",
+        "name": "Lord's Guard of Cleenseau",
+        "whereabouts": "Cleenseau",
+        "POV": 1720
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Cleenseau Region/Manor of Cleenseau.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "realm",
+        "typeOfAlias": "manor",
+        "created": 1651,
+        "name": "Manor of Cleenseau",
+        "whereabouts": "Barony of Aveil",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Cleenseau Region/Taviose.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "testcase",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "village",
+        "population": 30,
+        "name": "Taviose",
+        "pronunciation": "Ta-vi-ose",
+        "whereabouts": "Manor of Cleenseau",
+        "POV": 1720
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Heartlands/Duchy of Sembara.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/cleanup/text"
+        ],
+        "campaignInfo": null,
+        "name": "Duchy of Sembara",
+        "typeOf": "realm",
+        "whereabouts": "Sembara",
+        "typeOfAlias": "duchy"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Heartlands/Embry.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "city",
+        "campaignInfo": null,
+        "population": 25000,
+        "name": "Embry",
+        "whereabouts": "Duchy of Sembara",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Northlands/Duchy of Telham.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/cleanup/text"
+        ],
+        "campaignInfo": null,
+        "name": "Duchy of Telham",
+        "typeOf": "realm",
+        "whereabouts": "Sembara",
+        "typeOfAlias": "duchy"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Sembara.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "ruledBy": "Ruled by: <name> <((since )startDate())>"
+        },
+        "tags": [
+          "place",
+          "status/review",
+          "status/check/lint",
+          "status/check/ai"
+        ],
+        "typeOf": "realm",
+        "typeOfAlias": "monarchy",
+        "name": "Sembara",
+        "aliases": [
+          "Sembaran"
+        ],
+        "pronunciation": "sem-BAH-rah",
+        "whereabouts": "Greater Sembara",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Western Marches/Barony of Dunfry.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "realm",
+        "typeOfAlias": "barony",
+        "campaignInfo": null,
+        "name": "Barony of Dunfry",
+        "whereabouts": "Western Marches",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Western Marches/Dunfry.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "town",
+        "name": "Dunfry",
+        "whereabouts": "Barony of Dunfry",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Western Marches/Western Marches.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place"
+        ],
+        "typeOf": "region",
+        "name": "Western Marches",
+        "whereabouts": "Sembara",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Tollen/Places/The Singing Fox.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "",
+          "linkText": "at"
+        },
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "inn",
+        "ancestry": "halfling",
+        "name": "The Singing Fox",
+        "whereabouts": "Fairgate Outer",
+        "POV": "1740s"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Tollen/Tollen.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "city",
+        "name": "Free City of Tollen",
+        "aliases": [
+          "Free City of Tollen",
+          "Tollen",
+          "Tollender",
+          "Tollish"
+        ],
+        "whereabouts": "Western Green Sea",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Tollen/Wards/Fairgate Outer.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": ""
+        },
+        "tags": [
+          "place"
+        ],
+        "typeOf": "neighborhood",
+        "typeOfAlias": "ward",
+        "name": "Fairgate Outer",
+        "whereabouts": "Tollen",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Tyrwingha/Tafolwern.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/mike"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "city",
+        "name": "Tafolwern",
+        "pronunciation": "Tav-ol-WERN",
+        "whereabouts": "Tyrwingha",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Tyrwingha/Tyrwingha.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/cleanup/text",
+          "status/check/lint"
+        ],
+        "typeOf": "realm",
+        "typeOfAlias": "monarchy",
+        "name": "Tyrwingha",
+        "aliases": [
+          "Tyrwinghan"
+        ],
+        "whereabouts": "Greater Sembara",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Vostok/Vostok.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/review",
+          "status/check/lint"
+        ],
+        "typeOf": "region",
+        "name": "Vostok",
+        "aliases": [
+          "Vosland"
+        ],
+        "pronunciation": "VOS-tok",
+        "whereabouts": "Greater Sembara",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Zimkova/Breva.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint",
+          "status/stub"
+        ],
+        "typeOf": "realm",
+        "name": "Breva",
+        "whereabouts": "Zimkova",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Zimkova/Lavnoch Plateau.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/mike",
+          "status/check/ai",
+          "status/check/lint"
+        ],
+        "typeOf": "topographical feature",
+        "typeOfAlias": "plateau",
+        "name": "Lavnoch Plateau",
+        "aliases": [
+          "Lavnoch"
+        ],
+        "whereabouts": "Zimkova",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Sentinel Range.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "the"
+        },
+        "tags": [
+          "place"
+        ],
+        "typeOf": "topographical feature",
+        "typeOfAlias": "mountain range",
+        "name": "Sentinel Range",
+        "aliases": [
+          "Sentinels",
+          "Sentinel Mountains",
+          "Indalas",
+          "Labkhan",
+          "Beredri",
+          "Tushara"
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Taelgar",
+            "linkText": "in"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Upper Istaros/Isingue.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "endStatus": "Consumed by Cha'mutte's plague in",
+          "wOrigin": "<primary:UA> <ancestry> <typeof:UA> <home:1q>, once part of <origin:rA>",
+          "wPastHome": "<end> <target>",
+          "dPast": ""
+        },
+        "tags": [
+          "place",
+          "testcase",
+          "status/gameupdate/dufr",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "city",
+        "ancestry": "Isinguer",
+        "destroyed": 1545,
+        "name": "Isingue",
+        "pronunciation": "ease-en-GAY or is-en-GAY",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Istabor Alliance"
+          },
+          {
+            "type": "home",
+            "start": 1545,
+            "location": "Plaguelands"
+          }
+        ],
+        "POV": 1748
+      }
+    },
+    {
+      "path": "Gazetteer/Upper Istaros/Plaguelands.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "the"
+        },
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "region",
+        "name": "Plaguelands",
+        "whereabouts": "Upper Istaros",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Upper Istaros/Upper Istaros.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/wip",
+          "status/check/ai",
+          "status/check/lint"
+        ],
+        "typeOf": "region",
+        "name": "Upper Istaros",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Taelgar",
+            "linkText": "in"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Upper Istaros/Xurkhaz/Uzgukhar.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "settlement",
+        "typeOfAlias": "city",
+        "name": "Uzgukhar",
+        "whereabouts": "Xurkhaz",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Upper Istaros/Xurkhaz/Xurkhaz.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/cleanup/text",
+          "status/check/lint"
+        ],
+        "typeOf": "realm",
+        "typeOfAlias": "monarchy",
+        "ancestry": "free orc",
+        "created": 1583,
+        "name": "Xurkhaz",
+        "pronunciation": "ZURK-kaz",
+        "whereabouts": "Garamjala Desert",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Western Green Sea/Skaerhem/Skaerhem.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/cleanup/text",
+          "status/check/lint"
+        ],
+        "typeOf": "region",
+        "name": "Skaerhem",
+        "aliases": [
+          "Skaer Islands",
+          "Skaegenland"
+        ],
+        "whereabouts": "Western Green Sea",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Western Green Sea/Skaerhem/Vetta.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "island",
+        "name": "Vetta",
+        "whereabouts": "Skaerhem",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gazetteer/Western Green Sea/Western Green Sea.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "the"
+        },
+        "tags": [
+          "place",
+          "status/wip",
+          "status/check/ai",
+          "status/check/lint"
+        ],
+        "typeOf": "region",
+        "name": "Western Green Sea",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Taelgar",
+            "linkText": "in"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Gods and Religions/Gods/Embodied Gods/Bahrazel/Bahrazel.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "the",
+          "ltItem": "by"
+        },
+        "tags": [
+          "background",
+          "religion/dwarven"
+        ],
+        "name": "Bahrâzel",
+        "aliases": [
+          "Bahrâzel"
+        ],
+        "pronunciation": "BAH-rah-zel",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Groups/Chardonian Organizations/Society of the Open Scroll.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "group",
+          "status/gameupdate/dufr",
+          "status/check/lint"
+        ],
+        "typeOf": "scholarly society",
+        "ancestry": "Chardonian",
+        "name": "Society of the Open Scroll",
+        "POV": "1740s"
+      }
+    },
+    {
+      "path": "Groups/Dunmari Dynasties/Nayan Dynasty.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "group",
+          "status/check/lint"
+        ],
+        "typeOf": "family",
+        "subTypeOf": "dynasty",
+        "name": "Nayan dynasty",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Groups/Fraternity of the Empty Moon.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "group",
+          "status/check/lint"
+        ],
+        "typeOf": "cult",
+        "ancestry": "werewolf",
+        "timelineDescriptor": "Fraternity of the Empty Moon",
+        "name": "Fraternity of the Empty Moon",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Groups/Halfling Families/Brightmoons.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "the"
+        },
+        "tags": [
+          "group"
+        ],
+        "typeOf": "family",
+        "ancestry": "halfling",
+        "name": "Brightmoons",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Groups/Halfling Families/Goodbarrels.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "the"
+        },
+        "tags": [
+          "group"
+        ],
+        "typeOf": "family",
+        "ancestry": "halfling",
+        "name": "Goodbarrels",
+        "POV": "1740s"
+      }
+    },
+    {
+      "path": "Groups/Halfling Families/Greenleafs.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "the"
+        },
+        "tags": [
+          "group",
+          "status/check/lint"
+        ],
+        "typeOf": "family",
+        "ancestry": "halfling",
+        "campaignInfo": [],
+        "name": "Greenleafs",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Groups/Halfling Families/Wildhearts.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "the"
+        },
+        "tags": [
+          "group"
+        ],
+        "typeOf": "family",
+        "ancestry": "halfling",
+        "name": "Wildhearts",
+        "POV": "1740s"
+      }
+    },
+    {
+      "path": "Groups/Sembaran Army/Army Garrison of Cleenseau.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "partOf": "<typeof:Au> of <partof>",
+          "boxInfo": ""
+        },
+        "tags": [
+          "group",
+          "testcase",
+          "status/gameupdate/clee",
+          "status/check/lint"
+        ],
+        "typeOf": "garrison",
+        "partOf": "Dunfry Regiment",
+        "name": "Army Garrison of Cleenseau",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Cleenseau"
+          },
+          {
+            "type": "away",
+            "end": "1720-01-10",
+            "location": "Dunfry"
+          }
+        ],
+        "POV": 1719
+      }
+    },
+    {
+      "path": "Groups/Sembaran Army/Army of the West.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "partOf": "part of <partof>",
+          "boxInfo": ""
+        },
+        "tags": [
+          "group",
+          "status/gameupdate/clee",
+          "status/check/lint"
+        ],
+        "typeOf": "army",
+        "campaignInfo": [],
+        "partOf": "Sembaran Army",
+        "name": "Army of the West",
+        "POV": 1720
+      }
+    },
+    {
+      "path": "Groups/Sembaran Army/Dunfry Regiment.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "partOf": "<typeof:AU> of <partof>",
+          "boxInfo": ""
+        },
+        "tags": [
+          "group",
+          "status/cleanup/text",
+          "status/check/lint"
+        ],
+        "typeOf": "regiment",
+        "partOf": "Army of the West",
+        "name": "Dunfry Regiment",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Groups/Sembaran Army/Sembaran Army.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "partOf": "<typeof:AU> in <partof>",
+          "boxInfo": ""
+        },
+        "tags": [
+          "group",
+          "status/gameupdate/clee",
+          "status/check/lint"
+        ],
+        "typeOf": "army",
+        "campaignInfo": [],
+        "partOf": "Sembara",
+        "name": "Sembaran Army",
+        "aliases": [
+          "Sembaran Army",
+          "Military of Sembara"
+        ],
+        "POV": "1710s"
+      }
+    },
+    {
+      "path": "Groups/Sembaran Noble Houses/House of Lils.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "group",
+          "status/check/lint"
+        ],
+        "typeOf": "family",
+        "typeOfAlias": "noble family",
+        "created": 1594,
+        "name": "House of Lils",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Groups/Sembaran Noble Houses/House of Sewick.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "partOf": "",
+          "boxInfo": "<ancestry:UA> <subtypeof:UA>"
+        },
+        "tags": [
+          "group",
+          "status/check/lint"
+        ],
+        "typeOf": "family",
+        "subTypeOf": "noble house",
+        "ancestry": "Sembaran",
+        "campaignInfo": [],
+        "destroyed": 1720,
+        "name": "House of Sewick",
+        "aliases": [
+          "Sewick"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Groups/Sembaran Noble Houses/Thornes of Cleenseau.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": "the"
+        },
+        "tags": [
+          "status/cleanup/text",
+          "group",
+          "status/check/lint"
+        ],
+        "typeOf": "family",
+        "typeOfAlias": "yeoman family",
+        "ancestry": "Sembaran",
+        "name": "Thornes of Cleenseau",
+        "whereabouts": "Cleenseau",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Groups/The Cleansed.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "defArt": ""
+        },
+        "tags": [
+          "group",
+          "status/gameupdate/dufr",
+          "status/check/lint"
+        ],
+        "typeOf": "cult",
+        "ancestry": "mysterious",
+        "name": "The Cleansed",
+        "POV": "1740s"
+      }
+    },
+    {
+      "path": "History/Historical Realms/Istabor Alliance.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "place",
+          "status/check/lint"
+        ],
+        "typeOf": "realm",
+        "destroyed": 1545,
+        "name": "Istabor Alliance",
+        "aliases": [
+          "Isinguer",
+          "Isinguese"
+        ],
+        "pronunciation": "ees-tah-BOR",
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Chardonians/Antonia.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "testcase",
+          "status/gameupdate/dufr",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Chardonian",
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "date": "1748-12-08",
+            "type": "imprisoned",
+            "format": "<met:U> by <person:Q> on <target>, in <current:3Qr>"
+          }
+        ],
+        "born": 1714,
+        "gender": "female",
+        "name": "Antonia",
+        "pronunciation": "An-ton-ia",
+        "affiliations": [
+          {
+            "org": "Society of the Open Scroll"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "away",
+            "start": "1748-11-10",
+            "location": "Dunmar"
+          },
+          {
+            "type": "away",
+            "start": "1748-12-08",
+            "end": 9999,
+            "location": "Mirror of Soul Trapping"
+          },
+          {
+            "type": "home",
+            "location": "Chardon"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": 1748
+      }
+    },
+    {
+      "path": "People/Chardonians/Evelina.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "testcase",
+          "status/gameupdate/dufr",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Chardonian",
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "date": "1748-12-08",
+            "type": "killed"
+          }
+        ],
+        "born": 1691,
+        "gender": "female",
+        "died": "1748-12-08",
+        "name": "Evelina",
+        "affiliations": [
+          {
+            "org": "The Cleansed",
+            "end": "9999"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "away",
+            "start": "1748-12-01",
+            "end": "1748-12-08",
+            "location": "Uzgukhar"
+          },
+          {
+            "type": "home",
+            "start": "",
+            "end": "",
+            "location": "Chardon"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": 1748
+      }
+    },
+    {
+      "path": "People/Chardonians/Kadmos.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "endStatus": "killed"
+        },
+        "tags": [
+          "person",
+          "testcase",
+          "status/gameupdate/dufr",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Chardonian",
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "date": "1748-12-08",
+            "type": "encountered"
+          }
+        ],
+        "born": 1711,
+        "gender": "male",
+        "died": "1748-12-08",
+        "name": "Kadmos",
+        "affiliations": [
+          "Society of the Open Scroll",
+          {
+            "org": "The Cleansed",
+            "title": "Cultist"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "start": "",
+            "end": "",
+            "location": "Chardon"
+          },
+          {
+            "type": "away",
+            "start": "1748-11-15",
+            "end": "",
+            "prefix": "somewhere in",
+            "location": "Dunmar"
+          },
+          {
+            "type": "away",
+            "start": "1748-11-19",
+            "end": "",
+            "location": "Garamjala Desert"
+          },
+          {
+            "type": "away",
+            "start": "1748-12-08",
+            "end": "1748-12-08",
+            "location": "Uzgukhar"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": 1748
+      }
+    },
+    {
+      "path": "People/Dunmari/Akan.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "testcase/with-whereabouts",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Dunmari",
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "type": "met",
+            "date": "1748-03-23"
+          }
+        ],
+        "born": 1693,
+        "gender": "male",
+        "name": "Akan",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Karawa Desert"
+          },
+          {
+            "start": "1748-03-21",
+            "end": "1748-03-23",
+            "location": "Gomat Oasis",
+            "type": "away"
+          },
+          {
+            "type": "away",
+            "start": "1748-03-27",
+            "end": "1748-04-07",
+            "location": "Karawa"
+          },
+          {
+            "type": "away",
+            "start": "1748-04-07",
+            "end": "1748-04-12",
+            "location": "travelling to Tokra"
+          },
+          {
+            "type": "away",
+            "start": "1748-04-13",
+            "end": "1748-06-07",
+            "location": "Tokra"
+          },
+          {
+            "type": "away",
+            "start": "1748-06-08",
+            "end": "1748-06-15",
+            "location": "travelling to Karawa"
+          },
+          {
+            "type": "away",
+            "start": "1748-06-15",
+            "end": "1748-06-22",
+            "location": "Karawa"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": "1740s"
+      }
+    },
+    {
+      "path": "People/Dunmari/Sura.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "status/gameupdate/dufr",
+          "testcase",
+          "person",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Dunmari",
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "date": "1748-12-26",
+            "type": "scryed"
+          }
+        ],
+        "born": 1720,
+        "gender": "female",
+        "name": "Nayan Sura",
+        "aliases": [
+          "Nayan Sura"
+        ],
+        "affiliations": [
+          {
+            "org": "Nayan Dynasty",
+            "type": "primary"
+          },
+          {
+            "org": "Eastern Dunmar",
+            "type": "leader",
+            "start": "1748-07-22",
+            "title": "Samraat"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "end": 1740,
+            "location": "Darba"
+          },
+          {
+            "type": "home",
+            "start": 1735,
+            "end": 1737,
+            "location": "Lakan Monastery"
+          },
+          {
+            "type": "away",
+            "start": 1740,
+            "end": "1748-06-08",
+            "location": "Mirror of Soul Trapping"
+          },
+          {
+            "type": "away",
+            "start": "1748-06-08",
+            "end": "1748-07-22",
+            "location": "Karawa"
+          },
+          {
+            "type": "away",
+            "start": "1748-07-22",
+            "end": "1748-12-14",
+            "location": "Central Dunmar"
+          },
+          {
+            "type": "away",
+            "start": "1748-12-14",
+            "end": "1748-12-22",
+            "location": "Tokra"
+          },
+          {
+            "type": "away",
+            "start": "1748-12-22",
+            "end": "1748-12-26",
+            "location": "plains south of Tokra"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": 1748
+      }
+    },
+    {
+      "path": "People/Elves/Belegor.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "testcase",
+          "status/check/lint"
+        ],
+        "species": "elf",
+        "ancestry": null,
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "date": "1748-09-30",
+            "type": "met"
+          }
+        ],
+        "born": 1468,
+        "ka": 36,
+        "gender": "male",
+        "timelineDescriptor": "Belegor",
+        "name": "Belegor",
+        "pronunciation": "beh-leh-GOR",
+        "whereabouts": [
+          {
+            "type": "home",
+            "start": "",
+            "end": 1712,
+            "location": "Ainumarya"
+          },
+          {
+            "type": "away",
+            "start": "1733-01-01",
+            "end": "",
+            "location": "Elderwood"
+          },
+          {
+            "type": "away",
+            "start": "1748-08-01",
+            "end": "",
+            "location": "Te'kula village"
+          },
+          {
+            "type": "away",
+            "start": "1748-09-30",
+            "end": "",
+            "location": "Te'kula village"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": 1748
+      }
+    },
+    {
+      "path": "People/Extraplanar Powers/Archfey/Cloudspinner.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "power",
+          "status/gameupdate/dufr",
+          "status/check/lint"
+        ],
+        "typeOf": "archfey",
+        "gender": "female",
+        "name": "Cloudspinner",
+        "aliases": [
+          "Queen of Sunset"
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "end": 1001,
+            "location": "Amberglow"
+          },
+          {
+            "type": "home",
+            "start": "1749-06-15",
+            "location": "Amberglow"
+          },
+          {
+            "type": "away",
+            "start": 1002,
+            "location": "imprisoned"
+          },
+          {
+            "type": "away",
+            "start": "1749-05-21",
+            "end": "1749-05-31",
+            "location": "Vindristjarna"
+          },
+          {
+            "type": "away",
+            "start": "1749-06-01",
+            "end": "1749-06-14",
+            "location": "Portable Hole"
+          }
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Fey/Agata.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "boxInfo": "<subspecies> (<species:s>), <pronouns>"
+        },
+        "tags": [
+          "status/cleanup/metadata",
+          "person",
+          "status/check/lint"
+        ],
+        "species": "fey",
+        "subspecies": "hag",
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "date": "1748-11-15",
+            "type": "imprisoned"
+          }
+        ],
+        "born": null,
+        "gender": "female",
+        "name": "Agata Dustmother",
+        "aliases": [
+          "Old Woman of the Dusts",
+          "Dasoclese",
+          "Agata Dustmother"
+        ],
+        "whereabouts": [
+          {
+            "type": "home"
+          },
+          {
+            "type": "home",
+            "end": 1,
+            "location": "Amberglow"
+          },
+          {
+            "type": "home",
+            "start": "",
+            "end": "1748-05-29",
+            "location": "Garamjala Desert"
+          },
+          {
+            "type": "away",
+            "start": "1748-05-29",
+            "end": "1748-11-15",
+            "location": "Ring of the Warded Mind"
+          },
+          {
+            "type": "away",
+            "start": "1748-11-15",
+            "end": 9999,
+            "location": "Heartwood Grove"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": 1748
+      }
+    },
+    {
+      "path": "People/Giants/Hralgar.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "testcase"
+        ],
+        "species": "giant",
+        "subspecies": "storm giant",
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "date": "1748-11-23",
+            "format": "Freed from <current:2> by <person>, <target>"
+          }
+        ],
+        "born": null,
+        "gender": "male",
+        "name": "Hralgar",
+        "pronunciation": "HRAL-gar",
+        "whereabouts": [
+          {
+            "type": "away",
+            "start": 1020,
+            "end": "1748-11-22",
+            "linkText": "trapped in",
+            "location": "Stormcaller Tower"
+          },
+          {
+            "type": "home",
+            "start": "1748-11-23",
+            "end": "1748-11-23",
+            "linkText": " ",
+            "location": "Stormcaller Tower"
+          },
+          {
+            "type": "home",
+            "start": "1748-11-24",
+            "alias": "drifting on the storm across the world"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Halflings/Alton Greenleaf.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "testcase"
+        ],
+        "species": "halfling",
+        "ancestry": null,
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "date": "1748-07-18",
+            "type": "met"
+          }
+        ],
+        "born": null,
+        "gender": "male",
+        "name": "Alton Greenleaf",
+        "affiliations": [
+          {
+            "org": "Greenleafs",
+            "type": "primary"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "away",
+            "start": "1748-07-18",
+            "end": "1748-07-18",
+            "location": "Melavan Caravanserai"
+          },
+          {
+            "type": "away",
+            "start": "1748-07-19",
+            "location": "traveling east to Tokra"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": 1748
+      }
+    },
+    {
+      "path": "People/Halflings/Chenna Goodbarrel.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "testcase",
+          "status/check/lint"
+        ],
+        "species": "halfling",
+        "ancestry": null,
+        "born": 1688,
+        "gender": "female",
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "person": "Wellby",
+            "date": 1730,
+            "type": "met",
+            "wParty": "<met:u> <person:q> around <target> <current:2rq>"
+          },
+          {
+            "campaign": "dufr",
+            "date": "1748-12-30",
+            "type": "met"
+          }
+        ],
+        "name": "Chenna Goodbarrel",
+        "affiliations": [
+          {
+            "org": "Goodbarrels",
+            "type": "primary"
+          },
+          {
+            "org": "The Singing Fox",
+            "title": "Proprietor",
+            "type": "leader"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "end": 1725,
+            "location": "Sembara"
+          },
+          {
+            "type": "home",
+            "start": 1725,
+            "location": "The Singing Fox"
+          },
+          {
+            "type": "away",
+            "start": "1748-12-30",
+            "end": "1748-12-30",
+            "location": "Vindristjarna"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": "1740s"
+      }
+    },
+    {
+      "path": "People/Halflings/Corrin Wildheart.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person"
+        ],
+        "species": "halfling",
+        "ancestry": null,
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "person": "Wellby",
+            "date": "1748-09-30",
+            "type": "met"
+          },
+          {
+            "campaign": "dufr",
+            "person": "Wellby",
+            "date": "1748-10-12",
+            "type": "last seen"
+          }
+        ],
+        "born": null,
+        "gender": "male",
+        "name": "Corrin Wildheart",
+        "affiliations": [
+          {
+            "org": "Wildhearts",
+            "type": "primary"
+          },
+          {
+            "org": "Wave Dancer",
+            "title": "Navigator"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Wave Dancer",
+            "format": "<linktext> <name>, <ancestry:a> <maintype>"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": "1740s"
+      }
+    },
+    {
+      "path": "People/Halflings/Lerry Wildheart.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/check/lint"
+        ],
+        "species": "halfling",
+        "ancestry": null,
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "person": "Wellby",
+            "date": "1748-09-30",
+            "type": "met"
+          },
+          {
+            "campaign": "dufr",
+            "person": "Wellby",
+            "date": "1748-10-12",
+            "type": "last seen"
+          }
+        ],
+        "born": null,
+        "gender": "male",
+        "name": "Lerry Wildheart",
+        "affiliations": [
+          {
+            "org": "Wave Dancer",
+            "title": "Quartermaster",
+            "start": 1746
+          },
+          {
+            "org": "Wildhearts",
+            "type": "primary"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Wave Dancer",
+            "wHome": "Sails <home:qr>"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": 1748
+      }
+    },
+    {
+      "path": "People/Halflings/Pearl Brightmoon.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person"
+        ],
+        "species": "halfling",
+        "ancestry": null,
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "person": "Wellby",
+            "date": "1748-09-30",
+            "type": "met"
+          },
+          {
+            "campaign": "dufr",
+            "person": "Wellby",
+            "date": "1748-10-12",
+            "type": "last seen"
+          }
+        ],
+        "born": null,
+        "gender": "female",
+        "name": "Pearl Brightmoon",
+        "affiliations": [
+          {
+            "org": "Wave Dancer",
+            "title": "First Mate",
+            "start": 1
+          },
+          {
+            "org": "Brightmoons",
+            "type": "primary"
+          }
+        ],
+        "whereabouts": "Wave Dancer",
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": 1748
+      }
+    },
+    {
+      "path": "People/Halflings/Rose Brightmoon.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person"
+        ],
+        "species": "halfling",
+        "ancestry": null,
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "person": "Wellby",
+            "date": "1748-09-30",
+            "type": "met"
+          },
+          {
+            "campaign": "dufr",
+            "person": "Wellby",
+            "date": "1748-10-12",
+            "type": "last seen"
+          }
+        ],
+        "born": null,
+        "gender": "female",
+        "name": "Rose Brightmoon",
+        "affiliations": [
+          {
+            "org": "Wave Dancer",
+            "title": "Musician",
+            "start": 1
+          },
+          {
+            "org": "Brightmoons",
+            "type": "primary"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Wave Dancer"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": "1740s"
+      }
+    },
+    {
+      "path": "People/Halflings/Wella Brightmoon.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/check/lint"
+        ],
+        "species": "halfling",
+        "ancestry": null,
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "person": "Wellby",
+            "date": "1748-09-30",
+            "type": "met"
+          },
+          {
+            "campaign": "dufr",
+            "person": "Wellby",
+            "date": "1748-10-12",
+            "type": "last seen"
+          }
+        ],
+        "born": 1639,
+        "gender": "female",
+        "name": "Wella Brightmoon",
+        "aliases": [
+          "Wella"
+        ],
+        "affiliations": [
+          {
+            "org": "Brightmoons",
+            "type": "primary"
+          },
+          {
+            "place": "Wave Dancer",
+            "title": "Captain",
+            "type": "leader",
+            "start": 1
+          }
+        ],
+        "whereabouts": "Wave Dancer",
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": 1748
+      }
+    },
+    {
+      "path": "People/Historical Figures/Drankorian Emperors/Apollyon.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "boxInfo": "<subspecies> (<species:s>), <pronouns>"
+        },
+        "tags": [
+          "person",
+          "testcase",
+          "status/gameupdate/dufr",
+          "status/check/lint",
+          "statust/cleanup/text"
+        ],
+        "species": "undead",
+        "subspecies": "lich",
+        "born": null,
+        "gender": "male",
+        "title": "Emperor",
+        "name": "Apollyon",
+        "aliases": [
+          "Emperor Apollyon"
+        ],
+        "pronunciation": "ah-pol-LEE-on",
+        "whereabouts": [
+          {
+            "type": "home",
+            "end": 1059,
+            "location": "Drankor"
+          },
+          {
+            "type": "away",
+            "start": 1053
+          },
+          {
+            "type": "away",
+            "start": 1060
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Arryn I.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1567,
+        "gender": "male",
+        "title": "King",
+        "died": 1600,
+        "name": "Arryn I",
+        "affiliations": [
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          },
+          {
+            "place": "Sembara",
+            "start": 1592
+          },
+          {
+            "place": "Tyrwingha",
+            "start": 1592
+          }
+        ],
+        "knownTo": [
+          "clee"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Arryn II.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1601,
+        "gender": "male",
+        "died": "1648-10",
+        "title": "King",
+        "name": "Arryn II",
+        "affiliations": [
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          },
+          {
+            "place": "Sembara",
+            "start": 1602
+          },
+          {
+            "place": "Tyrwingha",
+            "start": 1602
+          }
+        ],
+        "knownTo": [],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Arryn III.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "testcase",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "campaignInfo": [],
+        "born": 1702,
+        "gender": "male",
+        "title": "King",
+        "name": "Arryn III",
+        "affiliations": [
+          {
+            "org": "House of Lils",
+            "type": "primary"
+          },
+          {
+            "place": "Sembara",
+            "start": 1745
+          },
+          {
+            "place": "Tyrwingha",
+            "start": 1745
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Tafolwern",
+            "end": "1721-08"
+          },
+          {
+            "type": "home",
+            "location": "Embry",
+            "start": "1721-09"
+          }
+        ],
+        "knownTo": [],
+        "POV": "1740s"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Bertram I.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1538,
+        "gender": "male",
+        "died": 1552,
+        "title": "King",
+        "name": "Bertram I",
+        "affiliations": [
+          {
+            "place": "Vostok",
+            "title": "High King",
+            "end": 1551,
+            "start": 1549
+          },
+          {
+            "place": "Sembara",
+            "title": "High King",
+            "start": 1549
+          },
+          {
+            "place": "Ardlas",
+            "title": "High King",
+            "start": 1549
+          },
+          {
+            "place": "Lavnoch",
+            "title": "High King",
+            "start": 1549
+          },
+          {
+            "place": "Breva",
+            "title": "High King",
+            "start": 1549
+          },
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          }
+        ],
+        "knownTo": [],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Bertram II.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/cleanup/text",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1537,
+        "gender": "male",
+        "died": "1561-01-17",
+        "title": "King",
+        "name": "Bertram II",
+        "affiliations": [
+          {
+            "place": "Sembara",
+            "title": "High King",
+            "start": 1555
+          },
+          {
+            "place": "Ardlas",
+            "title": "High King",
+            "start": 1555
+          },
+          {
+            "place": "Lavnoch",
+            "title": "High King",
+            "start": 1555
+          },
+          {
+            "place": "Breva",
+            "title": "High King",
+            "start": 1555
+          },
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          }
+        ],
+        "knownTo": [],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Blanche I.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/cleanup/text",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1538,
+        "gender": "female",
+        "died": 1567,
+        "title": "Queen",
+        "name": "Blanche I",
+        "affiliations": [
+          {
+            "place": "Sembara",
+            "title": "High Queen",
+            "start": "1561-02-13"
+          },
+          {
+            "place": "Ardlas",
+            "title": "High Queen",
+            "start": "1561-02-13"
+          },
+          {
+            "place": "Lavnoch",
+            "title": "High Queen",
+            "start": "1561-02-13"
+          },
+          {
+            "place": "Breva",
+            "title": "High Queen",
+            "start": "1561-02-13"
+          },
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          }
+        ],
+        "knownTo": [],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Blanche II.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1570,
+        "gender": "female",
+        "died": 1602,
+        "title": "Queen",
+        "name": "Blanche II",
+        "affiliations": [
+          {
+            "place": "Sembara",
+            "start": 1600
+          },
+          {
+            "place": "Tyrwingha",
+            "start": 1600
+          },
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          }
+        ],
+        "knownTo": [],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Cece I.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/review",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1628,
+        "gender": "female",
+        "title": "Queen",
+        "died": "1713-09-12",
+        "name": "Cece I",
+        "affiliations": [
+          {
+            "place": "Sembara",
+            "start": "1648-12-11"
+          },
+          {
+            "place": "Tyrwingha",
+            "start": "1648-12-11"
+          },
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          }
+        ],
+        "knownTo": [
+          "clee",
+          "adma"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Charlotte I.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1460,
+        "gender": "female",
+        "died": 1519,
+        "title": "Queen",
+        "name": "Charlotte I",
+        "affiliations": [
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          },
+          {
+            "place": "Tyrwingha",
+            "start": 1496
+          },
+          {
+            "place": "Sembara",
+            "start": 1496
+          },
+          {
+            "place": "Ardlas",
+            "start": 1499
+          },
+          {
+            "place": "Lavnoch",
+            "start": 1501
+          },
+          {
+            "place": "Breva",
+            "start": 1506
+          }
+        ],
+        "knownTo": [],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Charlotte II.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/cleanup/text",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1624,
+        "gender": "female",
+        "died": "1648-12-10",
+        "title": "Queen",
+        "name": "Charlotte II",
+        "affiliations": [
+          {
+            "place": "Sembara",
+            "start": "1648-10"
+          },
+          {
+            "place": "Tyrwingha",
+            "start": "1648-10"
+          },
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          }
+        ],
+        "knownTo": [],
+        "POV": 1648
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Cynan.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Tyrwinghan",
+        "born": 1538,
+        "gender": "male",
+        "title": "King",
+        "died": 1589,
+        "name": "Cynan",
+        "affiliations": [
+          {
+            "org": "Tyrwingha",
+            "type": "leader",
+            "start": 1571
+          }
+        ],
+        "knownTo": [],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Derik I.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/review",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1396,
+        "gender": "male",
+        "died": 1462,
+        "title": "King",
+        "name": "Derik I",
+        "affiliations": [
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          },
+          {
+            "place": "Tyrwingha",
+            "start": 1425
+          },
+          {
+            "place": "Sembara",
+            "start": 1429
+          },
+          {
+            "place": "Duchy of Telham",
+            "title": "Duke",
+            "start": 1429
+          }
+        ],
+        "knownTo": [
+          "adma",
+          "clee"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Derik II.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1422,
+        "gender": "male",
+        "title": "King",
+        "died": 1496,
+        "name": "Derik II",
+        "affiliations": [
+          {
+            "place": "Sembara",
+            "start": 1462
+          },
+          {
+            "place": "Tyrwingha",
+            "start": 1462
+          },
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          }
+        ],
+        "knownTo": [],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Derik III.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/cleanup/metadata",
+          "status/review",
+          "testcase",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1484,
+        "gender": "male",
+        "title": "King",
+        "died": 1549,
+        "name": "Derik III",
+        "affiliations": [
+          {
+            "org": "Vostok",
+            "type": "leader",
+            "title": "Prince of the North",
+            "start": 1511,
+            "end": 1519
+          },
+          {
+            "org": "Sembara",
+            "type": "leader",
+            "title": "High King",
+            "start": 1519
+          },
+          {
+            "org": "Tyrwingha",
+            "type": "leader",
+            "title": "High King",
+            "start": 1519
+          },
+          {
+            "org": "Vostok",
+            "type": "leader",
+            "title": "High King",
+            "start": 1519
+          }
+        ],
+        "knownTo": [],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Elaine I.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "testcase",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1539,
+        "gender": "female",
+        "title": "Queen",
+        "died": 1592,
+        "name": "Elaine I",
+        "affiliations": [
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          },
+          {
+            "place": "Tyrwingha",
+            "start": 1567,
+            "end": 1571,
+            "title": "Princess Consort"
+          },
+          {
+            "place": "Tyrwingha",
+            "start": 1571,
+            "title": "Queen Consort"
+          },
+          {
+            "place": "Sembara",
+            "start": 1582
+          },
+          {
+            "place": "Tyrwingha",
+            "start": 1589,
+            "title": "Queen"
+          }
+        ],
+        "knownTo": [
+          "clee"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Elaine II.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/check/mike",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1673,
+        "gender": "female",
+        "died": 1745,
+        "name": "Elaine II",
+        "affiliations": [
+          {
+            "org": "House of Lils",
+            "type": "primary"
+          },
+          {
+            "org": "Tyrwingha",
+            "type": "leader",
+            "title": "Queen",
+            "start": "1713-09-12"
+          },
+          {
+            "org": "Sembara",
+            "type": "leader",
+            "title": "Queen",
+            "start": "1720-06-15"
+          }
+        ],
+        "knownTo": [
+          "clee"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Jane of Tollen.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Tollender",
+        "campaignInfo": [],
+        "born": 1504,
+        "gender": "female",
+        "died": 1559,
+        "name": "Jane of Tollen",
+        "affiliations": [
+          {
+            "org": "Vostok",
+            "type": "leader",
+            "title": "Queen Regent",
+            "end": 1551
+          },
+          {
+            "org": "Sembara",
+            "type": "leader",
+            "title": "Queen Regent",
+            "end": 1555
+          },
+          {
+            "org": "Ardlas",
+            "type": "leader",
+            "title": "Queen Regent",
+            "end": 1555
+          },
+          {
+            "org": "Lavnoch",
+            "type": "leader",
+            "title": "Queen Regent",
+            "end": 1555
+          },
+          {
+            "org": "Breva",
+            "type": "leader",
+            "title": "Queen Regent",
+            "end": 1555
+          }
+        ],
+        "knownTo": [],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Robert I.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/gameupdate/clee",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1660,
+        "gender": "male",
+        "died": "1720-06-15",
+        "title": "King",
+        "name": "Robert I",
+        "affiliations": [
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          },
+          {
+            "place": "Sembara",
+            "start": "1713-09-12"
+          }
+        ],
+        "knownTo": [
+          "clee"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Wisym I.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "campaignInfo": [],
+        "born": 1510,
+        "gender": "male",
+        "title": "King",
+        "died": 1582,
+        "name": "Wisym I",
+        "affiliations": [
+          {
+            "org": "House of Sewick",
+            "type": "primary"
+          },
+          {
+            "place": "Sembara",
+            "start": 1568
+          }
+        ],
+        "knownTo": [],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "People/Orcs/Lubash.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "status/cleanup/metadata",
+          "person",
+          "status/check/lint"
+        ],
+        "species": "orc",
+        "ancestry": null,
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "date": "1748-12-10",
+            "type": "met"
+          }
+        ],
+        "born": 1691,
+        "activeYear": 1735,
+        "gender": "male",
+        "title": "Chief",
+        "name": "Lubash",
+        "affiliations": [
+          "People of the Rainbow",
+          {
+            "org": "Xurkhaz",
+            "type": "leader",
+            "start": 1745
+          }
+        ],
+        "whereabouts": "Uzgukhar",
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": "1740s"
+      }
+    },
+    {
+      "path": "People/PCs/Dunmar Fellowship/Dunmar Fellowship.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "ltPerson": "by"
+        },
+        "tags": [
+          "group",
+          "status/gameupdate/dufr",
+          "status/check/lint"
+        ],
+        "typeOf": "adventuring party",
+        "campaignInfo": [],
+        "name": "Dunmar Fellowship",
+        "POV": 1748
+      }
+    },
+    {
+      "path": "People/PCs/Dunmar Fellowship/Wellby.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/check/lint"
+        ],
+        "species": "halfling",
+        "ancestry": null,
+        "campaignInfo": [],
+        "born": null,
+        "gender": "male",
+        "player": "David Schwartz",
+        "name": "Wellby",
+        "affiliations": [
+          {
+            "org": "Dunmar Fellowship"
+          },
+          {
+            "org": "Goodbarrels",
+            "type": "primary"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": 1748
+      }
+    },
+    {
+      "path": "People/Sembarans/Adam of Cleenseau.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "campaignInfo": [
+          {
+            "campaign": "clee",
+            "type": "Fought alongside",
+            "date": "1719-10-21",
+            "format": "<met:x> <person> on <target> <current:3rq>"
+          }
+        ],
+        "born": 1691,
+        "gender": "male",
+        "name": "Adam",
+        "affiliations": [
+          {
+            "org": "Army Garrison of Cleenseau",
+            "title": "Soldier"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Cleenseau"
+          },
+          {
+            "type": "away",
+            "start": "1719-10-21",
+            "end": "1719-10-21",
+            "location": "Cleenseau Wood"
+          },
+          {
+            "type": "away",
+            "start": "1719-11-27",
+            "end": "1720-01-10",
+            "location": "Dunfry"
+          }
+        ],
+        "knownTo": [
+          "clee"
+        ],
+        "POV": "1720s"
+      }
+    },
+    {
+      "path": "People/Sembarans/Ancer Benthey.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "campaignInfo": [],
+        "born": 1689,
+        "gender": "male",
+        "name": "Ancer Benthey",
+        "pronunciation": "AN-ser BEN-thee",
+        "affiliations": [
+          {
+            "org": "Army Garrison of Cleenseau",
+            "title": "Sergeant of the Bridge Patrol",
+            "start": "1719-11-20"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Cleenseau"
+          },
+          {
+            "type": "away",
+            "location": "Army Garrison of Cleenseau"
+          }
+        ],
+        "knownTo": [
+          "clee"
+        ],
+        "POV": 1719
+      }
+    },
+    {
+      "path": "People/Sembarans/Beatrix Thorne.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "born": 1696,
+        "gender": "female",
+        "name": "Béatrix Thorne",
+        "pronunciation": "bay-ah-TREEKS thorn",
+        "aliases": [
+          "Béatrix",
+          "Beatrix",
+          "Béatrix Thorne"
+        ],
+        "affiliations": [
+          {
+            "org": "Army Garrison of Cleenseau",
+            "end": "1719-11-02",
+            "title": "Soldier"
+          },
+          {
+            "org": "Lord's Guard of Cleenseau",
+            "start": "1719-11-23",
+            "title": "Guardswoman"
+          },
+          {
+            "org": "Lord's Guard of Cleenseau",
+            "start": "1720-01-11",
+            "title": "Sheriff"
+          },
+          {
+            "org": "Thornes of Cleenseau",
+            "type": "primary"
+          }
+        ],
+        "whereabouts": "Cleenseau",
+        "knownTo": [
+          "clee"
+        ],
+        "POV": 1720
+      }
+    },
+    {
+      "path": "People/Sembarans/Eveyln Totteridge.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/gameupdate/clee",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "title": "Sergeant",
+        "born": 1689,
+        "gender": "female",
+        "name": "Eveyln Totteridge",
+        "affiliations": [
+          {
+            "org": "Army Garrison of Cleenseau",
+            "title": "Sergeant"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Cleenseau"
+          },
+          {
+            "type": "away",
+            "start": "1719-10-15",
+            "end": "1719-10-29",
+            "location": "Bandit's Way"
+          },
+          {
+            "type": "away",
+            "start": "1719-11-27",
+            "end": "1720-01-10",
+            "location": "Dunfry"
+          }
+        ],
+        "knownTo": [
+          "clee"
+        ],
+        "POV": 1720
+      }
+    },
+    {
+      "path": "People/Sembarans/Ida Rosfeld.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "campaignInfo": null,
+        "born": 1687,
+        "gender": "female",
+        "title": "Captain",
+        "name": "Ida Rosfeld",
+        "affiliations": [
+          {
+            "org": "Army Garrison of Cleenseau",
+            "start": 1718,
+            "title": "Captain",
+            "type": "leader"
+          },
+          {
+            "org": "Lord's Council of Cleenseau",
+            "title": "Advisor",
+            "start": "1719-01-06"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Cleenseau"
+          },
+          {
+            "type": "away",
+            "start": "1719-11-27",
+            "end": "1720-01-10",
+            "location": "Dunfry"
+          }
+        ],
+        "knownTo": [
+          "clee"
+        ],
+        "POV": 1720
+      }
+    },
+    {
+      "path": "People/Sembarans/Marion of Cleenseau.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "campaignInfo": [
+          {
+            "campaign": "clee",
+            "type": "met"
+          }
+        ],
+        "born": 1694,
+        "gender": "female",
+        "name": "Marion",
+        "affiliations": [
+          {
+            "org": "Army Garrison of Cleenseau",
+            "title": "Soldier"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Cleenseau"
+          }
+        ],
+        "knownTo": [
+          "clee"
+        ],
+        "POV": "1720s"
+      }
+    },
+    {
+      "path": "People/Sembarans/Odo Cordwaner.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "person",
+          "status/gameupdate/clee",
+          "status/check/lint"
+        ],
+        "species": "human",
+        "ancestry": "Sembaran",
+        "campaignInfo": [
+          {
+            "campaign": "clee"
+          }
+        ],
+        "born": 1700,
+        "gender": "male",
+        "name": "Odo Cordwaner",
+        "affiliations": [
+          {
+            "org": "Army Garrison of Cleenseau",
+            "end": "1719-11-05",
+            "title": "Sergeant"
+          },
+          {
+            "org": "Lord's Guard of Cleenseau",
+            "start": "1719-11-16",
+            "title": "Guardsman"
+          }
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "Eftly"
+          },
+          {
+            "type": "home",
+            "location": "Cleenseau",
+            "start": 1718
+          },
+          {
+            "type": "away",
+            "start": "1719-10-21",
+            "end": "1719-10-23",
+            "location": "Taviose"
+          },
+          {
+            "type": "home",
+            "start": "1719-11-16",
+            "location": "Taviose"
+          }
+        ],
+        "knownTo": [
+          "clee"
+        ],
+        "POV": 1720
+      }
+    },
+    {
+      "path": "Things/Artifacts of Power/Chalice of the Runepriest.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "wOrigin": "<start:u> in <startDate> <origin:3rq>",
+          "wCurrent": "Current location: <current:3r>",
+          "dCurrent": ""
+        },
+        "tags": [
+          "object",
+          "testcase",
+          "status/check/lint"
+        ],
+        "typeOf": "chalice",
+        "ancestry": "dwarven",
+        "created": 1547,
+        "rarity": "unique",
+        "name": "Chalice of the Runepriest",
+        "whereabouts": [
+          {
+            "type": "home",
+            "end": 1547,
+            "location": "Bahrazel"
+          },
+          {
+            "type": "away",
+            "start": 1548,
+            "end": 1570,
+            "location": "Tharn Todor"
+          },
+          {
+            "type": "away",
+            "start": 1570,
+            "end": "1748-10-04",
+            "location": "lost"
+          },
+          {
+            "type": "away",
+            "start": "1748-10-05",
+            "end": 9999,
+            "location": "Tharn Todor"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Things/Artifacts of Power/Cloak of Rainbows.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "object",
+          "testcase",
+          "status/cleanup/text"
+        ],
+        "typeOf": "cloak",
+        "subTypeOf": "magical",
+        "campaignInfo": null,
+        "created": 917,
+        "rarity": "unique",
+        "name": "Cloak of Rainbows",
+        "aliases": [
+          "Cloak of Rainbows",
+          "Mantle of Protection"
+        ],
+        "whereabouts": [
+          {
+            "type": "home",
+            "end": 917,
+            "location": "Cloudspinner"
+          },
+          {
+            "type": "home",
+            "end": 1050,
+            "location": "People of the Rainbow"
+          },
+          {
+            "type": "home",
+            "start": 1050,
+            "end": 1059,
+            "location": "Apollyon"
+          },
+          {
+            "type": "home",
+            "location": "Lubash"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": "1740s"
+      }
+    },
+    {
+      "path": "Things/Artifacts of Power/Scepter of Command.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "tags": [
+          "object",
+          "testcase",
+          "status/check/lint"
+        ],
+        "typeOf": "scepter",
+        "rarity": "unique",
+        "campaignInfo": [
+          {
+            "campaign": "dufr",
+            "type": "destroyed",
+            "date": "1748-12-25"
+          }
+        ],
+        "created": 1053,
+        "destroyed": "1748-12-25",
+        "name": "Scepter of Command",
+        "whereabouts": [
+          {
+            "type": "home",
+            "end": 1059,
+            "location": "Apollyon"
+          },
+          {
+            "type": "away",
+            "start": 1552,
+            "end": 1746,
+            "location": "Kharsan",
+            "startFilter": ""
+          },
+          {
+            "type": "home",
+            "location": "Fraternity of the Empty Moon",
+            "start": 1747,
+            "end": "1747-12-11"
+          },
+          {
+            "type": "home",
+            "location": "Agata",
+            "start": "1748-01-17",
+            "end": "1748-05-29"
+          },
+          {
+            "type": "home",
+            "location": "Dunmar Fellowship",
+            "start": "1748-05-29",
+            "end": "1748-12-24"
+          },
+          {
+            "type": "away",
+            "location": "Vetta",
+            "start": "1748-12-24",
+            "end": "1748-12-25"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": "modern"
+      }
+    },
+    {
+      "path": "Things/Ships/Vindristjarna.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "linkText": "on",
+          "ltItem": "stored on"
+        },
+        "tags": [
+          "object",
+          "status/check/lint"
+        ],
+        "typeOf": "skyship",
+        "subTypeOf": "magical",
+        "typeOfAlias": "skyship",
+        "rarity": "unique",
+        "name": "Vindristjarna",
+        "aliases": [
+          "Star on the Wind"
+        ],
+        "pronunciation": "vin-dree-SHAR-na",
+        "whereabouts": [
+          {
+            "type": "home",
+            "location": "unknown storm giant"
+          },
+          {
+            "type": "home",
+            "location": "dufr"
+          },
+          {
+            "type": "away",
+            "start": "1748-12-03",
+            "end": "1748-12-10",
+            "location": "Uzgukhar"
+          },
+          {
+            "type": "away",
+            "start": "1748-12-28",
+            "end": "1749-01-04",
+            "location": "Tollen"
+          },
+          {
+            "type": "away",
+            "start": "1749-01-15",
+            "end": "1749-01-16",
+            "location": "Orenlas"
+          },
+          {
+            "type": "away",
+            "start": "1749-01-17",
+            "end": "1749-01-19",
+            "location": "traveling to Xurkhaz"
+          },
+          {
+            "type": "away",
+            "start": "1749-01-20",
+            "end": "1749-01-24",
+            "location": "Uzgukhar"
+          },
+          {
+            "type": "away",
+            "start": "1749-01-25",
+            "end": "1749-01-27",
+            "location": "Nashtkar"
+          },
+          {
+            "type": "away",
+            "start": "1749-01-28",
+            "end": "1749-01-29",
+            "location": "Pava and Avaras' House"
+          },
+          {
+            "type": "away",
+            "start": "1749-01-30",
+            "end": "1749-01-30",
+            "location": "traveling to Copper Hills"
+          },
+          {
+            "type": "away",
+            "start": "1749-03-13",
+            "end": "1749-03-16",
+            "location": "Vostok"
+          },
+          {
+            "type": "away",
+            "start": "1749-03-17",
+            "end": "1749-03-18",
+            "location": "Sivnjo Mountains"
+          },
+          {
+            "type": "away",
+            "start": "1749-05-30",
+            "end": 9999,
+            "location": "Garamjala Desert"
+          },
+          {
+            "type": "away",
+            "start": "1749-06-14",
+            "end": 9999,
+            "location": "Gulf of Chardon"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "excludePublish": [
+          "clee"
+        ],
+        "POV": 1749
+      }
+    },
+    {
+      "path": "Things/Ships/Wave Dancer.md",
+      "metadata": {
+        "headerVersion": "2023.11.25",
+        "displayDefaults": {
+          "wOrigin": "Home area: <origin>",
+          "ruledBy": "<affiliationtitle:t>: <name> <(of )primary>",
+          "wHome": "",
+          "wCurrent": "Current location: <current:3Frq>"
+        },
+        "tags": [
+          "object",
+          "testcase",
+          "status/check/lint"
+        ],
+        "typeOf": "vehicle",
+        "typeOfAlias": "boat",
+        "ancestry": "halfling",
+        "name": "Wave Dancer",
+        "whereabouts": [
+          {
+            "type": "home",
+            "end": 1,
+            "location": "Eastern Green Sea"
+          },
+          {
+            "type": "away",
+            "start": "1748-09-30",
+            "end": "1748-10-11",
+            "location": "sailing to Wahacha",
+            "startFilter": "2"
+          },
+          {
+            "type": "away",
+            "start": "1748-10-12",
+            "end": "1748-10-14",
+            "alias": "main port of Wacahca",
+            "location": "Wahacha",
+            "linkText": "moored in",
+            "format": "<name:q>",
+            "startFilter": "2"
+          }
+        ],
+        "knownTo": [
+          "dufr"
+        ],
+        "POV": "1740s"
+      }
+    }
+  ],
+  "coreMeta": {
+    "fragmentsThatDontAutoLink": [
+      "somewhere",
+      "unknown",
+      "of",
+      "in",
+      "near",
+      "imprisoned",
+      "drifting",
+      "traveling"
+    ],
+    "requiredDisplayDefaults": {
+      "startStatus": "",
+      "endStatus": "",
+      "wOrigin": "<origin:3Fru>",
+      "wOriginU": "<origin:3Fru>",
+      "wHome": "<home:3Fru>",
+      "wHomeU": "",
+      "wPastHome": "<home:3Fru>",
+      "wPastHomeU": "",
+      "wCurrent": "Currently <current:3Frq>",
+      "wPast": "<end:u> <current:3Frq>",
+      "wLastKnown": "Last known location (as of <lastknowndate>): <lastknown:3Fr>",
+      "wLastNoDate": "Last known location: <lastknown:3Fr>",
+      "wParty": "<met:u> <person:q> on <target> <current:3Frq>",
+      "wSecondary": "",
+      "dCurrent": "<start:u> <startDate>",
+      "dPastHasStart": "<start:u> <startDate> - <end> <endDate>",
+      "dPast": "<end:u> <endDate>",
+      "boxName": "Information",
+      "partOf": "",
+      "boxInfo": "",
+      "aNoDate": "<affiliationtitle:tx> of <affiliations>",
+      "aPast": "<affiliationtitle:tx> of <affiliations> (until <endDate>)",
+      "aCurrent": "<affiliationtitle:tx> of <affiliations> (since <startDate>)",
+      "aPastHasStart": "<affiliationtitle:tx> of <affiliations> (<startDate> - <endDate>)",
+      "mechanicsLink": "",
+      "linkText": "",
+      "ruledBy": ""
+    },
+    "typeDisplayDefaults": {
+      "person": {
+        "boxName": "Biographical Info",
+        "startStatus": "born",
+        "endStatus": "died",
+        "defArt": "",
+        "wOrigin": "Originally from: <origin:3Fr>",
+        "wOriginU": "Originally from: <origin:3Fr>",
+        "wHome": "Based <home:3Frq>",
+        "wPast": "<end:u> <current:3Frq>",
+        "wPastHome": "Lived <home:3Frq>",
+        "wParty": "<met:u> <person:q> on <target> <current:3Frq>",
+        "dCurrent": "<start:u> <startDate> (<length> old)",
+        "dPastHasStart": "b. <startDate> - d. <endDate>, <end> at age <length>",
+        "dPast": "<end:u> <endDate>",
+        "boxInfo": "<ancestry:UA> <species:sAU> <(()subspecies:s())> <(()pronouns())>, <(of )primary>\n<(()ka())>",
+        "sessionNote": {
+          "default": "<(*)pronunciation(*;)> <pronouns(,)> <ancestry:n> <subspecies:sn> <species:sn>"
+        },
+        "mechanicsLink": "Character Sheet",
+        "linkText": "by",
+        "ltPlace": "in",
+        "ltPerson": "by",
+        "ltItem": "by",
+        "ltOrg": "member of"
+      },
+      "power": {
+        "defArt": "",
+        "boxInfo": "<typeof:sAU> <(()pronouns())>, <(part of )primary>",
+        "sessionNote": {
+          "default": "<(*)pronunciation(*;)> <typeof:sn>"
+        }
+      },
+      "place": {
+        "startStatus": "founded",
+        "endStatus": "destroyed",
+        "wOrigin": "",
+        "wOriginU": "",
+        "dCurrent": "<start:u> <startDate> (<length> ago)",
+        "dPastHasStart": "existed <startDate> - <endDate>, <end> after <length>",
+        "dPast": "<end:u> <endDate>",
+        "wCurrent": "Located <current:5Fq>",
+        "wPast": "Was located <current:5Frq>",
+        "wHome": "<ancestry:UA> <subtypeof:UA> <typeof:UA> <(of )primary> <home:5Fq>",
+        "wPastHome": "<ancestry:UA> <subtypeof:UA> <typeof:UA> <(of )primary> <home:5Fq>",
+        "wSecondary": "Located <secondary:5Fq>",
+        "partOf": "",
+        "boxInfo": "<population>",
+        "sessionNote": {
+          "default": "<(*)pronunciation(*;)> <typeof:sn> <home:2Fq>"
+        },
+        "ruledBy": "<affiliationtitle:tx>: <name> <((since )startDate())>",
+        "linkText": "in"
+      },
+      "object": {
+        "startStatus": "created",
+        "endStatus": "destroyed",
+        "wOrigin": "<start:u> <origin:3Frq>",
+        "wOriginU": "<start:u> by <origin:3Frq>",
+        "wHome": "Owned <home:lirq>",
+        "wPastHome": "Was owned <home:lirq>",
+        "wCurrent": "Owned <current:lirq>",
+        "dCurrent": "<start:u> <startDate> (<length> ago)",
+        "dPastHasStart": "existed <startDate> - <endDate>, <end> after <length>",
+        "dPast": "<end:u> <endDate>",
+        "boxInfo": "(<rarity:s> <ancestry> <subtypeof:s> <typeof:s>)",
+        "sessionNote": {
+          "default": "<(*)pronunciation(*;)> <rarity:sn> <ancestry:n> <subtypeof:sn> <typeof:sn>"
+        },
+        "mechanicsLink": "Mechanics",
+        "linkText": "in",
+        "ltPlace": "in"
+      },
+      "group": {
+        "startStatus": "founded",
+        "endStatus": "disbanded",
+        "wOrigin": "<start:u> <origin:q>",
+        "wOriginU": "",
+        "wHome": "Based <home:q>",
+        "wPastHome": "Was based <home:q>",
+        "dCurrent": "<start:u> <startDate> (<length> ago)",
+        "dPastHasStart": "existed <startDate> - <endDate>, <end> after <length>",
+        "dPast": "<end:u> <endDate>",
+        "partOf": "<(Parent Organization: )partof>",
+        "boxInfo": "<ancestry:UA> <subtypeof:UA> <typeof:UA>, <(of )primary>",
+        "sessionNote": {
+          "default": "<(*)pronunciation(*;)> <ancestry:n> <subtypeof:sn> <typeof:sn>"
+        },
+        "ruledBy": "<affiliationtitle:tx>: <name> <((since )startDate())>",
+        "linkText": "by",
+        "ltPlace": "in",
+        "ltPerson": "with",
+        "ltItem": "owned by",
+        "ltOrg": "part of"
+      },
+      "event": {
+        "startStatus": "started in",
+        "endStatus": "ended in",
+        "wOrigin": "<startStatus:u> <origin:q>",
+        "wHome": "Occurring <home:q>",
+        "wPastHome": "Happened <home:q>",
+        "dCurrent": "<start:u> <startDate> (<length> ago)",
+        "dPastHasStart": "<startDate> - <endDate>, lasted <length>",
+        "dPast": "<end:u> <endDate>",
+        "partOf": "<(part of )partof:ty>",
+        "sessionNote": {
+          "default": "<(*)pronunciation(*;)> <typeof:sn>"
+        }
+      },
+      "ancestry": {
+        "sessionNote": {
+          "default": "<(*)pronunciation(*;)> <typeof:sn>"
+        }
+      },
+      "creature": {
+        "sessionNote": {
+          "default": "<(*)pronunciation(*;)> <typeof:sn>"
+        }
+      },
+      "unknown": {
+        "startStatus": "created",
+        "endStatus": "destroyed",
+        "defArt": "",
+        "sessionNote": {
+          "default": "<(*)pronunciation(*;)> <typeof:sn>"
+        }
+      }
+    },
+    "linkmap": [
+      {
+        "from": "Taelgar",
+        "to": "Gazetteer",
+        "isAlias": true
+      },
+      {
+        "from": "clee",
+        "to": "Heroes of Cleenseau"
+      },
+      {
+        "from": "ka",
+        "to": "The Cycle of Generations",
+        "isAlias": true
+      },
+      {
+        "from": "DuFr",
+        "to": "Dunmar Fellowship"
+      },
+      {
+        "from": "adma",
+        "to": "Addermarch Mercenaries"
+      },
+      {
+        "from": "GW",
+        "to": "Heroes of the Great War"
+      },
+      {
+        "from": "GL",
+        "to": "Silver Tempests"
+      }
+    ]
+  },
+  "registry": {
+    "schemaVersion": 2,
+    "campaigns": {
+      "addermarch": {
+        "name": "Addermarch",
+        "code": "adma",
+        "aliases": [
+          "Addermarch Campaign",
+          "ADMA"
+        ],
+        "partyPage": "Addermarch Mercenaries",
+        "sessionRoot": "addermarch",
+        "campaignRoot": "Campaigns/Addermarch Campaign",
+        "notePattern": "Addermarch - Session {session_padded}.md",
+        "defaultTemplate": "composable-session-note.md"
+      },
+      "dunmar-frontier": {
+        "name": "Dunmar Frontier",
+        "code": "dufr",
+        "aliases": [
+          "Dunmari Frontier",
+          "Dunmari Frontier Campaign",
+          "Dunmar Frontier Campaign",
+          "DuFr"
+        ],
+        "partyPage": "Dunmar Fellowship",
+        "sessionRoot": "dunmar-frontier",
+        "campaignRoot": "Campaigns/Dunmari Frontier Campaign",
+        "notePattern": "Session Notes/Dunmar Frontier - Session {session_padded}.md",
+        "defaultTemplate": "dunmar-frontier-template.md"
+      },
+      "cleenseau": {
+        "name": "Cleenseau",
+        "code": "clee",
+        "aliases": [
+          "Cleenseau Campaign",
+          "Clee"
+        ],
+        "partyPage": "Heroes of Cleenseau",
+        "sessionRoot": "cleenseau",
+        "campaignRoot": "Campaigns/Cleenseau Campaign",
+        "notePattern": "Sessions/Cleenseau - Session {session_padded}.md",
+        "defaultTemplate": "cleenseau-template.md"
+      },
+      "great-library": {
+        "name": "Great Library",
+        "code": "grli",
+        "aliases": [
+          "Great Library Campaign",
+          "GL",
+          "gl"
+        ],
+        "partyPage": "Silver Tempests",
+        "sessionRoot": "great-library",
+        "campaignRoot": "Campaigns/Great Library Campaign",
+        "notePattern": "Session Notes/Great Library Session Notes - Arc {session}.md",
+        "defaultTemplate": "composable-session-note.md"
+      },
+      "mawar-adventures": {
+        "name": "Mawar Adventures",
+        "code": "mawar",
+        "aliases": [
+          "Mawar"
+        ],
+        "sessionRoot": "mawar",
+        "campaignRoot": "Campaigns/Mawar Adventures",
+        "notePattern": "Episodes/Mawar Adventures Episode {session_padded}.md",
+        "defaultTemplate": "mawar-template.md"
+      },
+      "into-the-chasm": {
+        "name": "Into the Chasm",
+        "code": "itc",
+        "aliases": [],
+        "sessionRoot": "into-the-chasm",
+        "campaignRoot": "Campaigns/One Shots/Into the Chasm",
+        "notePattern": "Into the Chasm - Episode {session_padded}.md",
+        "defaultTemplate": "into-the-chasm-template.md"
+      },
+      "labyrinths-of-the-lost": {
+        "name": "Labyrinths of the Lost",
+        "code": "lablost",
+        "aliases": [
+          "ll"
+        ],
+        "sessionRoot": "lablost",
+        "campaignRoot": "Campaigns/One Shots/Labyrinths of the Lost",
+        "notePattern": "Labyrinths of the Lost - Session {session}.md",
+        "defaultTemplate": "lablost-template.md"
+      },
+      "lost-in-the-feywild": {
+        "name": "Lost in the Feywild",
+        "code": "feywild",
+        "aliases": [
+          "litf"
+        ],
+        "sessionRoot": "feywild",
+        "campaignRoot": "Campaigns/One Shots/Lost in the Feywild",
+        "notePattern": "Lost in the Feywild - Episode {session_padded}.md",
+        "defaultTemplate": "composable-session-note.md"
+      },
+      "dragonets": {
+        "name": "Dragonets",
+        "code": "dgnt",
+        "aliases": [
+          "Dragonets Campaign"
+        ],
+        "sessionRoot": "dragonets",
+        "campaignRoot": "Campaigns/Dragonets",
+        "notePattern": "Session Notes/Dragonets - Session {session_padded}.md",
+        "defaultTemplate": "dragonets-template.md"
+      }
+    }
+  },
+  "cases": [
+    {
+      "path": "Events/1500s/1545/Battle of Urlich Pass.md",
+      "boundaries": [
+        {
+          "field": "DR",
+          "value": 1545,
+          "isEnd": false,
+          "date": "1545-01-01"
+        },
+        {
+          "field": "DR (end)",
+          "value": 1545,
+          "isEnd": true,
+          "date": "1545-12-31"
+        }
+      ],
+      "dates": [
+        "1544-12-31",
+        "1545-01-01",
+        "1545-01-02",
+        "1545-12-30",
+        "1545-12-31",
+        "1546-01-01",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Cleenseau Region/Taviose.md",
+      "boundaries": [],
+      "dates": [
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "Gazetteer/Upper Istaros/Isingue.md",
+      "boundaries": [
+        {
+          "field": "destroyed",
+          "value": 1545,
+          "isEnd": true,
+          "date": "1545-12-31"
+        },
+        {
+          "field": "whereabouts[1].start",
+          "value": 1545,
+          "isEnd": false,
+          "date": "1545-01-01"
+        }
+      ],
+      "dates": [
+        "1544-12-31",
+        "1545-01-01",
+        "1545-01-02",
+        "1545-12-30",
+        "1545-12-31",
+        "1546-01-01",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "Groups/Sembaran Army/Army Garrison of Cleenseau.md",
+      "boundaries": [
+        {
+          "field": "whereabouts[1].end",
+          "value": "1720-01-10",
+          "isEnd": true,
+          "date": "1720-01-10"
+        }
+      ],
+      "dates": [
+        "1720-01-09",
+        "1720-01-10",
+        "1720-01-11",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "People/Chardonians/Antonia.md",
+      "boundaries": [
+        {
+          "field": "born",
+          "value": 1714,
+          "isEnd": false,
+          "date": "1714-01-01"
+        },
+        {
+          "field": "whereabouts[0].start",
+          "value": "1748-11-10",
+          "isEnd": false,
+          "date": "1748-11-10"
+        },
+        {
+          "field": "whereabouts[1].start",
+          "value": "1748-12-08",
+          "isEnd": false,
+          "date": "1748-12-08"
+        },
+        {
+          "field": "campaignInfo[0].date",
+          "value": "1748-12-08",
+          "isEnd": false,
+          "date": "1748-12-08"
+        }
+      ],
+      "dates": [
+        "1713-12-31",
+        "1714-01-01",
+        "1714-01-02",
+        "1748-11-09",
+        "1748-11-10",
+        "1748-11-11",
+        "1748-12-07",
+        "1748-12-08",
+        "1748-12-09",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "People/Chardonians/Evelina.md",
+      "boundaries": [
+        {
+          "field": "born",
+          "value": 1691,
+          "isEnd": false,
+          "date": "1691-01-01"
+        },
+        {
+          "field": "died",
+          "value": "1748-12-08",
+          "isEnd": true,
+          "date": "1748-12-08"
+        },
+        {
+          "field": "whereabouts[0].start",
+          "value": "1748-12-01",
+          "isEnd": false,
+          "date": "1748-12-01"
+        },
+        {
+          "field": "whereabouts[0].end",
+          "value": "1748-12-08",
+          "isEnd": true,
+          "date": "1748-12-08"
+        },
+        {
+          "field": "campaignInfo[0].date",
+          "value": "1748-12-08",
+          "isEnd": false,
+          "date": "1748-12-08"
+        }
+      ],
+      "dates": [
+        "1690-12-31",
+        "1691-01-01",
+        "1691-01-02",
+        "1748-11-30",
+        "1748-12-01",
+        "1748-12-02",
+        "1748-12-07",
+        "1748-12-08",
+        "1748-12-09",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "People/Chardonians/Kadmos.md",
+      "boundaries": [
+        {
+          "field": "born",
+          "value": 1711,
+          "isEnd": false,
+          "date": "1711-01-01"
+        },
+        {
+          "field": "died",
+          "value": "1748-12-08",
+          "isEnd": true,
+          "date": "1748-12-08"
+        },
+        {
+          "field": "whereabouts[1].start",
+          "value": "1748-11-15",
+          "isEnd": false,
+          "date": "1748-11-15"
+        },
+        {
+          "field": "whereabouts[2].start",
+          "value": "1748-11-19",
+          "isEnd": false,
+          "date": "1748-11-19"
+        },
+        {
+          "field": "whereabouts[3].start",
+          "value": "1748-12-08",
+          "isEnd": false,
+          "date": "1748-12-08"
+        },
+        {
+          "field": "whereabouts[3].end",
+          "value": "1748-12-08",
+          "isEnd": true,
+          "date": "1748-12-08"
+        },
+        {
+          "field": "campaignInfo[0].date",
+          "value": "1748-12-08",
+          "isEnd": false,
+          "date": "1748-12-08"
+        }
+      ],
+      "dates": [
+        "1710-12-31",
+        "1711-01-01",
+        "1711-01-02",
+        "1748-11-14",
+        "1748-11-15",
+        "1748-11-16",
+        "1748-11-18",
+        "1748-11-19",
+        "1748-11-20",
+        "1748-12-07",
+        "1748-12-08",
+        "1748-12-09",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "People/Dunmari/Akan.md",
+      "boundaries": [
+        {
+          "field": "born",
+          "value": 1693,
+          "isEnd": false,
+          "date": "1693-01-01"
+        },
+        {
+          "field": "whereabouts[1].start",
+          "value": "1748-03-21",
+          "isEnd": false,
+          "date": "1748-03-21"
+        },
+        {
+          "field": "whereabouts[1].end",
+          "value": "1748-03-23",
+          "isEnd": true,
+          "date": "1748-03-23"
+        },
+        {
+          "field": "whereabouts[2].start",
+          "value": "1748-03-27",
+          "isEnd": false,
+          "date": "1748-03-27"
+        },
+        {
+          "field": "whereabouts[2].end",
+          "value": "1748-04-07",
+          "isEnd": true,
+          "date": "1748-04-07"
+        },
+        {
+          "field": "whereabouts[3].start",
+          "value": "1748-04-07",
+          "isEnd": false,
+          "date": "1748-04-07"
+        },
+        {
+          "field": "whereabouts[3].end",
+          "value": "1748-04-12",
+          "isEnd": true,
+          "date": "1748-04-12"
+        },
+        {
+          "field": "whereabouts[4].start",
+          "value": "1748-04-13",
+          "isEnd": false,
+          "date": "1748-04-13"
+        },
+        {
+          "field": "whereabouts[4].end",
+          "value": "1748-06-07",
+          "isEnd": true,
+          "date": "1748-06-07"
+        },
+        {
+          "field": "whereabouts[5].start",
+          "value": "1748-06-08",
+          "isEnd": false,
+          "date": "1748-06-08"
+        },
+        {
+          "field": "whereabouts[5].end",
+          "value": "1748-06-15",
+          "isEnd": true,
+          "date": "1748-06-15"
+        },
+        {
+          "field": "whereabouts[6].start",
+          "value": "1748-06-15",
+          "isEnd": false,
+          "date": "1748-06-15"
+        },
+        {
+          "field": "whereabouts[6].end",
+          "value": "1748-06-22",
+          "isEnd": true,
+          "date": "1748-06-22"
+        },
+        {
+          "field": "campaignInfo[0].date",
+          "value": "1748-03-23",
+          "isEnd": false,
+          "date": "1748-03-23"
+        }
+      ],
+      "dates": [
+        "1692-12-31",
+        "1693-01-01",
+        "1693-01-02",
+        "1748-03-20",
+        "1748-03-21",
+        "1748-03-22",
+        "1748-03-23",
+        "1748-03-24",
+        "1748-03-26",
+        "1748-03-27",
+        "1748-03-28",
+        "1748-04-06",
+        "1748-04-07",
+        "1748-04-08",
+        "1748-04-11",
+        "1748-04-12",
+        "1748-04-13",
+        "1748-04-14",
+        "1748-06-06",
+        "1748-06-07",
+        "1748-06-08",
+        "1748-06-09",
+        "1748-06-14",
+        "1748-06-15",
+        "1748-06-16",
+        "1748-06-21",
+        "1748-06-22",
+        "1748-06-23",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "People/Dunmari/Sura.md",
+      "boundaries": [
+        {
+          "field": "born",
+          "value": 1720,
+          "isEnd": false,
+          "date": "1720-01-01"
+        },
+        {
+          "field": "whereabouts[0].end",
+          "value": 1740,
+          "isEnd": true,
+          "date": "1740-12-31"
+        },
+        {
+          "field": "whereabouts[1].start",
+          "value": 1735,
+          "isEnd": false,
+          "date": "1735-01-01"
+        },
+        {
+          "field": "whereabouts[1].end",
+          "value": 1737,
+          "isEnd": true,
+          "date": "1737-12-31"
+        },
+        {
+          "field": "whereabouts[2].start",
+          "value": 1740,
+          "isEnd": false,
+          "date": "1740-01-01"
+        },
+        {
+          "field": "whereabouts[2].end",
+          "value": "1748-06-08",
+          "isEnd": true,
+          "date": "1748-06-08"
+        },
+        {
+          "field": "whereabouts[3].start",
+          "value": "1748-06-08",
+          "isEnd": false,
+          "date": "1748-06-08"
+        },
+        {
+          "field": "whereabouts[3].end",
+          "value": "1748-07-22",
+          "isEnd": true,
+          "date": "1748-07-22"
+        },
+        {
+          "field": "whereabouts[4].start",
+          "value": "1748-07-22",
+          "isEnd": false,
+          "date": "1748-07-22"
+        },
+        {
+          "field": "whereabouts[4].end",
+          "value": "1748-12-14",
+          "isEnd": true,
+          "date": "1748-12-14"
+        },
+        {
+          "field": "whereabouts[5].start",
+          "value": "1748-12-14",
+          "isEnd": false,
+          "date": "1748-12-14"
+        },
+        {
+          "field": "whereabouts[5].end",
+          "value": "1748-12-22",
+          "isEnd": true,
+          "date": "1748-12-22"
+        },
+        {
+          "field": "whereabouts[6].start",
+          "value": "1748-12-22",
+          "isEnd": false,
+          "date": "1748-12-22"
+        },
+        {
+          "field": "whereabouts[6].end",
+          "value": "1748-12-26",
+          "isEnd": true,
+          "date": "1748-12-26"
+        },
+        {
+          "field": "affiliations[1].start",
+          "value": "1748-07-22",
+          "isEnd": false,
+          "date": "1748-07-22"
+        },
+        {
+          "field": "campaignInfo[0].date",
+          "value": "1748-12-26",
+          "isEnd": false,
+          "date": "1748-12-26"
+        }
+      ],
+      "dates": [
+        "1719-12-31",
+        "1720-01-01",
+        "1720-01-02",
+        "1734-12-31",
+        "1735-01-01",
+        "1735-01-02",
+        "1737-12-30",
+        "1737-12-31",
+        "1738-01-01",
+        "1739-12-31",
+        "1740-01-01",
+        "1740-01-02",
+        "1740-12-30",
+        "1740-12-31",
+        "1741-01-01",
+        "1748-06-07",
+        "1748-06-08",
+        "1748-06-09",
+        "1748-07-21",
+        "1748-07-22",
+        "1748-07-23",
+        "1748-12-13",
+        "1748-12-14",
+        "1748-12-15",
+        "1748-12-21",
+        "1748-12-22",
+        "1748-12-23",
+        "1748-12-25",
+        "1748-12-26",
+        "1748-12-27",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "People/Elves/Belegor.md",
+      "boundaries": [
+        {
+          "field": "born",
+          "value": 1468,
+          "isEnd": false,
+          "date": "1468-01-01"
+        },
+        {
+          "field": "whereabouts[0].end",
+          "value": 1712,
+          "isEnd": true,
+          "date": "1712-12-31"
+        },
+        {
+          "field": "whereabouts[1].start",
+          "value": "1733-01-01",
+          "isEnd": false,
+          "date": "1733-01-01"
+        },
+        {
+          "field": "whereabouts[2].start",
+          "value": "1748-08-01",
+          "isEnd": false,
+          "date": "1748-08-01"
+        },
+        {
+          "field": "whereabouts[3].start",
+          "value": "1748-09-30",
+          "isEnd": false,
+          "date": "1748-09-30"
+        },
+        {
+          "field": "campaignInfo[0].date",
+          "value": "1748-09-30",
+          "isEnd": false,
+          "date": "1748-09-30"
+        }
+      ],
+      "dates": [
+        "1467-12-31",
+        "1468-01-01",
+        "1468-01-02",
+        "1712-12-30",
+        "1712-12-31",
+        "1713-01-01",
+        "1732-12-31",
+        "1733-01-01",
+        "1733-01-02",
+        "1748-07-31",
+        "1748-08-01",
+        "1748-08-02",
+        "1748-09-29",
+        "1748-09-30",
+        "1748-10-01",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "People/Giants/Hralgar.md",
+      "boundaries": [
+        {
+          "field": "whereabouts[0].start",
+          "value": 1020,
+          "isEnd": false,
+          "date": "1020-01-01"
+        },
+        {
+          "field": "whereabouts[0].end",
+          "value": "1748-11-22",
+          "isEnd": true,
+          "date": "1748-11-22"
+        },
+        {
+          "field": "whereabouts[1].start",
+          "value": "1748-11-23",
+          "isEnd": false,
+          "date": "1748-11-23"
+        },
+        {
+          "field": "whereabouts[1].end",
+          "value": "1748-11-23",
+          "isEnd": true,
+          "date": "1748-11-23"
+        },
+        {
+          "field": "whereabouts[2].start",
+          "value": "1748-11-24",
+          "isEnd": false,
+          "date": "1748-11-24"
+        },
+        {
+          "field": "campaignInfo[0].date",
+          "value": "1748-11-23",
+          "isEnd": false,
+          "date": "1748-11-23"
+        }
+      ],
+      "dates": [
+        "1019-12-31",
+        "1020-01-01",
+        "1020-01-02",
+        "1748-11-21",
+        "1748-11-22",
+        "1748-11-23",
+        "1748-11-24",
+        "1748-11-25",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "People/Halflings/Alton Greenleaf.md",
+      "boundaries": [
+        {
+          "field": "whereabouts[0].start",
+          "value": "1748-07-18",
+          "isEnd": false,
+          "date": "1748-07-18"
+        },
+        {
+          "field": "whereabouts[0].end",
+          "value": "1748-07-18",
+          "isEnd": true,
+          "date": "1748-07-18"
+        },
+        {
+          "field": "whereabouts[1].start",
+          "value": "1748-07-19",
+          "isEnd": false,
+          "date": "1748-07-19"
+        },
+        {
+          "field": "campaignInfo[0].date",
+          "value": "1748-07-18",
+          "isEnd": false,
+          "date": "1748-07-18"
+        }
+      ],
+      "dates": [
+        "1748-07-17",
+        "1748-07-18",
+        "1748-07-19",
+        "1748-07-20",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "People/Halflings/Chenna Goodbarrel.md",
+      "boundaries": [
+        {
+          "field": "born",
+          "value": 1688,
+          "isEnd": false,
+          "date": "1688-01-01"
+        },
+        {
+          "field": "whereabouts[0].end",
+          "value": 1725,
+          "isEnd": true,
+          "date": "1725-12-31"
+        },
+        {
+          "field": "whereabouts[1].start",
+          "value": 1725,
+          "isEnd": false,
+          "date": "1725-01-01"
+        },
+        {
+          "field": "whereabouts[2].start",
+          "value": "1748-12-30",
+          "isEnd": false,
+          "date": "1748-12-30"
+        },
+        {
+          "field": "whereabouts[2].end",
+          "value": "1748-12-30",
+          "isEnd": true,
+          "date": "1748-12-30"
+        },
+        {
+          "field": "campaignInfo[0].date",
+          "value": 1730,
+          "isEnd": false,
+          "date": "1730-01-01"
+        },
+        {
+          "field": "campaignInfo[1].date",
+          "value": "1748-12-30",
+          "isEnd": false,
+          "date": "1748-12-30"
+        }
+      ],
+      "dates": [
+        "1687-12-31",
+        "1688-01-01",
+        "1688-01-02",
+        "1724-12-31",
+        "1725-01-01",
+        "1725-01-02",
+        "1725-12-30",
+        "1725-12-31",
+        "1726-01-01",
+        "1729-12-31",
+        "1730-01-01",
+        "1730-01-02",
+        "1748-12-29",
+        "1748-12-30",
+        "1748-12-31",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "People/Historical Figures/Drankorian Emperors/Apollyon.md",
+      "boundaries": [
+        {
+          "field": "whereabouts[0].end",
+          "value": 1059,
+          "isEnd": true,
+          "date": "1059-12-31"
+        },
+        {
+          "field": "whereabouts[1].start",
+          "value": 1053,
+          "isEnd": false,
+          "date": "1053-01-01"
+        },
+        {
+          "field": "whereabouts[2].start",
+          "value": 1060,
+          "isEnd": false,
+          "date": "1060-01-01"
+        }
+      ],
+      "dates": [
+        "1052-12-31",
+        "1053-01-01",
+        "1053-01-02",
+        "1059-12-30",
+        "1059-12-31",
+        "1060-01-01",
+        "1060-01-02",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Arryn III.md",
+      "boundaries": [
+        {
+          "field": "born",
+          "value": 1702,
+          "isEnd": false,
+          "date": "1702-01-01"
+        },
+        {
+          "field": "whereabouts[0].end",
+          "value": "1721-08",
+          "isEnd": true,
+          "date": "1721-08-01"
+        },
+        {
+          "field": "whereabouts[1].start",
+          "value": "1721-09",
+          "isEnd": false,
+          "date": "1721-09-30"
+        },
+        {
+          "field": "affiliations[1].start",
+          "value": 1745,
+          "isEnd": false,
+          "date": "1745-01-01"
+        },
+        {
+          "field": "affiliations[2].start",
+          "value": 1745,
+          "isEnd": false,
+          "date": "1745-01-01"
+        }
+      ],
+      "dates": [
+        "1701-12-31",
+        "1702-01-01",
+        "1702-01-02",
+        "1721-07-31",
+        "1721-08-01",
+        "1721-08-02",
+        "1721-09-29",
+        "1721-09-30",
+        "1721-10-01",
+        "1744-12-31",
+        "1745-01-01",
+        "1745-01-02",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Derik III.md",
+      "boundaries": [
+        {
+          "field": "born",
+          "value": 1484,
+          "isEnd": false,
+          "date": "1484-01-01"
+        },
+        {
+          "field": "died",
+          "value": 1549,
+          "isEnd": true,
+          "date": "1549-12-31"
+        },
+        {
+          "field": "affiliations[0].start",
+          "value": 1511,
+          "isEnd": false,
+          "date": "1511-01-01"
+        },
+        {
+          "field": "affiliations[0].end",
+          "value": 1519,
+          "isEnd": true,
+          "date": "1519-12-31"
+        },
+        {
+          "field": "affiliations[1].start",
+          "value": 1519,
+          "isEnd": false,
+          "date": "1519-01-01"
+        },
+        {
+          "field": "affiliations[2].start",
+          "value": 1519,
+          "isEnd": false,
+          "date": "1519-01-01"
+        },
+        {
+          "field": "affiliations[3].start",
+          "value": 1519,
+          "isEnd": false,
+          "date": "1519-01-01"
+        }
+      ],
+      "dates": [
+        "1483-12-31",
+        "1484-01-01",
+        "1484-01-02",
+        "1510-12-31",
+        "1511-01-01",
+        "1511-01-02",
+        "1518-12-31",
+        "1519-01-01",
+        "1519-01-02",
+        "1519-12-30",
+        "1519-12-31",
+        "1520-01-01",
+        "1549-12-30",
+        "1549-12-31",
+        "1550-01-01",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "People/Historical Figures/Sembaran Royalty/Elaine I.md",
+      "boundaries": [
+        {
+          "field": "born",
+          "value": 1539,
+          "isEnd": false,
+          "date": "1539-01-01"
+        },
+        {
+          "field": "died",
+          "value": 1592,
+          "isEnd": true,
+          "date": "1592-12-31"
+        },
+        {
+          "field": "affiliations[1].start",
+          "value": 1567,
+          "isEnd": false,
+          "date": "1567-01-01"
+        },
+        {
+          "field": "affiliations[1].end",
+          "value": 1571,
+          "isEnd": true,
+          "date": "1571-12-31"
+        },
+        {
+          "field": "affiliations[2].start",
+          "value": 1571,
+          "isEnd": false,
+          "date": "1571-01-01"
+        },
+        {
+          "field": "affiliations[3].start",
+          "value": 1582,
+          "isEnd": false,
+          "date": "1582-01-01"
+        },
+        {
+          "field": "affiliations[4].start",
+          "value": 1589,
+          "isEnd": false,
+          "date": "1589-01-01"
+        }
+      ],
+      "dates": [
+        "1538-12-31",
+        "1539-01-01",
+        "1539-01-02",
+        "1566-12-31",
+        "1567-01-01",
+        "1567-01-02",
+        "1570-12-31",
+        "1571-01-01",
+        "1571-01-02",
+        "1571-12-30",
+        "1571-12-31",
+        "1572-01-01",
+        "1581-12-31",
+        "1582-01-01",
+        "1582-01-02",
+        "1588-12-31",
+        "1589-01-01",
+        "1589-01-02",
+        "1592-12-30",
+        "1592-12-31",
+        "1593-01-01",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "Things/Artifacts of Power/Chalice of the Runepriest.md",
+      "boundaries": [
+        {
+          "field": "created",
+          "value": 1547,
+          "isEnd": false,
+          "date": "1547-01-01"
+        },
+        {
+          "field": "whereabouts[0].end",
+          "value": 1547,
+          "isEnd": true,
+          "date": "1547-12-31"
+        },
+        {
+          "field": "whereabouts[1].start",
+          "value": 1548,
+          "isEnd": false,
+          "date": "1548-01-01"
+        },
+        {
+          "field": "whereabouts[1].end",
+          "value": 1570,
+          "isEnd": true,
+          "date": "1570-12-31"
+        },
+        {
+          "field": "whereabouts[2].start",
+          "value": 1570,
+          "isEnd": false,
+          "date": "1570-01-01"
+        },
+        {
+          "field": "whereabouts[2].end",
+          "value": "1748-10-04",
+          "isEnd": true,
+          "date": "1748-10-04"
+        },
+        {
+          "field": "whereabouts[3].start",
+          "value": "1748-10-05",
+          "isEnd": false,
+          "date": "1748-10-05"
+        }
+      ],
+      "dates": [
+        "1546-12-31",
+        "1547-01-01",
+        "1547-01-02",
+        "1547-12-30",
+        "1547-12-31",
+        "1548-01-01",
+        "1548-01-02",
+        "1569-12-31",
+        "1570-01-01",
+        "1570-01-02",
+        "1570-12-30",
+        "1570-12-31",
+        "1571-01-01",
+        "1748-10-03",
+        "1748-10-04",
+        "1748-10-05",
+        "1748-10-06",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "Things/Artifacts of Power/Cloak of Rainbows.md",
+      "boundaries": [
+        {
+          "field": "created",
+          "value": 917,
+          "isEnd": false,
+          "date": "0917-01-01"
+        },
+        {
+          "field": "whereabouts[0].end",
+          "value": 917,
+          "isEnd": true,
+          "date": "0917-12-31"
+        },
+        {
+          "field": "whereabouts[1].end",
+          "value": 1050,
+          "isEnd": true,
+          "date": "1050-12-31"
+        },
+        {
+          "field": "whereabouts[2].start",
+          "value": 1050,
+          "isEnd": false,
+          "date": "1050-01-01"
+        },
+        {
+          "field": "whereabouts[2].end",
+          "value": 1059,
+          "isEnd": true,
+          "date": "1059-12-31"
+        }
+      ],
+      "dates": [
+        "0916-12-31",
+        "0917-01-01",
+        "0917-01-02",
+        "0917-12-30",
+        "0917-12-31",
+        "0918-01-01",
+        "1049-12-31",
+        "1050-01-01",
+        "1050-01-02",
+        "1050-12-30",
+        "1050-12-31",
+        "1051-01-01",
+        "1059-12-30",
+        "1059-12-31",
+        "1060-01-01",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "Things/Artifacts of Power/Scepter of Command.md",
+      "boundaries": [
+        {
+          "field": "created",
+          "value": 1053,
+          "isEnd": false,
+          "date": "1053-01-01"
+        },
+        {
+          "field": "destroyed",
+          "value": "1748-12-25",
+          "isEnd": true,
+          "date": "1748-12-25"
+        },
+        {
+          "field": "whereabouts[0].end",
+          "value": 1059,
+          "isEnd": true,
+          "date": "1059-12-31"
+        },
+        {
+          "field": "whereabouts[1].start",
+          "value": 1552,
+          "isEnd": false,
+          "date": "1552-01-01"
+        },
+        {
+          "field": "whereabouts[1].end",
+          "value": 1746,
+          "isEnd": true,
+          "date": "1746-12-31"
+        },
+        {
+          "field": "whereabouts[2].start",
+          "value": 1747,
+          "isEnd": false,
+          "date": "1747-01-01"
+        },
+        {
+          "field": "whereabouts[2].end",
+          "value": "1747-12-11",
+          "isEnd": true,
+          "date": "1747-12-11"
+        },
+        {
+          "field": "whereabouts[3].start",
+          "value": "1748-01-17",
+          "isEnd": false,
+          "date": "1748-01-17"
+        },
+        {
+          "field": "whereabouts[3].end",
+          "value": "1748-05-29",
+          "isEnd": true,
+          "date": "1748-05-29"
+        },
+        {
+          "field": "whereabouts[4].start",
+          "value": "1748-05-29",
+          "isEnd": false,
+          "date": "1748-05-29"
+        },
+        {
+          "field": "whereabouts[4].end",
+          "value": "1748-12-24",
+          "isEnd": true,
+          "date": "1748-12-24"
+        },
+        {
+          "field": "whereabouts[5].start",
+          "value": "1748-12-24",
+          "isEnd": false,
+          "date": "1748-12-24"
+        },
+        {
+          "field": "whereabouts[5].end",
+          "value": "1748-12-25",
+          "isEnd": true,
+          "date": "1748-12-25"
+        },
+        {
+          "field": "campaignInfo[0].date",
+          "value": "1748-12-25",
+          "isEnd": false,
+          "date": "1748-12-25"
+        }
+      ],
+      "dates": [
+        "1052-12-31",
+        "1053-01-01",
+        "1053-01-02",
+        "1059-12-30",
+        "1059-12-31",
+        "1060-01-01",
+        "1551-12-31",
+        "1552-01-01",
+        "1552-01-02",
+        "1746-12-30",
+        "1746-12-31",
+        "1747-01-01",
+        "1747-01-02",
+        "1747-12-10",
+        "1747-12-11",
+        "1747-12-12",
+        "1748-01-16",
+        "1748-01-17",
+        "1748-01-18",
+        "1748-05-28",
+        "1748-05-29",
+        "1748-05-30",
+        "1748-12-23",
+        "1748-12-24",
+        "1748-12-25",
+        "1748-12-26",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "Things/Ships/Wave Dancer.md",
+      "boundaries": [
+        {
+          "field": "whereabouts[1].start",
+          "value": "1748-09-30",
+          "isEnd": false,
+          "date": "1748-09-30"
+        },
+        {
+          "field": "whereabouts[1].end",
+          "value": "1748-10-11",
+          "isEnd": true,
+          "date": "1748-10-11"
+        },
+        {
+          "field": "whereabouts[2].start",
+          "value": "1748-10-12",
+          "isEnd": false,
+          "date": "1748-10-12"
+        },
+        {
+          "field": "whereabouts[2].end",
+          "value": "1748-10-14",
+          "isEnd": true,
+          "date": "1748-10-14"
+        }
+      ],
+      "dates": [
+        "1748-09-29",
+        "1748-09-30",
+        "1748-10-01",
+        "1748-10-10",
+        "1748-10-11",
+        "1748-10-12",
+        "1748-10-13",
+        "1748-10-14",
+        "1748-10-15",
+        "1752-01-01"
+      ]
+    }
+  ],
+  "relatedCases": [
+    {
+      "path": "Gazetteer/Greater Sembara/Sembara/Sembara.md",
+      "dates": [
+        "1510-12-31",
+        "1511-01-01",
+        "1518-12-31",
+        "1519-01-01",
+        "1519-12-31",
+        "1520-01-01",
+        "1549-12-31",
+        "1550-01-01",
+        "1567-01-01",
+        "1571-01-01",
+        "1572-01-01",
+        "1582-01-01",
+        "1589-01-01",
+        "1592-12-31",
+        "1593-01-01",
+        "1744-12-31",
+        "1745-01-01",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Tyrwingha/Tyrwingha.md",
+      "dates": [
+        "1510-12-31",
+        "1511-01-01",
+        "1518-12-31",
+        "1519-01-01",
+        "1519-12-31",
+        "1520-01-01",
+        "1549-12-31",
+        "1550-01-01",
+        "1567-01-01",
+        "1571-01-01",
+        "1572-01-01",
+        "1582-01-01",
+        "1589-01-01",
+        "1592-12-31",
+        "1593-01-01",
+        "1744-12-31",
+        "1745-01-01",
+        "1752-01-01"
+      ]
+    },
+    {
+      "path": "Gazetteer/Greater Sembara/Vostok/Vostok.md",
+      "dates": [
+        "1510-12-31",
+        "1511-01-01",
+        "1518-12-31",
+        "1519-01-01",
+        "1519-12-31",
+        "1520-01-01",
+        "1549-12-31",
+        "1550-01-01",
+        "1567-01-01",
+        "1571-01-01",
+        "1572-01-01",
+        "1582-01-01",
+        "1589-01-01",
+        "1592-12-31",
+        "1593-01-01",
+        "1744-12-31",
+        "1745-01-01",
+        "1752-01-01"
+      ]
+    }
+  ]
+}

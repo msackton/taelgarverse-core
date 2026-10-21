@@ -1,0 +1,181 @@
+{
+  "fragmentsThatDontAutoLink": [
+    "somewhere",
+    "unknown",
+    "of",
+    "in",
+    "near",
+    "imprisoned",
+    "drifting",
+    "traveling"
+  ],
+  "requiredDisplayDefaults": {
+    "startStatus": "",
+    "endStatus": "",
+    "wOrigin": "<origin:3Fru>",
+    "wOriginU": "<origin:3Fru>",
+    "wHome": "<home:3Fru>",
+    "wHomeU": "",
+    "wPastHome": "<home:3Fru>",
+    "wPastHomeU": "",
+    "wCurrent": "Currently <current:3Frq>",
+    "wPast": "<end:u> <current:3Frq>",
+    "wLastKnown": "Last known location (as of <lastknowndate>): <lastknown:3Fr>",
+    "wLastNoDate": "Last known location: <lastknown:3Fr>",
+    "wParty": "<met:u> <person:q> on <target> <current:3Frq>",
+    "wSecondary": "",
+    "dCurrent": "<start:u> <startDate>",
+    "dPastHasStart": "<start:u> <startDate> - <end> <endDate>",
+    "dPast": "<end:u> <endDate>",
+    "boxName": "Information",
+    "partOf": "",
+    "boxInfo": "",
+    "aNoDate": "<affiliationtitle:tx> of <affiliations>",
+    "aPast": "<affiliationtitle:tx> of <affiliations> (until <endDate>)",
+    "aCurrent": "<affiliationtitle:tx> of <affiliations> (since <startDate>)",
+    "aPastHasStart": "<affiliationtitle:tx> of <affiliations> (<startDate> - <endDate>)",
+    "mechanicsLink": "",
+    "linkText": "",
+    "ruledBy": ""
+  },
+  "typeDisplayDefaults": {
+    "person": {
+      "boxName": "Biographical Info",
+      "startStatus": "born",
+      "endStatus": "died",
+      "defArt": "",
+      "wOrigin": "Originally from: <origin:3Fr>",
+      "wOriginU": "Originally from: <origin:3Fr>",
+      "wHome": "Based <home:3Frq>",
+      "wPast": "<end:u> <current:3Frq>",
+      "wPastHome": "Lived <home:3Frq>",
+      "wParty": "<met:u> <person:q> on <target> <current:3Frq>",
+      "dCurrent": "<start:u> <startDate> (<length> old)",
+      "dPastHasStart": "b. <startDate> - d. <endDate>, <end> at age <length>",
+      "dPast": "<end:u> <endDate>",
+      "boxInfo": "<ancestry:UA> <species:sAU> <(()subspecies:s())> <(()pronouns())>, <(of )primary>\n<(()ka())>",
+      "sessionNote": {
+        "default": "<(*)pronunciation(*;)> <pronouns(,)> <ancestry:n> <subspecies:sn> <species:sn>"
+      },
+      "mechanicsLink": "Character Sheet",
+      "linkText": "by",
+      "ltPlace": "in",
+      "ltPerson": "by",
+      "ltItem": "by",
+      "ltOrg": "member of"
+    },
+    "power": {
+      "defArt": "",
+      "boxInfo": "<typeof:sAU> <(()pronouns())>, <(part of )primary>",
+      "sessionNote": {
+        "default": "<(*)pronunciation(*;)> <typeof:sn>"
+      }
+    },
+    "place": {
+      "startStatus": "founded",
+      "endStatus": "destroyed",
+      "wOrigin": "",
+      "wOriginU": "",
+      "dCurrent": "<start:u> <startDate> (<length> ago)",
+      "dPastHasStart": "existed <startDate> - <endDate>, <end> after <length>",
+      "dPast": "<end:u> <endDate>",
+      "wCurrent": "Located <current:5Fq>",
+      "wPast": "Was located <current:5Frq>",
+      "wHome": "<ancestry:UA> <subtypeof:UA> <typeof:UA> <(of )primary> <home:5Fq>",
+      "wPastHome": "<ancestry:UA> <subtypeof:UA> <typeof:UA> <(of )primary> <home:5Fq>",
+      "wSecondary": "Located <secondary:5Fq>",
+      "partOf": "",
+      "boxInfo": "<population>",
+      "sessionNote": {
+        "default": "<(*)pronunciation(*;)> <typeof:sn> <home:2Fq>"
+      },
+      "ruledBy": "<affiliationtitle:tx>: <name> <((since )startDate())>",
+      "linkText": "in"
+    },
+    "object": {
+      "startStatus": "created",
+      "endStatus": "destroyed",
+      "wOrigin": "<start:u> <origin:3Frq>",
+      "wOriginU": "<start:u> by <origin:3Frq>",
+      "wHome": "Owned <home:lirq>",
+      "wPastHome": "Was owned <home:lirq>",
+      "wCurrent": "Owned <current:lirq>",
+      "dCurrent": "<start:u> <startDate> (<length> ago)",
+      "dPastHasStart": "existed <startDate> - <endDate>, <end> after <length>",
+      "dPast": "<end:u> <endDate>",
+      "boxInfo": "(<rarity:s> <ancestry> <subtypeof:s> <typeof:s>)",
+      "sessionNote": {
+        "default": "<(*)pronunciation(*;)> <rarity:sn> <ancestry:n> <subtypeof:sn> <typeof:sn>"
+      },
+      "mechanicsLink": "Mechanics",
+      "linkText": "in",
+      "ltPlace": "in"
+    },
+    "group": {
+      "startStatus": "founded",
+      "endStatus": "disbanded",
+      "wOrigin": "<start:u> <origin:q>",
+      "wOriginU": "",
+      "wHome": "Based <home:q>",
+      "wPastHome": "Was based <home:q>",
+      "dCurrent": "<start:u> <startDate> (<length> ago)",
+      "dPastHasStart": "existed <startDate> - <endDate>, <end> after <length>",
+      "dPast": "<end:u> <endDate>",
+      "partOf": "<(Parent Organization: )partof>",
+      "boxInfo": "<ancestry:UA> <subtypeof:UA> <typeof:UA>, <(of )primary>",
+      "sessionNote": {
+        "default": "<(*)pronunciation(*;)> <ancestry:n> <subtypeof:sn> <typeof:sn>"
+      },
+      "ruledBy": "<affiliationtitle:tx>: <name> <((since )startDate())>",
+      "linkText": "by",
+      "ltPlace": "in",
+      "ltPerson": "with",
+      "ltItem": "owned by",
+      "ltOrg": "part of"
+    },
+    "event": {
+      "startStatus": "started in",
+      "endStatus": "ended in",
+      "wOrigin": "<startStatus:u> <origin:q>",
+      "wHome": "Occurring <home:q>",
+      "wPastHome": "Happened <home:q>",
+      "dCurrent": "<start:u> <startDate> (<length> ago)",
+      "dPastHasStart": "<startDate> - <endDate>, lasted <length>",
+      "dPast": "<end:u> <endDate>",
+      "partOf": "<(part of )partof:ty>",
+      "sessionNote": {
+        "default": "<(*)pronunciation(*;)> <typeof:sn>"
+      }
+    },
+    "ancestry": {
+      "sessionNote": {
+        "default": "<(*)pronunciation(*;)> <typeof:sn>"
+      }
+    },
+    "creature": {
+      "sessionNote": {
+        "default": "<(*)pronunciation(*;)> <typeof:sn>"
+      }
+    },
+    "unknown": {
+      "startStatus": "created",
+      "endStatus": "destroyed",
+      "defArt": "",
+      "sessionNote": {
+        "default": "<(*)pronunciation(*;)> <typeof:sn>"
+      }
+    }
+  },
+  "linkmap": [
+    {
+      "from": "human",
+      "to": "Humans",
+      "isAlias": true
+    },
+    {
+      "from": "elf",
+      "to": "Elves",
+      "isAlias": true
+    }
+  ]
+}

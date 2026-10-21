@@ -115,6 +115,47 @@ and properties. The selected website date takes priority over `pageTargetDate`.
 The usual header is rebuilt for that date; you do not need to edit its displayed
 age or location by hand.
 
+## Generated bio block
+
+To render the existing note header from frontmatter, put this empty block
+immediately after the frontmatter, replacing the saved title and information
+callout:
+
+````markdown
+```taelgar-header
+```
+````
+
+Keep the note's frontmatter, including `headerVersion` when present. The website
+uses the selected date and campaign as usual, with the same header styling.
+The block renders the complete header, including one H1 title, pronunciation,
+and the remaining details. The Taelgarverse Obsidian development plugin uses the
+familiar native information callout with values filled in. Remove a separately
+saved H1 above the block when migrating a vault note. Rendering does not modify
+the note.
+Existing saved headers and prepared HTML header markers remain supported;
+an older materializer's marker or separately saved H1 before the new block is
+consumed as one header on the website.
+The block is omitted from note transclusions and authored search/backlink text.
+Node, Worker and the development plugin use the same maintained header core;
+the vault's legacy CustomJS scripts are not required to render these blocks.
+Circular location or organization chains show a header error instead of a
+partial header or a stack overflow.
+
+The block must be empty and at the start of the note body. Examples inside other
+code fences stay literal. Replacing existing vault headers is a separate,
+explicit edit; enabling support does not migrate notes automatically.
+
+Content preparation normalizes old `<!-- taelgar:header -->` markers (including
+the `<!-- taelgar-header -->` spelling), detected versioned generated headers,
+and title-plus-block layouts into one leading empty `taelgar-header` fence.
+This runs in Node before content hashes, search, backlinks, or media discovery;
+it accepts raw notes or materializer exports without modifying the vault.
+Frontmatter and authored content are retained. Invalid explicit blocks stop
+preparation with the source path. The existing snapshot schema is unchanged.
+Deploy website support before publishing these newly normalized snapshots;
+the new renderer can read older R2 markers without a content migration.
+
 ## Campaigns and dates
 
 | Reader's choice | What it means |
@@ -438,8 +479,10 @@ The website also uses a few files that are not published as articles:
 | --- | --- |
 | `.obsidian/metadata.json` | Shared defaults for names and header display. |
 | `_scripts/session_note_campaigns.json` | Campaign names, codes, aliases, and folder information. |
-| `_scripts/customJS/` | The rules that generate note headers. |
 
 Changes to the two JSON files take effect after publishing content again.
-Changes to the header **scripts** also need a website code update; follow the
-[header update instructions](architecture.md#change-and-release-rules).
+Header logic is maintained in this repository's `src/header-core/`; changes use
+the website code release path and a separate plugin release. The vault's
+`_scripts/customJS/` still belongs to the legacy materializer and compatibility
+tests, and changes there do not update the new header core. See the
+[release rules](architecture.md#change-and-release-rules).

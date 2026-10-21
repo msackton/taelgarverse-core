@@ -38,6 +38,13 @@ the original vault even if `source_dir` points to an earlier export.
 Full preview permits uncommitted notes and reports unsupported materialization
 queries; it never contacts production R2/D1. Its cached data stays in core.
 
+Content preparation converts old saved headers, legacy header placeholders, and
+new header blocks into a leading empty `taelgar-header` fence. This Node step
+runs after the Dataview export in a normal publication. It does not remove the
+Obsidian prerequisite for remaining body queries. Deploy header-block website
+support before publishing with this preparation code. The updated renderer
+continues to read existing R2 snapshots, so deployment needs no R2 rewrite.
+
 ## GitHub tests, website deployment, and plugin releases
 
 The **Tests** workflow runs on pull requests and is reused by website and plugin
@@ -541,7 +548,7 @@ For maintenance or recovery only:
 | --- | --- |
 | `node scripts/cloudflare.mjs check` | Builds/checks the website package without deployment. CI runs it. |
 | `node scripts/cloudflare.mjs deploy` | Deploys website code; GitHub runs this after tests. Direct local use bypasses the CI gate. |
-| `node scripts/build-worker-headers.mjs` | Regenerates the committed Worker header module after vault CustomJS changes. Review before committing. |
+| `node scripts/build-worker-headers.mjs` | Refreshes the preserved legacy header reference only. Normal website/plugin builds use maintained `src/header-core/` directly; do not use this to implement the refactor's fixes. |
 | `node scripts/maintain-content.mjs rollback --remote` | Restores the previous verified live content snapshot. |
 | `node scripts/maintain-content.mjs prune --remote --dry-run` | Reports old content/media/search cleanup candidates. Omit `--dry-run` to remove them. |
 

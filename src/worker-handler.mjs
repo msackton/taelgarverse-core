@@ -4,7 +4,7 @@ import {serveAsset,themeFiles} from './http-assets.mjs';
 import {RenderError} from './common.mjs';
 import {createD1Search} from './search.mjs';
 
-export function createWorker(instantiate,coreRelease = {}) {
+export function createWorker(coreRelease = {}) {
   let state;
   return {async fetch(request,env) {
     try {
@@ -22,7 +22,7 @@ export function createWorker(instantiate,coreRelease = {}) {
       const published=await publication.json(), {revision}=published;
       if (!/^[a-f0-9]{64}$/.test(revision || '')) throw new RenderError(503,'Published content pointer is invalid');
       if (!state || state.revision!==revision || state.bucket!==env.CONTENT) {
-        const pending=loadSnapshot(env.CONTENT,revision,instantiate);
+        const pending=loadSnapshot(env.CONTENT,revision);
         const current={revision,bucket:env.CONTENT,pending};state=current;
         pending.catch(()=>{if(state===current)state=undefined;});
       }
