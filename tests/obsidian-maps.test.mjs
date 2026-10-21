@@ -53,7 +53,7 @@ function host(){
   const module={exports:{}},context={module,exports:module.exports,Buffer,TextDecoder,TextEncoder,console,
     ResizeObserver:class{observe(){}disconnect(){disconnected++;}},
     require:name=>name==='obsidian'?{Plugin,Component,PluginSettingTab:class{},Setting:class{},Notice:class{},MarkdownRenderChild,TFile}:name==='leaflet'?L:
-      name==='@codemirror/view'?{ViewPlugin:{fromClass:value=>value}}:require(name)};
+      name==='@codemirror/view'?{WidgetType:class{},ViewPlugin:{fromClass:value=>value}}:require(name)};
   vm.runInNewContext(compiled.outputFiles[0].text,context);
   const file=new TFile('assets/local map.png');let reads=0,fail=false,resolve;
   const app={workspace:{on(){return {};},onLayoutReady(fn){fn();},iterateAllLeaves(){}},

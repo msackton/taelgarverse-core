@@ -576,3 +576,15 @@ optional. `serve --no-ai` enforces baseline-only operation, and the ordinary
 viewer has a per-search AI toggle. Disabling queries does not remove the AI
 index or stop separately invoked uploads. Production search integration remains
 outside the experiment.
+
+## Local pronunciation experiment
+
+The optional [pronunciation prototype](../experiments/pronunciation/README.md)
+is available as opt-in **Pronunciation** in the unified Taelgarverse plugin,
+installed locally with `npm run dev -- --plugin --vault PATH`. It also uses
+`npm run build:pronunciation` to package a standalone demo plugin and
+`npm run demo:pronunciation` to create a separate disposable demo vault under
+`.cache/`. These commands perform no deployment, content publication, or remote
+Git write. The guide covers optional Azure credentials through Obsidian
+SecretStorage and the no-key test-tone/device-preview workflow. With a key, Preview
+uses Azure synthesis without saving or linking audio; normal Azure usage charges apply.

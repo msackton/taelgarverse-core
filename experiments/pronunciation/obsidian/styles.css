@@ -1,0 +1,2 @@
+.taelgar-pronunciation-toolbar {display:flex;flex-wrap:wrap;align-items:center;gap:.5rem;margin:.5rem 0 1rem;font-size:.85em;}
+.taelgar-pronunciation-toolbar small {flex-basis:100%;color:var(--text-muted);}

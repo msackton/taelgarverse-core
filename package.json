@@ -10,7 +10,9 @@
     "dev": "node scripts/dev.mjs",
     "start": "node scripts/dev.mjs",
     "test": "node scripts/test.mjs",
-    "publish": "node scripts/publish-content.mjs"
+    "publish": "node scripts/publish-content.mjs",
+    "build:pronunciation": "node scripts/build-pronunciation.mjs",
+    "demo:pronunciation": "node scripts/demo-pronunciation.mjs"
   },
   "dependencies": {
     "cheerio": "1.2.0",
