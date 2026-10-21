@@ -82,7 +82,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     campaignHomes,
     search,warnings:[...store.warnings,...backlinks.warnings,...searchManifest.warnings],entries};
   const compiled=runtime ? compileRuntime(base,store) : null;
-  if(compiled)base.runtime={version:1,digest:compiled.digest};
+  if(compiled)base.runtime={version:compiled.manifest.version,digest:compiled.digest};
   const revision=sha(JSON.stringify(base)), prefix='revisions/'+revision;
   const directory=path.join(output,'revisions',revision);
   for (const [shard,notes] of shards) {

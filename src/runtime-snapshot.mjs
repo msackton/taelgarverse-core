@@ -7,7 +7,7 @@ import {hydrateHeaderSnapshot} from './header-core/snapshot.mjs';
 import {renderHeader,renderBio} from './header-core/index.mjs';
 import {RenderError} from './common.mjs';
 import {loadSnapshot} from './snapshot.mjs';
-import {RUNTIME_VERSION,runtimeHash,assetPartition,validRuntimeDescriptor} from './runtime-format.mjs';
+import {supportedRuntimeVersion,runtimeHash,assetPartition,validRuntimeDescriptor} from './runtime-format.mjs';
 
 const failure=()=>new RenderError(503,'Compiled content snapshot is missing or invalid');
 
@@ -18,7 +18,7 @@ export async function openSnapshot(bucket,revision) {
     return {forRequest:async()=>legacy};
   }
   const manifest=await object.json();
-  if(manifest.version!==RUNTIME_VERSION || manifest.revision!==revision || !manifest.parts || !manifest.assets ||
+  if(!supportedRuntimeVersion(manifest.version) || manifest.revision!==revision || !manifest.parts || !manifest.assets ||
     !Number.isSafeInteger(manifest.pages) || !manifest.contexts || !Array.isArray(manifest.sites) ||
     ['search','navigation','headers','backlinks','render'].some(name=>!validRuntimeDescriptor(manifest.parts[name])) ||
     Object.values(manifest.assets).some(value=>!validRuntimeDescriptor(value)))throw failure();
@@ -55,8 +55,9 @@ export class RuntimeSnapshot {
     return this.parts.get(name);
   }
 
-  async getNote(entry) {
-    const shard=await this.read(entry.note.prepared),note=Object.hasOwn(shard,entry.id)?shard[entry.id]:null;
+  async getNote(entry,noteShards) {
+    const descriptor=this.index.version===1 ? entry.note.prepared : noteShards?.[entry.note.prepared];
+    const shard=await this.read(descriptor),note=Object.hasOwn(shard,entry.id)?shard[entry.id]:null;
     if(!note || typeof note.body!=='string')throw failure();
     return {...note,metadata:entry.note.metadata};
   }
@@ -68,22 +69,54 @@ export class RuntimeSnapshot {
     });
   }
 
-  navigation() {
+  navigation(store,compiled) {
     return this.once('navigation',async()=>{
-      const [store,compiled]=await Promise.all([this.searchStore(),this.read(this.index.parts.navigation)]);
+      [store,compiled]=await Promise.all([store || this.searchStore(),compiled || this.read(this.index.parts.navigation)]);
       return Navigation.hydrate(store,compiled);
     });
   }
 
+  backlinkLoader(backlinks,store) {
+    if(!Array.isArray(backlinks.shards) || backlinks.shards.some(value=>!validRuntimeDescriptor(value)) || !Array.isArray(backlinks.targets))throw failure();
+    const page=id=>{
+      if(!Number.isSafeInteger(id) || id<0 || !store.entries[id]?.note)throw failure();
+      return store.entries[id];
+    };
+    const targets=new Map(backlinks.targets.map(([id,shard])=>{
+      if(!Number.isSafeInteger(shard) || shard<0 || !backlinks.shards[shard])throw failure();
+      return [page(id).slug,{id,descriptor:backlinks.shards[shard]}];
+    }));
+    const campaigns=new Map(backlinks.campaigns.map(([id,codes])=>[page(id).slug,codes]));
+    const load=async entry=>{
+      const target=targets.get(entry.slug);
+      if(!target)return {version:2,byTarget:{}};
+      const shard=await this.read(target.descriptor),rows=shard[target.id];
+      if(!Array.isArray(rows))throw failure();
+      const incoming=rows.map(([source,when])=>{
+        if(!Array.isArray(when))throw failure();
+        return {source:page(source).slug,when};
+      });
+      // Keep the selected target request-local. Concurrent requests must never
+      // replace the shared engine's backlink index or reader context.
+      return {version:2,byTarget:{[entry.slug]:incoming}};
+    };
+    return {campaigns,load};
+  }
+
   renderer() {
     return this.once('renderer',async()=>{
-      const [data,compiledHeaders,backlinks,navigation]=await Promise.all([
-        this.read(this.index.parts.render),this.read(this.index.parts.headers),this.read(this.index.parts.backlinks),this.navigation()]);
+      const [data,compiledHeaders,backlinks,compiledNavigation]=await Promise.all([
+        this.read(this.index.parts.render),this.read(this.index.parts.headers),this.read(this.index.parts.backlinks),this.read(this.index.parts.navigation)]);
+      if(this.index.version===2 && (!Array.isArray(data.noteShards) || data.noteShards.some(value=>!validRuntimeDescriptor(value)) ||
+        data.entries.some(entry=>entry.note && (!Number.isSafeInteger(entry.note.prepared) || entry.note.prepared<0 || !data.noteShards[entry.note.prepared]))))throw failure();
       const store=new ContentStore(data.entries,this.index.warnings,this.index.settings,data.lookups);
-      store.getNote=entry=>this.getNote(entry);
+      store.getNote=entry=>this.getNote(entry,data.noteShards);
+      const navigation=await this.navigation(store,compiledNavigation);
+      const compactBacklinks=this.index.version===2 ? this.backlinkLoader(backlinks,store) : null;
       const headers=hydrateHeaderSnapshot(compiledHeaders,store.entries.filter(entry=>entry.note).map(entry=>({path:entry.id,metadata:entry.note.metadata})));
-      const engine=new RenderEngine({settings:this.index.settings,store,headers,renderHeader,renderBio,backlinkIndex:backlinks.index,
-        prepared:{contexts:this.contexts,campaignSites:CampaignSites.hydrate(data.sites),navigation,home:data.home,backlinkCampaigns:new Map(backlinks.campaigns)}});
+      const engine=new RenderEngine({settings:this.index.settings,store,headers,renderHeader,renderBio,backlinkIndex:compactBacklinks ? null : backlinks.index,
+        prepared:{contexts:this.contexts,campaignSites:CampaignSites.hydrate(data.sites),navigation,home:data.home,
+          backlinkCampaigns:compactBacklinks?.campaigns || new Map(backlinks.campaigns),loadBacklinks:compactBacklinks?.load}});
       return {engine,store,index:this.index};
     });
   }

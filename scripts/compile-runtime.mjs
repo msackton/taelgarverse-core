@@ -11,17 +11,19 @@ import {RUNTIME_VERSION,runtimeHash as hash,assetPartition} from '../src/runtime
 
 // Only immutable data is compiled here. HTML, generated biographies, Markdown
 // rendering and reader-specific choices remain request-time work.
-export function compileRuntime(index,sourceStore,{noteShardBytes=65536}={}) {
+export function compileRuntime(index,sourceStore,{noteShardBytes=65536,backlinkShardBytes=32768}={}) {
   const objects=new Map();
   const add=(file,value)=>{const json=JSON.stringify(value);objects.set(file,json);return {file,sha256:hash(json)};};
   const entries=index.entries.filter(entry=>!entry.generatedImageVariant && !entry.generatedMapTile).map(entry=>entry.note ?
-    {...entry,availability:compileAvailability(entry),searchMetadata:compileSearchMetadata(entry),note:{metadata:entry.note.metadata}} : entry);
+    {...entry,availability:compileAvailability(entry),note:{metadata:entry.note.metadata}} : entry);
   const byId=new Map(entries.map(entry=>[entry.id,entry]));
+  const noteShards=[];
   let shard={},bytes=2,ordinal=0;
   const flush=()=>{
     if(!Object.keys(shard).length)return;
     const descriptor=add('runtime/notes/'+String(ordinal++).padStart(4,'0')+'.json',shard);
-    for(const id of Object.keys(shard))byId.get(id).note.prepared=descriptor;
+    for(const id of Object.keys(shard))byId.get(id).note.prepared=noteShards.length;
+    noteShards.push(descriptor);
     shard={};bytes=2;
   };
   for(const entry of sourceStore.bySlug.values()){
@@ -38,13 +40,38 @@ export function compileRuntime(index,sourceStore,{noteShardBytes=65536}={}) {
   const presets=contexts.list().filter(context=>context.available && context.date);
   for(const site of sites.byHost.values())if(contexts.byId.get(site.contextId)?.available)presets.push(contexts.resolve(site.contextId,site.date,site.campaigns));
   const navigation=new Navigation(store,index.navigationSource);
-  const compact=entries.filter(entry=>entry.note).map(({id,name,title,target,slug,extension,availability,searchMetadata,note})=>
-    ({id,name,title,target,slug,extension,availability,searchMetadata,note:{metadata:{}}}));
+  const compact=entries.filter(entry=>entry.note).map(entry=>{
+    const {id,name,title,target,slug,extension,availability}=entry;
+    return {id,name,title,target,slug,extension,availability,searchMetadata:compileSearchMetadata(entry),note:{metadata:{}}};
+  });
   const search=add('runtime/search-metadata.json',compact);
   const nav=add('runtime/navigation.json',navigation.compile(presets));
   const headers=add('runtime/headers.json',compileHeaderIndexes({pages:entries.filter(entry=>entry.note).map(entry=>({path:entry.id,metadata:entry.note.metadata})),coreMeta:index.coreMeta,registry:index.registry}));
-  const backlinks=add('runtime/backlinks.json',{index:index.backlinks,campaigns:[...buildBacklinkCampaigns(store,index.registry)]});
-  const render=add('runtime/render.json',{entries,lookups:store.compileLookups(),home:index.homeSource==null?null:parseNote(index.homeSource),sites:sites.compile()});
+  // IDs are positions in this revision's entry table, never public URL IDs.
+  // Keep a target's references together so rendering needs at most one shard.
+  const pageIds=new Map(entries.flatMap((entry,id)=>entry.note ? [[entry.slug,id]] : []));
+  const backlinkShards=[],targets=[];
+  let links={},linkBytes=2;
+  const flushLinks=()=>{
+    if(!Object.keys(links).length)return;
+    backlinkShards.push(add('runtime/backlinks/'+String(backlinkShards.length).padStart(4,'0')+'.json',links));
+    links={};linkBytes=2;
+  };
+  for(const [target,incoming] of Object.entries(index.backlinks.byTarget)){
+    const id=pageIds.get(target),compactLinks=incoming.map(({source,when})=>{
+      const sourceId=pageIds.get(source);
+      if(sourceId===undefined)throw new Error('Unknown backlink source: '+source);
+      return [sourceId,when];
+    });
+    if(id===undefined)throw new Error('Unknown backlink target: '+target);
+    const size=Buffer.byteLength(JSON.stringify({[id]:compactLinks}));
+    if(linkBytes+size>backlinkShardBytes)flushLinks();
+    targets.push([id,backlinkShards.length]);links[id]=compactLinks;linkBytes+=size;
+  }
+  flushLinks();
+  const backlinks=add('runtime/backlinks.json',{shards:backlinkShards,targets,
+    campaigns:[...buildBacklinkCampaigns(store,index.registry)].map(([slug,campaigns])=>[pageIds.get(slug),campaigns])});
+  const render=add('runtime/render.json',{entries,noteShards,lookups:store.compileLookups(),home:index.homeSource==null?null:parseNote(index.homeSource),sites:sites.compile()});
   const partitions=new Map();
   for(const entry of index.entries.filter(entry=>!entry.note)){
     const key=assetPartition(entry.target),items=partitions.get(key) || [];

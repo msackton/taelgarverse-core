@@ -53,8 +53,15 @@ publisher fingerprint includes the compiler and its lookup/navigation/search
 inputs, so the format change triggers a rebuild even with unchanged vault notes.
 There is no prerendering command; article HTML remains dynamic.
 
-The new Worker reads older snapshots and search descriptors. New publications
-retain the schema-1 index/raw shards and add compiled runtime objects. Search
+The new Worker reads runtime formats 1 and 2, legacy snapshots, and older search
+descriptors. New publications use runtime format 2: numeric backlink references
+in target-grouped shards, shared note-shard descriptors, and compact navigation
+visibility bitmaps. Deploy this reader **before publishing format 2**. A Worker
+that only supports runtime format 1 rejects format 2 even though the legacy
+index is retained; restore a format-1 content revision before rolling back to
+that Worker. Content rollback with the current Worker supports either format.
+
+New publications retain the schema-1 index/raw shards and add compiled runtime objects. Search
 staging upgrades D1 transactionally to schema 3, adding immutable, revision-bound
 page metadata without discarding existing ready generations. Activation still
 follows R2 upload and D1 verification. Previous-content rollback remains

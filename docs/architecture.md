@@ -212,10 +212,15 @@ The Worker reads the R2 publication pointer on content requests and replaces its
 state when the revision changes. New publications include a small runtime
 manifest: health and contexts need no article data; assets load a partitioned
 asset index; search uses compact metadata; articles initialize the renderer from
-compiled lookups and header indexes. Prepared notes contain parsed bodies rather
-than requiring request-time YAML parsing. Artifact hashes are verified on load,
+compiled lookups and header indexes, reusing those entries for navigation without
+loading search metadata. Runtime format 2 uses shared note-shard descriptors,
+revision-local numeric page IDs in target-grouped backlink shards, and deduplicated
+navigation bitmaps. Prepared notes contain parsed bodies rather
+than requiring request-time YAML parsing. Backlink loading is asynchronous and
+request-local; the synchronous Node renderer still uses its full backlink index.
+Artifact hashes are verified on load,
 with shared pending reads and a bounded 16-object data cache. Navigation compiles
-named-context visibility for both POV modes; Custom views are calculated on
+named-context visibility for both POV modes; custom views are calculated on
 demand in a bounded 32-view cache. Request context and active-page selection stay
 separate from shared visibility data. Node reads a filesystem snapshot at startup and must restart
 after vault, runtime, settings, homepage, or menu changes. There is no rendered HTML

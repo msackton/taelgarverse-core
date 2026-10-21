@@ -1,5 +1,6 @@
 import path from 'node:path';
 import {createHash} from 'node:crypto';
+import {Buffer} from 'node:buffer';
 import {RenderError, escapeHtml, pageUrl, titleCase} from './common.mjs';
 import {availableInContext} from './content-store.mjs';
 import {contextQuery} from './header.mjs';
@@ -67,14 +68,20 @@ export class Navigation {
 
   compile(contexts=[]) {
     const nodes=[...this.nodes.values()],indices=new Map(nodes.map((node,i)=>[node.id,i]));
-    const views=new Map();
+    const views=new Map(),visibility=[],byVisibility=new Map();
     for(const context of contexts)for(const pov of [false,true]){
       const selection={...context,pov},view=this.view(selection);
-      views.set(this.viewKey(selection),[...view.visible].map(([id,node])=>[indices.get(id),!!(node.entry || node.home)]));
+      // Two bits per node: visible, then linkable. Identical reader views share
+      // one bitmap; no per-node objects are needed until a view is requested.
+      const bits=Buffer.alloc(Math.ceil(nodes.length/4));
+      for(const [id,node] of view.visible){const index=indices.get(id);bits[index>>2]|=(node.entry || node.home ? 3 : 1)<<((index%4)*2);}
+      const encoded=bits.toString('base64');
+      if(!byVisibility.has(encoded)){byVisibility.set(encoded,visibility.length);visibility.push(encoded);}
+      views.set(this.viewKey(selection),byVisibility.get(encoded));
     }
     return {nodes:nodes.map(node=>({id:node.id,label:node.label,home:node.home,entry:node.entry?.slug,children:node.children.map(child=>indices.get(child.id))})),
       roots:this.roots.map(node=>indices.get(node.id)),paths:[...this.paths].map(([slug,trail])=>[slug,trail.map(node=>indices.get(node.id))]),
-      trails:[...this.nodePaths].map(([id,trail])=>[id,trail.map(node=>indices.get(node.id))]),views:[...views]};
+      trails:[...this.nodePaths].map(([id,trail])=>[id,trail.map(node=>indices.get(node.id))]),views:[...views],visibility};
   }
 
   static hydrate(store,compiled) {
@@ -83,7 +90,7 @@ export class Navigation {
     const paths=values=>new Map(values.map(([key,trail])=>[key,trail.map(index=>nodes[index])]));
     return Object.assign(Object.create(Navigation.prototype),{settings:store.settings,nodes:new Map(nodes.map(node=>[node.id,node])),
       roots:compiled.roots.map(index=>nodes[index]),paths:paths(compiled.paths),nodePaths:paths(compiled.trails),
-      compiledNodes:nodes,preparedViews:new Map(compiled.views),viewCache:new Map()});
+      compiledNodes:nodes,preparedViews:new Map(compiled.visibility ? compiled.views.map(([key,index])=>[key,compiled.visibility[index]]) : compiled.views),viewCache:new Map()});
   }
 
   expand(dirs, entries, flatten = false) {
@@ -130,8 +137,18 @@ export class Navigation {
       return true;
     };
     if(prepared){
-      const ids=new Set(prepared.map(([index])=>this.compiledNodes[index].id));
-      for(const [index,link] of prepared){const node=this.compiledNodes[index];visible.set(node.id,{...node,entry:link?node.entry:undefined,children:node.children.filter(child=>ids.has(child.id))});}
+      if(typeof prepared==='string'){
+        const bits=Buffer.from(prepared,'base64');
+        for(const [index,node] of this.compiledNodes.entries()){
+          const flags=(bits[index>>2]>>((index%4)*2))&3;
+          if(flags&1)visible.set(node.id,{...node,entry:flags&2?node.entry:undefined,children:node.children});
+        }
+        for(const node of visible.values())node.children=node.children.filter(child=>visible.has(child.id));
+      }else{
+        // Compiled runtime v1 stored [node index, linkable] pairs.
+        const ids=new Set(prepared.map(([index])=>this.compiledNodes[index].id));
+        for(const [index,link] of prepared){const node=this.compiledNodes[index];visible.set(node.id,{...node,entry:link?node.entry:undefined,children:node.children.filter(child=>ids.has(child.id))});}
+      }
     }
     const roots = prepared ? this.roots.filter(node=>visible.has(node.id)) : this.roots.filter(visit);
     cached={visible,roots};this.viewCache.set(key,cached);

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {ROOT,loadSettings} from '../src/config.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
+import {compileRuntime} from '../scripts/compile-runtime.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
 import {openSnapshot} from '../src/runtime-snapshot.mjs';
 import {ContentStore,parseNote,availableInContext,compileAvailability} from '../src/content-store.mjs';
@@ -27,6 +28,17 @@ class Bucket {
 }
 const environment=bucket=>({CONTENT:bucket,ASSETS:{fetch:async()=>new Response('theme')}});
 const request=(worker,bucket,url,options)=>worker.fetch(new Request(new URL(url,'https://taelgar.org'),options),environment(bucket));
+function recompiledBucket({reverse=false,revision=report.revision,...options}={}) {
+  const index=JSON.parse(objects.get('revisions/'+report.revision+'/index.json'));
+  if(reverse)index.entries.reverse();
+  const entries=index.entries.map(entry=>entry.note ? {...entry,note:parseNote(JSON.parse(objects.get('revisions/'+report.revision+'/notes/'+entry.note.shard+'.json'))[entry.id])} : entry);
+  const compiled=compileRuntime(index,new ContentStore(entries,index.warnings,index.settings),options),bucket=new Bucket();
+  for(const key of bucket.objects.keys())if(key.includes('/runtime/') || key.endsWith('/runtime.json'))bucket.objects.delete(key);
+  for(const [file,json] of compiled.objects)bucket.objects.set('revisions/'+revision+'/'+file,json);
+  bucket.objects.set('revisions/'+revision+'/runtime.json',JSON.stringify({...compiled.manifest,revision}));
+  bucket.objects.set('published/current.json',JSON.stringify({revision}));
+  return bucket;
+}
 before(async()=>{
   fs.mkdirSync(path.join(ROOT,'.cache'),{recursive:true});
   directory=fs.mkdtempSync(path.join(ROOT,'.cache','runtime-snapshot-'));
@@ -36,13 +48,17 @@ before(async()=>{
   fs.writeFileSync(path.join(directory,'_scripts/session_note_campaigns.json'),JSON.stringify({campaigns:{frontier:{code:'dufr',name:'Frontier',campaignRoot:'Campaigns/Frontier'},adder:{code:'adma',name:'Adder'}}}));
   const notes={
     'Person.md':'---\ntags: [person]\nborn: 1700-01-01\naliases: [Traveler]\n---\n```taelgar-header\n```\n\n# Person body\n\n[[Future]] [[Other]] [[Twin]]\n\n![[Other#Section]]\n\n%% hidden note %%\n%%^Campaign:dufr%%frontier paragraph%%^End%%',
-    'Other.md':'---\naliases: [Twin]\n---\n## Section\n\nA nested paragraph. ![[Third]]\n\n%% secret nested %%',
+    'Other.md':'---\naliases: [Twin]\n---\n## Section\n\nA nested paragraph. [[Person]] ![[Third]]\n\n%% secret nested %%',
     'Third.md':'---\naliases: [Twin]\n---\nNested leaf.',
     'Future.md':'---\nPOV: 1750s\ncreated: 1740\nexcludePublish: [adma]\n---\nFuture body.',
     'Session.md':'---\ntags: [session-note]\ncampaign: dufr\nDR: 1745-01-01\n---\nSession.',
     'Adder Session.md':'---\ntags: [session-note]\ncampaign: adma\nDR: 1740-01-01\n---\nSession.',
   };
-  for(const [file,source] of Object.entries(notes))fs.writeFileSync(path.join(directory,file),source);
+  Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/backlinks.json',import.meta.url),'utf8')));
+  for(const [file,source] of Object.entries(notes)){
+    fs.mkdirSync(path.dirname(path.join(directory,file)),{recursive:true});
+    fs.writeFileSync(path.join(directory,file),source);
+  }
   fs.writeFileSync(path.join(directory,'sound.mp3'),'fixture sound bytes');
   fs.writeFileSync(path.join(directory,'_website/home.md'),'# Welcome\n\nA home ![[Other]]');
   fs.writeFileSync(path.join(directory,'_website/frontier.md'),'---\ncampaigns: [dufr]\nenforcePoV: 1\n---\n# Frontier\n\n![[Other]]');
@@ -87,6 +103,86 @@ test('search and lazy navigation load compact metadata without initializing arti
   assert.equal((await request(worker,bucket,'/api/navigation?branch='+branch)).status,200);
   assert.equal((await request(worker,bucket,'/browse/'+branch)).status,200);
   assert.ok(!bucket.calls.some(key=>/\/(?:headers|render|backlinks)\.json$/.test(key) || /\/notes\//.test(key)));
+});
+
+test('cold articles reuse their catalog for navigation without reading search metadata',async()=>{
+  const bucket=new Bucket(),worker=createWorker();
+  assert.equal((await request(worker,bucket,'/page/person')).status,200);
+  assert.ok(!bucket.calls.some(key=>key.endsWith('/search-metadata.json')));
+  const render=JSON.parse(bucket.objects.get('revisions/'+report.revision+'/runtime/render.json'));
+  assert.ok(render.entries.every(entry=>!Object.hasOwn(entry,'searchMetadata')));
+  assert.ok(render.entries.filter(entry=>entry.note).every(entry=>Number.isSafeInteger(entry.note.prepared)));
+  // Search must still use the richer catalog after navigation is initialized
+  // with article entries; both request orders share one cached navigation tree.
+  const a=await request(worker,bucket,'/?q=Traveler'),b=await request(createWorker(),new Bucket(objects,{legacy:true}),'/?q=Traveler');
+  assert.equal(await a.text(),await b.text());
+});
+
+test('bitset views preserve visibility, links and public navigation IDs at byte boundaries',async()=>{
+  const snapshot=await openSnapshot(new Bucket(),report.revision),store=await snapshot.searchStore();
+  const source=fs.readFileSync(settings.nav_source,'utf8'),original=new Navigation(store,source);
+  const compiled=original.compile([{date:'1900-01-01',campaigns:[]},{date:'1901-01-01',campaigns:[]}]);
+  assert.equal(compiled.views.length,4);assert.equal(compiled.visibility.length,1);
+  const loaded=Navigation.hydrate(store,compiled);
+  for(const date of ['1729-12-31','1745-01-01','1900-01-01','1901-01-01'])for(const campaigns of [[],['dufr'],['adma']])for(const pov of [false,true]){
+    const context={date,campaigns,pov},a=original.view(context,'person'),b=loaded.view(context,'person');
+    assert.deepEqual([...a.visible].map(([id,node])=>[id,!!node.entry]).sort(),[...b.visible].map(([id,node])=>[id,!!node.entry]).sort());
+    assert.equal(original.sidebar(a),loaded.sidebar(b));assert.equal(original.breadcrumbs(a),loaded.breadcrumbs(b));
+    assert.equal(original.sections(a),loaded.sections(b));
+  }
+});
+
+test('numeric backlink shards preserve date, campaign, DM and source availability during concurrent renders',async()=>{
+  const bucket=recompiledBucket({backlinkShardBytes:1}),worker=createWorker(),legacy=new Bucket(objects,{legacy:true}),old=createWorker();
+  const urls=[];
+  for(const page of ['Backlink Target','Backlink Empty','Person'])for(const date of ['1729-12-31','1730-01-01','1755-01-01'])for(const campaigns of ['dufr','adma','all'])for(const dm of [0,1]){
+    urls.push('/api/page?'+new URLSearchParams({page,date,campaigns,dm}));
+  }
+  await Promise.all(urls.map(async url=>{
+    const a=await request(worker,bucket,url),b=await request(old,legacy,url);
+    assert.equal(a.status,200,url);assert.equal(await a.text(),await b.text(),url);
+  }));
+  const reads=bucket.calls.filter(key=>key.includes('/runtime/backlinks/'));
+  assert.equal(reads.length,3);assert.equal(new Set(reads).size,3);
+  const fresh=recompiledBucket({backlinkShardBytes:1});
+  assert.equal((await request(createWorker(),fresh,'/page/adder-session')).status,200);
+  assert.ok(!fresh.calls.some(key=>key.includes('/runtime/backlinks/')));
+  const hidden=recompiledBucket({backlinkShardBytes:1});
+  assert.equal((await request(createWorker(),hidden,'/page/person?date=1600-01-01')).status,404);
+  assert.ok(!hidden.calls.some(key=>/\/runtime\/(?:backlinks|notes)\//.test(key)));
+});
+
+test('compact shard failures retry, note cache stays bounded, and numeric IDs stay revision-local',async()=>{
+  const bucket=recompiledBucket({backlinkShardBytes:1,noteShardBytes:1}),worker=createWorker();
+  const url='/api/page?page=Backlink%20Target&campaigns=all&dm=1';
+  const expected=await (await request(worker,bucket,url)).text();
+  const key=bucket.calls.find(key=>key.includes('/runtime/backlinks/')),original=bucket.objects.get(key);
+  bucket.objects.set(key,'{}');
+  const retryWorker=createWorker();assert.equal((await request(retryWorker,bucket,url)).status,503);
+  bucket.objects.set(key,original);assert.equal(await (await request(retryWorker,bucket,url)).text(),expected);
+  const snapshot=await openSnapshot(bucket,report.revision),{store}=await snapshot.renderer();
+  const entries=[...store.bySlug.values()];assert.ok(entries.length>20);
+  for(const entry of entries)await store.getNote(entry);
+  assert.ok(snapshot.cache.size<=16);
+  const before=bucket.calls.length;await store.getNote(entries[0]);assert.equal(bucket.calls.length,before+1);
+  const next=recompiledBucket({reverse:true,revision:'c'.repeat(64),backlinkShardBytes:1});
+  for(const [key,value] of next.objects)bucket.objects.set(key,value);
+  assert.equal(await (await request(worker,bucket,url)).text(),expected);
+});
+
+test('frozen runtime v1 publications still render and retain all dependencies',async()=>{
+  const fixture=JSON.parse(fs.readFileSync(new URL('./fixtures/runtime-v1.json',import.meta.url),'utf8'));
+  const {revision}=fixture.manifest,prefix='revisions/'+revision+'/',pointer={revision,retentionVersion:1};
+  const source=new Map([['published/current.json',JSON.stringify(pointer)],[prefix+'index.json',JSON.stringify(fixture.index)],
+    [prefix+'runtime.json',JSON.stringify(fixture.manifest)],[prefix+'notes/00.json',JSON.stringify(fixture.rawNotes)],
+    ...Object.entries(fixture.artifacts).map(([file,value])=>[prefix+file,JSON.stringify(value)])]);
+  const bucket=new Bucket(source),legacy=new Bucket(source,{legacy:true}),worker=createWorker(),old=createWorker();
+  for(const url of ['/','/?q=Traveler','/page/person','/api/page?page=Other&dm=1','/page/future?pov=0','/page/future?pov=1']){
+    const a=await request(worker,bucket,url),b=await request(old,legacy,url);assert.equal(a.status,b.status);assert.equal(await a.text(),await b.text(),url);
+  }
+  const storage={getJSON:async key=>source.has(key)?JSON.parse(source.get(key)):null,
+    list:async prefix=>[...source].filter(([key])=>key.startsWith(prefix)).map(([key,value])=>({key,size:Buffer.byteLength(value)}))};
+  assert.equal((await prunePublication(storage,{verify:async()=>{}},pointer,{dryRun:true})).deletedObjects,0);
 });
 
 test('prepared notes and immutable shards are reused across simultaneous dynamic renders',async()=>{
@@ -155,6 +251,10 @@ test('retention validates every compiled dependency before cleanup',async()=>{
     list:async prefix=>[...bucket.objects].filter(([key])=>key.startsWith(prefix)).map(([key,value])=>({key,size:Buffer.byteLength(value)}))};
   const search={verify:async()=>{}};
   assert.equal((await prunePublication(storage,search,pointer,{dryRun:true})).deletedObjects,0);
-  bucket.objects.delete([...bucket.objects.keys()].find(key=>key.includes('/runtime/notes/')));
-  await assert.rejects(prunePublication(storage,search,pointer,{dryRun:true}),/missing/);
+  for(const folder of ['notes','backlinks']){
+    const key=[...bucket.objects.keys()].find(key=>key.includes('/runtime/'+folder+'/')),value=bucket.objects.get(key);
+    assert.ok(key,folder);bucket.objects.delete(key);
+    await assert.rejects(prunePublication(storage,search,pointer,{dryRun:true}),/missing/);
+    bucket.objects.set(key,value);
+  }
 });

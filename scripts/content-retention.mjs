@@ -6,12 +6,12 @@ import {createCloudflareClient,searchCredentials} from './cloudflare-client.mjs'
 import {validateSearchDescriptor} from './search-index.mjs';
 import {DERIVATIVE_MANIFEST_KEY,manifestRecords} from './derivative-cache.mjs';
 import {withPublicationProgress} from './publication-progress.mjs';
-import {validRuntimeDescriptor,runtimeHash} from '../src/runtime-format.mjs';
+import {validRuntimeDescriptor,runtimeHash,supportedRuntimeVersion} from '../src/runtime-format.mjs';
 
 export const POINTER_KEY='published/current.json';
 const revisionPattern=/^[a-f0-9]{64}$/;
 const assetPattern=/^assets\/[a-f0-9]{64}$/;
-const snapshotPattern=/^revisions\/([a-f0-9]{64})\/(?:index\.json|runtime\.json|notes\/[a-f0-9]{2}\.json|runtime\/(?:render|navigation|headers|backlinks|search-metadata|assets\/[a-f0-9]{2}|notes\/[0-9]{4,})\.json)$/;
+const snapshotPattern=/^revisions\/([a-f0-9]{64})\/(?:index\.json|runtime\.json|notes\/[a-f0-9]{2}\.json|runtime\/(?:render|navigation|headers|backlinks|search-metadata|assets\/[a-f0-9]{2}|(?:notes|backlinks)\/[0-9]{4,})\.json)$/;
 
 export function validatePublicationUploads(revision,uploads){
   if(!revisionPattern.test(revision || '') || !Array.isArray(uploads) || !uploads.length || uploads.some(item=>{
@@ -139,12 +139,24 @@ export async function prunePublication(storage,index,pointer,{log=()=>{},dryRun=
       }
       if(content.runtime){
         const prefix=`revisions/${snapshot.revision}/`,manifest=await storage.getJSON(prefix+'runtime.json');
-        if(manifest?.version!==1 || manifest.revision!==snapshot.revision || !manifest.parts || !manifest.assets)throw new Error('Retained runtime manifest is missing or invalid; cleanup stopped');
+        if(!supportedRuntimeVersion(manifest?.version) || manifest.revision!==snapshot.revision || !manifest.parts || !manifest.assets)throw new Error('Retained runtime manifest is missing or invalid; cleanup stopped');
         const descriptors=[...Object.values(manifest.parts),...Object.values(manifest.assets)];
         if(descriptors.some(value=>!validRuntimeDescriptor(value)) || !validRuntimeDescriptor(manifest.parts.render))throw new Error('Invalid retained runtime descriptor');
         const render=await storage.getJSON(prefix+manifest.parts.render.file);
         if(!render || runtimeHash(JSON.stringify(render))!==manifest.parts.render.sha256 || !Array.isArray(render.entries))throw new Error('Retained runtime render index is missing or invalid');
-        for(const entry of render.entries)if(entry.note)descriptors.push(entry.note.prepared);
+        if(manifest.version===1){
+          for(const entry of render.entries)if(entry.note)descriptors.push(entry.note.prepared);
+        }else{
+          if(!Array.isArray(render.noteShards) || render.entries.some(entry=>entry.note &&
+            (!Number.isSafeInteger(entry.note.prepared) || entry.note.prepared<0 || !render.noteShards[entry.note.prepared])))throw new Error('Invalid retained note shard reference');
+          descriptors.push(...render.noteShards);
+          if(!validRuntimeDescriptor(manifest.parts.backlinks))throw new Error('Invalid retained backlink descriptor');
+          const backlinks=await storage.getJSON(prefix+manifest.parts.backlinks.file);
+          if(!backlinks || runtimeHash(JSON.stringify(backlinks))!==manifest.parts.backlinks.sha256 || !Array.isArray(backlinks.shards) ||
+            !Array.isArray(backlinks.targets) || backlinks.targets.some(([id,shard])=>!Number.isSafeInteger(id) || id<0 || !render.entries[id]?.note ||
+              !Number.isSafeInteger(shard) || shard<0 || !backlinks.shards[shard]))throw new Error('Retained backlink index is missing or invalid');
+          descriptors.push(...backlinks.shards);
+        }
         if(descriptors.some(value=>!validRuntimeDescriptor(value)))throw new Error('Invalid retained prepared note descriptor');
         keep.add(prefix+'runtime.json');
         for(const descriptor of descriptors)keep.add(prefix+descriptor.file);

@@ -118,7 +118,7 @@ contains the following files:
 | `published/current.json` | A small file saying which revision the website should use. It also records the Git version and publishing settings so unchanged content can be skipped next time. |
 | `revisions/<revision>/index.json`, `notes/` | Complete schema-1 snapshot and original Markdown shards, retained for legacy Workers and publication verification. |
 | `revisions/<revision>/runtime.json` | Runtime manifest with precomputed counts, campaign contexts and host policies, plus references to separate route data. |
-| `revisions/<revision>/runtime/` | Compiled renderer lookups, header indexes, backlink ownership, compact search metadata and navigation structure/views. `notes/` holds parsed bodies in roughly 64 KiB shards (an individual larger note remains intact); `assets/` partitions media entries by the first two hex digits of the SHA-256 of their URL target. |
+| `revisions/<revision>/runtime/` | Compiled renderer lookups, header indexes, backlink ownership/shard references, compact search metadata and navigation structure/views. `notes/` holds parsed bodies in roughly 64 KiB shards; `backlinks/` groups destination pages into roughly 32 KiB shards. An individual larger note or backlink list remains intact. `assets/` partitions media entries by the first two hex digits of the SHA-256 of their URL target. |
 | `assets/` | Images, audio, and other published attachments. Identical files share one stored copy, even across publications. |
 | `build-cache/derivatives-v1.json` | Disposable recipe-to-output catalog with dimensions, generated asset targets, content hashes, and sizes; no source paths or image bytes. |
 
@@ -151,9 +151,24 @@ text and header-block boundaries; metadata comes from the compiled render index.
 Health, contexts, docs and the API schema use only the runtime manifest. Media
 requests load their asset partition without initializing headers, Markdown or
 navigation. Search loads compact page metadata, adding navigation for HTML
-results. Article rendering loads the remaining data lazily. Generated image
+results. Articles reuse their renderer catalog for navigation and do not load
+the search catalog. Search-only fields are omitted from renderer entries.
+Generated image
 variants and map tile entries are omitted from renderer lookups; their entries
 remain in the asset partitions used to serve them.
+
+Runtime format 2 gives each page a numeric ID within that revision's renderer
+entry table. Backlink shards use these IDs instead of repeating slugs; public
+URLs and navigation IDs remain unchanged. After checking page availability,
+the Worker fetches at most one backlink shard for the article, alongside its
+note shard. It applies date, campaign, DM and source-availability filters to
+the selected references. Embeds and homepages do not fetch their own backlinks.
+Concurrent requests keep their selected references separate.
+
+Note records reference a shared table of shard filenames and hashes. Navigation
+stores visible/linkable flags as two bits per node and deduplicates identical
+preset views. Only requested views are materialized; arbitrary dates/campaigns
+retain dynamic filtering. The reader also supports format-1 compiled snapshots.
 
 Compiled artifact descriptors contain hashes. The loader validates each object
 before caching it, deduplicates concurrent loads, and retries failures without

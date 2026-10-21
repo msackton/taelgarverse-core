@@ -30,6 +30,7 @@ export class RenderEngine {
     this.home = prepared ? prepared.home : homeSource === null ? null : parseNote(homeSource);
     this.backlinkIndex = backlinkIndex === undefined ? buildBacklinkIndex(store) : backlinkIndex;
     this.backlinkCampaigns = prepared?.backlinkCampaigns || buildBacklinkCampaigns(store,this.headers.registry);
+    this.loadBacklinks = prepared?.loadBacklinks;
     if (backlinkIndex === undefined) this.store.warnings.push(...this.backlinkIndex.warnings);
   }
 
@@ -42,7 +43,7 @@ export class RenderEngine {
     return {entry,context};
   }
 
-  render(page, date, contextId, dm = false, loadedNote, selectedCampaigns, embedLoading, pov) {
+  render(page, date, contextId, dm = false, loadedNote, selectedCampaigns, embedLoading, pov, backlinkIndex = this.backlinkIndex) {
     const {entry,context} = this.resolvePage(page,date,contextId,dm,selectedCampaigns,pov);
     date = context.date;
     dm = context.dm;
@@ -76,14 +77,14 @@ export class RenderEngine {
     if (hide.includes('toc')) rendered.toc = '';
     return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,hide,
       ...(metadata.layout === 'wide' ? {layout:'wide'} : {}),
-      ...rendered, backlinks:this.backlinkIndex && (this.backlinkIndex.version>=2 || context.campaigns.length<=1)
-        ? linkedFrom(this.backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
+      ...rendered, backlinks:backlinkIndex && (backlinkIndex.version>=2 || context.campaigns.length<=1)
+        ? linkedFrom(backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
   }
 
   async renderAsync(page,date,contextId,dm,selectedCampaigns,loadNote,pov) {
     const {entry} = this.resolvePage(page,date,contextId,dm,selectedCampaigns,pov);
-    const note = await loadNote(entry);
-    return this.loadEmbeds(loading=>this.render(page,date,contextId,dm,note,selectedCampaigns,loading,pov),loadNote,new Map([[entry.id,note]]));
+    const [note,backlinks] = await Promise.all([loadNote(entry),this.loadBacklinks ? this.loadBacklinks(entry) : this.backlinkIndex]);
+    return this.loadEmbeds(loading=>this.render(page,date,contextId,dm,note,selectedCampaigns,loading,pov,backlinks),loadNote,new Map([[entry.id,note]]));
   }
 
   async loadEmbeds(render,loadNote,notes=new Map()) {
