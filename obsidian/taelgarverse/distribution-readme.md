@@ -1,7 +1,7 @@
 # Taelgarverse for Obsidian
 
-Taelgarverse tools for desktop Obsidian: interactive maps, distance measurement,
-freehand tracing, enclosed-area measurement, and an optional image viewer.
+Taelgarverse tools for desktop Obsidian: generated note headers, interactive maps,
+distance measurement, freehand tracing, enclosed-area measurement, and an optional image viewer.
 
 ## Install with BRAT
 
@@ -11,6 +11,34 @@ freehand tracing, enclosed-area measurement, and an optional image viewer.
 
 BRAT can follow the latest release or pin an individual installation to a specific
 version. Plugin files and BRAT preferences should stay outside vault Git tracking.
+
+## Generated headers
+
+Version 0.3.0 adds an empty `taelgar-header` code block that generates a note's
+complete header from frontmatter, using the shared Taelgarverse header rules:
+
+````markdown
+```taelgar-header
+```
+````
+
+Place it immediately after frontmatter, replacing the old generated title,
+pronunciation and information callout. Keep the frontmatter. The block includes
+the H1 title, so remove a separate H1 above it. Notes are not migrated automatically.
+
+Headers include pronunciation, biographical details, dates, affiliations and
+location chains. They refresh after metadata or calendar-date changes and show
+a clear error for circular relationships. In Live Preview, the header keeps its
+native callout styling without a code-block edit button or hover frame. Use
+Source mode to edit the fence.
+
+Header blocks require the Taelgar vault's `metadata.json` in its Obsidian
+configuration folder and `_scripts/session_note_campaigns.json`. Dataview and
+CustomJS are not required for these blocks; existing body queries still need
+their existing plugins. Dates follow an active CustomJS override, the note's
+`pageTargetDate`, Fantasy Calendar, or Taelgar's Calendarium calendar, in that
+order. Otherwise, they use the latest campaign session date, falling back to
+DR 1750-01-01.
 
 ## Maps
 

@@ -1,10 +1,10 @@
 # Taelgarverse for Obsidian
 
-The unified desktop Taelgarverse plugin: local image maps, calibrated distances,
-freehand tracing, enclosed areas, and an optional image viewer.
+The unified desktop Taelgarverse plugin: generated note headers, local image maps,
+calibrated distances, freehand tracing, enclosed areas, and an optional image viewer.
 Name Explorer and the materializer remain separate. Requires Obsidian 1.8.0+.
 
-The development build also supports generated bio blocks. Replace a note's
+Version 0.3.0 adds generated bio blocks. Replace a note's
 saved title and information callout with an empty `taelgar-header` code fence
 immediately after frontmatter. It renders the same header information as a
 native Obsidian callout, using the bundled header rules; Dataview and CustomJS
@@ -24,7 +24,7 @@ Without those, use the latest campaign session date, falling back to DR
 date changes within two seconds. The vault's `.obsidian/metadata.json` (or its
 custom configuration-folder equivalent) and `_scripts/session_note_campaigns.json`
 are required only when rendering a bio block. Existing Maps-only test vaults
-continue to work. This addition is not a published BRAT release.
+continue to work.
 
 ## Install and update
 
