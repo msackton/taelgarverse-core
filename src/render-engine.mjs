@@ -11,14 +11,17 @@ import {releaseFooter} from './release-footer.mjs';
 import {responsiveImages} from './images.mjs';
 import {CampaignSites} from './campaign-sites.mjs';
 import {articleLayout} from './article-layout.mjs';
+import {leadingBioBlock,leadingHeaderMarker} from './bio-block.mjs';
+import {HeaderDataError} from './header-core/errors.mjs';
 
 export class RenderEngine {
-  constructor({settings,store,headers,renderHeader,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex}) {
+  constructor({settings,store,headers,renderHeader,renderBio,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex}) {
     this.settings = settings;
     this.store = store;
     this.store.settings = settings;
     this.headers = headers;
     this.renderHeader = renderHeader;
+    this.renderBio = renderBio;
     this.contexts = new Contexts(this.store,this.headers.registry,settings);
     this.campaignSites = new CampaignSites(campaignHomes,this.contexts);
     this.markdown = createMarkdown();
@@ -46,16 +49,24 @@ export class RenderEngine {
     const metadata = entry.note.metadata;
     const note = loadedNote || entry.note;
     let body = note.body;
+    const bio = leadingBioBlock(body);
+    if (bio?.error) throw new RenderError(422, bio.error);
     // Prepared Markdown places this marker at the start of the body. A leading
     // marker is explicit; examples inside code or prose are left alone.
-    const headerMarker = /^[ \t\r\n]*<!-- taelgar:header -->[ \t]*(?:\r?\n|$)/.exec(body);
-    if (headerMarker || (metadata.headerVersion && metadata.tags)) {
+    const headerMarker = leadingHeaderMarker(body);
+    if (bio || headerMarker || (metadata.headerVersion && metadata.tags)) {
       try {
-        const source = headerMarker ? '---\n---\n' : note.source;
-        const generated = parseNote(this.renderHeader(this.headers, {source, name: entry.name, metadata, date})).body;
-        body = headerMarker ? generated.trimEnd() + '\n\n' + body.slice(headerMarker[0].length).replace(/^(?:[ \t]*\r?\n)*/, '') : generated;
+        let generated;
+        if(bio && this.renderBio)generated=this.renderBio(this.headers,{name:entry.name,metadata,date,headerType:'website'});
+        else {
+          const source = bio || headerMarker ? '---\n---\n' : note.source;
+          const header = parseNote(this.renderHeader(this.headers, {source, name: entry.name, metadata, date})).body;
+          generated = header;
+        }
+        body = bio || headerMarker ? generated.trimEnd() + '\n\n' + body.slice(bio?.end ?? headerMarker[0].length).replace(/^(?:[ \t]*\r?\n)*/, '') : generated;
       } catch (error) {
-        const wrapped = new RenderError(422, 'Header generation failed; check the configured CustomJS runtime');
+        if(error instanceof HeaderDataError)throw new RenderError(422,`Header generation failed: circular ${error.kind} chain.`);
+        const wrapped = new RenderError(422, 'Header generation failed; check the note metadata and display rules');
         wrapped.cause = error;
         throw wrapped;
       }

@@ -1,0 +1,82 @@
+{
+  "person-early": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Example\n*(EG-zam-pul)*\n>[!info]+ Biographical Info  \n> A [[Townfolk]] [[Humans|human]] (she/her)  \n> Born January 1st, 1700 (20 years old)  \n> >Based in the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]]\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Example\n:speaker:{ .middle } *(EG-zam-pul)*  \n<div class=\"grid cards ext-narrow-margin ext-one-column\" markdown>\n- :octicons-info-24:{ .lg .middle } __Biographical Information__\n\n    A [[Townfolk]] [[Humans|human]] (she/her)  \n    Born January 1st, 1700 (20 years old)  \n    { .bio }\n\n    Based in the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]]\n</div>\n\n\n"
+  },
+  "person-moved": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Example\n*(EG-zam-pul)*\n>[!info]+ Biographical Info  \n> A [[Townfolk]] [[Humans|human]] (she/her)  \n> Born January 1st, 1700 (30 years old)  \n> >Originally from: the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]]  \n> >Based in [[Harbor]], the [[New County]], the [[Kingdom|Green Kingdom]]\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Example\n:speaker:{ .middle } *(EG-zam-pul)*  \n<div class=\"grid cards ext-narrow-margin ext-one-column\" markdown>\n- :octicons-info-24:{ .lg .middle } __Biographical Information__\n\n    A [[Townfolk]] [[Humans|human]] (she/her)  \n    Born January 1st, 1700 (30 years old)  \n    { .bio }\n\n    Originally from: the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]]\n    Based in [[Harbor]], the [[New County]], the [[Kingdom|Green Kingdom]]\n</div>\n\n\n"
+  },
+  "person-travelling": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Example\n*(EG-zam-pul)*\n>[!info]+ Biographical Info  \n> A [[Townfolk]] [[Humans|human]] (she/her)  \n> Born January 1st, 1700 (30 years old)  \n> >Originally from: the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]]  \n> >Based in [[Harbor]], the [[New County]], the [[Kingdom|Green Kingdom]]  \n> >Currently in the [[Old County]], the [[Kingdom|Green Kingdom]]\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Example\n:speaker:{ .middle } *(EG-zam-pul)*  \n<div class=\"grid cards ext-narrow-margin ext-one-column\" markdown>\n- :octicons-info-24:{ .lg .middle } __Biographical Information__\n\n    A [[Townfolk]] [[Humans|human]] (she/her)  \n    Born January 1st, 1700 (30 years old)  \n    { .bio }\n\n    Originally from: the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]]\n    Based in [[Harbor]], the [[New County]], the [[Kingdom|Green Kingdom]]\n</div>\n\n:octicons-location-24:{ .lg .middle } Currently in the [[Old County]], the [[Kingdom|Green Kingdom]]\n\n\n"
+  },
+  "person-dead": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Example\n*(EG-zam-pul)*\n>[!info]+ Biographical Info  \n> A [[Townfolk]] [[Humans|human]] (she/her)  \n> b. January 1st, 1700 - d. January 1st, 1740, died at age 40 years  \n> >Originally from: the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]]  \n> >Lived in [[Harbor]], the [[New County]], the [[Kingdom|Green Kingdom]]\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Example\n:speaker:{ .middle } *(EG-zam-pul)*  \n<div class=\"grid cards ext-narrow-margin ext-one-column\" markdown>\n- :octicons-info-24:{ .lg .middle } __Biographical Information__\n\n    A [[Townfolk]] [[Humans|human]] (she/her)  \n    b. January 1st, 1700 - d. January 1st, 1740, died at age 40 years  \n    { .bio }\n\n    Originally from: the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]]\n    Lived in [[Harbor]], the [[New County]], the [[Kingdom|Green Kingdom]]\n</div>\n\n\n"
+  },
+  "person-before-birth": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Example\n*(EG-zam-pul)*\n>[!info]+ Biographical Info  \n> A [[Townfolk]] [[Humans|human]] (she/her)  \n> **(page is future dated)**\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Example\n:speaker:{ .middle } *(EG-zam-pul)*  \n<div class=\"grid cards ext-narrow-margin ext-one-column\" markdown>\n- :octicons-info-24:{ .lg .middle } __Biographical Information__\n\n    A [[Townfolk]] [[Humans|human]] (she/her)  \n    **(page is future dated)**  \n    { .bio }\n\n</div>\n\n\n"
+  },
+  "place-with-leader": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# The River Town\n>[!info]+ Information  \n> pop. 1,200  \n> Founded January 1st, 1690 (35 years ago)  \n> Mayor: [[Leader|Mayor Morgan]] (since January 1st, 1720)  \n> >A settlement in the [[Old County]], the [[Kingdom|Green Kingdom]], the [[Region|Wide Region]]\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# The River Town\n<div class=\"grid cards ext-narrow-margin ext-one-column\" markdown>\n-  \n    :octicons-people-24: pop. 1,200  \n   :material-calendar: Founded January 1st, 1690 (35 years ago)  \n    :octicons-location-24:{ .lg .middle } A settlement in the [[Old County]], the [[Kingdom|Green Kingdom]], the [[Region|Wide Region]]  \n</div>\n\n\n"
+  },
+  "place-earlier-leader": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# The River Town\n>[!info]+ Information  \n> pop. 1,200  \n> Founded January 1st, 1690 (20 years ago)  \n> Steward: [[Earlier Mayor]] (since January 1st, 1700)  \n> >A settlement in the [[Old County]], the [[Kingdom|Green Kingdom]], the [[Region|Wide Region]]\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# The River Town\n<div class=\"grid cards ext-narrow-margin ext-one-column\" markdown>\n-  \n    :octicons-people-24: pop. 1,200  \n   :material-calendar: Founded January 1st, 1690 (20 years ago)  \n    :octicons-location-24:{ .lg .middle } A settlement in the [[Old County]], the [[Kingdom|Green Kingdom]], the [[Region|Wide Region]]  \n</div>\n\n\n"
+  },
+  "place-ruined": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Ruin\n>[!info]+ Information  \n> existed January 1st, 1680 - January 1st, 1710, destroyed after 30 years  \n>   \n> >A settlement in the [[Old County]], the [[Kingdom|Green Kingdom]], the [[Region|Wide Region]]\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Ruin\n<div class=\"grid cards ext-narrow-margin ext-one-column\" markdown>\n-  \n   :material-calendar: existed January 1st, 1680 - January 1st, 1710, destroyed after 30 years  \n    :octicons-location-24:{ .lg .middle } A settlement in the [[Old County]], the [[Kingdom|Green Kingdom]], the [[Region|Wide Region]]  \n</div>\n\n\n"
+  },
+  "group-and-parent": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# The Glass Guild\n>[!info]+ Information  \n> A [[Guild|Glass Guild]]  \n> Founded January 1st, 1690 (30 years ago)  \n>   \n> Parent Organization: the [[Federation|Guild Federation]], the [[Council|High Council]]  \n> >Based in the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]], the [[Region|Wide Region]]\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# The Glass Guild\n<div class=\"grid cards ext-narrow-margin ext-one-column\" markdown>\n-\n   :octicons-info-24:{ .lg .middle } A [[Guild|Glass Guild]]  \n   :material-calendar: Founded January 1st, 1690 (30 years ago)  \n    :octicons-location-24:{ .lg .middle } Based in the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]], the [[Region|Wide Region]]  \n</div>\n\n\n"
+  },
+  "object-and-mechanics": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Ledger\n>[!info]+ Information  \n> (rare book)  \n> [Mechanics](https://example.test/ledger)  \n> Created January 1st, 1690 (30 years ago)  \n>   \n> >Owned by [[Example]]\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Ledger\n<div class=\"grid cards ext-narrow-margin ext-one-column\" markdown>\n- :octicons-info-24:{ .lg .middle } __(rare book)__  \n   Created January 1st, 1690 (30 years ago)  \n   Owned by [[Example]]  \n    :simple-dungeonsanddragons:{ .middle} [Mechanics](https://example.test/ledger) \n</div>\n\n\n"
+  },
+  "object-destroyed": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Ledger\n>[!info]+ Information  \n> (rare book)  \n> [Mechanics](https://example.test/ledger)  \n> existed January 1st, 1690 - January 1st, 1740, destroyed after 50 years  \n>   \n> >Was owned by [[Example]]\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Ledger\n<div class=\"grid cards ext-narrow-margin ext-one-column\" markdown>\n- :octicons-info-24:{ .lg .middle } __(rare book)__  \n   existed January 1st, 1690 - January 1st, 1740, destroyed after 50 years  \n   Was owned by [[Example]]  \n    :simple-dungeonsanddragons:{ .middle} [Mechanics](https://example.test/ledger) \n</div>\n\n\n"
+  },
+  "object-without-dates": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Pebble\n>[!info]+ Information  \n> (stone)  \n> \n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Pebble\n:octicons-info-24:{ .lg .middle } **(stone)**  \n\n"
+  },
+  "event-range": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# The Summer War\n>[!info]+ Information  \n> January 1st, 1710 - January 1st, 1711, lasted 12 months\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# The Summer War\n\n"
+  },
+  "event-one-day": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Meeting\n>[!info]+ Information  \n> June 1st, 1710\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Meeting\n\n"
+  },
+  "power": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Bright One\n>[!info]+ Information  \n> A deity (he/him)\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Bright One\n\n"
+  },
+  "ancestry": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Townfolk\n\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Townfolk\n\n"
+  },
+  "creature": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Human\n\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Human\n\n"
+  },
+  "plain": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Plain\n\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Plain\n\n"
+  },
+  "custom-display": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Example\n*(EG-zam-pul)*\n>[!info]+ Profile  \n> Custom description  \n> Born January 1st, 1700 (20 years old)  \n> >Home: the River Town\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Example\n:speaker:{ .middle } *(EG-zam-pul)*  \n<div class=\"grid cards ext-narrow-margin ext-one-column\" markdown>\n- :octicons-info-24:{ .lg .middle } __Biographical Information__\n\n    Custom description  \n    Born January 1st, 1700 (20 years old)  \n    { .bio }\n\n    Home: the River Town\n</div>\n\n\n"
+  },
+  "campaign-meeting": {
+    "static": "---\nheaderVersion: 2023.11.25\n---\n# Example\n*(EG-zam-pul)*\n>[!info]+ Biographical Info  \n> A [[Townfolk]] [[Humans|human]] (she/her)  \n> Born January 1st, 1700 (20 years old)  \n> >Based in the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]]  \n> > %%^Campaign:test%% Met with the [[Party|Fixture Party]] on June 15th, 1710 in the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]] %%^End%%\n\n",
+    "website": "---\nheaderVersion: 2023.11.25\n---\n# Example\n:speaker:{ .middle } *(EG-zam-pul)*  \n<div class=\"grid cards ext-narrow-margin ext-one-column\" markdown>\n- :octicons-info-24:{ .lg .middle } __Biographical Information__\n\n    A [[Townfolk]] [[Humans|human]] (she/her)  \n    Born January 1st, 1700 (20 years old)  \n    { .bio }\n\n    Based in the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]]\n</div>\n\n%%^Campaign:test%%\n\n:octicons-location-24:{ .lg .middle } Met with the [[Party|Fixture Party]] on June 15th, 1710 in the [[River Town]], the [[Old County]], the [[Kingdom|Green Kingdom]]  \n%%^End%%\n\n"
+  }
+}

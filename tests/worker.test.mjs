@@ -9,7 +9,6 @@ import {Engine} from '../src/engine.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
 import {loadSnapshot} from '../src/snapshot.mjs';
-import {instantiate} from '../src/worker-headers.mjs';
 import {handleRequest} from '../src/application.mjs';
 
 let directory,report,bucket,engine,worker,env;
@@ -66,7 +65,7 @@ before(async()=>{
   bucket=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
     {key:'published/current.json',file:report.pointerFile}]);
   env={CONTENT:bucket,ASSETS:{fetch:async request=>new Response(new URL(request.url).pathname)}};
-  engine=new Engine(settings);worker=createWorker(instantiate);
+  engine=new Engine(settings);worker=createWorker();
 });
 after(()=>{if(directory && isInside(path.join(ROOT,'.cache'),directory))fs.rmSync(directory,{recursive:true});});
 
@@ -76,7 +75,7 @@ test('published campaign homes select per-host content and lock Worker APIs with
   const indexFile=path.join(directory,'campaign-index.json');fs.writeFileSync(indexFile,JSON.stringify(index));
   const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
   const storage=new LocalBucket([...uploads,{key:'revisions/'+report.revision+'/index.json',file:indexFile},{key:'published/current.json',file:report.pointerFile}]);
-  const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+  const app=createWorker(), environment={...env,CONTENT:storage};
   for(const [host,id,title] of [['dunmar','dunmar-frontier','Dunmar home'],['combined','custom','Combined home'],['historic','custom','Historic home'],['addermarch','addermarch','Addermarch home'],['www','modern','Welcome to the fixture site'],['combined','custom','Combined home'],['dunmar','dunmar-frontier','Dunmar home']]) {
     const home=await app.fetch(new Request('https://'+host+'.taelgar.org/'),environment);
     assert.equal(home.status,200);const $=load(await home.text());assert.equal($('main h1').first().text(),title);
@@ -96,7 +95,7 @@ test('published campaign homes select per-host content and lock Worker APIs with
   assert.equal(storage.calls.get('revisions/'+report.revision+'/index.json'),1);
   for(const metadata of ['campaigns: [unknown]','context: dunmar-frontier']) {
     index.campaignHomes={dunmar:'---\n'+metadata+'\n---\n# Invalid'};fs.writeFileSync(indexFile,JSON.stringify(index));
-    await assert.rejects(loadSnapshot(storage,report.revision,instantiate),error=>error.status===503);
+    await assert.rejects(loadSnapshot(storage,report.revision),error=>error.status===503);
   }
 });
 
@@ -146,7 +145,7 @@ test('footer follows each publication pointer and rollback without cached metada
   const pointer=path.join(directory,'release-pointer.json');
   const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
   const storage=new LocalBucket([...uploads,{key:'published/current.json',file:pointer}]);
-  const app=createWorker(instantiate,{commit:'a'.repeat(40),publishedAt:'2026-10-18T12:00:00Z'});
+  const app=createWorker({commit:'a'.repeat(40),publishedAt:'2026-10-18T12:00:00Z'});
   const environment={...env,CONTENT:storage};
   for (const [commit,completedAt] of [['b','2026-10-19T01:00:00Z'],['c','2026-10-20T01:00:00Z'],['b','2026-10-19T01:00:00Z']]) {
     fs.writeFileSync(pointer,JSON.stringify({revision:report.revision,commit:commit.repeat(40),dirty:false,completedAt}));
@@ -170,7 +169,7 @@ test('manual activation reads its content commit from the immutable snapshot',as
   fs.writeFileSync(prepared.pointerFile,JSON.stringify({revision:prepared.revision,completedAt:'2026-10-19T16:00:00Z'}));
   const storage=new LocalBucket([...JSON.parse(fs.readFileSync(prepared.manifestFile,'utf8')),
     {key:'published/current.json',file:prepared.pointerFile}]);
-  const response=await createWorker(instantiate).fetch(new Request('https://example.test/'),{...env,CONTENT:storage});
+  const response=await createWorker().fetch(new Request('https://example.test/'),{...env,CONTENT:storage});
   const $=load(await response.text());
   assert.equal($('.site-footer [data-copy-commit]').attr('data-copy-commit'),sourceVersion.commit);
   assert.match($('.site-footer').text(),/Updated Oct 19, 2026.*Content ddddddd\*/);
@@ -180,7 +179,7 @@ test('Worker expands published note embeds like Node and loads only visible note
   for (const query of ['context=modern','context=custom&date=1720-01-01&campaigns=dufr',
     'context=custom&date=1730-01-01&campaigns=all&dm=1']) {
     const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
-    const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+    const app=createWorker(), environment={...env,CONTENT:storage};
     const url='https://example.test/api/page?page=Embed%20Host&'+query;
     const response=await app.fetch(new Request(url),environment);
     assert.equal(response.status,200);
@@ -208,7 +207,7 @@ test('published homepage note embeds retain lazy loading',async()=>{
   const file=path.join(directory,'embed-home-index.json'); fs.writeFileSync(file,JSON.stringify(index));
   const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
   storage.objects.set('revisions/'+report.revision+'/index.json',file);
-  const app=createWorker(instantiate);
+  const app=createWorker();
   const response=await app.fetch(new Request('https://example.test/?date=1730-01-01&campaigns=all&dm=1'),{...env,CONTENT:storage});
   assert.equal(response.status,200);
   const $=load(await response.text());
@@ -233,7 +232,7 @@ test('packaged snapshot has no machine paths or raw note bodies in the metadata 
 test('Worker rejects unavailable pages before reading any note body and permits them in other contexts',async()=>{
   const isolated=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
     {key:'published/current.json',file:report.pointerFile}]);
-  const app=createWorker(instantiate), environment={...env,CONTENT:isolated};
+  const app=createWorker(), environment={...env,CONTENT:isolated};
   const fetch=path=>app.fetch(new Request('https://example.test'+path),environment);
   for (const [page,query] of [
     ['Hidden','context=modern'],['Hidden','date=1800-01-01'],
@@ -261,7 +260,7 @@ test('Worker rejects unavailable pages before reading any note body and permits 
 
 test('published website Markdown renders like Node without exposing website files as articles',async()=>{
   const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
-  const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+  const app=createWorker(), environment={...env,CONTENT:storage};
   const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
   assert.equal(index.homeSource,fs.readFileSync(engine.settings.home_source,'utf8'));
   assert.equal(index.navigationSource,fs.readFileSync(engine.settings.nav_source,'utf8'));
@@ -297,12 +296,12 @@ test('old publications retain the page finder; invalid homepage data is rejected
   storage.objects.set('revisions/'+report.revision+'/index.json',file);
   delete index.homeSource;
   fs.writeFileSync(file,JSON.stringify(index));
-  const response=await createWorker(instantiate).fetch(new Request('https://example.test/'),{...env,CONTENT:storage});
+  const response=await createWorker().fetch(new Request('https://example.test/'),{...env,CONTENT:storage});
   assert.equal(response.status,200);
   assert.equal(load(await response.text())('main h1').text(),'Browse pages');
   index.homeSource={invalid:true};
   fs.writeFileSync(file,JSON.stringify(index));
-  await assert.rejects(()=>loadSnapshot(storage,report.revision,instantiate),{status:503});
+  await assert.rejects(()=>loadSnapshot(storage,report.revision),{status:503});
 });
 
 test('republishing changes the homepage and navigation together without redeploying code',async()=>{
@@ -315,7 +314,7 @@ test('republishing changes the homepage and navigation together without redeploy
     assert.notEqual(next.revision,report.revision);
     const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
       ...JSON.parse(fs.readFileSync(next.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
-    const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+    const app=createWorker(), environment={...env,CONTENT:storage};
     const read=async()=>load(await (await app.fetch(new Request('https://example.test/'),environment)).text());
     assert.equal((await read())('main h1').text(),'Welcome to the fixture site');
     storage.objects.set('published/current.json',next.pointerFile);
@@ -347,7 +346,7 @@ test('Worker renders the same article as the VM reference and isolates request p
 test('Worker filters article, generated header and DM links from metadata without loading target bodies',async()=>{
   const isolated=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
     {key:'published/current.json',file:report.pointerFile}]);
-  const app=createWorker(instantiate), environment={...env,CONTENT:isolated};
+  const app=createWorker(), environment={...env,CONTENT:isolated};
   for (const [query,campaignVisible,bornVisible,activeVisible] of [
     ['context=dunmar-frontier',false,false,false],
     ['context=addermarch',true,false,false],
@@ -433,11 +432,11 @@ test('published snapshots retain audio and exported drawings and Worker serves m
 });
 
 test('snapshot load failures recover and publication can change without redeploying Worker',async()=>{
-  await assert.rejects(loadSnapshot(bucket,'bad',instantiate),{status:503});
+  await assert.rejects(loadSnapshot(bucket,'bad'),{status:503});
   const failing=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
     {key:'published/current.json',file:report.pointerFile}]), key='revisions/'+report.revision+'/index.json';
   failing.missing.add(key);
-  const retry=createWorker(instantiate), retryEnv={...env,CONTENT:failing};
+  const retry=createWorker(), retryEnv={...env,CONTENT:failing};
   assert.equal((await retry.fetch(new Request('https://example.test/health'),retryEnv)).status,503);
   failing.missing.delete(key);
   assert.equal((await retry.fetch(new Request('https://example.test/health'),retryEnv)).status,200);
@@ -472,7 +471,7 @@ test('snapshots preserve the explicit no-template directory navigation mode',asy
   const index=JSON.parse(fs.readFileSync(packaged.indexFile,'utf8'));
   assert.equal(index.navigationSource,null);
   const storage=new LocalBucket(JSON.parse(fs.readFileSync(packaged.manifestFile,'utf8')));
-  const loaded=await loadSnapshot(storage,packaged.revision,instantiate);
+  const loaded=await loadSnapshot(storage,packaged.revision);
   assert.equal(engine.navigation.paths.has('diagrams'),false);
   assert.equal(loaded.engine.navigation.paths.has('diagrams'),true);
   assert.equal(loaded.engine.navigation.roots.some(node=>node.label==='More pages'),false);
@@ -481,7 +480,7 @@ test('snapshots preserve the explicit no-template directory navigation mode',asy
 test('Worker reads backlinks from the publication index without fetching referring article bodies',async()=>{
   const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
     {key:'published/current.json',file:report.pointerFile}]);
-  const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+  const app=createWorker(), environment={...env,CONTENT:storage};
   const fetch=url=>app.fetch(new Request('https://example.test'+url),environment);
   for (const query of ['date=1729-12-31','date=1730-01-01&dm=1','context=dunmar-frontier','context=addermarch&dm=1','date=1729-12-31',
     'context=custom&date=1730-01-01&campaigns=all&dm=1','date=1730-01-01&campaigns=adma,dufr','date=1730-01-01&campaigns=adma']) {
@@ -518,24 +517,24 @@ test('older publications still render without a backlink index; unsupported inde
   delete index.backlinks;
   fs.writeFileSync(file,JSON.stringify(index));
   storage.objects.set('revisions/'+report.revision+'/index.json',file);
-  const loaded=await loadSnapshot(storage,report.revision,instantiate);
+  const loaded=await loadSnapshot(storage,report.revision);
   const entry=loaded.store.resolve('Backlink Target'), note=await loaded.store.getNote(entry);
   const result=loaded.engine.render('Backlink Target',undefined,undefined,false,note);
   assert.match(result.html,/Backlink Target/);
   assert.equal(result.backlinks,undefined);
   index.backlinks={version:1,byTarget:{'backlink-target':[{source:'backlink-source',when:[{}]}]},warnings:[]};
   fs.writeFileSync(file,JSON.stringify(index));
-  const legacy=await loadSnapshot(storage,report.revision,instantiate);
+  const legacy=await loadSnapshot(storage,report.revision);
   assert.equal(legacy.engine.render('Backlink Target',undefined,undefined,false,note).backlinks.length,1);
   assert.equal(legacy.engine.render('Backlink Target',undefined,'custom',false,note,'all').backlinks,undefined);
   index.backlinks={version:999,byTarget:{}};
   fs.writeFileSync(file,JSON.stringify(index));
-  await assert.rejects(()=>loadSnapshot(storage,report.revision,instantiate),{status:503});
+  await assert.rejects(()=>loadSnapshot(storage,report.revision),{status:503});
 });
 
 test('Worker isolates Custom all/subset selections and rejects invalid selections before reading bodies',async()=>{
   const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
-  const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+  const app=createWorker(), environment={...env,CONTENT:storage};
   const fetch=url=>app.fetch(new Request('https://example.test'+url),environment);
   for (const query of ['context=custom&campaigns=missing','context=modern&campaigns=all']) {
     assert.equal((await fetch('/api/page?page=Example&'+query)).status,400);
@@ -559,7 +558,7 @@ test('republishing replaces removed backlinks and invalidates the active Worker 
     assert.notEqual(packaged.revision,report.revision);
     const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
       ...JSON.parse(fs.readFileSync(packaged.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
-    const app=createWorker(instantiate), environment={...env,CONTENT:storage};
+    const app=createWorker(), environment={...env,CONTENT:storage};
     const read=async()=>await(await app.fetch(new Request('https://example.test/api/page?page=Backlink%20Target'),environment)).json();
     assert.equal((await read()).backlinks.some(link=>link.page==='backlink-source'),true);
     storage.objects.set('published/current.json',packaged.pointerFile);
@@ -576,7 +575,7 @@ test('snapshot POV setting is opt-in and older snapshots keep POV pages availabl
     const file=path.join(directory,'pov-settings-index.json');fs.writeFileSync(file,JSON.stringify(index));
     const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
       {key:'revisions/'+report.revision+'/index.json',file},{key:'published/current.json',file:report.pointerFile}]);
-    const app=createWorker(instantiate);
+    const app=createWorker();
     for (const pov of [undefined,'1','0','1','0']) for (const page of ['pov-year','pov-plural']) {
       const enabled=pov===undefined?setting===true:pov==='1';
       const response=await app.fetch(new Request('https://example.test/page/'+page+'?date=1739-12-31'+(pov===undefined?'':'&pov='+pov)),{...env,CONTENT:storage});
@@ -595,7 +594,7 @@ test('campaign sites honor reader POV choices without changing their locked date
   const file=path.join(directory,'reader-pov-index.json');fs.writeFileSync(file,JSON.stringify(index));
   const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
     {key:'revisions/'+report.revision+'/index.json',file},{key:'published/current.json',file:report.pointerFile}]);
-  const app=createWorker(instantiate),environment={...env,CONTENT:storage};
+  const app=createWorker(),environment={...env,CONTENT:storage};
   const fetch=path=>app.fetch(new Request('https://dunmar.taelgar.org'+path),environment);
   const hidden=await fetch('/api/page?page=POV%20Year&date=9999-01-01&pov=1&dm=1');
   assert.equal(hidden.status,404);
@@ -621,7 +620,7 @@ test('published microsite enforcePoV overrides reader choices on the Worker and 
   const file=path.join(directory,'enforced-pov-index.json');fs.writeFileSync(file,JSON.stringify(index));
   const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
     {key:'revisions/'+report.revision+'/index.json',file},{key:'published/current.json',file:report.pointerFile}]);
-  const app=createWorker(instantiate),environment={...env,CONTENT:storage};
+  const app=createWorker(),environment={...env,CONTENT:storage};
   const fetch=(host,path)=>app.fetch(new Request('https://'+host+'.taelgar.org'+path),environment);
   const hidden=await fetch('enabled','/api/page?page=POV%20Year&pov=0');assert.equal(hidden.status,404);
   assert.equal([...storage.calls.keys()].some(key=>key.includes('/notes/')),false);

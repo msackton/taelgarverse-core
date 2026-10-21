@@ -1,0 +1,5 @@
+{
+  "Bio Person.md": "---\nheaderVersion: 2023.11.25\ntags: [person]\nname: Bio Person\nspecies: human\npronunciation: BY-oh\nborn: 1700-01-01\nwhereabouts: [{type: home, location: First Town}]\n---\n```taelgar-header\n```\n\n## Biography\n\nAn authored biography with [[First Town]].\n",
+  "Bio Place.md": "---\ntags: [place]\nname: Bio Place\ntypeOf: settlement\ncreated: 1710\nwhereabouts: [{type: home, location: First Town}]\n---\n```taelgar-header\n```\n\n## History\n\nAn authored place history.\n",
+  "Bio Event.md": "---\ntags: [event]\nname: Bio Event\ntypeOf: war\nDR: 1710-01-01\nDR_end: 1711-01-01\n---\n```taelgar-header\n```\n\n## Account\n\nAn authored event account.\n"
+}

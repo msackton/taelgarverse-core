@@ -4,8 +4,9 @@ import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {ROOT,loadSettings,isInside} from '../src/config.mjs';
 import {Store} from '../src/store.mjs';
+import {normalizeHeader} from '../src/bio-block.mjs';
 import {buildBacklinkIndex} from '../src/backlinks.mjs';
-import {headerRevision} from '../src/worker-headers.mjs';
+import {headerCoreRevision} from './header-core-revision.mjs';
 import {repositoryVersion} from './repository-version.mjs';
 import {compileSearch,searchDescriptor} from './compile-search.mjs';
 import {prepareMaps} from './build-maps.mjs';
@@ -35,6 +36,12 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   output=path.resolve(output);
   if (!isInside(ROOT,output) || output===ROOT) throw new Error('Content staging directory must be inside this project');
   const store=new Store(settings), shards=new Map(), uploads=[];
+  // Use one header format before hashing, backlinks, search or media discovery.
+  // This also accepts raw vault notes when no Dataview export is needed.
+  for (const entry of store.entries) if (entry.note) {
+    try { entry.note=normalizeHeader(entry.note); }
+    catch (error) { throw new Error(entry.id + ': ' + error.message, {cause:error}); }
+  }
   const homeSource=settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null;
   const registry=JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'_scripts/session_note_campaigns.json'),'utf8'));
   const campaignHomes=readCampaignHomes(settings);
@@ -96,7 +103,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const pointerFile=path.join(output,'current.json');writeJSON(pointerFile,{revision});
   const report={revision,indexFile,manifestFile,configFile,bucket:config.r2_buckets.find(b=>b.binding==='CONTENT').bucket_name,
     notes:entries.filter(e=>e.note).length,assets:entries.filter(e=>!e.note).length,objects:unique.length,
-    assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision,search,searchFile,searchStats:searchManifest.stats,images,
+    assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision:headerCoreRevision(),search,searchFile,searchStats:searchManifest.stats,images,
     derivativeManifestFile,derivativeCacheHits:{...derivativeCache.hits}};
   writeJSON(path.join(output,'latest.json'),report);
   return report;

@@ -19,6 +19,9 @@ independent release paths.
 [Roadmap](roadmap.md) is a planning artifact. Keep its proposals distinct from
 implemented behavior.
 
+[Generated Taelgar bio block](shared-taelgar-blocks-plan.md) records the narrow
+implementation scope. Syntax and behavior belong in [vault usage](vault.md#generated-bio-block).
+
 ## Components and flow
 
 ```mermaid
@@ -34,15 +37,15 @@ flowchart LR
     B --> W[Worker and static application assets]
     R --> W
     W --> U[Browser / API client]
-    V --> N[Local Node reference renderer]
+    V --> N[Local Node renderer]
 ```
 
 - **`taelgar`** owns Markdown, media, homepage text, menu structure, campaign identity, display metadata, trusted
-  CustomJS header rules, and the Obsidian materializer. Publishing exports copies;
+  legacy CustomJS rules, and the Obsidian materializer. Publishing exports copies;
   it does not rewrite source notes.
 - **`taelgarverse-core`** owns rendering, routing, navigation behavior, browser assets, the
-  publisher, the Taelgarverse Obsidian plugin source, and the checked-in Worker
-  header module. The deployment job needs this repository and its dependencies;
+  publisher, the Taelgarverse Obsidian plugin source, and the maintained shared
+  header core. The deployment job needs this repository and its dependencies;
   it does not need a vault checkout or Obsidian. The preceding test job checks
   out sparse public vault inputs, and must pass before deployment starts.
 - **`taelgarverse` / the older static publishing pipeline** are independent of
@@ -56,7 +59,7 @@ flowchart LR
 | `scripts/upload-content.mjs`, `scripts/cloudflare-client.mjs` | Separate incremental asset and snapshot transfers, bounded retries, request pacing, and shared refreshable Cloudflare credentials. Used by full and manual publication. |
 | `scripts/dev.mjs`, `scripts/test.mjs`, `.github/workflows/tests.yml` | Public development/test entry points, live-vault watching, full local publication preview, plugin installation, and GitHub test/package gates. |
 | `.github/workflows/website.yml` | Reuse CI tests, then deploy Worker/static assets on `main`. Serialize production pipelines; deployment credentials are available only in the deployment step. See the one-time cutover in [Deploy](deploy.md#one-time-github-website-deployment-setup). |
-| `scripts/prepare-cloudflare.mjs` | Package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. |
+| `scripts/prepare-cloudflare.mjs` | Normalize note headers, then package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. |
 | `scripts/derivative-cache.mjs` | R2 recipe catalog for responsive images/map pyramids, output inventory validation, and publication of reusable records after successful asset uploads. Local/offline consumers retain filesystem generation. |
 | `scripts/compile-search.mjs`, `src/search-text.mjs` | Compile deduplicated whole-note text versions and date/campaign/DM visibility rules. |
 | `scripts/search-index.mjs`, `scripts/search-database.mjs`, `scripts/search.mjs` | Immutable D1 staging, verification, remote/local adapters, and explicit staging CLI. |
@@ -77,9 +80,12 @@ flowchart LR
 | `src/browser/image-viewer.mjs`, `src/browser/image-controls.mjs`, `src/browser/images.mjs`, `public/image-viewer.css` | Shared website/Obsidian image viewer, per-image controls and cleanup. The website entry point is bundled by `scripts/build-browser.mjs`; the Obsidian adapter owns Reading View roots and its host-provided CodeMirror Live Preview extension. See [image delivery](images.md). |
 | `scripts/prepare-obsidian-release.mjs` | Read published source provenance, report changes for agent review, prepare version/compatibility/notes files, and validate offline. No Git writes or publication; the uploader also validates the release-note version heading. |
 | `src/comments.mjs`, `src/markdown.mjs`, `src/dm.mjs` | Conditional prose, Obsidian syntax, link handling, Behind the Curtain notes. |
-| `src/engine.mjs`, `src/server.mjs`, `src/headers.mjs` | Node initialization, HTTP adapter, fresh VM context for trusted CustomJS. |
-| `src/worker.mjs`, `src/worker-handler.mjs`, `src/header-runtime.mjs` | Worker adapter and fresh instances of generated header classes. |
-| `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs` | Translate trusted vault classes into ordinary JavaScript modules. |
+| `src/engine.mjs`, `src/server.mjs` | Node initialization and HTTP adapter, using the same header core as the Worker. |
+| `src/header-core/` | Maintained dates, names, whereabouts, affiliations, templates, encounters and header output. `createHeaderSnapshot` freezes shared inputs; `createHeaderContext` creates request-local services; `renderBio` renders the complete header directly; `renderHeader` supports saved headers. |
+| `src/bio-block.mjs`, `obsidian/taelgarverse/features/headers.mjs` | Leading header-block recognition, pure publication normalization, and the Obsidian adapter. The host selects the date and resolves links; the shared core renders the title and a static native callout. |
+| `src/worker.mjs`, `src/worker-handler.mjs`, `src/snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
+| `src/headers.mjs`, `src/header-runtime.mjs`, `src/worker-headers.mjs` | Preserved legacy VM/generated reference implementations for characterization tests. Production rendering does not import them. |
+| `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs`, `scripts/header-core-revision.mjs` | Legacy reference/icon maintenance and a separate source fingerprint for the maintained core in publication diagnostics. |
 | `public/`, `src/browser/`, `scripts/build-browser.mjs` | Application styles/scripts and the generated Leaflet/Mermaid browser assets; Wrangler builds these before packaging. |
 | `public/search-overlay.js` | Search suggestions attached to the original query field, context/type preservation, keyboard controls, and stale-request cancellation. |
 | `public/quiet-library.css`, `public/site-ui.js`, `public/appearance.js` | Quiet Library layout, responsive dialogs and scroll controls, and browser-local System/Light/Dark appearance. |
@@ -126,7 +132,8 @@ selects an alternative to the local file, in that order of priority. Defaults
 still apply. Resolve each path relative to the file that supplies it, so a file
 in another directory cannot accidentally relocate inherited paths.
 
-`vault_dir` selects the original vault for content, metadata, and trusted scripts.
+`vault_dir` selects the original vault for content and metadata. Compatibility
+tests also read its trusted legacy scripts; production header logic lives in core.
 The optional `source_dir` selects different Markdown/media for exported previews;
 when omitted or null, it follows the resolved vault. The publisher's `--vault`
 overrides `vault_dir` before checking filesystem paths, then the export step
@@ -175,13 +182,27 @@ files are read explicitly; the normal underscore-folder exclusion stays in place
 
 Header calculations need metadata from the whole indexed vault for names,
 locations, and relationships. The adapters share frozen metadata but create fresh
-header state per render. A reverse affiliation index narrows leadership queries;
-the original classes still decide dates and display text. Unexpected affiliation
-shapes fall back to a full scan.
+date, name, location, affiliation, template and output services per render. A
+reverse affiliation index narrows leadership queries; the maintained affiliation
+service applies the query date. Unexpected affiliation shapes fall back to a
+full scan. The core needs no app/Dataview shim, global calendar or CustomJS state.
 
-Node uses `node:vm` for trusted header code; it is not a sandbox for arbitrary
-scripts. Workers use the committed `src/worker-headers.mjs`, with no runtime code
-evaluation. Body Dataview/JavaScript is not executed by either renderer. Supported
+Header refactoring is guarded by synthetic unit tests, frozen examples of every
+vault `testcase` page, complex relationship histories, fixed outputs in both
+formats, and independent comparisons with the original vault classes. Fixture
+updates and known pre-existing defects are described in the
+[refactoring test baseline](shared-taelgar-blocks-plan.md#refactoring-test-baseline).
+
+The Obsidian bio adapter supplies the host's link resolver to the shared header
+runtime, then reads the destination's frozen snapshot metadata. This preserves
+Obsidian's disambiguation when location and homepage filenames overlap; Node and
+Worker retain their published-content lookup rules.
+
+Node, Worker and Obsidian all import the maintained shared core. The legacy VM
+adapter uses `node:vm` only in reference tests; it is not a sandbox for arbitrary
+scripts. Circular location/organization chains produce a clear header error,
+including when a type filter would otherwise prevent the depth limit advancing.
+Body Dataview/JavaScript is not executed by either renderer. Supported
 Dataview queries are materialized during publication and do not rerun when a
 visitor changes context.
 
@@ -202,12 +223,16 @@ uses a prepared snapshot and must be rerun after vault edits.
 | `_website/home.md`, `_website/navigation.md`, `home_source`, `nav_source`, `default_date`, `respect_pov_dates`, materializer, packaging, image settings | Republish content; use `--force` if the change is outside the publisher's fingerprint. A core merge alone does not refresh the published homepage or menu. |
 | Renderer, routes, CSS/browser scripts, dependencies, Worker configuration | Merge core changes to `main`; GitHub deploys to Cloudflare after CI passes. |
 | Taelgarverse plugin or shared map code used by it | Test both consumers, bump the plugin's own version, then explicitly release to the BRAT distribution repository. A website deployment does not release the plugin. |
-| Vault CustomJS header classes | Run `node scripts/build-worker-headers.mjs`, review and commit the generated `src/worker-headers.mjs` (and changed generated icons), then merge core to `main`. Content publication does not regenerate or deploy this module. Republish if data also changed. |
+| Maintained shared header core | Test Node, Worker and Obsidian; use the website code release path and a separate explicit plugin release. Content publication does not deploy header code. |
+| Vault CustomJS header classes | These remain the legacy materializer/reference stack. They do not update the maintained core. Refresh a legacy fixture only as a deliberately reviewed reference change; do not backport the refactor's fixes. |
 | Snapshot schema or publication/availability policy | Update producer and consumers together; determine a compatible deployment order and whether existing snapshots must be republished. |
 | Search compiler, visibility rules, or index format | Republish content to compile/stage D1 before activation; retain active plus one previous good generation in R2/D1 and collect orphaned assets/text. See [search publication](search.md). |
 
-`node scripts/build-runtime.mjs` regenerates the local `.generated/headers.mjs` and
-`src/icons.mjs`; it does **not** update the committed Worker header module.
+`node scripts/build-runtime.mjs` regenerates the local legacy reference at
+`.generated/headers.mjs` and `src/icons.mjs`; it does **not** update the maintained
+header core or the committed legacy `src/worker-headers.mjs` reference.
+`build-worker-headers.mjs` is retained only for intentional legacy-reference
+maintenance. Normal application and plugin builds bundle `src/header-core/`.
 `public/generated/` is ignored and rebuilt from the pinned browser dependencies.
 Core provenance is also generated locally under `.generated/` by Wrangler before
 packaging. Content source commits travel with snapshots, while publication dates

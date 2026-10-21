@@ -10,7 +10,6 @@ import {searchType} from '../src/search-types.mjs';
 import {searchView} from '../src/search-view.mjs';
 import {LocalSearch} from '../src/local-search.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
-import {instantiate} from '../src/worker-headers.mjs';
 
 const {DatabaseSync}=await import('node:sqlite').catch(()=>({}));
 const sqliteTest=(name,fn)=>test(name,{skip:!DatabaseSync?'Enable node:sqlite on Node 22.12':false},fn);
@@ -129,7 +128,7 @@ sqliteTest('Worker search API/HTML use the active revision, preserve context, fa
     entries:source.entries.map(e=>({...e,note:{metadata:e.note.metadata,shard:'00',sha256:rev('f')}}))});
   const objects=new Map([['published/current.json',{revision:rev('a')}],[`revisions/${rev('a')}/index.json`,makeIndex(rev('a'),store,manifest)]]),reads=[];
   const env={SEARCH_DB:d.binding,CONTENT:{get:async key=>{reads.push(key);const value=objects.get(key);return value?{json:async()=>value}:null;}},ASSETS:{fetch:async request=>new Response(new URL(request.url).pathname)}};
-  const worker=createWorker(instantiate),request=(url,overrides={})=>worker.fetch(new Request('https://example.test'+url),{...env,...overrides});
+  const worker=createWorker(),request=(url,overrides={})=>worker.fetch(new Request('https://example.test'+url),{...env,...overrides});
   const data=await (await request('/api/search?q=bronze&date=1740-01-01&campaigns=dufr,adma&dm=1')).json();
   assert.equal(data.source,'full-text');assert.equal(data.results[0].page,'golden-lantern');assert.match(data.results[0].url,/campaigns=adma%2Cdufr&dm=1/);assert.ok(d.sessions);
   const html=await (await request('/?q=bronze&date=1740-01-01&campaigns=all&dm=1')).text(),$=load(html);
@@ -153,7 +152,7 @@ sqliteTest('Worker search API/HTML use the active revision, preserve context, fa
   objects.set('published/current.json',{revision:rev('a')});assert.equal((await (await request('/api/search?q=bronze')).json()).results.length,1);
   objects.get(`revisions/${rev('a')}/index.json`).search={...searchDescriptor(manifest),digest:rev('c')};
   // A fresh Worker must reject a descriptor that does not match D1 readiness.
-  const stale=await createWorker(instantiate).fetch(new Request('https://example.test/api/search?q=Golden'),env);assert.equal((await stale.json()).fallback,true);
+  const stale=await createWorker().fetch(new Request('https://example.test/api/search?q=Golden'),env);assert.equal((await stale.json()).fallback,true);
   assert.equal(reads.some(key=>key.includes('/notes/')),false);
   const sessions=d.sessions;
   for(const query of ['q='+encodeURIComponent('"open'),'q='+('a'.repeat(257)),'q=fox&limit=51','q=fox&offset=-1','q=fox&type=invalid','q=fox&date=bad','q=fox&dm=maybe','q=fox&context=custom&campaigns=unknown'])assert.equal((await request('/api/search?'+query)).status,400);

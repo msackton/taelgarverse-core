@@ -4,6 +4,28 @@ The unified desktop Taelgarverse plugin: local image maps, calibrated distances,
 freehand tracing, enclosed areas, and an optional image viewer.
 Name Explorer and the materializer remain separate. Requires Obsidian 1.8.0+.
 
+The development build also supports generated bio blocks. Replace a note's
+saved title and information callout with an empty `taelgar-header` code fence
+immediately after frontmatter. It renders the same header information as a
+native Obsidian callout, using the bundled header rules; Dataview and CustomJS
+are not required. The block includes the generated H1, pronunciation and all
+other details. Remove any separately saved H1 above it to avoid a duplicate
+title in Obsidian. Notes are never rewritten by the renderer.
+Location links use Obsidian's own resolution, including when a campaign homepage
+and a location note share a name.
+In Live Preview, the bio has no code-block edit button or hover frame/background;
+its information callout keeps the normal callout styling. The fence remains
+editable in Source mode.
+
+Dates follow an existing CustomJS override when set, then the note's
+`pageTargetDate`, then Fantasy Calendar or the Taelgar Calendarium calendar.
+Without those, use the latest campaign session date, falling back to DR
+1750-01-01. Headers refresh after metadata changes and detect calendar/override
+date changes within two seconds. The vault's `.obsidian/metadata.json` (or its
+custom configuration-folder equivalent) and `_scripts/session_note_campaigns.json`
+are required only when rendering a bio block. Existing Maps-only test vaults
+continue to work. This addition is not a published BRAT release.
+
 ## Install and update
 
 Install BRAT 1.1.0 or newer from Community plugins, then add
@@ -61,6 +83,12 @@ pop-out windows). It uses `src/browser/image-controls.mjs`,
 website. Controllers release observers, buttons, event handlers, and open dialogs
 when disabled, rerendered, or unloaded. Caption extraction understands native
 Obsidian image callouts and per-item galleries, as well as HTML figures.
+
+`features/headers.mjs` selects the host's date/link resolution and calls
+`src/header-core/index.mjs`. Node, Worker and the plugin share these maintained
+modules; the vault's legacy CustomJS source and generated reference are separate.
+Circular relationship chains display a bio error. Render children own refresh
+timers and dispose when notes close.
 
 Future features should be separate modules owned by the parent plugin. Add
 dependencies only where a feature needs them. Website and plugin versions are

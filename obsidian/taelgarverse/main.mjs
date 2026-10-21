@@ -1,6 +1,7 @@
 import {Plugin,PluginSettingTab,Setting} from 'obsidian';
 import {MapsFeature} from './features/maps.mjs';
 import {ImagesFeature} from './features/images.mjs';
+import {HeadersFeature} from './features/headers.mjs';
 
 class TaelgarverseSettings extends PluginSettingTab {
   constructor(plugin){super(plugin.app,plugin);this.plugin=plugin;}
@@ -29,5 +30,6 @@ export default class Taelgarverse extends Plugin {
     // Features own their state and cleanup through Obsidian's Component lifecycle.
     this.addChild(new MapsFeature(this));
     this.images=this.addChild(new ImagesFeature(this));
+    this.addChild(new HeadersFeature(this));
   }
 }

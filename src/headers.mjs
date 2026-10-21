@@ -11,7 +11,7 @@ String.prototype.contains = String.prototype.includes;
 // Host arrays use DataArray below; helpers only extend VM-local prototypes.
 const helperScript = new vm.Script(helpers);
 const renderScript = new vm.Script(
-  "customJS.OutputHandler.regenerateHeader(request.source, request.name, request.metadata, 'website').join('\\n')",
+  "customJS.OutputHandler.regenerateHeader(request.source, request.name, request.metadata, request.headerType === 'static' ? 'static' : 'website').join('\\n')",
 );
 const classes = {
   DateManager: 'dataUtil.js', NameManager: 'nameManager.js',

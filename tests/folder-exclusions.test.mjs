@@ -8,7 +8,6 @@ import {readFolderExclusions} from '../src/folder-exclusions.mjs';
 import {buildFingerprint,parseOptions} from '../scripts/publish-content.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
-import {instantiate} from '../src/worker-headers.mjs';
 
 const chats='Campaigns/Cleenseau Campaign/Chats';
 function fixture(t) {
@@ -93,7 +92,7 @@ test('publication omits flagged note bodies, metadata, search documents and medi
   const objects=new Map(uploads.map(upload=>[upload.key,upload.file]));
   objects.set('published/current.json',report.pointerFile);
   const env={CONTENT:{async get(key){const file=objects.get(key);return file?{json:async()=>JSON.parse(fs.readFileSync(file,'utf8'))}:null;}}};
-  const worker=createWorker(instantiate);
+  const worker=createWorker();
   for(const url of ['/api/page?page=Hidden%20chat%20alias&dm=1','/page/campaigns/cleenseau-campaign/chats/secret?context=modern&dm=1','/assets/campaigns/cleenseau-campaign/chats/secret.png','/api/page?page=Campaigns%2FCleenseau%20Campaign%2FChats%2FNested%2FChild.md']) {
     const response=await worker.fetch(new Request('https://example.test'+url),env);
     assert.equal(response.status,404,url);

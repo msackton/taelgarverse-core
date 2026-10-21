@@ -19,11 +19,12 @@ function adaptArrays(value) {
   return value;
 }
 
-export function initializeHeaderRuntime(rawInput,instantiate) {
+export function initializeHeaderRuntime(rawInput,instantiate,{resolveLink}={}) {
   const input = adaptArrays(rawInput);
   const files = deepFreeze(input.pages.map(p => ({
     path: p.path, basename: path.posix.basename(p.path, '.md'), frontmatter: p.metadata,
   })));
+  const byPath = new Map(files.map(file => [file.path,file]));
   const byTarget = new Map();
   for (const file of files) {
     for (const key of [file.path, file.path.replace(/\.md$/, ''), file.basename, `${file.basename}.md`]) {
@@ -66,6 +67,9 @@ export function initializeHeaderRuntime(rawInput,instantiate) {
     vault: {getRoot: () => ({path: ''}), getMarkdownFiles: () => files},
     metadataCache: {
       getFirstLinkpathDest: target => {
+        // Obsidian owns link disambiguation in the plugin. Keep its destination
+        // while reading metadata from this render's immutable snapshot.
+        if (resolveLink) return byPath.get(resolveLink(target));
         const matches = byTarget.get(target.toLowerCase());
         return matches?.size === 1 ? [...matches][0] : undefined;
       },
@@ -96,5 +100,5 @@ export function renderModuleHeader(snapshot, rawRequest) {
       finally { queryPages = previous; }
     };
   }
-  return customJS.OutputHandler.regenerateHeader(request.source,request.name,request.metadata,'website').join('\n');
+  return customJS.OutputHandler.regenerateHeader(request.source,request.name,request.metadata,request.headerType === 'static' ? 'static' : 'website').join('\n');
 }

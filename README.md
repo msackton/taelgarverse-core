@@ -111,7 +111,7 @@ Dates use full YYYY-MM-DD values in the 365-day DR calendar, with no leap days.
 Omitting both date and context selects Modern, the latest campaign date.
 A date-only request selects Custom. Campaign presets select a date and campaign
 codes together. An explicit request date overrides note pageTargetDate,
-following the existing CustomJS rules.
+following the shared header core's date precedence.
 
 ~~~http
 GET /api/contexts
@@ -314,16 +314,15 @@ changes, run `npm ci` before starting or deploying.
 ## Rendering architecture
 
 ~~~text
-Startup: content snapshot + link/affiliation indexes + compiled CustomJS
+Startup: content snapshot + link/affiliation indexes + shared header core
 Request: resolve page → date-aware header → filters → markdown-it → HTML
 ~~~
 
-The Node preview runs in one process. Its headers use a fresh VM context per
-request; the Cloudflare adapter uses generated JavaScript classes. Both share
-immutable metadata and use the original header classes to
-determine ages, lifecycle, affiliations, locations, names, and display defaults.
-A reverse affiliation index narrows leadership candidates; the original code
-evaluates dates and display text.
+Node, Cloudflare and the Obsidian bio adapter use the maintained modules in
+`src/header-core/`. They share immutable metadata and create fresh services per
+render to determine ages, lifecycle, affiliations, locations, names and display
+defaults. A reverse affiliation index narrows leadership candidates. The vault's
+CustomJS code remains a legacy test reference and materializer input.
 
 Node modules implement public comment/campaign/date filtering, publish flags,
 birth/creation dates, activeYear, links, images, Obsidian callouts, tables, footnotes, definition lists,
@@ -379,7 +378,8 @@ npm test
 node scripts/benchmark.mjs
 ~~~
 
-Tests use synthetic notes with the configured real CustomJS code. They cover
+Tests use synthetic notes, frozen tagged-vault samples and independent
+comparisons with the configured legacy CustomJS reference. They cover
 dates/lifecycle/locations, leadership parity, private and malformed comments,
 campaign filtering, links, Markdown extensions, assets, HTTP errors, and date
 isolation. Integration tests require the configured sibling vault. Fixtures are
