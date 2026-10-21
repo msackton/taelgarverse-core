@@ -4,7 +4,7 @@ export {contextQuery};
 const icon = paths => '<svg viewBox="0 0 24 24" aria-hidden="true">' + paths + '</svg>';
 const searchIcon = icon('<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/>');
 const control = (id,label,svg) => '<button type="button" class="icon-button" id="' + id + '-toggle" aria-label="' + label + '" aria-haspopup="dialog" aria-controls="' + id + '-dialog" hidden>' + svg + '</button>';
-export function siteHeader(context, options, {query,searchType='',sections = '',navigation = true} = {}) {
+export function siteHeader(context, options, {query,searchType='',sections = '',navigation = true,names=false,contextFields={}} = {}) {
   const brand = context.locked ? context.label : 'TaelgarVerse';
   const fullSite = 'https://www.taelgar.org/' + (typeof context.pov === 'boolean' ? '?pov='+(context.pov ? '1' : '0') : '');
   const custom = context.kind === 'custom';
@@ -25,6 +25,7 @@ export function siteHeader(context, options, {query,searchType='',sections = '',
     '</fieldset></details>';
   const searchFields = [...contextQuery(context)].map(([key,value])=>'<input type="hidden" name="' + key + '" value="' + escapeHtml(value) + '">').join('');
   const typeField = searchType ? '<input type="hidden" name="type" value="' + escapeHtml(searchType) + '">' : '';
+  const nameFields = names ? ['view','language','kind','find','name'].map(key=>'<input type="hidden" data-name-context="'+key+'" name="'+key+'" value="'+escapeHtml(contextFields[key] || '')+'">').join('') : '';
   return '<header class="site-header" id="site-header">' +
     (navigation ? control('navigation','Open navigation',icon('<path d="M3 6h18M3 12h18M3 18h18"/>')) : '') +
     '<a class="site-brand" href="/?' + escapeHtml(contextQuery(context).toString()) + '" aria-label="'+escapeHtml(brand)+' home"><img class="site-logo" src="/theme/site-logo.webp" alt="" width="32" height="32"><span class="site-brand-label">'+escapeHtml(brand)+'</span></a>' +
@@ -32,6 +33,7 @@ export function siteHeader(context, options, {query,searchType='',sections = '',
     '<label class="sr-only" for="site-search">Search TaelgarVerse</label><input id="site-search" type="search" name="q" maxlength="256" value="' + escapeHtml(query || '') + '" placeholder="Search TaelgarVerse"><button aria-label="Search">' + searchIcon + '</button></form></div>' +
     '<div id="header-context-slot"><form id="context-controls" class="context-form" method="get" '+(context.locked ? 'data-context-locked' : 'data-context-form')+'>' +
     (query !== undefined ? '<input type="hidden" name="q" value="' + escapeHtml(query) + '">' : '') +
+    nameFields +
     typeField + (typeof context.pov === 'boolean' ? '<input type="hidden" name="pov" value="'+(context.pov ? '1' : '0')+'">' : '') +
     (context.locked ? '<input type="hidden" name="context" value="'+escapeHtml(context.id)+'"><span class="context-locked">'+escapeHtml(context.label+' · '+context.date+' DR')+'</span><a class="full-site-link" href="'+escapeHtml(fullSite)+'">Full site</a>' :
     '<label class="context-label" for="site-context">Context:</label><select id="site-context" name="context" aria-label="Context">' + choices + '</select>' +
@@ -40,6 +42,7 @@ export function siteHeader(context, options, {query,searchType='',sections = '',
     context.date + '" min="0001-01-01" max="9999-12-31"' + (custom ? ' required' : ' disabled') + '>' + picker + '<button type="submit">Apply</button></div>') +
     '<label class="dm-toggle"><input type="checkbox" name="dm" value="1"' + (context.dm ? ' checked' : '') + '> See Behind the Curtain</label>' +
     '<noscript><button type="submit">Apply context</button></noscript></form></div><div class="header-tools">' +
+    '<a class="names-link" href="/names?'+escapeHtml(contextQuery(context).toString())+'"'+(names?' aria-current="page"':'')+'>Names</a>'+
     '<button type="button" class="icon-button" id="search-toggle" aria-label="Open search" aria-controls="header-search-slot" aria-expanded="false" hidden><span class="search-open-icon">' + searchIcon + '</span><span class="search-close-icon">' + icon('<path d="m6 6 12 12M18 6 6 18"/>') + '</span></button>' +
     control('settings','Open settings',icon('<path d="m9 3-.6 2.4-2.1 1.2L4 6l-2 3 1.8 1.8v2.4L2 15l2 3 2.3-.6 2.1 1.2L9 21h4l.6-2.4 2.1-1.2 2.3.6 2-3-1.8-1.8v-2.4L20 9l-2-3-2.3.6-2.1-1.2L13 3Z"/><circle cx="11" cy="12" r="3"/>')) +
     '</div>' + sections + '</header>' +

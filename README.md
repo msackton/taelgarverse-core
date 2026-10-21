@@ -171,6 +171,13 @@ Publish homepage changes with the usual [content publishing command](docs/deploy
 
 ## Site navigation and page TOC
 
+The **Names** header link opens separate first-name and surname shelves at
+**/names**, with source full names and distinct-person counts. **All recorded
+names** retains subject shelves, name/subject search, recorded pronunciations
+and meanings, and alternate forms. Splits are browsing hints, not adopted metadata.
+The explorer covers the published vault independently of reader context.
+See the [name explorer guide](docs/names.md) for sources and publication.
+
 Articles have a site sidebar, breadcrumbs, and a separate **On this page** TOC.
 The current branch opens automatically and the current page is highlighted.
 Section titles open their overview or browse page; the adjacent chevron expands

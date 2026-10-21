@@ -38,6 +38,12 @@ the original vault even if `source_dir` points to an earlier export.
 Full preview permits uncommitted notes and reports unsupported materialization
 queries; it never contacts production R2/D1. Its cached data stays in core.
 
+Open **/names** to preview the [language shelves](names.md) against the full
+eligible vault. Name metadata or direct explorer decisions require a fresh
+content publication to update hosted shelves. The publisher includes decisions
+in its fingerprint. Deploying supporting core code and publishing content are
+separate release actions; older snapshots show an unavailable name index.
+
 ## GitHub tests, website deployment, and plugin releases
 
 The **Tests** workflow runs on pull requests and is reused by website and plugin

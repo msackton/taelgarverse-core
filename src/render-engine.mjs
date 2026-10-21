@@ -13,7 +13,7 @@ import {CampaignSites} from './campaign-sites.mjs';
 import {articleLayout} from './article-layout.mjs';
 
 export class RenderEngine {
-  constructor({settings,store,headers,renderHeader,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex}) {
+  constructor({settings,store,headers,renderHeader,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,nameIndex=null}) {
     this.settings = settings;
     this.store = store;
     this.store.settings = settings;
@@ -27,8 +27,11 @@ export class RenderEngine {
     this.home = homeSource === null ? null : parseNote(homeSource);
     this.backlinkIndex = backlinkIndex === undefined ? buildBacklinkIndex(store) : backlinkIndex;
     this.backlinkCampaigns = buildBacklinkCampaigns(store,this.headers.registry);
+    this.nameIndex = nameIndex;
     if (backlinkIndex === undefined) this.store.warnings.push(...this.backlinkIndex.warnings);
   }
+
+  getNameIndex(){return this.nameIndex;}
 
   resolvePage(page, date, contextId, dm = false, selectedCampaigns, pov) {
     dm = parseDM(dm);
@@ -114,7 +117,7 @@ export class RenderEngine {
 }
 
 export function document(result,contextOptions,navigation,releases) {
-  const article = result.homepage ? result.html : articleLayout(result.html,{wide:result.layout === 'wide'});
+  const article = result.homepage || result.names ? result.html : articleLayout(result.html,{wide:result.layout === 'wide'});
   const view = navigation?.view(result.context,result.page,result.navigationId);
   const showNavigation = view && view.roots.length > 0 && !result.hide?.includes('navigation');
   const sidebar = showNavigation ? navigation.sidebar(view) : '';
@@ -133,10 +136,12 @@ export function document(result,contextOptions,navigation,releases) {
     '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"><link rel="stylesheet" href="/theme/image-viewer.css"><link rel="stylesheet" href="/theme/quiet-library.css">' +
     (maps ? '<link rel="stylesheet" href="/theme/leaflet.css"><link rel="stylesheet" href="/theme/maps.css">' : '') +
     (result.search ? '<link rel="stylesheet" href="/theme/search.css">' : '') +
+    (result.names ? '<link rel="stylesheet" href="/theme/names.css">' : '') +
     (result.homepage ? '<link rel="stylesheet" href="/theme/homepage.css">' : '') + '</head>' +
-    '<body>' + siteHeader(result.context,contextOptions,{query:result.query,searchType:result.searchType,sections:showNavigation ? navigation.sections(view) : '',navigation:!!showNavigation}) +
-    '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (pageNav ? '' : ' layout--no-toc') + (hasSection ? '' : ' layout--no-navigation') + (result.homepage ? ' layout--home' : '') + '">' + sidebar +
+    '<body>' + siteHeader(result.context,contextOptions,{query:result.query,searchType:result.searchType,sections:showNavigation ? navigation.sections(view) : '',navigation:!!showNavigation,names:result.names,contextFields:result.contextFields}) +
+    '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (pageNav ? '' : ' layout--no-toc') + (hasSection ? '' : ' layout--no-navigation') + (result.homepage ? ' layout--home' : '') + (result.names ? ' layout--names' : '') + '">' + sidebar +
     '<main id="page-content" class="md-typeset article-main" tabindex="-1">' + breadcrumbs + article + '</main>' + pageNav +
     '</div>' + siteDialogs() + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/site-ui.js" defer></script><script type="module" src="/theme/search-overlay.js"></script><script src="/theme/image-viewer.js" defer></script>' + diagrams +
-    (maps ? '<script type="module" src="/theme/maps.js"></script>' : '') + '</body></html>';
+    (maps ? '<script type="module" src="/theme/maps.js"></script>' : '') +
+    (result.names ? '<script src="/theme/names.js" defer></script>' : '') + '</body></html>';
 }

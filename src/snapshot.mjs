@@ -43,9 +43,10 @@ export async function loadSnapshot(bucket,revision,instantiate) {
   }
   if (index.backlinks && ![1,2].includes(index.backlinks.version)) throw new RenderError(503,'Backlink index format is not supported by this Worker');
   if (index.homeSource != null && typeof index.homeSource !== 'string') throw new RenderError(503,'Homepage content must be Markdown text');
+  if (index.names && (index.names.version!==1 || !Array.isArray(index.names.entries))) throw new RenderError(503,'Name index format is not supported by this Worker');
   const store=new SnapshotStore(index,bucket);
   const headers=initializeHeaderRuntime({pages:store.entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta:index.coreMeta,registry:index.registry},instantiate);
   const engine=new RenderEngine({settings:index.settings,store,headers,renderHeader:renderModuleHeader,navigationSource:index.navigationSource,
-    homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null});
+    homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null,nameIndex:index.names || null});
   return {engine,store,index};
 }

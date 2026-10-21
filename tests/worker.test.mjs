@@ -48,6 +48,9 @@ before(async()=>{
   }
   fs.writeFileSync(path.join(source,'Session.md'),'---\ntags: [session-note]\ncampaign: dufr\nDR: 1720-01-01\n---\nSession.\n');
   fs.writeFileSync(path.join(source,'AdderSession.md'),'---\ntags: [session-note]\ncampaign: adma\nDR: 1720-01-01\n---\nSession.\n');
+  fs.writeFileSync(path.join(source,'Name River.md'),'---\ntags: [place]\nname: Naming River\n---\n# Naming River\n\n%%^Metadata:names:v1%%\n'+
+    '- {name: Naming River, language: Common, status: documented, notes: PRIVATE NAME NOTES}\n'+
+    '- {name: Aistanë, language: Elvish, meaning: blessed water, status: documented}\n%%^End%%\n');
   fs.writeFileSync(path.join(source,'Linked.md'),[
     '---', 'tags: [person]', 'name: Link Example', 'species: human', 'born: 1700-01-01',
     'whereabouts:', '  - {type: home, location: CampaignHidden}', '---', '<!-- taelgar:header -->',
@@ -69,6 +72,35 @@ before(async()=>{
   engine=new Engine(settings);worker=createWorker(instantiate);
 });
 after(()=>{if(directory && isInside(path.join(ROOT,'.cache'),directory))fs.rmSync(directory,{recursive:true});});
+
+test('published language shelves share Node data, require no note shards and support older snapshots',async()=>{
+  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8')),uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
+  assert.equal(index.names.version,1);assert.doesNotMatch(JSON.stringify(index.names),/PRIVATE NAME NOTES/);
+  const storage=new LocalBucket([...uploads,{key:'published/current.json',file:report.pointerFile}]);
+  const app=createWorker(instantiate),environment={...env,CONTENT:storage};
+  const fetch=path=>app.fetch(new Request('https://example.test'+path),environment);
+  const api=await(await fetch('/api/names?view=names&language=Elvish&find=aistane')).json();
+  assert.equal(api.total,1);assert.equal(api.selected.meaning,'blessed water');
+  assert.ok(api.related.some(item=>item.name==='Naming River'));
+  const local=await(await handleRequest(new Request('http://localhost/api/names?view=names&language=Elvish&find=aistane'),engine)).json();
+  assert.deepEqual(api.groups,local.groups);
+  const parts=await(await fetch('/api/names?view=parts')).json();
+  const localParts=await(await handleRequest(new Request('http://localhost/api/names?view=parts'),engine)).json();
+  assert.deepEqual(parts.groups,localParts.groups);
+  assert.equal(parts.input.view,'parts');
+  const html=load(await(await fetch('/names?language=Elvish')).text());
+  assert.equal(html('script[src="/theme/names.js"]').length,1);
+  assert.equal([...storage.calls.keys()].some(key=>key.includes('/notes/')),false);
+  assert.equal(await(await fetch('/theme/names.js')).text(),'/names.js');
+  delete index.names;
+  const legacy=path.join(directory,'legacy-names-index.json');fs.writeFileSync(legacy,JSON.stringify(index));
+  const oldStorage=new LocalBucket([...uploads,{key:'revisions/'+report.revision+'/index.json',file:legacy}]);
+  const snapshot=await loadSnapshot(oldStorage,report.revision,instantiate);
+  const response=await handleRequest(new Request('https://example.test/names'),snapshot.engine);
+  assert.equal(response.status,200);assert.match(await response.text(),/not included in this content publication/);
+  index.names={version:999,entries:[]};fs.writeFileSync(legacy,JSON.stringify(index));
+  await assert.rejects(loadSnapshot(oldStorage,report.revision,instantiate),error=>error.status===503);
+});
 
 test('published campaign homes select per-host content and lock Worker APIs without shared state',async()=>{
   const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));

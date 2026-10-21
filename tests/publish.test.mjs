@@ -167,6 +167,17 @@ test('build fingerprints tolerate Windows line endings and machine paths, but no
   assert.equal(value, buildFingerprint({...settings, ignore_file: 'missing-legacy-ignore.txt', campaigns: ['adma']}, options));
   assert.notEqual(value, buildFingerprint(settings, {...options, maxSize: 4096}));
   assert.notEqual(value, buildFingerprint(settings, {...options, noStrict: true}));
+  const decisionsDirectory=path.join(directory,'_Plugins','Name Explorer');
+  await fs.mkdir(decisionsDirectory,{recursive:true});
+  const decisionFile=path.join(decisionsDirectory,'Name Decisions.jsonl');
+  const nameSettings={...settings,vault_dir:directory};
+  const withoutDecisions=buildFingerprint(nameSettings,options);
+  const record=JSON.stringify({type:'concept',subject:'Example.md',concept:'primary',language:'Common'});
+  await fs.writeFile(decisionFile,record+'\r\n');
+  const withDecisions=buildFingerprint(nameSettings,options);
+  assert.notEqual(withoutDecisions,withDecisions);
+  await fs.writeFile(decisionFile,record+'\n');
+  assert.equal(withDecisions,buildFingerprint(nameSettings,options));
   const home=path.join(directory,'home.md'), otherHome=path.join(directory,'other-home.md');
   await fs.writeFile(home,'# Home\r\n');
   await fs.writeFile(otherHome,'# Home\n');

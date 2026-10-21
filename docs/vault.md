@@ -7,6 +7,13 @@ to update page headers and show or hide marked content.
 After editing the vault, follow [Update the website](deploy.md) to publish your
 changes. Publishing works on copies; it does not rewrite your source notes.
 
+The [name explorer](names.md) also reads structured name blocks and direct
+decisions from the existing vault explorer. Its shelves intentionally span the
+published vault independently of campaign/date/POV selection; article rendering
+keeps the rules described below. Its first-name and surname shelves make an
+explicitly unconfirmed browsing split of personal names, using recorded
+components when available; this does not edit or adopt vault name metadata.
+
 ## Files the website uses
 
 The website includes Markdown notes and these media formats:
