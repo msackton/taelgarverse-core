@@ -580,8 +580,11 @@ outside the experiment.
 ## Local pronunciation experiment
 
 The optional [pronunciation prototype](../experiments/pronunciation/README.md)
-uses `npm run build:pronunciation` to package an Obsidian plugin and
+is available as opt-in **Pronunciation** in the unified Taelgarverse plugin,
+installed locally with `npm run dev -- --plugin --vault PATH`. It also uses
+`npm run build:pronunciation` to package a standalone demo plugin and
 `npm run demo:pronunciation` to create a separate disposable demo vault under
 `.cache/`. These commands perform no deployment, content publication, or remote
 Git write. The guide covers optional Azure credentials through Obsidian
-SecretStorage and the no-key test-tone/browser-preview workflow.
+SecretStorage and the no-key test-tone/device-preview workflow. With a key, Preview
+uses Azure synthesis without saving or linking audio; normal Azure usage charges apply.

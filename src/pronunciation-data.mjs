@@ -37,13 +37,20 @@ export function linkPronunciation(source, audioPath) {
 }
 
 const xml = value => String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[ch]));
+export function speechSsml(input) {
+  const spoken = input.pronunciation ? '<sub alias="' + xml(input.pronunciation) + '">' + xml(input.name) + '</sub>' : input.ipa ?
+    '<phoneme alphabet="ipa" ph="' + xml(input.ipa) + '">' + xml(input.name) + '</phoneme>' : xml(input.name);
+  return '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="' + xml(input.locale) + '"><voice name="' + xml(input.voice) + '">' + spoken + '</voice></speak>';
+}
 export function synthesisInput(metadata, fallback, defaults = {}) {
   const name = typeof metadata.name === 'string' && metadata.name.trim() || fallback;
   const ipa = typeof metadata.pronunciationIPA === 'string' ? metadata.pronunciationIPA.trim().replace(/^\/|\/$/g, '') : '';
+  const pronunciation = typeof metadata.pronunciation === 'string' ? metadata.pronunciation.trim() : '';
   const locale = metadata.pronunciationLocale || defaults.locale || 'en-US';
   const voice = metadata.pronunciationVoice || defaults.voice || 'en-US-JennyNeural';
   if (!/^[a-z]{2,3}-[A-Za-z0-9-]+$/.test(locale) || typeof voice !== 'string' || !voice.trim()) throw new Error('Invalid speech locale or voice');
-  return {name, ipa, locale, voice, ssml: '<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="' + xml(locale) + '"><voice name="' + xml(voice) + '"><phoneme alphabet="ipa" ph="' + xml(ipa) + '">' + xml(name) + '</phoneme></voice></speak>'};
+  const input = {name, ipa, pronunciation, locale, voice};
+  return {...input, ssml: speechSsml(input)};
 }
 
 // Intentionally a recognizable two-note tone, never presented as synthesized speech.

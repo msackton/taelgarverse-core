@@ -55,7 +55,9 @@ test('Azure sends IPA SSML and returns validated WAV; failures never become mock
     return {status: 200, arrayBuffer: mockWav()};
   }};
   assert.equal((await synthesizePronunciation(args)).mock, false); assert.equal(calls, 1);
-  await assert.rejects(synthesizePronunciation({...args, input: {...input, ipa: ''}}), /pronunciationIPA/);
+  const text = synthesisInput({name: 'Zahara', pronunciation: 'zah-HAH-rah'}, 'fallback');
+  const textResult = await synthesizePronunciation({...args, input: text, request: async request => { assert.match(request.body, /<sub alias="zah-HAH-rah">Zahara<\/sub>/); assert.doesNotMatch(request.body, /phoneme/); return {status: 200, arrayBuffer: mockWav()}; }});
+  assert.equal(textResult.mock, false);
   await assert.rejects(synthesizePronunciation({...args, region: 'host/escape'}), /region/);
   await assert.rejects(synthesizePronunciation({...args, request: async () => ({status: 401})}), /HTTP 401/);
   await assert.rejects(synthesizePronunciation({...args, request: async () => ({status: 200, arrayBuffer: new TextEncoder().encode('error').buffer})}), /WAV/);
@@ -97,17 +99,18 @@ class TFile {
   get basename() { return this.path.split('/').at(-1).replace(/\.[^.]+$/, ''); }
 }
 const notices = []; let provider = async () => { throw new Error('Unexpected network request'); };
-const api = {Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {constructor(message) { notices.push(message); }}, TFile,
+const api = {Component: class {} , Plugin: class {}, PluginSettingTab: class {}, Setting: class {}, Notice: class {constructor(message) { notices.push(message); }}, TFile,
   requestUrl: args => provider(args), getFrontMatterInfo: source => ({exists: true, frontmatter: source}), parseYaml: source => parseNote(source).metadata};
-const bundled = buildSync({entryPoints: ['experiments/pronunciation/obsidian/main.mjs'], bundle: true, platform: 'browser', format: 'cjs', external: ['obsidian'], write: false, logLevel: 'silent'}).outputFiles[0].text;
+const bundled = buildSync({entryPoints: ['obsidian/taelgarverse/features/pronunciation.mjs'], bundle: true, platform: 'browser', format: 'cjs', external: ['obsidian', '@codemirror/view'], write: false, logLevel: 'silent'}).outputFiles[0].text;
 const module = {exports: {}}; vm.runInNewContext(bundled, {module, exports: module.exports, require: () => api, Notice: api.Notice, Audio: class {} });
-const Plugin = module.exports.default;
+const Feature = module.exports.PronunciationFeature;
 function pluginFixture(key) {
   const file = new TFile('People/Zahara.md', '---\nname: Zahara\npronunciationIPA: zɑˈhɑːrɑ\n---\n# Zahara\n\nAuthored body.\n');
   const entries = new Map([[file.path, file]]);
-  const plugin = new Plugin(); plugin.settings = {region: 'eastus', secretId: 'test', locale: 'en-US', voice: 'en-US-JennyNeural'};
+  const parent = {settings: {pronunciation: {enabled: true, region: 'eastus', secretId: 'test', locale: 'en-US', voice: 'en-US-JennyNeural'}}};
+  const plugin = new Feature(parent); plugin.enabled = true;
   plugin.generating = new Set(); plugin.linking = new Set();
-  plugin.app = {secretStorage: {getSecret: () => key}, workspace: {getLeavesOfType: () => []}, vault: {
+  parent.app = {secretStorage: {getSecret: () => key}, workspace: {getLeavesOfType: () => []}, vault: {
     getAbstractFileByPath: path => entries.get(path), read: async file => file.data,
     createFolder: async path => entries.set(path, {path}), createBinary: async (path, data) => entries.set(path, new TFile(path, data)),
     modifyBinary: async (file, data) => { file.data = data; }, process: async (file, fn) => { file.data = fn(file.data); }

@@ -73,7 +73,7 @@ flowchart LR
 | `src/backlinks.mjs` | Index authored incoming links and filter them by source availability and visible comment states. |
 | `src/embeds.mjs` | Expand visible note/heading/block embeds, bound recursion, preserve source-relative rendering, and isolate anchors/popups. |
 | `src/maps.mjs`, `src/map-distance.mjs`, `src/map-path.mjs`, `src/browser/map-view.mjs`, `src/browser/map-measurement.mjs` | Map rendering, calibration read from vault `leaflet` blocks, flat point/stroke routes, and shared measurement controls. See [maps](maps.md). |
-| `obsidian/taelgarverse/`, `scripts/build-obsidian.mjs`, `scripts/install-obsidian.mjs`, `scripts/release-obsidian.mjs` | Unified desktop plugin with Maps and opt-in Images. Features share core modules and own their Component cleanup; plugin `images.css` owns inline image placement and sizing, scoped by the Images feature. Self-contained releases go to `msackton/taelgarverse-obsidian` for BRAT; installed artifacts stay outside vault Git. See the [plugin guide](../obsidian/taelgarverse/README.md). |
+| `obsidian/taelgarverse/`, `scripts/build-obsidian.mjs`, `scripts/install-obsidian.mjs`, `scripts/release-obsidian.mjs` | Unified desktop plugin with Maps, opt-in Images, and opt-in Pronunciation. Features share core modules and own their Component cleanup; plugin `images.css` owns inline image placement and sizing, scoped by the Images feature. Self-contained releases go to `msackton/taelgarverse-obsidian` for BRAT; installed artifacts stay outside vault Git. See the [plugin guide](../obsidian/taelgarverse/README.md). |
 | `src/browser/image-viewer.mjs`, `src/browser/image-controls.mjs`, `src/browser/images.mjs`, `public/image-viewer.css` | Shared website/Obsidian image viewer, per-image controls and cleanup. The website entry point is bundled by `scripts/build-browser.mjs`; the Obsidian adapter owns Reading View roots and its host-provided CodeMirror Live Preview extension. See [image delivery](images.md). |
 | `scripts/prepare-obsidian-release.mjs` | Read published source provenance, report changes for agent review, prepare version/compatibility/notes files, and validate offline. No Git writes or publication; the uploader also validates the release-note version heading. |
 | `src/comments.mjs`, `src/markdown.mjs`, `src/dm.mjs` | Conditional prose, Obsidian syntax, link handling, Behind the Curtain notes. |
@@ -252,9 +252,12 @@ edits need link/example checks; they do not require publishing content.
 ## Pronunciation prototype
 
 `src/pronunciation-data.mjs` owns the shared note-to-audio naming convention,
-owned Obsidian embed block, SSML input, and explicit mock WAV. The optional plugin
-under `experiments/pronunciation/obsidian/` bundles those helpers; its Azure
-adapter runs only in Obsidian. It does not change vault CustomJS sources or the
+owned Obsidian embed block, SSML input, and explicit mock WAV.
+`obsidian/taelgarverse/features/pronunciation.mjs` owns the unified plugin feature;
+its `pronunciation-synthesis.mjs` adapter runs only in Obsidian. `pronunciation-names.mjs` parses names metadata and the local Languages reference;
+`pronunciation-editor.mjs` owns inline CodeMirror widgets for Live Preview.
+The standalone
+demo under `experiments/pronunciation/obsidian/` reuses the same component. It does not change vault CustomJS sources or the
 committed Worker header module. `src/pronunciation.mjs` adds playback after
 dynamic header generation from indexed assets, with conditional scripts/styles.
 The existing snapshot/asset schema is unchanged. See the

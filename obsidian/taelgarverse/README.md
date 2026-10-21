@@ -1,7 +1,7 @@
 # Taelgarverse for Obsidian
 
 The unified desktop Taelgarverse plugin: local image maps, calibrated distances,
-freehand tracing, enclosed areas, and an optional image viewer.
+freehand tracing, enclosed areas, an optional image viewer, and opt-in saved pronunciation tools.
 Name Explorer and the materializer remain separate. Requires Obsidian 1.8.0+.
 
 ## Install and update
@@ -61,6 +61,8 @@ pop-out windows). It uses `src/browser/image-controls.mjs`,
 website. Controllers release observers, buttons, event handlers, and open dialogs
 when disabled, rerendered, or unloaded. Caption extraction understands native
 Obsidian image callouts and per-item galleries, as well as HTML figures.
+
+`features/pronunciation.mjs` owns the opt-in generation controls, native header audio links, timers, playback and cleanup. Its settings are nested under `pronunciation`, preserving Maps and Images preferences. The Azure adapter in `pronunciation-synthesis.mjs` is bundled only for Obsidian; shared path and header helpers live in `src/pronunciation-data.mjs`.
 
 Future features should be separate modules owned by the parent plugin. Add
 dependencies only where a feature needs them. Website and plugin versions are
@@ -148,3 +150,59 @@ This feature uses Obsidian's existing image resource URLs. It does not create
 thumbnails or tiles, write to the vault, or download remote images in the
 background. Maps keep their own controls. Turn the setting off to remove the
 image controls and inline styling and close open viewers; map functionality is independent.
+
+## Pronunciation (local experiment)
+
+In **Settings → Taelgarverse → Pronunciation**, turn on **Enable pronunciation
+tools**. This is off by default. Generate is then available in Reading View below
+the note title, beside each names metadata entry in Live Preview, in the note
+toolbar, the ribbon, and the command palette.
+**Preview** uses the same Azure voice, language, and text/IPA settings as Generate
+when a key is configured. It plays a temporary clip without saving or linking it
+(Azure usage charges still apply). Without a key it explicitly selects an available
+device voice matching the language; this fallback is approximate and cannot interpret IPA.
+If no matching device voice exists, Preview reports that instead of speaking in a different language.
+Without an Azure key, Generate saves an explicitly labeled test-tone WAV.
+
+For real synthesis, use the written pronunciation in a names metadata entry (or
+frontmatter), and select/create the
+Azure Speech key secret in these same settings (Obsidian 1.11.4+), then set the
+resource region, locale, and voice. Credentials from a separate demo vault must
+be configured in the real vault as appropriate; the installer never copies keys.
+See the [pronunciation guide](../../experiments/pronunciation/README.md) for
+Azure setup, path conventions, supported fields, and prototype limitations.
+
+Generation saves WAV under `assets/pronunciation/<note path without .md>.wav`.
+Existing real WAV/MP3 takes precedence over `.mock.wav` test tones. The plugin
+maintains a small owned native embed after a leading H1 and can restore it after
+CustomJS header regeneration. It does not synthesize on opening a note or scan
+all notes. Disable pronunciation to remove its controls, discard pending
+generation responses, and stop automatic link maintenance; saved clips and
+native embeds remain. The website discovers indexed clips independently.
+
+This worktree build is for local testing, not a published plugin release. Local
+installation keeps the manifest version; BRAT updating the plugin can replace
+this development build.
+
+Generate audio is also available directly beside rows in the
+`%%^Metadata:names:v1%%` section in Live Preview. It uses each row's written
+`pronunciation` and documented `language`, with selectable real-world analogs
+read from `Background/Languages.md`. Unknown or ambiguous mappings are labeled;
+no fictional language is presented as a native Azure voice. Primary names keep
+the note's existing audio path; aliases get separate clips. Name rows remain
+editable and unchanged. See the [names metadata guide](../../experiments/pronunciation/README.md#names-metadata-and-live-preview).
+
+A names row that supplies either `pronunciation` or `pronunciationIPA` overrides
+both frontmatter pronunciation fields for that name. Within the row, a written
+`pronunciation` guide takes precedence over IPA. The primary name inherits the
+frontmatter guide/IPA only when its row supplies neither.
+
+Each names row also has **Default voice / Female / Male** and
+**Default input**, **Pronunciation / IPA**, or **Name only** input choices. The
+**Pronunciation / IPA** option uses the written guide or optional IPA;
+**Name only** ignores both and pronounces the name using the selected language.
+Choices are saved per note/name in plugin settings, apply to Preview and Generate,
+and leave the note text unchanged. Defaults can be set under Pronunciation in
+plugin settings. A specific `pronunciationVoice` override fixes the voice and
+disables the male/female selector. Male/female selection requires Azure; browser
+voices do not expose gender. Existing saved audio changes only after Regenerate.

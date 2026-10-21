@@ -452,7 +452,27 @@ optional saved name playback. A clip under
 automatically after the page header is generated. Optional `pronunciationIPA`
 is displayed beside the player. `.mock.wav` clips are explicitly labeled test
 tones and are used only when no real clip exists. Notes without a matching clip
-retain their existing header. The prototype Obsidian plugin maintains a native
-audio embed and provides Generate and browser-preview controls; it is installed
-separately and never runs synthesis during website rendering. See the prototype
+retain their existing header. The opt-in Pronunciation feature in the unified Taelgarverse plugin maintains a
+native audio embed and provides Generate and Preview controls (Azure when configured, otherwise a matching device voice); it is
+enabled in that plugin’s settings and never runs synthesis during website rendering. See the prototype
 guide for credential setup, field overrides, and current limitations.
+
+In Obsidian's Live Preview, the local pronunciation feature can generate from
+`name`, `language`, and written `pronunciation` in `Metadata:names:v1` rows,
+without adding frontmatter IPA. It reads documented real-world analogs from the
+vault's Languages note to select an Azure locale. This changes authoring controls,
+not publication visibility: the names metadata block remains hidden on the
+website. Only the primary name's conventional saved clip is attached to the page
+header; alternate-name clips remain ordinary assets. See the
+[names metadata guide](../experiments/pronunciation/README.md#names-metadata-and-live-preview).
+
+A names row that supplies either `pronunciation` or `pronunciationIPA` overrides
+both frontmatter pronunciation fields for that name. Within the row, a written
+`pronunciation` guide takes precedence over IPA. The primary name inherits the
+frontmatter guide/IPA only when its row supplies neither.
+
+Names-row voice and input choices are kept in plugin settings, not note
+metadata. Female/Male selects an Azure voice for the chosen locale; a specific
+`pronunciationVoice` override remains authoritative. Name only ignores both
+written pronunciation and IPA while retaining language and voice. Preview and
+Generate share these choices; existing saved audio changes on Regenerate.
