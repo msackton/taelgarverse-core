@@ -41,7 +41,7 @@ class InteractionsChild extends MarkdownRenderChild {
       const results=campaigns.filter(campaign=>this.selected==='all' || campaign.code===this.selected).map(campaign=>localInteractions(snapshot,this.path,campaign,this.date,this.feature.app));
       const groups=results.map(result=>result.group),links=new Map(results.flatMap(result=>[...result.links]));
       const knowledgeOnly=groups.every(group=>!group.events.length);
-      const compact=groups.every(group=>!interactionParts(group.events).beats.length);
+      const compact=groups.every(group=>!interactionParts(group.events).sessions.length);
       element.classList.toggle('taelgar-interactions--knowledge-only',knowledgeOnly);
       element.classList.toggle('taelgar-interactions--compact',compact);
       const output=element.ownerDocument.createElement('div');

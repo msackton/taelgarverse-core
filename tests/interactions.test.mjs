@@ -9,7 +9,7 @@ import {buildBacklinkIndex} from '../src/backlinks.mjs';
 import {compileInteractionIndex,campaignInteractions,interactionDate} from '../src/campaign-interactions.mjs';
 import {parseSessionRecap,readInteractionBundles} from '../src/session-interactions.mjs';
 import {interactionSummary,interactionView} from '../src/interaction-view.mjs';
-import {groupInteractions,interactionDay} from '../src/browser/interaction-groups.mjs';
+import {interactionDateLabel} from '../src/browser/interaction-groups.mjs';
 import {mountInteractions} from '../src/browser/interactions.mjs';
 import {imageDOM} from './helpers/image-dom.mjs';
 import {RenderEngine,document} from '../src/render-engine.mjs';
@@ -22,61 +22,64 @@ function storeFor(notes){return new ContentStore(Object.entries(notes).map(([id,
 const context=(date='1720-01-05',campaigns=['clee'],dm=false)=>({id:'custom',kind:'custom',date,campaigns,dm});
 const person='---\ntags: [person]\nknownTo: [clee]\ncampaignInfo: [{campaign: clee, date: 1720-01-01, type: Fought alongside}]\n---\n# Person\nBiography.';
 const session='---\ntags: [session-note]\ncampaign: Cleenseau\nsessionNumber: 12.1\nDR: 1720-01-01\nDR_end: 1720-01-03\n---\n# Session\n[[Person]]\nCompletely different generated prose.';
-const recap=['# Session Recap','## Session Header','- Campaign: Cleenseau','- Session Number: 12.1','- Desc Title: At the Inn','- DR Date: 1720-01-01 to 1720-01-03','## Recap',
+const recap=['# Session Recap','## Session Header','- Campaign: Cleenseau','- Session Number: 12.1','- Desc Title: At the Inn','- Tagline: A session-level description.','- DR Date: 1720-01-01 to 1720-01-03','## Recap',
   '### recap-001 | Meeting','- Date: 1720-01-01','- NPCs: Person, [[Person]]','- Locations: Inn','#### Short','The party met [[Person]] at the inn.','#### Long','Long narrative that is neither Short nor published prose.',
   '### recap-002 | A secret','- Date: 1720-01-02','- NPCs: Person','#### Short','%%^Campaign:none%%Person revealed a secret.%%^End%%','#### Long','Secret long narrative.',
   '### recap-003 | Returning','- Date: 1720-01-03','- NPCs: Person','#### Short','%%^Date:1720-01-04%%Person returned to town.%%^End%%','#### Long','A longer account.',
   '### recap-004 | Another beat','- Date: 1720-01-03','- NPCs: Person','#### Short','An authoritative independent beat.','#### Long','Another long account.',
-  '## Cast','### NPCs','- Another (mentioned): a person named in conversation','## Source Files','- Cleaned Source: /private/transcript.md'].join('\n');
+  '## Cast','### NPCs','- [[Person]] (met): innkeeper','- Another (mentioned): a person named in conversation','## Source Files','- Cleaned Source: /private/transcript.md'].join('\n');
 function sample(extra={}){const store=storeFor({'Person.md':person,'Another.md':'---\ntags: [person]\n---\n# Another',...extra});const index=compileInteractionIndex(store,registry,buildBacklinkIndex(store),[parseSessionRecap(recap,'recap')]);return {store,index};}
 const eventsFor=(store,index,ctx=context())=>campaignInteractions(index,store,store.resolve('Person'),ctx,registry)[0]?.events || [];
 
-test('recap beats exist without session notes and use Short independently of Long or cast mentions',()=>{
+test('Cast met membership alone creates one session encounter; beats are never inputs',()=>{
   const {store,index}=sample(),events=eventsFor(store,index);
-  assert.equal(index.version,2);
-  assert.deepEqual(events.map(event=>event.title),['Meeting','Returning','Another beat']);
-  assert.equal(events[0].text,'The party met Person at the inn.');
-  assert.equal(events[0].sourceTitle,'At the Inn');assert.equal(events[0].sessionLabel,'Session 12.1');assert.equal(events[0].url,null);
-  assert.equal(index.byTarget.another,undefined);
-  assert.doesNotMatch(JSON.stringify(index),/Long narrative|long account|private\/transcript|Source Range|session-recap\.md/);
-  assert.equal(campaignInteractions(index,store,store.resolve('Person'),context(),registry)[0].known,true);
-  assert.equal(events.some(event=>event.kind==='authored'),false);
-  assert.deepEqual(campaignInteractions(index,store,store.resolve('Person'),context('1720-01-05',[]),registry),[]);
-  assert.deepEqual(campaignInteractions(index,store,store.resolve('Person'),context('1720-01-05',['mawar']),registry),[{code:'mawar',label:'Mawar Adventures',known:false,events:[]}]);
+  assert.equal(index.version,2);assert.equal(events.length,1);
+  assert.equal(events[0].id,'recap:clee:12.1');assert.equal(events[0].title,'At the Inn');
+  assert.equal(events[0].text,'A session-level description.');assert.equal(events[0].location,'');
+  assert.equal(events[0].start,'1720-01-01');assert.equal(events[0].end,'1720-01-03');
+  assert.equal(events[0].transcriptUrl,undefined);assert.equal(events[0].url,null);
+  assert.equal(index.byTarget.another,undefined);assert.equal(Object.keys(index.transcripts).length,0);
+  const noBeats=recap.replace(/## Recap[\s\S]*?(?=## Cast)/,'');
+  const brokenBeats=recap.replace('The party met [[Person]] at the inn.','%% broken');
+  for(const source of [noBeats,brokenBeats,recap.replaceAll('- NPCs: Person','- NPCs: Someone Else')]) {
+    const compiled=compileInteractionIndex(store,registry,null,[parseSessionRecap(source)]);
+    assert.deepEqual(eventsFor(store,compiled),events,'beat contents cannot change the session record');
+  }
+  assert.doesNotMatch(JSON.stringify(index),/Meeting|Returning|authoritative independent beat|Long narrative|recap-001/);
+  assert.match(interactionSummary(campaignInteractions(index,store,store.resolve('Person'),context(),registry)),/1 encounter/);
   assert.deepEqual(interactionDate('1720'),{start:'1720-01-01',end:'1720-12-31',precision:'year'});
   assert.equal(interactionDate('1720-02-29'),null);
 });
 
-test('renamed, duplicate, excluded and malformed session notes cannot affect recap beats',()=>{
-  const expected=sample(),actual=sample({'Campaigns/Clee/Session 12.1.md':session,'Campaigns/Clee/Old session.md':session+'\n%% broken'});
-  actual.store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.excludePublish=['clee'];
-  const beats=events=>events.map(({sessionUrl,...beat})=>beat);
-  assert.deepEqual(beats(eventsFor(actual.store,actual.index)),beats(eventsFor(expected.store,expected.index)));
-  const plain=compileInteractionIndex(actual.store,registry,buildBacklinkIndex(actual.store));
-  assert.equal(eventsFor(actual.store,plain).length,0);
+test('only explicit met statuses qualify, with resolved links, duplicate names and ambiguous Cast entries',()=>{
+  const {store}=sample(),compile=source=>compileInteractionIndex(store,registry,null,[parseSessionRecap(source)]);
+  for(const status of ['mentioned','enemy','fought','deceased','unmet'])
+    assert.equal(eventsFor(store,compile(recap.replace('(met):','('+status+'):'))).length,0,status);
+  for(const status of ['met','companion, met','met, fought'])
+    assert.equal(eventsFor(store,compile(recap.replace('(met):','('+status+'):'))).length,1,status);
+  assert.equal(eventsFor(store,compile(recap.replace('- [[Person]] (met): innkeeper',''))).length,0);
+  assert.equal(eventsFor(store,compile(recap.replace('[[Person]] (met)','[[Person|Innkeeper]] (met)'))).length,1);
+  assert.equal(eventsFor(store,compile(recap.replace('### NPCs','### NPCs\n- Person (met): duplicate'))).length,1);
+  const old=structuredClone(compile(recap));delete old.byTarget.person[0].scope;
+  assert.equal(eventsFor(store,old).length,0,'old beat projections need republication');
 });
 
-test('the recap owns its campaign/date/DM conditions and date intervals',()=>{
-  const {store,index}=sample();
-  assert.deepEqual(eventsFor(store,index,context('1720-01-02')).map(event=>event.title),['Meeting']);
-  assert.deepEqual(eventsFor(store,index,context('1720-01-03')).map(event=>event.title),['Meeting','Another beat']);
-  assert.equal(eventsFor(store,index,context('1720-01-05',['clee'],true)).length,4);
-  const bundle=parseSessionRecap(recap);bundle.scenes[0].short='Public. %%^Campaign:mawar%%Mawar detail.%%^End%%';
-  const compiled=compileInteractionIndex(store,registry,buildBacklinkIndex(store),[bundle]);
-  assert.equal(eventsFor(store,compiled)[0].text,'Public.');
-  assert.equal(eventsFor(store,compiled,context('1720-01-05',['clee','mawar']))[0].text,'Public. Mawar detail.');
-  bundle.scenes[0].date='1721-01-01';bundle.scenes[0].end='1720-01-01';
-  const inverted=compileInteractionIndex(store,registry,null,[bundle]);
-  assert.match(inverted.warnings.join('\n'),/inverted dates for recap-001/);
-  assert.equal(eventsFor(store,inverted).some(event=>event.title==='Meeting'),false);
-  bundle.scenes[0].date=null;bundle.scenes[0].end=null;
-  const undated=compileInteractionIndex(store,registry,null,[bundle]);
-  assert.equal(eventsFor(store,undated,context('1720-01-02')).some(event=>event.title==='Meeting'),false);
-  const event=eventsFor(store,undated).find(event=>event.title==='Meeting');
-  assert.equal(event.precision,'undated');assert.equal(event.start,null);
+test('session metadata controls the popup and dates; full-session visibility is applied once',()=>{
+  const {store,index}=sample({'Session.md':session}),metadata=store.resolve('Session').note.metadata;
+  metadata.descTitle='Full session title';metadata.tagline='Full session description.';
+  const event=eventsFor(store,index)[0];
+  assert.equal(event.title,'Full session title');assert.equal(event.text,'Full session description.');
+  assert.match(event.sessionUrl,/page\/session\?/);assert.equal(eventsFor(store,index,context('1720-01-02')).length,0);
+  assert.equal(eventsFor(store,index,context('1720-01-03')).length,1);
+  metadata.tagline='Public. %%^Campaign:none%%DM detail.%%^End%%';
+  assert.equal(eventsFor(store,index)[0].text,'Public.');
+  assert.equal(eventsFor(store,index,context('1720-01-05',['clee'],true))[0].text,'Public. DM detail.');
+  metadata.DR='1720-01-04';metadata.DR_end='1720-01-06';
+  assert.equal(eventsFor(store,index).length,0,'official session end controls availability');
+  assert.equal(eventsFor(store,index,context('1720-01-06'))[0].start,'1720-01-04');
 });
 
-test('session links prefer the registry path, preserve context, and omit ambiguous or unavailable destinations',()=>{
+test('session links prefer the registry path, preserve context, and omit ambiguous destinations',()=>{
   const campaigns={campaigns:{cleenseau:{...registry.campaigns.cleenseau,notePattern:'Session {session_padded}.md'}}};
   const {store}=sample({'Campaigns/Clee/Session 12.1.md':session,'Campaigns/Clee/Legacy.md':session});
   const index=compileInteractionIndex(store,campaigns,null,[parseSessionRecap(recap)]);
@@ -86,7 +89,7 @@ test('session links prefer the registry path, preserve context, and omit ambiguo
   store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.excludePublish=['clee'];
   assert.match(events()[0].sessionUrl,/legacy\?/);
   store.lookup('Campaigns/Clee/Legacy.md').entry.note.metadata.excludePublish=['clee'];
-  assert.equal(events()[0].sessionUrl,null);assert.equal(events().length,4);
+  assert.equal(events()[0].sessionUrl,null);assert.equal(events().length,1);
   const ambiguous=compileInteractionIndex(store,registry,null,[parseSessionRecap(recap)]);
   for(const entry of store.bySlug.values())delete entry.note.metadata.excludePublish;
   assert.equal(eventsFor(store,ambiguous)[0].sessionUrl,null);
@@ -135,13 +138,12 @@ test('missing recaps fall back to explicit links in the official session note, w
   assert.equal(events(context()).length,0,'an unavailable official note does not switch to a legacy duplicate');
 });
 
-test('recap presence suppresses whole-session fallbacks even for empty, invalid, duplicate and hidden beats',()=>{
+test('recap presence suppresses whole-session fallbacks even for empty, invalid or duplicate Cast data',()=>{
   const store=storeFor({'Person.md':person,'Legacy.md':session}),backlinks=buildBacklinkIndex(store);
   const eventList=bundles=>eventsFor(store,compileInteractionIndex(store,registry,backlinks,bundles));
   assert.equal(eventList([])[0].kind,'session-reference','one legacy metadata candidate is accepted');
   const bundle=parseSessionRecap(recap);
-  for(const bundles of [[bundle],[{...bundle,scenes:[]}],[bundle,bundle],[{...bundle,scenes:[{...bundle.scenes[0],short:''}]}],
-    [{...bundle,scenes:[{...bundle.scenes[0],people:['Someone Else']}]}],
+  for(const bundles of [[bundle],[{...bundle,metPeople:[]}],[bundle,bundle],
     [{key:'_sessions/cleenseau/cleenseau-012.1/cleaned/broken-session-recap.md',invalid:true}]]) {
     assert.ok(eventList(bundles).every(event=>event.kind!=='session-reference'));
   }
@@ -151,18 +153,19 @@ test('recap presence suppresses whole-session fallbacks even for empty, invalid,
   const undated=eventList([])[0];assert.equal(undated.start,null);assert.equal(undated.precision,'undated');
 });
 
-test('recap date and both source links appear in browser details and the no-JS fallback',()=>{
+test('session dates and only the full-session link appear in browser details and the no-JS fallback',()=>{
   const {store,index}=sample({'Session.md':session});
   index.transcripts['recap:clee:12.1:recap-001']='Person: A polished conversation.';
   const groups=campaignInteractions(index,store,store.resolve('Person'),context(),registry);
   const {document}=parseHTML('<html><body>'+interactionView(groups)+'</body></html>'),root=document.querySelector('[data-interaction-campaign]');
-  assert.match(root.querySelector('.interaction-fallback li').textContent,/1720-01-01 DR/);
-  assert.equal(root.querySelectorAll('.interaction-fallback li:first-child .interaction-sources a').length,2);
+  assert.equal(root.querySelectorAll('.interaction-fallback li').length,1);
+  assert.match(root.querySelector('.interaction-fallback li').textContent,/1720-01-01–1720-01-03 DR/);
+  assert.equal(root.querySelectorAll('.interaction-fallback li:first-child .interaction-sources a').length,1);
   mountInteractions(root);
   assert.equal(root.querySelector('.interaction-detail').hidden,true);
   root.querySelector('.interaction-dot').click();
-  assert.match(root.querySelector('.interaction-detail').textContent,/1720-01-01 DR/);
-  assert.deepEqual([...root.querySelectorAll('.interaction-detail .interaction-sources a')].map(link=>link.textContent),['Session 12.1','Transcript']);
+  assert.match(root.querySelector('.interaction-detail').textContent,/1720-01-01–1720-01-03 DR/);
+  assert.deepEqual([...root.querySelectorAll('.interaction-detail .interaction-sources a')].map(link=>link.textContent),['Session 12.1']);
   assert.equal(root.querySelector('.interaction-detail a').getAttribute('href'),groups[0].events[0].sessionUrl);
 });
 
@@ -186,7 +189,7 @@ test('only non-session campaign-folder backlinks supplement recap beats and pres
   assert.equal(eventsFor(store,index).some(event=>event.kind==='reference'),false);
   const legacy={...index,backlinkVersion:1};
   assert.equal(eventsFor(store,legacy,context('1720-01-06',['clee','mawar'],true)).some(event=>event.kind==='reference'),false);
-  assert.equal(eventsFor(store,legacy,context('1720-01-06',['clee','mawar'],true)).filter(event=>event.kind==='encounter').length,4);
+  assert.equal(eventsFor(store,legacy,context('1720-01-06',['clee','mawar'],true)).filter(event=>event.kind==='encounter').length,1);
 });
 
 test('untagged, meta and background sources are excluded from both new and older compiled reference lists',()=>{
@@ -209,7 +212,7 @@ test('untagged, meta and background sources are excluded from both new and older
     older.byTarget.person.push({id:'reference:clee:'+source,kind:'reference',source,campaign:'clee',when:[{}]});
   }
   assert.deepEqual(eventsFor(store,older).filter(event=>event.kind==='reference').map(event=>event.title),['Allowed']);
-  assert.equal(eventsFor(store,older).filter(event=>event.kind==='encounter').length,3);
+  assert.equal(eventsFor(store,older).filter(event=>event.kind==='encounter').length,1);
   store.lookup('Campaigns/Clee/Allowed.md').entry.note.metadata.tags=['source','background'];
   assert.equal(eventsFor(store,index).filter(event=>event.kind==='reference').length,0,'changed metadata also filters an existing index');
 });
@@ -241,24 +244,22 @@ test('the website shows only knownTo campaigns in the active context, even when 
   }
 });
 
-test('ambiguous names, duplicate recap identities and duplicate beat IDs are diagnosed without arbitrary selection',()=>{
+test('ambiguous Cast names and duplicate recap identities are diagnosed without arbitrary selection',()=>{
   const bundle=parseSessionRecap(recap),store=storeFor({'A/Person.md':person,'B/Person.md':person});
   const ambiguous=compileInteractionIndex(store,registry,null,[bundle]);
-  assert.match(ambiguous.warnings.join('\n'),/ambiguous person Person/);assert.equal(Object.keys(ambiguous.byTarget).length,0);
+  assert.match(ambiguous.warnings.join('\n'),/ambiguous person \[\[Person\]\]/);assert.equal(Object.keys(ambiguous.byTarget).length,0);
   const normal=sample().store,duplicated=compileInteractionIndex(normal,registry,null,[bundle,bundle]);
   assert.equal(Object.keys(duplicated.byTarget).length,0);assert.match(duplicated.warnings.join('\n'),/duplicate recap identity/);
-  bundle.scenes.push({...bundle.scenes[0]});
-  const repeated=compileInteractionIndex(normal,registry,null,[bundle]);
-  assert.match(repeated.warnings.join('\n'),/duplicate beat recap-001/);
-  assert.equal(eventsFor(normal,repeated).some(event=>event.title==='Meeting'),false);
 });
 
-test('missing Short and malformed recap comments omit only that beat, without falling back to Long',()=>{
+test('session fallback metadata preserves conditional text without reading beat conditions',()=>{
   const {store}=sample(),bundle=parseSessionRecap(recap);
-  bundle.scenes[0].short='';bundle.scenes[1].short='%% broken';
+  bundle.tagline='Public. %%^Campaign:mawar%%Mawar detail.%%^End%%';
   const index=compileInteractionIndex(store,registry,null,[bundle]);
-  assert.match(index.warnings.join('\n'),/missing visible Short/);assert.match(index.warnings.join('\n'),/recap-002 omitted/);
-  assert.deepEqual(eventsFor(store,index).map(event=>event.title),['Returning','Another beat']);
+  assert.equal(eventsFor(store,index)[0].text,'Public.');
+  assert.equal(eventsFor(store,index,context('1720-01-05',['clee','mawar']))[0].text,'Public. Mawar detail.');
+  bundle.tagline='%% broken';
+  assert.match(compileInteractionIndex(store,registry,null,[bundle]).warnings.join('\n'),/session omitted/);
 });
 
 test('serialized projections are stable across requests and rendering retains recap data without header event extraction',()=>{
@@ -267,7 +268,7 @@ test('serialized projections are stable across requests and rendering retains re
   eventsFor(store,index,context('1722-01-01',['clee','mawar'],true));assert.equal(JSON.stringify(index),before);
   const engine=new RenderEngine({settings:{default_date:'1720-01-05'},store,headers:{registry},renderHeader:()=>'',navigationSource:null,backlinkIndex:buildBacklinkIndex(store),interactionIndex:index});
   const result=engine.render('Person','1720-01-05','custom',false,undefined,['clee']);
-  assert.match(result.html,/campaign-interactions/);assert.equal(result.interactions[0].events.length,3);
+  assert.match(result.html,/campaign-interactions/);assert.equal(result.interactions[0].events.length,1);
   assert.match(document(result,[]),/theme\/interactions\.js/);
 });
 
@@ -313,7 +314,7 @@ test('campaign material uses typed links outside the dots and encounter counts, 
   assert.ok(references.every(event=>event.start===null),'document dates never become encounter dates');
   const {document}=parseHTML('<html><body>'+interactionSummary(groups)+interactionView(groups)+'</body></html>');
   const root=document.querySelector('[data-interaction-campaign]');
-  assert.equal(root.querySelectorAll('.interaction-fallback li').length,3);
+  assert.equal(root.querySelectorAll('.interaction-fallback li').length,1);
   assert.equal(root.querySelectorAll('.interaction-reference-links a').length,27);
   assert.equal(root.querySelectorAll('.interaction-reference-body > .interaction-reference-links a').length,13);
   assert.equal(root.querySelectorAll('.interaction-reference-more a').length,14);
@@ -322,11 +323,11 @@ test('campaign material uses typed links outside the dots and encounter counts, 
   assert.equal(root.querySelector('[data-reference-kind="story"] a').textContent,'Reference 02');
   assert.equal(root.querySelector('[data-reference-kind="document"] a').textContent,'Reference 01');
   assert.match(root.querySelector('.interaction-reference-links a').getAttribute('href'),/date=1720-01-05&campaigns=clee/);
-  assert.match(document.querySelector('.campaign-interaction-summary').textContent,/3 encounters, 27 references/);
-  assert.equal(JSON.parse(root.querySelector('[data-interaction-records]').textContent).events.length,3);
+  assert.match(document.querySelector('.campaign-interaction-summary').textContent,/1 encounter, 27 references/);
+  assert.equal(JSON.parse(root.querySelector('[data-interaction-records]').textContent).events.length,1);
   mountInteractions(root);
-  assert.equal(root.querySelectorAll('.interaction-dot').length,3,'references do not force automatic session grouping');
-  assert.match(root.querySelector('.interaction-breadcrumb').textContent,/^3 recorded entries/);
+  assert.equal(root.querySelectorAll('.interaction-dot').length,1,'references do not create extra dots');
+  assert.match(root.querySelector('.interaction-breadcrumb').textContent,/^1 recorded session/);
   assert.equal(root.querySelector('.interaction-references').hidden,false);
   assert.doesNotMatch(root.querySelector('.interaction-detail').textContent,/Reference 0/);
   const referencesOnly=[{...groups[0],events:references}];
@@ -363,28 +364,16 @@ test('related material has one row per nonempty type with independently sorted a
   assert.equal(document.querySelector('[data-reference-kind="item"] details'),null);
 });
 
-test('undated recap beats retain their session when grouped by date, without borrowing a beat date',()=>{
-  const {store}=sample(),bundle=parseSessionRecap(recap);bundle.scenes=[{...bundle.scenes[0],date:null,end:null}];
-  const later={...structuredClone(bundle),number:'13',date:'1720-01-07',end:null};
-  const index=compileInteractionIndex(store,registry,null,[later,bundle]);
-  const events=eventsFor(store,index,context('1720-01-08'));
-  assert.deepEqual(events.map(event=>event.sessionLabel),['Session 12.1','Session 13']);
-  assert.ok(events.every(event=>event.start===null && event.end===null && event.precision==='undated'));
-  for(const mode of ['session','day','week','event']) {
-    const grouped=groupInteractions(events,mode);
-    assert.equal(grouped.length,2,mode+' retains separate sessions');
-    assert.deepEqual(grouped.flatMap(group=>group.events.map(event=>event.id)),events.map(event=>event.id));
-  }
-  const grouped=groupInteractions(events,'day');
-  assert.match(grouped[0].title,/Session 12\.1 · Date unrecorded/);
-  const {document}=parseHTML('<html><body>'+interactionView([{label:'Cleenseau',known:true,events}])+'</body></html>');
-  assert.equal(document.querySelector('.interaction-fallback li > span').textContent,'Date unrecorded');
-  assert.match(document.querySelector('.interaction-fallback').textContent,/Session 12\.1/);
+test('same-date and undated sessions retain their own identity without inventing dates from beats',()=>{
+  const {store}=sample(),first=parseSessionRecap(recap),second={...first,number:'13'};
+  const index=compileInteractionIndex(store,registry,null,[first,second]);
+  assert.deepEqual(eventsFor(store,index).map(event=>event.sessionLabel),['Session 12.1','Session 13']);
+  first.date=null;first.end=null;
+  const unknown=eventsFor(store,compileInteractionIndex(store,registry,null,[first]))[0];
+  assert.equal(unknown.start,null);assert.equal(unknown.precision,'undated');
+  const {document}=parseHTML('<html><body>'+interactionView([{label:'Cleenseau',known:true,events:[unknown]}])+'</body></html>');
   const root=document.querySelector('[data-interaction-campaign]');mountInteractions(root);
-  assert.match(root.querySelector('.interaction-dot-date').textContent,/Session 12\.1 · Date unrecorded/);
-  root.querySelector('.interaction-dot').click();
-  assert.match(root.querySelector('.interaction-detail').textContent,/Session dates: 1720-01-01–1720-01-03 DR/);
-  assert.doesNotMatch(root.querySelector('.interaction-dot-date').textContent,/1720-01-01/);
+  assert.match(root.querySelector('.interaction-dot-date').textContent,/Date unrecorded/);
 });
 
 test('reference labels are escaped and unrecognized reference types use a neutral icon',()=>{
@@ -396,44 +385,33 @@ test('reference labels are escaped and unrecognized reference types use a neutra
   assert.equal(document.querySelector('.interaction-campaign-header h3').textContent,'Campaign <a>');
 });
 
-test('dot grouping retains 27 entries, respects spans/undated records, and uses the no-leap-day DR calendar',()=>{
-  const events=Array.from({length:27},(_,i)=>({id:String(i),title:'Interaction '+i,start:'1720-01-'+String(1+Math.floor(i/3)).padStart(2,'0'),end:'1720-01-'+String(1+Math.floor(i/3)).padStart(2,'0'),precision:'day',session:'s'+Math.floor(i/5),sessionLabel:'Session '+Math.floor(i/5)}));
-  for(const mode of ['auto','session','day','week','event'])assert.equal(groupInteractions(events,mode).flatMap(group=>group.events).length,27);
-  assert.equal(groupInteractions(events,'auto').length,6);assert.equal(groupInteractions(events,'day').length,9);assert.equal(groupInteractions(events,'week').length,2);
-  assert.equal(groupInteractions(events,'auto')[0].dateLabel,'1720-01-01–1720-01-02');
-  const month={...events[0],start:'1720-02-01',end:'1720-02-28',precision:'month'};
-  assert.equal(groupInteractions([month,{...month,id:'other'}],'session')[0].dateLabel,'Feb 1720');
-  const undated={...events[0],id:'undated',start:null,end:null,sessionStart:'1720-01-01'};
-  assert.equal(groupInteractions([events[0],undated],'session')[0].dateLabel,'1720-01-01 · undated');
-  assert.equal(groupInteractions([undated,{...undated,id:'other'}],'session')[0].dateLabel,'Date unrecorded');
-  assert.equal(groupInteractions(events.slice(0,3),'auto').length,3);
-  assert.equal(interactionDay('1720-03-01')-interactionDay('1720-02-28'),1);
-  const span={...events[0],end:'1720-01-10',precision:'range'};
-  assert.match(groupInteractions([span],'day')[0].title,/1720-01-01–1720-01-10/);
-  assert.equal(groupInteractions([{...span,start:null,end:null}],'week')[0].title,'Session 0 · Date unrecorded');
+test('session dates retain year, month, range and undated precision without grouping',()=>{
+  assert.equal(interactionDateLabel({start:'1720-02-01',end:'1720-02-28',precision:'month'}),'Feb 1720');
+  assert.equal(interactionDateLabel({start:'1720-01-01',end:'1720-12-31',precision:'year'}),'1720');
+  assert.equal(interactionDateLabel({start:'1720-01-01',end:'1720-01-03',precision:'range'}),'1720-01-01–1720-01-03');
+  assert.equal(interactionDateLabel({start:null,sessionLabel:'Session 1'}),'Session 1 · Date unrecorded');
 });
 
-test('browser dots select details and zoom into/out of groups, with an accessible no-JS fallback',()=>{
+test('session dots open details directly in long histories, with an accessible no-JS fallback',()=>{
   const events=Array.from({length:27},(_,i)=>({id:String(i),kind:'encounter',title:'Interaction '+i,text:'Original text '+i,start:'1720-01-01',end:'1720-01-01',precision:'day',session:'s'+Math.floor(i/5),sessionLabel:'Session '+Math.floor(i/5),sourceTitle:'Session',url:'/page/session?context=cleenseau'}));
-  const groups=[{label:'Cleenseau',code:'clee',known:true,events}],markup=interactionView(groups);
+  const sessions=events.slice(0,6).map((event,i)=>({...event,id:'session-'+i,session:'s'+i,title:'Session '+i}));
+  const groups=[{label:'Cleenseau',code:'clee',known:true,events:sessions}],markup=interactionView(groups);
   const {document}=parseHTML('<html><body>'+interactionSummary(groups)+markup+'</body></html>');
   const root=document.querySelector('[data-interaction-campaign]');
-  assert.equal(root.querySelectorAll('.interaction-fallback li').length,27);
+  assert.equal(root.querySelectorAll('.interaction-fallback li').length,6);
   mountInteractions(root);assert.equal(root.querySelector('.interaction-fallback').hidden,true);
   assert.equal(root.querySelector('select'),null,'grouping is automatic without a selector');
-  assert.equal(root.querySelector('.interaction-controls').hidden,true,'zoom out is absent until zoomed in');
+  assert.equal(root.querySelector('.interaction-controls'),null,'session dots need no zoom controls');
   assert.equal(root.querySelector('.interaction-detail').hidden,true,'nothing is expanded on initial render');
   assert.equal(root.querySelectorAll('.interaction-dot').length,6);
   assert.equal(root.querySelector('.interaction-dot-title').textContent,'Session 0');
   assert.equal(root.querySelector('.interaction-dot-date').textContent,'1720-01-01');
-  root.querySelector('.interaction-dot').click();assert.equal(root.querySelectorAll('.interaction-dot').length,5);
-  assert.equal(root.querySelector('.interaction-dot-title').textContent,'Interaction 0');
-  assert.equal(root.querySelector('.interaction-controls').hidden,false);
-  assert.equal(root.querySelector('.interaction-detail').hidden,true,'zooming does not open details');
-  root.querySelectorAll('.interaction-dot')[4].click();assert.equal(root.querySelector('.interaction-detail h4').textContent,'Interaction 4');
-  root.querySelector('[data-interaction-back]').click();assert.equal(root.querySelectorAll('.interaction-dot').length,6);
-  assert.equal(root.querySelector('.interaction-controls').hidden,true);
-  assert.equal(JSON.parse(root.querySelector('[data-interaction-records]').textContent).events.length,27);
+  root.querySelector('.interaction-dot').click();assert.equal(root.querySelectorAll('.interaction-dot').length,6);
+  assert.equal(root.querySelector('.interaction-detail').hidden,false,'a session dot opens its popup immediately');
+  assert.match(root.querySelector('.interaction-detail').textContent,/Original text 0/);
+  assert.doesNotMatch(root.querySelector('.interaction-detail').textContent,/Original text 4/);
+  assert.doesNotMatch(root.querySelector('.interaction-detail').textContent,/Original text 5/);
+  assert.equal(JSON.parse(root.querySelector('[data-interaction-records]').textContent).events.length,6);
   const hostile=interactionView([{...groups[0],events:[{...events[0],title:'</script><img src=x onerror=alert(1)>',text:'<script>bad</script>'}]}]);
   const parsed=parseHTML('<html><body>'+hostile+'</body></html>').document;
   assert.equal(parsed.querySelectorAll('img').length,0);assert.equal(parsed.querySelectorAll('script').length,1);
@@ -446,36 +424,17 @@ test('browser dots select details and zoom into/out of groups, with an accessibl
   assert.ok([...longRoot.querySelectorAll('.interaction-dot-date')].every(label=>label.textContent==='1720-01-01'));
 });
 
-test('automatic dots combine exact same-day session references and zoom back to every original note',()=>{
+test('same-day session references each keep a dot and their full-session link',()=>{
   const references=Array.from({length:3},(_,number)=>({id:'ref-'+number,kind:'session-reference',title:'Session title '+number,start:'1720-01-01',end:'1720-01-01',precision:'day',session:'session-'+number,sessionLabel:'Session '+number,sessionUrl:'/page/session-'+number}));
   const encounter={...references[0],id:'beat',kind:'encounter',title:'Recap beat'};
   const events=[references[0],encounter,references[1]];
-  const grouped=groupInteractions(events);
-  assert.deepEqual(grouped.map(group=>group.events.map(event=>event.id)),[['ref-0','ref-1'],['beat']]);
-  assert.equal(grouped[0].title,'Sessions');assert.equal(grouped[0].dateLabel,'1720-01-01');
-  assert.equal(groupInteractions(events,'event').length,3,'zoom never collapses its members again');
-  assert.equal(groupInteractions(references,'session').length,3,'explicit session mode still respects session identities');
-  const longHistory=Array.from({length:27},(_,number)=>({...references[number%3],id:'long-'+number,session:'session-'+number,start:'1720-01-'+String(1+Math.floor(number/3)).padStart(2,'0'),end:'1720-01-'+String(1+Math.floor(number/3)).padStart(2,'0')}));
-  assert.equal(groupInteractions(longHistory).length,9);
-  assert.deepEqual(groupInteractions(longHistory).flatMap(group=>group.events),longHistory,'grouping retains every note in order');
-  for(const date of [
-    {start:'1720-01-01',end:'1720-01-03',precision:'range'},
-    {start:'1720-01-01',end:'1720-01-31',precision:'month'},
-    {start:'1720-01-01',end:'1720-12-31',precision:'year'},
-    {start:null,end:null,precision:'undated'},
-  ])assert.equal(groupInteractions([...longHistory,...references.map(event=>({...event,...date}))]).length,12,'imprecise dates and ranges never imply the same day');
   const {document}=parseHTML('<html><body>'+interactionView([{code:'clee',label:'Cleenseau',events}])+'</body></html>');
   const root=document.querySelector('[data-interaction-campaign]'),dispose=mountInteractions(root);
-  assert.equal(root.querySelectorAll('.interaction-dot').length,2);
-  assert.equal(root.querySelector('.interaction-count').textContent,'2');
-  assert.match(root.querySelector('.interaction-dot').getAttribute('aria-label'),/Zoom into Sessions, 2 entries, 1720-01-01/);
-  root.querySelector('.interaction-dot').click();
-  assert.deepEqual([...root.querySelectorAll('.interaction-dot-title')].map(node=>node.textContent),references.slice(0,2).map(event=>event.title));
+  assert.equal(root.querySelectorAll('.interaction-dot').length,3);
+  assert.equal(root.querySelector('.interaction-count'),null);
   for(const [index,dot] of [...root.querySelectorAll('.interaction-dot')].entries()) {
-    dot.click();assert.equal(root.querySelector('.interaction-detail a').getAttribute('href'),references[index].sessionUrl);
+    dot.click();assert.equal(root.querySelector('.interaction-detail a').getAttribute('href'),events[index].sessionUrl);
   }
-  root.querySelector('[data-interaction-back]').click();
-  assert.equal(root.querySelectorAll('.interaction-dot').length,2);assert.equal(root.querySelector('.interaction-detail').hidden,true);
   dispose();
 });
 
@@ -495,7 +454,7 @@ test('dot popups show source links, dismiss accessibly, stay in the viewport, an
   assert.equal(first.popup.hidden,false);assert.equal(first.popup.getAttribute('role'),'dialog');
   assert.equal(first.dot.getAttribute('aria-controls'),first.popup.id);assert.equal(first.dot.getAttribute('aria-expanded'),'true');
   assert.equal(first.popup.style.left,'68px');assert.equal(first.popup.style.top,'152px','the popup flips above a dot near the bottom edge');
-  assert.match(first.popup.textContent,/1720-01-01 DR/);assert.equal(first.popup.querySelectorAll('a').length,2);
+  assert.match(first.popup.textContent,/1720-01-01 DR/);assert.equal(first.popup.querySelectorAll('a').length,1);
   assert.equal(document.activeElement,first.popup.querySelector('button'));
   click(first.popup.querySelector('a'));assert.equal(first.popup.hidden,false,'source links remain clickable');
   click(document.querySelector('#outside'));assert.equal(first.popup.hidden,true);assert.equal(first.dot.getAttribute('aria-expanded'),'false');
@@ -509,7 +468,7 @@ test('dot popups show source links, dismiss accessibly, stay in the viewport, an
   disposers[1]();
 });
 
-test('native interaction popovers escape scroll clipping and close on zoom out or disposal',()=>{
+test('native session popovers escape scroll clipping and close on selection changes or disposal',()=>{
   const events=Array.from({length:9},(_,number)=>({id:String(number),kind:'encounter',title:'Encounter '+number,start:'1720-01-01',end:'1720-01-01',precision:'day',session:'session-'+Math.floor(number/3)}));
   const dom=imageDOM(interactionView([{code:'clee',label:'Cleenseau',events}]));
   const root=dom.document.querySelector('[data-interaction-campaign]'),popup=root.querySelector('.interaction-detail');
@@ -517,12 +476,9 @@ test('native interaction popovers escape scroll clipping and close on zoom out o
   const dispose=mountInteractions(root);
   assert.equal(popup.getAttribute('popover'),'manual');assert.equal(opens,0);
   assert.equal(root.querySelector('select'),null);
-  dom.click(root.querySelector('.interaction-dot'));assert.equal(opens,0,'a grouped dot zooms without opening details');
   dom.click(root.querySelector('.interaction-dot'));assert.equal(opens,1);
-  dom.click(root.querySelector('[data-interaction-back]'));
-  assert.equal(popup.hidden,true);assert.equal(closes,1);
-  dom.click(root.querySelector('.interaction-dot'));assert.equal(opens,1,'automatic grouping is restored after zooming out');
-  dom.click(root.querySelector('.interaction-dot'));assert.equal(opens,2);dispose();assert.equal(closes,2);
+  dom.click(root.querySelectorAll('.interaction-dot')[1]);assert.equal(opens,2);assert.equal(closes,1);
+  dispose();assert.equal(popup.hidden,true);assert.equal(closes,2);
 });
 
 test('Node recap reader imports only supported recap files and ignores private source artifacts',()=>{
@@ -539,13 +495,10 @@ test('Node recap reader imports only supported recap files and ignores private s
       .replace('### recap-003 | Returning','### recap-003 | Returning\n- Polished Transcript: beat-transcripts/missing.md');
     fs.writeFileSync(path.join(cleaned,'cleenseau-012.1-session-recap.md'),linked);
     const result=readInteractionBundles({vault_dir:directory});assert.equal(result.bundles.length,1);
-    assert.equal(result.bundles[0].number,'12.1');assert.equal(result.bundles[0].scenes.length,4);
+    assert.equal(result.bundles[0].number,'12.1');assert.equal(result.bundles[0].scenes,undefined);
     assert.doesNotMatch(JSON.stringify(result),/private transcript|Long narrative|long account/);
-    assert.equal(result.bundles[0].scenes[0].transcript,'Person: Polished words.');
-    assert.equal(result.bundles[0].scenes[1].transcript,undefined);
-    assert.equal(result.bundles[0].scenes[2].transcript,undefined);
-    assert.doesNotMatch(JSON.stringify(result.bundles),/private\/raw|u0001|Source Transcript|transcriptPath/);
-    assert.match(result.warnings.join('\n'),/invalid polished transcript reference/);
+    assert.deepEqual(result.warnings,[]);
+    assert.doesNotMatch(JSON.stringify(result.bundles),/Polished words|private\/raw|u0001|Source Transcript|transcriptPath|recap-001/);
     const broken=path.join(directory,'_sessions','cleenseau','cleenseau-013','cleaned');fs.mkdirSync(broken,{recursive:true});
     fs.writeFileSync(path.join(broken,'cleenseau-013-session-recap.md'),'Malformed recap');
     const invalid=readInteractionBundles({vault_dir:directory});

@@ -12,7 +12,7 @@ import {createWorker} from '../src/worker-handler.mjs';
 import {compileRuntime} from '../scripts/compile-runtime.mjs';
 import {openSnapshot} from '../src/runtime-snapshot.mjs';
 
-test('publication compiles authoritative Short beats, Worker matches Node without session-body reads, and older snapshots retain campaign references',async()=>{
+test('publication compiles session encounters without beat data, Worker matches Node without session-body reads, and older snapshots retain campaign references',async()=>{
   fs.mkdirSync(path.join(ROOT,'.cache'),{recursive:true});
   const directory=fs.mkdtempSync(path.join(ROOT,'.cache','interaction-worker-'));
   try {
@@ -31,13 +31,13 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     fs.writeFileSync(path.join(vault,'Campaigns','Other','Other Handout.md'),'---\ntags: [source]\n---\n[[Person]]');
     for(const [name,tags] of [['Untagged',''],['List of NPCs','tags: [source, meta]'],['Background','tags: [background/lore]']])
       fs.writeFileSync(path.join(vault,'Campaigns','Clee',name+'.md'),'---\n'+tags+'\n---\n[[Person]]');
-    fs.writeFileSync(path.join(vault,'Session.md'),'---\ntags: [session-note]\ncampaign: Cleenseau\nsessionNumber: 12.1\nDR: 1720-01-01\nDR_end: 1720-01-02\n---\n# Session\n\nThe party met [[Person]] at the inn.\n\n%%^Campaign:none%%\nPerson showed them a hidden room.\n%%^End%%');
+    fs.writeFileSync(path.join(vault,'Session.md'),'---\ntags: [session-note]\ncampaign: Cleenseau\nsessionNumber: 12.1\nDR: 1720-01-01\nDR_end: 1720-01-02\ndescTitle: Full session title\ntagline: A full-session description. %%^Campaign:none%%DM session detail.%%^End%%\n---\n# Session\n\nThe party met [[Person]] at the inn.\n\n%%^Campaign:none%%\nPerson showed them a hidden room.\n%%^End%%');
     fs.writeFileSync(path.join(vault,'Campaigns','Clee','Older session.md'),'---\ntags: [session-note]\ncampaign: Cleenseau\nsessionNumber: 13\nDR: 1720-01-03\n---\n%%^Campaign:other%%[[Person]]%%^End%%\nSESSION PROSE NOT COMPILED');
     const cleaned=path.join(vault,'_sessions','cleenseau','cleenseau-012.1','cleaned');fs.mkdirSync(cleaned,{recursive:true});
-    const recap=['# Session Recap','## Session Header','- Campaign: Cleenseau','- Session Number: 12.1','## Recap',
+    const recap=['# Session Recap','## Session Header','- Campaign: Cleenseau','- Session Number: 12.1','- Desc Title: At the Inn','- DR Date: 1720-01-01 to 1720-01-02','- Tagline: Session tagline fallback.','## Recap',
       '### recap-001 | At the Inn','- Date: 1720-01-01','- NPCs: Person, Unpublished Unresolved Person','- Source Range: u0001 -> u0020','- Polished Transcript: beat-transcripts/public.md','#### Short','An authoritative Short independent of generated prose.','#### Long','Unused Long narrative.',
       '### recap-002 | Hidden Room','- Date: 1720-01-02','- NPCs: Person','- Polished Transcript: beat-transcripts/secret.md','#### Short','%%^Campaign:none%%Person showed them a hidden room.%%^End%%','#### Long','Unused secret Long narrative.',
-      '## Cast','### NPCs','- Person (met): innkeeper','## Source Files','- Cleaned Source: /private/transcript.md'].join('\n');
+      '## Cast','### NPCs','- Person (met): innkeeper','- Unpublished Unresolved Person (met): unknown','## Source Files','- Cleaned Source: /private/transcript.md'].join('\n');
     const recapFile=path.join(cleaned,'cleenseau-012.1-session-recap.md');fs.writeFileSync(recapFile,recap);
     fs.writeFileSync(path.join(cleaned,'cleenseau-012.1-source-cleaned.md'),'UNPUBLISHED PRIVATE TRANSCRIPT');
     fs.mkdirSync(path.join(cleaned,'beat-transcripts'));
@@ -47,8 +47,11 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     fs.writeFileSync(path.join(cleaned,'beat-transcripts','unreferenced.md'),'UNREFERENCED TRANSCRIPT');
     const settings={...original,vault_dir:vault,source_dir:vault,nav_source:null,home_source:null,campaigns:[]};
     const before=buildFingerprint(settings,{});
+    fs.writeFileSync(recapFile,recap.replace('Person (met)','Person (mentioned)'));
+    assert.notEqual(buildFingerprint(settings,{}),before,'Cast eligibility participates in publication fingerprints');
+    fs.writeFileSync(recapFile,recap);
     fs.writeFileSync(path.join(cleaned,'beat-transcripts','public.md'),transcript+' Changed words.');
-    assert.notEqual(buildFingerprint(settings,{}),before);
+    assert.equal(buildFingerprint(settings,{}),before,'transcripts are not session inputs');
     fs.writeFileSync(path.join(cleaned,'beat-transcripts','public.md'),transcript);
     fs.writeFileSync(recapFile,recap.replace('At the Inn','At the Tavern'));
     assert.notEqual(buildFingerprint(settings,{}),before);
@@ -60,12 +63,12 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     const report=await prepareContent(settings,path.join(directory,'package'),{commit:'fixture',dirty:false});
     const raw=fs.readFileSync(report.indexFile,'utf8'),index=JSON.parse(raw);
     assert.equal(index.interactions.version,2);
-    assert.equal(index.interactions.byTarget.person.filter(event=>event.kind==='encounter').length,2);
+    assert.equal(index.interactions.byTarget.person.filter(event=>event.kind==='encounter').length,1);
     assert.doesNotMatch(raw,/UNPUBLISHED PRIVATE TRANSCRIPT|Unpublished Unresolved Person|\/private\/|Source Range|u0001|session-recap\.md/);
     assert.match(report.interactions.warnings.join('\n'),/Unpublished Unresolved Person/);
     assert.doesNotMatch(JSON.stringify(index.interactions),/Long narrative|The party met|Source Range|u0001/);
     assert.doesNotMatch(raw,/POLISHED PUBLIC|POLISHED SECRET|DM ONLY DETAIL|UNREFERENCED TRANSCRIPT|Source Transcript|beat-transcripts/);
-    assert.equal(Object.keys(index.interactions.transcripts).length,2);
+    assert.equal(Object.keys(index.interactions.transcripts).length,0);
     const uploads=new Map(JSON.parse(fs.readFileSync(report.manifestFile,'utf8')).map(item=>[item.key,item.file]));
     const reads=[];
     const bucket={async get(key){reads.push(key);const file=uploads.get(key);if(!file)return null;return {json:async()=>JSON.parse(fs.readFileSync(file,'utf8'))};}};
@@ -78,7 +81,7 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
       assert.deepEqual(actual.backlinks,expected.backlinks);
       assert.deepEqual(actual.backlinks.map(link=>link.page),['world']);
       assert.equal(actual.html,expected.html);
-      assert.equal(actual.interactions[0].events.length,dm ? 4 : 3);
+      assert.equal(actual.interactions[0].events.length,3);
       assert.equal(actual.interactions[0].events.find(event=>event.kind==='reference').referenceType,'document');
       assert.equal(actual.interactions[0].events.find(event=>event.title==='Story').referenceType,'story');
       assert.match(actual.html,/Related campaign material/);
@@ -86,10 +89,13 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
       assert.equal(grouped.querySelector('[data-reference-kind="story"] a').textContent,'Story');
       assert.equal(grouped.querySelector('[data-reference-kind="document"] a').textContent,'Handout');
       assert.ok(reads.every(key=>key.endsWith('/'+snapshot.store.resolve('Person').note.shard+'.json')),'only the person shard is loaded');
-      assert.equal(actual.interactions[0].events[0].text,'An authoritative Short independent of generated prose.');
+      assert.equal(actual.interactions[0].events[0].text,'A full-session description.'+(dm ? ' DM session detail.' : ''));
+      assert.equal(actual.interactions[0].events[0].title,'Full session title');
+      assert.doesNotMatch(JSON.stringify(actual.interactions),/authoritative Short|hidden room|recap-001/);
       assert.match(actual.html,/fought alongside/i); // Authored campaignInfo remains in the normal header.
       assert.match(actual.interactions[0].events[0].sessionUrl,/page\/session\?/);
-      assert.match(actual.interactions[0].events[0].transcriptUrl,/campaign-transcripts\//);
+      assert.equal(actual.interactions[0].events[0].transcriptUrl,undefined);
+      assert.doesNotMatch(actual.html,/href="[^"]*campaign-transcripts/);
     }
     const originalGet=bucket.get.bind(bucket);
     for(const campaigns of [['clee'],['clee','other']]) {
@@ -137,31 +143,10 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     const event=result.interactions[0].events[0];
     assert.equal((await worker.fetch(new Request('https://www.taelgar.org'+event.sessionUrl),env)).status,200);
     reads.length=0;
-    const transcriptResponse=await worker.fetch(new Request('https://www.taelgar.org'+event.transcriptUrl),env);
-    assert.equal(transcriptResponse.status,200);
-    const html=await transcriptResponse.text();
-    assert.match(html,/POLISHED PUBLIC CONVERSATION/);assert.match(html,/1720-01-01 DR/);
-    assert.doesNotMatch(html,/DM ONLY DETAIL|Source Transcript|u0001|private\/|UNREFERENCED/);
-    assert.ok(reads.some(key=>key.includes('/transcripts/')));
-    assert.ok(reads.every(key=>!key.includes('/notes/')),'transcript view requires no article body');
-    const publicId='recap:clee:12.1:recap-001',secretId='recap:clee:12.1:recap-002';
-    for(const dm of [false,true]) {
-      const actual=await snapshot.engine.renderTranscript(publicId,'1720-01-02','custom',dm,['clee']);
-      const expected=await node.renderTranscript(publicId,'1720-01-02','custom',dm,['clee']);
-      assert.equal(actual.html,expected.html);
-      assert.equal(actual.html.includes('DM ONLY DETAIL'),dm);
-    }
-    for(const query of ['context=modern','date=1719-12-31&campaigns=clee','date=1720-01-02&campaigns=']) {
-      reads.length=0;
-      const denied=await worker.fetch(new Request('https://www.taelgar.org/campaign-transcripts/'+encodeURIComponent(publicId)+'?'+query),env);
-      assert.equal(denied.status,404);assert.equal(reads.some(key=>key.includes('/transcripts/')),false);
-    }
-    const secretUrl='https://www.taelgar.org/campaign-transcripts/'+encodeURIComponent(secretId)+'?date=1720-01-02&campaigns=clee';
-    assert.equal((await worker.fetch(new Request(secretUrl),env)).status,404);
-    const secretResponse=await worker.fetch(new Request(secretUrl+'&dm=1'),env);
-    assert.equal(secretResponse.status,200);assert.match(await secretResponse.text(),/POLISHED SECRET CONVERSATION/);
-    const corrupted=await loadSnapshot({async get(key){return key.includes('/transcripts/') ? {json:async()=>({[publicId]:'changed'})} : originalGet(key);}},report.revision);
-    await assert.rejects(corrupted.engine.renderTranscript(publicId,'1720-01-02','custom',false,['clee']),/does not match/);
+    const transcriptResponse=await worker.fetch(new Request('https://www.taelgar.org/campaign-transcripts/'+encodeURIComponent('recap:clee:12.1:recap-001')+'?date=1720-01-02&campaigns=clee&person=person'),env);
+    assert.equal(transcriptResponse.status,404);
+    assert.equal(reads.some(key=>key.includes('/transcripts/')),false);
+    assert.equal([...uploads.keys()].some(key=>key.includes('/transcripts/')),false,'new snapshots contain no transcript shards');
     const old=structuredClone(index);delete old.interactions;
     const oldBucket={async get(key){return key.endsWith('/index.json') ? {json:async()=>old} : originalGet(key);}};
     const loaded=await loadSnapshot(oldBucket,report.revision);

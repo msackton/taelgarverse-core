@@ -58,6 +58,7 @@ class BioChild extends MarkdownRenderChild {
       const markdown=obsidianBio(snapshot,file,metadata);
       // Render offscreen so a stale async render cannot replace a newer header.
       const output=element.ownerDocument.createElement('div');
+      output.className='taelgar-bio'+(metadata.pronunciation ? ' taelgar-bio--pronunciation' : '');
       rendering=this.addChild(new Component());
       await MarkdownRenderer.render(app,markdown,output,this.context.sourcePath,rendering);
       if(this.disposed || sequence!==this.sequence){this.removeChild(rendering);return;}

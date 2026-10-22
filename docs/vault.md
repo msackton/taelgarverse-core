@@ -136,6 +136,8 @@ and the remaining details. The Taelgarverse Obsidian development plugin uses the
 familiar native information callout with values filled in. Remove a separately
 saved H1 above the block when migrating a vault note. Rendering does not modify
 the note.
+In Obsidian, pronunciation sits directly beneath the name without the normal
+heading-to-paragraph gap; this spacing applies only to generated bios with pronunciation.
 Existing saved headers and prepared HTML header markers remain supported;
 an older materializer's marker or separately saved H1 before the new block is
 consumed as one header on the website.
@@ -365,36 +367,38 @@ normal campaign filtering described above.
 Nonempty backlinks appear in the right sidebar even on short articles; on mobile they
 appear in a collapsed **Linked from** section below the article.
 
-Person pages also show a **Campaign interactions** summary and grouped dot history
+Person pages also show a **Campaign interactions** summary and session dot history
 for the intersection of the page's registered `knownTo` campaigns and the active
 context's campaigns, without a component campaign picker. An empty intersection
 means no component. `knownTo` supplies undated party knowledge and
 `campaignInfo` retains its normal header wording. Authoritative recap entries
-supply encounter dots using their explicit NPCs, dates, and Short text. Session
-notes supply optional source links. If a session has no recap file, its official
+supply one encounter per session for resolved NPCs explicitly marked `met` in
+the recap's Cast. Mention-only and other statuses do not qualify; combined
+statuses containing `met` do. Cast membership alone selects sessions; beats,
+their NPC lists, Short/Long text, and transcripts are ignored. The available
+session note's `descTitle`, `DR`, `DR_end`, and `tagline` supply
+the popup's title, dates, and description, falling back to the recap Session Header. Session
+notes supply optional full-session links. If a session has no recap file, its official
 session note's explicit NPC links supply hollow **Session reference** dots, counted
 separately from encounters, with session dates and a note link. The registry
 filename wins, with a unique legacy metadata candidate as a fallback; ambiguous
 notes supply no dots. An existing recap suppresses note fallback for the whole
-session, even when it contains no visible beat for the person. Non-session
+session, even when its Cast contains no met entry for the person. Non-session
 campaign-folder backlinks supply separate links under **Related campaign material**. Untagged sources and
 sources with `meta` or `background` tags (including nested tags) are excluded.
 Related links run horizontally with wrapping on separate Items, Stories, Sources, and other References lines,
 based on authored tags, each showing up to ten links before **Show more** for longer lists.
 Selecting a dot opens its details in a compact popup with DR dates and links to
-available session notes and polished beat transcript views. Popups start closed
+available full session notes. Beat and transcript links are omitted. Popups start closed
 and dismiss with their close button, Escape, an outside click, or selecting the
 dot again. Missing source links never
-remove recap beats.
+remove session encounters.
 Session references show only title, date, and a session-number link, with no
-explanatory commentary or repeated session titles. Recap beats keep their authored
-Short text and location.
-Grouping is automatic. Session references on the same exact recorded day share
-one counted **Sessions** dot, even in short histories. Date ranges, partial dates,
-and undated references stay separate. Readers can zoom into counted dots; **Zoom out** appears
-only while zoomed in and restores the full history.
-Dots show their title and date even in long histories; grouped dots show the
-session label, recorded date range, and count. Labels wrap across rows, with
+explanatory commentary or repeated session titles. Recap sessions show only
+session-level information; they never combine beat details.
+Each session keeps a separate dot, even on the same recorded day. Dots open
+their popups directly without beat drill-down or zoom.
+Dots show their title and date even in long histories. Labels wrap across rows, with
 two-line titles and full text in the popup.
 This does not infer encounters from mentions or filter page availability by party
 knowledge. See [campaign interaction sources and rules](campaign-interactions.md).

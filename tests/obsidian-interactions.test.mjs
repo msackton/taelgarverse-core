@@ -14,8 +14,8 @@ const require=createRequire(import.meta.url);
 const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export * from './obsidian/taelgarverse/features/interactions.mjs'; export * from './obsidian/taelgarverse/features/interaction-data.mjs';",resolveDir:ROOT},write:false,
   bundle:true,platform:'node',format:'cjs',external:['obsidian','@codemirror/state','@codemirror/view'],logLevel:'silent'});
 const registry={campaigns:{cleenseau:{name:'Cleenseau',code:'clee',aliases:['Clee'],campaignRoot:'Campaigns/Clee',notePattern:'Session {session_padded}.md'},other:{name:'Other',code:'other',aliases:['OTH'],campaignRoot:'Campaigns/Other'}}};
-const recap=(campaign,text)=>['## Session Header','- Campaign: '+campaign,'- Session Number: 1','- Desc Title: At the Inn','- DR Date: 1748-01-01','## Recap',
-  '### recap-001 | Meeting','- Date: 1748-01-01','- NPCs: Person','- Polished Transcript: beat-transcripts/meeting.md','#### Short',text,'#### Long','Unused narrative.'].join('\n');
+const recap=(campaign,text)=>['## Session Header','- Campaign: '+campaign,'- Session Number: 1','- Desc Title: At the Inn','- Tagline: '+text,'- DR Date: 1748-01-01','## Recap',
+  '### recap-001 | Meeting','- Date: 1748-01-01','- NPCs: Person','- Polished Transcript: beat-transcripts/meeting.md','#### Short',text,'#### Long','Unused narrative.','## Cast','### NPCs','- [[Person]] (met): innkeeper'].join('\n');
 const initial={
   'People/Person.md':'---\ntags: [person]\nknownTo: [Clee, OTH, clee]\nexcludePublish: all\npageTargetDate: 1748-01-02\n---\n# Person\nBiography.',
   'Places/Inn.md':'---\ntags: [place]\nknownTo: clee\n---\n# Inn',
@@ -76,10 +76,10 @@ test('Obsidian indexes authoritative recaps and native campaign references, reta
     const snapshot=await h.obsidianInteractions(h.app),metadata=h.metadata.get('People/Person.md');
     assert.deepEqual(Array.from(h.knownCampaigns(snapshot,metadata),item=>item.code),['clee','other']);
     const result=h.localInteractions(snapshot,'People/Person.md',registry.campaigns.cleenseau,'1748-01-02',h.app);
-    assert.deepEqual(Array.from(result.group.events,event=>event.title),['Meeting','Handout','Secret']);
+    assert.deepEqual(Array.from(result.group.events,event=>event.title),['At the Inn','Handout','Secret']);
     assert.match(result.group.events[0].text,/Cleenseau party/);
     assert.equal(result.links.get(result.group.events[0].sessionUrl),'Campaigns/Clee/Session 01.md');
-    assert.equal(result.links.get(result.group.events[0].transcriptUrl),'_sessions/cleenseau/cleenseau-001/cleaned/beat-transcripts/meeting.md');
+    assert.equal(result.group.events[0].transcriptUrl,undefined);
     assert.ok(h.reads.every(p=>!p.includes('/Session 01.md') && !p.includes('transcript') && !p.startsWith('World') && !p.includes('_generated')));
     assert.equal(h.metadata.get('People/Person.md').excludePublish,'all','vault metadata is never modified');
   }finally{h.feature.unload();}
@@ -110,26 +110,24 @@ test('Obsidian reads only missing-recap official session notes for fallback dots
   }finally{h.feature.unload();}
 });
 
-test('Obsidian combines same-day official session notes and zooms to their native links',async()=>{
+test('Obsidian keeps separate same-day official session dots with native links',async()=>{
   const notes=Object.fromEntries([2,3].map(number=>['Campaigns/Clee/Session 0'+number+'.md','---\ntags: [session-note]\ncampaign: Clee\nsessionNumber: '+number+'\nDR: 1748-01-02\n---\n[[Person]]']));
   const h=host({notes});
   try {
     const {element,child}=h.block();await child.ready;
     const root=element.querySelector('[data-interaction-campaign]');
-    assert.equal(root.querySelectorAll('.interaction-dot').length,2,'one recap beat plus one day of session references');
-    const group=root.querySelector('.interaction-count').closest('button');
-    assert.equal(group.querySelector('.interaction-dot-date').textContent,'1748-01-02');h.click(group);
-    assert.equal(root.querySelectorAll('.interaction-dot').length,2);
-    for(const [index,dot] of [...root.querySelectorAll('.interaction-dot')].entries()) {
+    assert.equal(root.querySelectorAll('.interaction-dot').length,3,'one recap session plus two session references');
+    assert.equal(root.querySelector('.interaction-count'),null);
+    for(const [index,dot] of [...root.querySelectorAll('.interaction-dot')].slice(1).entries()) {
+      assert.equal(dot.querySelector('.interaction-dot-date').textContent,'1748-01-02');
       h.click(dot);h.click(root.querySelector('.interaction-detail .interaction-sources a'));
       assert.equal(h.opened.at(-1)[0],'Campaigns/Clee/Session 0'+(index+2)+'.md');
     }
-    h.click(root.querySelector('[data-interaction-back]'));
-    assert.equal(root.querySelector('.interaction-count').textContent,'2');child.unload();
+    assert.equal(root.querySelector('[data-interaction-back]'),null);child.unload();
   }finally{h.feature.unload();}
 });
 
-test('explicit blocks select known campaigns, retain choice after refresh, and open native session and transcript links',async()=>{
+test('explicit blocks select known campaigns, retain choice after refresh, and open only native session links',async()=>{
   const h=host();
   try {
     const {element,child}=h.block();await child.ready;
@@ -147,7 +145,7 @@ test('explicit blocks select known campaigns, retain choice after refresh, and o
     assert.ok(child.links.has(sessionLink.getAttribute('href')),sessionLink.outerHTML+' '+JSON.stringify([...child.links]));
     h.click(sessionLink);
     assert.equal(h.opened[0][0],'Campaigns/Clee/Session 01.md');
-    h.click(element.querySelector('.interaction-detail .interaction-sources a:last-child'));assert.match(h.opened[1][0],/beat-transcripts\/meeting.md/);
+    assert.equal(element.querySelectorAll('.interaction-detail .interaction-sources a').length,1);
     const previousPopup=element.querySelector('.interaction-detail');assert.equal(previousPopup.hidden,false);
     const select=element.querySelector('select[aria-label="Campaign"]');select.querySelector('option[value="other"]').selected=true;select.dispatchEvent(new h.window.Event('change'));await h.settle();
     assert.equal(previousPopup.hidden,true,'switching campaigns disposes the open popup');
@@ -216,7 +214,7 @@ test('reference-only campaign choices keep the picker below the heading and nati
   const recapPath='_sessions/other/other-001/cleaned/other-001-session-recap.md';
   const sword='Campaigns/Other/Sword.md',letter='Campaigns/Other/Letter.md',story='Campaigns/Other/Story.md';
   const notes={
-    [recapPath]:recap('Other','A different person.').replace('- NPCs: Person','- NPCs: Someone Else'),
+    [recapPath]:recap('Other','A different person.').replace('[[Person]] (met)','Someone Else (met)'),
     [sword]:'---\ntags: [object/weapon]\nknownTo: other\n---\n[[Person]]',
     [letter]:'---\ntags: [source]\nDR: 1740-01-01\n---\n[[Person]]',
     [story]:'---\ntags: [story, source]\n---\n[[Person]]',
@@ -230,7 +228,7 @@ test('reference-only campaign choices keep the picker below the heading and nati
   try {
     await child.ready;
     assert.equal(element.querySelectorAll('.interaction-dot').length,1);
-    assert.match(element.querySelector('.interaction-breadcrumb').textContent,/^1 recorded entry/);
+    assert.match(element.querySelector('.interaction-breadcrumb').textContent,/^1 recorded session/);
     await choose('other');
     assert.ok(element.querySelector('h2 + .taelgar-interaction-campaign select'));
     assert.ok(element.classList.contains('taelgar-interactions--compact'));
@@ -278,7 +276,7 @@ test('knownTo without campaign records renders a compact campaign header in bloc
 
 test('the campaign picker stays below the heading for knowledge-only campaigns and restores records when switching campaigns',async()=>{
   const p='_sessions/other/other-001/cleaned/other-001-session-recap.md';
-  const h=host({notes:{[p]:recap('Other','No interaction with this person.').replace('- NPCs: Person','- NPCs: Someone Else')}});
+  const h=host({notes:{[p]:recap('Other','No interaction with this person.').replace('[[Person]] (met)','Someone Else (met)')}});
   const choose=async code=>{
     const select=element.querySelector('select[aria-label="Campaign"]');
     select.querySelector('option[value="'+code+'"]').selected=true;

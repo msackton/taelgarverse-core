@@ -34,6 +34,7 @@
 .md-typeset .interaction-detail>p{margin:8px 0}
 .md-typeset .interaction-detail>.interaction-event-meta:first-of-type{padding-right:28px;margin-top:0}
 .interaction-event-meta{font:12px/1.5 system-ui,sans-serif;color:var(--muted)}
+.interaction-event-text,.interaction-fallback li>p{white-space:pre-line}
 .md-typeset .interaction-detail h4{margin:6px 0;font:500 15px/1.4 system-ui,sans-serif}.interaction-source{font:13px/1.5 system-ui,sans-serif}
 .md-typeset .interaction-popup-close{position:absolute;top:6px;right:6px;display:flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:0;border-radius:5px;background:transparent;box-shadow:none;color:var(--muted);font:22px/1 system-ui,sans-serif;cursor:pointer}
 .md-typeset .interaction-popup-close:hover{background:var(--soft);color:var(--text)}

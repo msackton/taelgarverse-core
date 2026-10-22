@@ -49,15 +49,15 @@ support before publishing with this preparation code. The updated renderer
 continues to read existing R2 snapshots, so deployment needs no R2 rewrite.
 
 Both previews compile [person campaign interactions](campaign-interactions.md)
-from authoritative recap Short entries in the original vault's `_sessions`
-directory, plus non-session campaign-folder backlinks. Session notes supply only
-optional source links. Referenced polished beat transcripts receive separate
-revision-bound shards and website views; raw transcripts and editorial artifacts are not
-published. Recap changes refresh quick preview and participate in publication
-fingerprints. Structured scene histories require a fresh content publication;
-deploying core alone supplies authored headers and non-session references for older
-snapshots. Fresh publication enables polished transcript links as well as recap
-beats. Deploy the updated core through GitHub before publishing new content.
+from recap Cast `met` membership in the original vault's `_sessions` directory,
+plus non-session campaign-folder backlinks. Each encounter is one full session;
+session notes supply the title, dates, tagline, and optional note link, with
+recap session headers as fallback metadata. Beats and transcripts are ignored.
+Session-header and Cast changes refresh quick preview and participate in
+publication fingerprints; beat-only edits do not. Session encounter records
+require a fresh content publication; older beat projections are omitted while
+session references and related material remain readable. Deploy the updated core
+through GitHub before publishing new content.
 
 ### Roll out compiled runtime snapshots
 

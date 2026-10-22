@@ -78,7 +78,7 @@ flowchart LR
 | `src/homepage.mjs`, `public/homepage.css`, `public/images/home-map.webp` | Homepage composition, entry buttons, responsive layout, and decorative map asset. Introductory content remains in the vault's `_website/home.md`. |
 | `src/contexts.mjs`, `src/navigation.mjs` | Session-derived dates and context-filtered navigation. |
 | `src/backlinks.mjs` | Index authored incoming links and filter them by source availability and visible comment states. |
-| `src/recap-parser.mjs`, `src/session-interactions.mjs`, `src/campaign-interactions.mjs`, `src/campaign-ownership.mjs`, `src/interaction-view.mjs`, `src/browser/interactions.mjs`, `src/browser/interaction-groups.mjs` | Shared recap parser, campaign ownership, interaction model and dot controls; Node-only file discovery and transcript import stay in `session-interactions`. See [campaign interactions](campaign-interactions.md). |
+| `src/recap-parser.mjs`, `src/session-interactions.mjs`, `src/campaign-interactions.mjs`, `src/campaign-ownership.mjs`, `src/interaction-view.mjs`, `src/browser/interactions.mjs`, `src/browser/interaction-groups.mjs` | Shared session-header/Cast parser, campaign ownership, session interaction model and dot controls; Node-only recap file discovery stays in `session-interactions`. See [campaign interactions](campaign-interactions.md). |
 | `src/embeds.mjs` | Expand visible note/heading/block embeds, bound recursion, preserve source-relative rendering, and isolate anchors/popups. |
 | `src/maps.mjs`, `src/map-distance.mjs`, `src/map-path.mjs`, `src/browser/map-view.mjs`, `src/browser/map-measurement.mjs` | Map rendering, calibration read from vault `leaflet` blocks, flat point/stroke routes, and shared measurement controls. See [maps](maps.md). |
 | `obsidian/taelgarverse/`, `scripts/build-obsidian.mjs`, `scripts/install-obsidian.mjs`, `scripts/release-obsidian.mjs` | Unified desktop plugin with Maps and opt-in Images. Features share core modules and own their Component cleanup; plugin `images.css` owns inline image placement and sizing, scoped by the Images feature. Self-contained releases go to `msackton/taelgarverse-obsidian` for BRAT; installed artifacts stay outside vault Git. See the [plugin guide](../obsidian/taelgarverse/README.md). |
@@ -178,19 +178,20 @@ POV modes, and search applies the reader's metadata visibility before pagination
 Reader choices stay request-local and never mutate the shared engine.
 These rules are specified in [vault usage](vault.md).
 
-Person campaign histories use authoritative recap NPC beats and their Short text,
-with supplementary backlinks from non-session campaign-folder articles. Session
-notes supply optional source links; sessions without a recap use explicit links
+Person campaign histories use authoritative recap Cast `met` membership to select
+one encounter per session, with supplementary backlinks from non-session
+campaign-folder articles. Session notes supply display metadata and optional
+full-session links; sessions without a recap use explicit links
 in the official session note as separately labeled session references. Original
-`_sessions` files remain outside the article store; selected beat fields and their own visibility rules enter the
-revision index. Selected polished beat transcript bodies are stored separately
-in revision-bound shards and loaded only by their context-filtered transcript
-views. The Worker requires no session-body reads. Older publications
+`_sessions` files remain outside the article store; only session-header fallback
+metadata and resolved Cast membership enter the revision index. Beats, Short/Long
+text, and transcripts are ignored. The Worker requires no session-body reads. Older publications
 retain authored headers and non-session campaign references. See [campaign interactions](campaign-interactions.md).
 
-Compiled runtime render data carries the same interaction projections and
-transcript descriptors as the legacy index. Both use the shared snapshot text
-reader for verified transcript shards. Older compiled publications without an
+Compiled runtime render data carries the same session interaction projections as
+the legacy index. Legacy transcript descriptors remain readable by snapshot
+storage, but new publications produce no transcript shards or links.
+Older compiled publications without an
 interaction projection derive non-session references from the request's target
 backlink shard, keeping the shared engine immutable.
 

@@ -1,5 +1,5 @@
 // Node-only reader. The Worker receives the compiled projection, never files
-// from _sessions. Only explicitly referenced polished transcript bodies qualify.
+// from _sessions. Only recap session headers and Cast membership are inputs.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -30,25 +30,6 @@ export function readInteractionBundles(settings) {
   for (const {key,text} of readSessionRecaps(settings)) {
     try {
       const bundle=parseSessionRecap(text,key);
-      for (const scene of bundle.scenes) {
-        const {transcriptPath}=scene;delete scene.transcriptPath;
-        if (!transcriptPath) continue;
-        try {
-          // Polished beat artifacts are siblings of the recap, never arbitrary
-          // Source Files paths, raw cleaned sources, URLs, or symlink targets.
-          if (!/^beat-transcripts\/[\w.-]+\.md$/.test(transcriptPath)) {warnings.push(key+': invalid polished transcript reference for '+scene.id);continue;}
-          const directory=path.join(settings.vault_dir,path.dirname(key),'beat-transcripts');
-          if (!fs.existsSync(directory) || fs.lstatSync(directory).isSymbolicLink()) continue;
-          const filename=path.join(directory,path.basename(transcriptPath));
-          if (!fs.existsSync(filename)) continue;
-          const stat=fs.lstatSync(filename);
-          if (!stat.isFile() || stat.isSymbolicLink() || stat.size>8*1024*1024) {warnings.push(key+': unsupported polished transcript for '+scene.id);continue;}
-          const content=fs.readFileSync(filename,'utf8').replace(/\r\n?/g,'\n');
-          const body=/^## Transcript[ \t]*\n([\s\S]*)$/m.exec(content)?.[1]
-            .replace(/^[ \t]*%%\s*u\d+(?:\s*[-–]\s*u?\d+)?\s*%%[ \t]*(?:\n|$)/gm,'').trim();
-          if (body) scene.transcript=body;
-        } catch(error) {warnings.push(key+': transcript for '+scene.id+' omitted: '+error.message);}
-      }
       bundles.push(bundle);
     } catch(error){warnings.push(key+': '+error.message);bundles.push({key,invalid:true});}
   }

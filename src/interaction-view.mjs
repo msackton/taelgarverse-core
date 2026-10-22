@@ -30,19 +30,18 @@ function referenceView(references) {
     }).join('')+'</div></section>';
 }
 function sourceLinks(event) {
-  const label=event.sessionLabel || event.sourceTitle,url=event.sessionUrl || event.url;
+  const label=event.sessionLabel || event.sourceTitle,url=event.sessionUrl;
   const session=label ? (url ? '<a href="'+escapeHtml(url)+'">'+escapeHtml(label)+'</a>' : '<span>'+escapeHtml(label)+'</span>') : '';
-  const transcript=event.transcriptUrl ? '<a href="'+escapeHtml(event.transcriptUrl)+'">Transcript</a>' : '';
-  return session || transcript ? '<nav class="interaction-sources" aria-label="Interaction sources">'+session+transcript+'</nav>' : '';
+  return session ? '<nav class="interaction-sources" aria-label="Interaction sources">'+session+'</nav>' : '';
 }
 export function interactionSummary(groups) {
   if (!groups.length) return '';
   return '<p class="campaign-interaction-summary"><a href="#campaign-interactions">Campaign interactions</a> · '+groups.map(group=>{
-    const {beats,references}=interactionParts(group.events),facts=[];
+    const {sessions,references}=interactionParts(group.events),facts=[];
     if(group.known)facts.push('known to party');
-    const sessions=beats.filter(event=>event.kind==='session-reference').length;
-    if(beats.length-sessions)facts.push(count(beats.length-sessions,'encounter'));
-    if(sessions)facts.push(count(sessions,'session reference'));
+    const sessionReferences=sessions.filter(event=>event.kind==='session-reference').length;
+    if(sessions.length-sessionReferences)facts.push(count(sessions.length-sessionReferences,'encounter'));
+    if(sessionReferences)facts.push(count(sessionReferences,'session reference'));
     if(references.length)facts.push(count(references.length,'reference'));
     if(!facts.length)facts.push('no recorded interactions');
     return escapeHtml(group.label)+': '+facts.join(', ');
@@ -51,20 +50,19 @@ export function interactionSummary(groups) {
 export function interactionView(groups) {
   if (!groups.length) return '';
   const knowledgeOnly=groups.every(group=>group.known && !group.events.length);
-  const compact=groups.every(group=>!interactionParts(group.events).beats.length);
+  const compact=groups.every(group=>!interactionParts(group.events).sessions.length);
   return '<section id="campaign-interactions" class="campaign-interactions'+(compact ? ' campaign-interactions--compact' : '')+(knowledgeOnly ? ' campaign-interactions--knowledge-only' : '')+'" aria-label="Campaign interactions">'+
     '<h2>Campaign interactions</h2>'+groups.map(group=>{
-    const {beats,references}=interactionParts(group.events),related=referenceView(references);
+    const {sessions,references}=interactionParts(group.events),related=referenceView(references);
     const heading=campaignHeading(group);
-    if(!beats.length)return '<section class="interaction-campaign interaction-campaign--compact">'+
+    if(!sessions.length)return '<section class="interaction-campaign interaction-campaign--compact">'+
       heading+(!group.known && !references.length ? '<p class="interaction-empty">No recorded interactions.</p>' : '')+related+'</section>';
-    const data=JSON.stringify({...group,events:beats}).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
+    const data=JSON.stringify({...group,events:sessions}).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
     return '<section class="interaction-campaign" data-interaction-campaign>'+heading+
-      '<div class="interaction-controls" hidden><button type="button" data-interaction-back disabled>Zoom out</button></div>'+
       '<p class="interaction-breadcrumb" aria-live="polite" hidden></p><div class="interaction-plot" role="group" aria-label="Interaction dots" hidden></div>'+
       '<div class="interaction-detail" hidden></div>'+
-      '<ol class="interaction-fallback">'+beats.map(event=>'<li><span>'+escapeHtml(event.start ? interactionDateLabel(event)+' DR' : 'Date unrecorded')+'</span> '+
-        (event.url ? '<a href="'+escapeHtml(event.url)+'">'+escapeHtml(event.title)+'</a>' : escapeHtml(event.title))+
+      '<ol class="interaction-fallback">'+sessions.map(event=>'<li><span>'+escapeHtml(event.start ? interactionDateLabel(event)+' DR' : 'Date unrecorded')+'</span> '+
+        escapeHtml(event.title)+
         (event.kind!=='session-reference' && event.text ? '<p>'+escapeHtml(event.text)+'</p>' : '')+sourceLinks(event)+'</li>').join('')+'</ol>'+
       related+'<script type="application/json" data-interaction-records>'+data+'</script></section>';
   }).join('')+'</section>';

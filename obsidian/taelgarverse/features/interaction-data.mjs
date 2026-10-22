@@ -34,18 +34,10 @@ export async function obsidianInteractions(app) {
     return file && byPath.has(file.path) ? {status:'found',entry:byPath.get(file.path)} : lookup(raw);
   };
   const recaps=files.filter(file=>/^_sessions\/[^/]+\/[^/]+\/cleaned\/[^/]+-session-recap\.md$/.test(file.path));
-  const bundles=[],transcriptPaths=new Map(),identities=campaignIdentities(registry),warnings=[];
+  const bundles=[],warnings=[];
   await readFiles(recaps,async file=>{
     try {
       const bundle=parseSessionRecap(await app.vault.cachedRead(file),file.path);
-      // Native links open the referenced polished artifact without importing or
-      // rendering raw transcripts, and without using paths in Source Files.
-      const campaign=identities.get(String(bundle.campaign).trim().toLowerCase());
-      for(const scene of bundle.scenes) {
-        if(!/^beat-transcripts\/[\w.-]+\.md$/.test(scene.transcriptPath || ''))continue;
-        const target=file.path.slice(0,file.path.lastIndexOf('/')+1)+scene.transcriptPath;
-        if(app.vault.getAbstractFileByPath(target)?.extension==='md')transcriptPaths.set('recap:'+campaign+':'+bundle.number+':'+scene.id,target);
-      }
       bundles.push(bundle);
     } catch(error){warnings.push(file.path+': '+error.message);bundles.push({key:file.path,invalid:true});}
   });
@@ -85,9 +77,8 @@ export async function obsidianInteractions(app) {
   const backlinks={version:2,byTarget:Object.fromEntries([...incoming].map(([target,records])=>
     [target,records.filter(record=>fallbacks.has(record.source)).map(record=>({source:record.source,when:[{}]}))]))};
   const index=compileInteractionIndex(store,registry,backlinks,bundles);
-  for(const id of transcriptPaths.keys())index.transcripts[id]=true;
   const fallback=new Contexts(store,registry,{default_date:'1750-01-01'}).resolve().date;
-  return {store,registry,index,incoming,sessionFallbacks:fallbacks,ownership:buildBacklinkCampaigns(store,registry),transcriptPaths,fallback,warnings:[...warnings,...index.warnings]};
+  return {store,registry,index,incoming,sessionFallbacks:fallbacks,ownership:buildBacklinkCampaigns(store,registry),fallback,warnings:[...warnings,...index.warnings]};
 }
 export function knownCampaigns(snapshot,metadata) {
   const identities=campaignIdentities(snapshot.registry),codes=new Set(list(metadata.knownTo).map(value=>identities.get(String(value).trim().toLowerCase())).filter(Boolean));
@@ -122,6 +113,5 @@ export function localInteractions(snapshot,path,campaign,date,app) {
     const url='obsidian://open?vault='+encodeURIComponent(app.vault.getName())+'&file='+encodeURIComponent(target);links.set(url,target);return url;
   };
   const fromPage=url=>url?.startsWith('/page/') ? url.slice(6).split('?')[0].split('/').map(decodeURIComponent).join('/') : null;
-  return {group:{...group,events:group.events.map(event=>({...event,url:native(fromPage(event.url)),sessionUrl:native(fromPage(event.sessionUrl)),
-    transcriptUrl:native(snapshot.transcriptPaths.get(event.id))}))},links};
+  return {group:{...group,events:group.events.map(event=>({...event,url:native(fromPage(event.url)),sessionUrl:native(fromPage(event.sessionUrl))}))},links};
 }

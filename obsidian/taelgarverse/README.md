@@ -40,26 +40,28 @@ When the selected campaign has no visible timeline entries, it retains the same
 campaign-name heading and **Known to party** status line as a full timeline,
 with compact spacing and any related campaign links below it. The **Campaign
 interactions** heading and campaign picker stay above the content; choosing a
-campaign with recap beats adds its timeline below the same header. This applies
+campaign with recorded sessions adds its timeline below the same header. This applies
 to automatic footers and explicit blocks.
 
 Click or tap an individual dot to open a compact popup containing its date,
 details, and source links. Details stay closed initially, and one popup is shown
 at a time across campaigns. Close it with its close button, Escape, an outside
-click, or the same dot. Zooming and campaign changes also close it. Keyboard
+click, or the same dot. Campaign changes also close it. Keyboard
 users can activate dots with Enter or Space; Escape returns focus to the dot.
 Session references contain only the title, date, and a link such as **Session 30**.
-They omit explanatory commentary and repeated session titles. Recap beats retain
-their authored Short text and location. Popup titles use compact sans-serif text.
-Grouping is automatic. Session references on the same exact recorded day share
-one counted **Sessions** dot, even in short histories. Date ranges, partial dates,
-and undated references stay separate. Counted dots zoom into their entries; **Zoom out** appears
-only while zoomed in and restores the full history.
-Each dot shows its title and date, even in long histories. Grouped dots show the
-session label and recorded date range. Titles use up to two lines; hover or open
+They omit explanatory commentary and repeated session titles. Recap-backed
+popups show the full session's title, dates, tagline, and optional session link.
+Only resolved NPCs explicitly marked `met` in the recap's Cast qualify, including
+combined statuses such as `met, fought`. Mention-only and other statuses do not.
+Cast membership alone selects sessions. Beats, their NPC lists, Short/Long text,
+locations, and transcripts are ignored. Each session has one dot even when
+multiple sessions share a date. Dots open their popup directly, without beat zoom.
+Each dot shows its session title and date, even in long histories. The official
+session note's `descTitle`, `DR`, `DR_end`, and `tagline` supply display metadata, falling
+back to the recap header. Titles use up to two lines; hover or open
 the popup for the complete title. Dots wrap into rows, with two columns on narrow screens.
 
-Recap beats contribute encounter dots and counts. Sessions without a recap use
+Recap sessions contribute encounter dots and counts. Sessions without a recap use
 explicit NPC links in the official session note as hollow **Session reference**
 dots, counted separately, with the session date and a native note link. An
 existing recap suppresses this fallback for the entire session. The registry
@@ -74,7 +76,7 @@ Untagged notes and notes with `meta` or `background` tags are excluded, includin
 nested tags. A source note's `knownTo` flag does not bypass these exclusions.
 Links run horizontally within each category and wrap as needed. Each line shows
 its first ten links; **Show more** reveals the rest in the same layout. Links open
-their notes natively. Undated recap beats retain their session labels without
+their notes natively. Undated sessions retain their session labels without
 inventing a date.
 
 To choose the panel's position, add an empty block:
@@ -89,16 +91,16 @@ inside another fence do not suppress it. The **Automatic campaign interactions**
 setting turns automatic footers off immediately; explicit blocks continue to
 work. Rendering never inserts fences, modifies frontmatter, or saves note text.
 
-The dots, grouping, zoom, dates, and Short text use the same recap parser and
+The session dots, dates, and taglines use the same session-header/Cast parser and
 interaction model as the website. Session notes supply source links, and
 non-session campaign material supplies separate references. Only missing-recap
 sessions use session-note bodies, to identify explicit links and preserve their
 conditional visibility; no prose summary is generated. Raw transcripts are not
-interaction inputs. Links open session notes,
-campaign references, and available polished transcripts natively in Obsidian,
+interaction inputs. Links open full session notes and
+campaign references natively in Obsidian; beat and transcript links are omitted,
 including modified clicks to open another pane.
 
-Interactions require `_scripts/session_note_campaigns.json`. Authoritative beats
+Interactions require `_scripts/session_note_campaigns.json`. Session membership
 come from local `_sessions/<campaign>/<session>/cleaned/*-session-recap.md` files;
 sessions without those files use the official session-note fallback.
 They do not require a website connection, Dataview, CustomJS, or header display
