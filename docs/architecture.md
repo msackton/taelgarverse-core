@@ -86,6 +86,7 @@ flowchart LR
 | `src/engine.mjs`, `src/server.mjs` | Node initialization and HTTP adapter, using the same header core as the Worker. |
 | `src/header-core/` | Maintained dates, names, whereabouts, affiliations, templates, encounters and header output. `createHeaderSnapshot` freezes shared inputs; `createHeaderContext` creates request-local services; `renderBio` renders the complete header directly; `renderHeader` supports saved headers. |
 | `src/bio-block.mjs`, `obsidian/taelgarverse/features/headers.mjs` | Leading header-block recognition, pure publication normalization, and the Obsidian adapter. The host selects the date and resolves links; the shared core renders the title and a static native callout. |
+| `src/indexes.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/website-indexes.mjs`, `src/browser/index-popups.mjs` | Shared Residents, Settlements and Members queries, image cards/table/popup markup, lead-image resolution, website visibility adapter and popup lifecycle. The Obsidian headers feature supplies native resolution, refresh and links. See [generated indexes](vault.md#generated-indexes). |
 | `src/worker.mjs`, `src/worker-handler.mjs`, `src/snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
 | `src/headers.mjs`, `src/header-runtime.mjs`, `src/worker-headers.mjs` | Preserved legacy VM/generated reference implementations for characterization tests. Production rendering does not import them. |
 | `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs`, `scripts/header-core-revision.mjs` | Legacy reference/icon maintenance and a separate source fingerprint for the maintained core in publication diagnostics. |
@@ -208,6 +209,22 @@ including when a type filter would otherwise prevent the depth limit advancing.
 Body Dataview/JavaScript is not executed by either renderer. Supported
 Dataview queries are materialized during publication and do not rerun when a
 visitor changes context.
+
+Generated `taelgar-index` fences and frontmatter `indexes` arrays query the
+existing frozen header metadata at render time. They reuse dated whereabouts
+and affiliation services with host-provided resolution and visibility, requiring
+no extra snapshot format or note-body reads. The website filters candidates
+before counts and links, including formatted person info, location and home destinations.
+People and member tables reuse header templates and resolve their text/wikilink output into
+escaped text and host links. Grid images use
+the existing `image` metadata field; publication includes those references in
+the responsive-image usage plan. Search/backlink compilation omits these generated rows;
+inline indexes retain the containing note as their source inside transclusions.
+Header buttons belong only to the new `taelgar-header` renderer, after its complete
+output and outside the information callout. No general heading postprocessor adds
+buttons to ordinary titles or saved headers.
+Obsidian shares the bio snapshot, invalidates it on vault metadata changes, and
+owns popup listeners/dialogs through its Markdown child lifecycle.
 
 The Worker reads the R2 publication pointer on content requests. Successful
 article and homepage HTML can then be served from Cloudflare's Cache API before

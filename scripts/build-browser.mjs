@@ -6,6 +6,8 @@ import {build} from 'esbuild';
 const root = fileURLToPath(new URL('../', import.meta.url));
 
 export async function buildBrowser() {
+  await build({absWorkingDir:root,entryPoints:['src/browser/indexes.mjs'],outfile:path.join(root,'public/generated/indexes.js'),
+    bundle:true,format:'esm',platform:'browser',target:'es2022',minify:true,logLevel:'silent'});
   await build({absWorkingDir:root,entryPoints:['src/browser/images.mjs'],outfile:path.join(root,'public/generated/image-viewer.js'),
     bundle:true,format:'iife',platform:'browser',target:'es2022',minify:true,legalComments:'inline',logLevel:'silent'});
   await build({absWorkingDir:root,entryPoints:['src/browser/maps.mjs'],outfile:path.join(root,'public/generated/maps.js'),
