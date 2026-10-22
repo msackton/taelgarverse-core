@@ -203,7 +203,7 @@ export function campaignInteractions(index,store,entry,context,registry) {
         (index.backlinkVersion===1 && context.campaigns.length>1) || !interactionRuleVisible(record.when,context))continue;
       const {cutoff,when,campaign,...event}=record;
       group.events.push({...event,title:interactionText(source.note.metadata.descTitle || source.title),
-        text:'Linked in the official session note.',sourceTitle:source.title,location:'',url:null,
+        text:'',sourceTitle:source.title,location:'',url:null,
         sessionUrl:pageUrl(source.slug,context.date,context),transcriptUrl:null});
     } else {
       const source=store.bySlug.get(record.source);

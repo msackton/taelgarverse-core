@@ -48,6 +48,9 @@ details, and source links. Details stay closed initially, and one popup is shown
 at a time across campaigns. Close it with its close button, Escape, an outside
 click, or the same dot. Grouping and campaign changes also close it. Keyboard
 users can activate dots with Enter or Space; Escape returns focus to the dot.
+Session references contain only the title, date, and a link such as **Session 30**.
+They omit explanatory commentary and repeated session titles. Recap beats retain
+their authored Short text and location. Popup titles use compact sans-serif text.
 
 Recap beats contribute encounter dots and counts. Sessions without a recap use
 explicit NPC links in the official session note as hollow **Session reference**

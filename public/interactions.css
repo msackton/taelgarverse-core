@@ -13,7 +13,7 @@
 .interaction-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font:13px/1.5 system-ui,sans-serif}
 .interaction-controls label{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .interaction-controls select{max-width:100%}.interaction-controls button:disabled{opacity:.5}
-.interaction-breadcrumb,.interaction-order{font:12px/1.5 system-ui,sans-serif;color:var(--muted)}
+.interaction-breadcrumb{font:12px/1.5 system-ui,sans-serif;color:var(--muted)}
 .interaction-plot{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;row-gap:10px;padding:8px 0 12px;isolation:isolate}
 .md-typeset .interaction-dot{position:relative;flex:0 1 150px;min-width:0;height:auto;display:flex;flex-direction:column;align-items:center;padding:8px 4px;background:transparent;border:0;border-radius:5px;box-shadow:none;white-space:normal;color:var(--text);font:12px/1.4 system-ui,sans-serif;overflow-wrap:anywhere}
 .md-typeset .interaction-dot[aria-expanded="true"]{background:var(--soft)}
@@ -38,7 +38,7 @@
 .md-typeset .interaction-detail>p{margin:8px 0}
 .md-typeset .interaction-detail>.interaction-event-meta:first-of-type{padding-right:28px;margin-top:0}
 .interaction-event-meta{font:12px/1.5 system-ui,sans-serif;color:var(--muted)}
-.md-typeset .interaction-detail h4{margin:6px 0;font-size:16px}.interaction-source{font:13px/1.5 system-ui,sans-serif}
+.md-typeset .interaction-detail h4{margin:6px 0;font:500 15px/1.4 system-ui,sans-serif}.interaction-source{font:13px/1.5 system-ui,sans-serif}
 .md-typeset .interaction-popup-close{position:absolute;top:6px;right:6px;display:flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:0;border-radius:5px;background:transparent;box-shadow:none;color:var(--muted);font:22px/1 system-ui,sans-serif;cursor:pointer}
 .md-typeset .interaction-popup-close:hover{background:var(--soft);color:var(--text)}
 .md-typeset .interaction-dot:focus-visible,.md-typeset .interaction-popup-close:focus-visible{outline:2px solid var(--link);outline-offset:2px}

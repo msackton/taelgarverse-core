@@ -50,15 +50,14 @@ export function mountInteractions(root) {
     const close=node(document,'button','interaction-popup-close','×');close.type='button';close.setAttribute('aria-label','Close interaction details');
     close.addEventListener('click',event=>{event.stopPropagation();closePopup(true);});
     const title=node(document,'h4','',current.title);title.id=detail.id+'-title';
-    detail.replaceChildren(close,node(document,'p','interaction-event-meta',interactionDateLabel(current)+(current.start ? ' DR' : '')+' · '+kindLabel(current.kind)),title);
+    detail.replaceChildren(close,node(document,'p','interaction-event-meta',current.start ? interactionDateLabel(current)+' DR' : 'Date unrecorded'),title);
     if(!current.start && current.sessionStart)detail.append(node(document,'p','interaction-event-meta','Session dates: '+current.sessionStart+(current.sessionEnd!==current.sessionStart ? '–'+current.sessionEnd : '')+' DR'));
-    if(current.text)detail.append(node(document,'p','interaction-event-text',current.text));
+    if(current.kind!=='session-reference' && current.text)detail.append(node(document,'p','interaction-event-text',current.text));
     if(current.location)detail.append(node(document,'p','interaction-event-meta',current.location));
-    if(current.url){const link=node(document,'a','interaction-source',current.sourceTitle);link.setAttribute('href',current.url);detail.append(link);}
-    else if(current.sourceTitle)detail.append(node(document,'p','interaction-event-meta',current.sessionLabel+' · '+current.sourceTitle));
-    const links=[[current.sessionUrl,'Session note'],[current.transcriptUrl,'Transcript']].filter(([url])=>url);
-    if(links.length){const sources=node(document,'nav','interaction-sources');sources.setAttribute('aria-label','Interaction sources');
-      for(const [url,label] of links){const link=node(document,'a','interaction-source',label);link.setAttribute('href',url);sources.append(link);}detail.append(sources);}
+    const sessionLabel=current.sessionLabel || current.sourceTitle,sessionUrl=current.sessionUrl || current.url;
+    if(sessionLabel || current.transcriptUrl){const sources=node(document,'nav','interaction-sources');sources.setAttribute('aria-label','Interaction sources');
+      if(sessionLabel){const session=node(document,sessionUrl ? 'a' : 'span','interaction-source',sessionLabel);if(sessionUrl)session.setAttribute('href',sessionUrl);if(current.sourceTitle)session.title=current.sourceTitle;sources.append(session);}
+      if(current.transcriptUrl){const link=node(document,'a','interaction-source','Transcript');link.setAttribute('href',current.transcriptUrl);sources.append(link);}detail.append(sources);}
     detail.hidden=false;if(nativePopover)detail.showPopover();
     positionPopup();openPopups.set(document,closePopup);
     document.addEventListener('click',outsideClick,true);

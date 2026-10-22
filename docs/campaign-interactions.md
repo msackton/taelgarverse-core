@@ -28,7 +28,7 @@ above six entries. Readers can group by session, day, seven-day period, or
 individual entry. Selecting a counted dot zooms into its entries; **Zoom out**
 returns to the whole history. Selecting an individual dot opens a compact popup
 beside it with its date, title, Short text, location, and recap session/title,
-with **Session note** and **Transcript** links when available. Details start
+with a numbered session link and a **Transcript** link when available. Details start
 closed. A close button, Escape, an outside click, or selecting the dot again
 dismisses the popup; only one is open across campaigns. Grouping, campaign changes,
 and note closure also dismiss it. The popup fits the viewport and scrolls for long
@@ -40,6 +40,11 @@ file, explicit NPC links in its official session note contribute one hollow
 **Session reference** dot per person. These are counted separately from encounters,
 use the session's recorded date range, and link to the note without deriving a
 summary from its prose. Both kinds support the same grouping and zoom controls.
+Session references show only the title, date, and numbered session link. They omit
+explanatory boilerplate, type labels, and repeated session-note titles. Recap beats
+retain their authored Short text and location. Session links use labels such as
+**Session 30** in both popups and the list shown without JavaScript. Popup titles
+use the same compact sans-serif typography as the rest of the component.
 **Related campaign material** below the timeline shows
 supplementary backlinks on separate **Items**, **Stories**, **Sources**, and
 **References** lines. Authored `object`/`item` tags select Items, `story` selects

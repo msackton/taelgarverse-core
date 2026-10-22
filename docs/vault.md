@@ -386,6 +386,9 @@ available session notes and polished beat transcript views. Popups start closed
 and dismiss with their close button, Escape, an outside click, or selecting the
 dot again. Missing source links never
 remove recap beats.
+Session references show only title, date, and a session-number link, with no
+explanatory commentary or repeated session titles. Recap beats keep their authored
+Short text and location.
 Readers can group by session, day, or seven-day period and zoom into counted dots.
 This does not infer encounters from mentions or filter page availability by party
 knowledge. See [campaign interaction sources and rules](campaign-interactions.md).

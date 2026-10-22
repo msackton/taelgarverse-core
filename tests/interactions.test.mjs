@@ -104,7 +104,7 @@ test('missing recaps fall back to explicit links in the official session note, w
   assert.equal(events(context()).length,1,'repeated links produce one session reference');
   assert.equal(event.kind,'session-reference');assert.equal(event.id,'session:clee:12.1');
   assert.equal(event.start,'1720-01-01');assert.equal(event.end,'1720-01-03');assert.equal(event.precision,'range');
-  assert.equal(event.text,'Linked in the official session note.');assert.equal(event.transcriptUrl,null);
+  assert.equal(event.text,'');assert.equal(event.transcriptUrl,null);
   assert.match(event.sessionUrl,/session-12\.1\?date=1720-01-05&campaigns=clee/);
   assert.doesNotMatch(JSON.stringify(index),/Completely different generated prose/);
   assert.equal(campaignInteractions(index,store,store.resolve('Other'),context(),campaigns)[0].events.length,0,'the legacy duplicate cannot add evidence');
@@ -113,10 +113,21 @@ test('missing recaps fall back to explicit links in the official session note, w
   const parsed=parseHTML('<html><body>'+interactionSummary(groups)+interactionView(groups)+'</body></html>').document;
   assert.match(parsed.querySelector('.campaign-interaction-summary').textContent,/1 session reference/);
   assert.doesNotMatch(parsed.querySelector('.campaign-interaction-summary').textContent,/encounter/);
-  assert.match(parsed.querySelector('.interaction-fallback').textContent,/Session reference/);
+  assert.match(parsed.querySelector('.interaction-fallback').textContent,/Session 12\.1/);
+  assert.doesNotMatch(parsed.querySelector('.interaction-fallback').textContent,/Linked in|Session reference|Story order|spacing compressed/);
   const root=parsed.querySelector('[data-interaction-campaign]');mountInteractions(root);
   assert.ok(root.querySelector('.interaction-mark.session-reference'));
   assert.match(root.querySelector('.interaction-dot').getAttribute('aria-label'),/^Session reference:/);
+  root.querySelector('.interaction-dot').click();
+  const popup=root.querySelector('.interaction-detail');
+  assert.equal(popup.querySelectorAll('p').length,1,'only the date is shown above the title and session link');
+  assert.equal(popup.querySelector('.interaction-sources a').textContent,'Session 12.1');
+  assert.doesNotMatch(popup.textContent,/Linked in|Session reference|Story order|spacing compressed|Legacy/);
+  const older=[{...groups[0],events:[{...event,text:'Linked in the official session note.'}]}];
+  const olderPage=parseHTML('<html><body>'+interactionView(older)+'</body></html>').document;
+  assert.doesNotMatch(olderPage.querySelector('.interaction-fallback').textContent,/Linked in/);
+  const olderRoot=olderPage.querySelector('[data-interaction-campaign]');mountInteractions(olderRoot);olderRoot.querySelector('.interaction-dot').click();
+  assert.doesNotMatch(olderRoot.querySelector('.interaction-detail').textContent,/Linked in/,'old indexes also omit boilerplate');
   store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.tags.push('meta');
   assert.equal(events(context()).length,0,'meta also filters an existing fallback projection');
   store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.tags.pop();
@@ -151,7 +162,7 @@ test('recap date and both source links appear in browser details and the no-JS f
   assert.equal(root.querySelector('.interaction-detail').hidden,true);
   root.querySelector('.interaction-dot').click();
   assert.match(root.querySelector('.interaction-detail').textContent,/1720-01-01 DR/);
-  assert.deepEqual([...root.querySelectorAll('.interaction-detail .interaction-sources a')].map(link=>link.textContent),['Session note','Transcript']);
+  assert.deepEqual([...root.querySelectorAll('.interaction-detail .interaction-sources a')].map(link=>link.textContent),['Session 12.1','Transcript']);
   assert.equal(root.querySelector('.interaction-detail a').getAttribute('href'),groups[0].events[0].sessionUrl);
 });
 
@@ -366,7 +377,8 @@ test('undated recap beats retain their session when grouped by date, without bor
   const grouped=groupInteractions(events,'day');
   assert.match(grouped[0].title,/Session 12\.1 · Date unrecorded/);
   const {document}=parseHTML('<html><body>'+interactionView([{label:'Cleenseau',known:true,events}])+'</body></html>');
-  assert.match(document.querySelector('.interaction-fallback').textContent,/Session 12\.1 · Date unrecorded/);
+  assert.equal(document.querySelector('.interaction-fallback li > span').textContent,'Date unrecorded');
+  assert.match(document.querySelector('.interaction-fallback').textContent,/Session 12\.1/);
   const root=document.querySelector('[data-interaction-campaign]');mountInteractions(root);
   assert.match(root.querySelector('.interaction-dot-date').textContent,/Session 12\.1 · Date unrecorded/);
   root.querySelector('.interaction-dot').click();

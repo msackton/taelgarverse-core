@@ -100,7 +100,8 @@ test('Obsidian reads only missing-recap official session notes for fallback dots
     assert.ok(!h.reads.includes('Campaigns/Clee/Session 01.md'),'existing recaps keep session bodies out of evidence');
     const {element,child}=h.block();await child.ready;
     const dot=element.querySelector('.interaction-mark.session-reference').closest('button');h.click(dot);
-    assert.match(element.querySelector('.interaction-detail').textContent,/Session reference/);
+    assert.match(element.querySelector('.interaction-detail').textContent,/Session 2/);
+    assert.doesNotMatch(element.querySelector('.interaction-detail').textContent,/Linked in|Session reference|Story order|spacing compressed/);
     const link=element.querySelector('.interaction-detail .interaction-sources a');h.click(link);
     assert.equal(h.opened.at(-1)[0],official);child.unload();
     h.texts.set('_sessions/cleenseau/cleenseau-001/cleaned/cleenseau-001-session-recap.md','Malformed recap');
