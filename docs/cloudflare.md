@@ -134,12 +134,15 @@ those rules requires a [code update](architecture.md#change-and-release-rules).
 
 ## What happens when someone opens a page
 
-1. The Worker checks which content revision is current and loads its runtime
-   manifest, falling back to the complete index for older publications.
-2. It finds the requested note and checks whether it is available for the
+1. The Worker reads the current publication pointer. For an article or homepage,
+   it checks the response cache using the full URL and publication/build identity.
+   A hit returns HTML or an ETag-based `304` without loading the snapshot.
+2. On a miss, it loads the runtime manifest, falling back to the complete index
+   for older publications. It finds the requested note and checks availability for the
    selected campaign and date.
 3. For articles it loads renderer data and the prepared note, creates the header
-   for the selected date, and turns the Markdown into a web page.
+   for the selected date, and turns the Markdown into a web page. Successful
+   article/homepage GET responses are stored using `waitUntil`.
 4. The browser loads the page's images and audio through the Worker from R2.
 
 Visible note embeds load their note shards on demand, using the same selected
@@ -182,8 +185,38 @@ content adjusted for the reader's campaign and date. Submitting its search box
 opens search at `/?q=...`. An older publication without homepage text
 shows the search/browse page until content is published again.
 
-The Worker reuses loaded note data and navigation visibility, but checks for a new
-publication on content requests. Page responses are marked not to be cached.
+### Page response caching
+
+`src/page-cache.mjs` uses Cloudflare's Cache API for successful HTML articles
+(`/page/...`) and homepages (`/` without `q`, including campaign hosts). Search,
+APIs, browse pages, errors and a homepage that falls back to search remain
+`no-store`. Node previews and Workers without a build identity or Cache API also
+retain the uncached behavior. Requests with `Authorization`, range requests, and explicit
+request `Cache-Control: no-store` bypass the page cache. Responses that set cookies,
+private cache policy or unsupported `Vary` headers are not stored.
+
+Internal cache copies use `public, max-age=86400`. Browser responses instead use
+`public, max-age=0, must-revalidate` and a weak ETag. Conditional GET/HEAD requests
+can receive `304`; HEAD misses never store an empty response over a GET entry.
+The Worker checks the publication pointer even for a cache hit or `304`, so a
+missing/unreadable pointer cannot serve stale cached HTML. Cache failures fall
+back to rendering. The `X-Taelgar-Page-Cache: HIT|MISS` response header describes
+this cache; the generic Cloudflare cache-status header is not its diagnostic.
+
+Keys hash the full origin, path and query, preserving repeated parameter order
+and empty values, plus the content revision/commit/dirty flag/activation timestamp
+and the core commit/dirty flag/build timestamp. Changed dates, campaigns, DM/POV
+preferences, host policies, links, publications, rollbacks and website builds
+therefore cannot accidentally reuse another representation. URL fragments do
+not affect server output. Publishing or deploying switches the namespace;
+obsolete entries expire without a purge. The unchanged small publication-pointer
+read remains on every content request.
+
+Cache entries are local to Cloudflare locations and may be evicted. A miss still
+pays the normal rendering cost; this does not precompute HTML or guarantee a
+CPU budget for first visits. The policy is implemented in code and needs a
+website deployment to become active; it is not evidence of a live rollout.
+
 In `src/http-assets.mjs`, generated map tiles and responsive image variants use
 `Cache-Control: public, max-age=31536000, immutable`; their URLs include a source
 and recipe hash, so a changed image gets a new URL. Original images and audio

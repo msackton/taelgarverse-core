@@ -73,6 +73,24 @@ Local validation uses `npm test`, the R2/D1 integration tests, and
 `node scripts/cloudflare.mjs check`. These checks do not publish or deploy.
 Production changes still use the separately authorized deployment/publication.
 
+### Roll out page caching
+
+Deploy website code through the normal workflow. Page caching works with existing
+legacy and compiled publications; enabling it alone does not require republishing
+the vault, changing Cloudflare cache rules, or adding bindings. The normal build
+already supplies the core commit and build timestamp used in cache identity.
+
+Successful article/homepage responses report `X-Taelgar-Page-Cache: MISS` followed
+by `HIT` for the same URL and Cloudflare location once the background write finishes.
+Browsers revalidate rather than retaining HTML for the internal cache's one-day
+lifetime. A content publication, rollback activation, or website build selects
+a fresh cache namespace automatically. No purge step is required. A cache miss
+still renders dynamically; see [page response caching](cloudflare.md#page-response-caching)
+for exclusions, failure behavior and diagnostics.
+
+Validate locally with `npm test`, `node --test tests/page-cache.integration.mjs`,
+and `node scripts/cloudflare.mjs check` before deployment.
+
 ## GitHub tests, website deployment, and plugin releases
 
 The **Tests** workflow runs on pull requests and is reused by website and plugin

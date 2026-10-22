@@ -70,6 +70,7 @@ flowchart LR
 | `src/folder-exclusions.mjs` | Discover original-vault `.nopublish` folder markers for local indexing, export packaging, and publication fingerprints. |
 | `src/snapshot.mjs` | Load the R2 index and fetch/cache Markdown shards on demand. |
 | `src/runtime-snapshot.mjs` | Select compiled or legacy snapshots; lazily load route data and verify/cache prepared notes and asset manifests. |
+| `src/page-cache.mjs` | Worker-only HTML response caching, keyed by publication/build identity and full URL; browser ETag revalidation. |
 | `src/application.mjs` | Shared Fetch API router: homepage, articles, search HTML/JSON, contexts, navigation, assets, health. |
 | `src/render-engine.mjs` | Resolve context/page, generate header, filter comments, render Markdown and page shell. |
 | `src/article-layout.mjs` | Shell-only prose grouping and semantic media breakouts, retaining float contexts and embedded-note boundaries. |
@@ -208,8 +209,12 @@ Body Dataview/JavaScript is not executed by either renderer. Supported
 Dataview queries are materialized during publication and do not rerun when a
 visitor changes context.
 
-The Worker reads the R2 publication pointer on content requests and replaces its
-state when the revision changes. New publications include a small runtime
+The Worker reads the R2 publication pointer on content requests. Successful
+article and homepage HTML can then be served from Cloudflare's Cache API before
+initializing the snapshot. Cache keys include the exact URL, content revision,
+activation metadata, and website build identity; browser responses revalidate
+with ETags. Cache misses replace snapshot state when the revision changes.
+New publications include a small runtime
 manifest: health and contexts need no article data; assets load a partitioned
 asset index; search uses compact metadata; articles initialize the renderer from
 compiled lookups and header indexes, reusing those entries for navigation without
@@ -223,8 +228,9 @@ with shared pending reads and a bounded 16-object data cache. Navigation compile
 named-context visibility for both POV modes; custom views are calculated on
 demand in a bounded 32-view cache. Request context and active-page selection stay
 separate from shared visibility data. Node reads a filesystem snapshot at startup and must restart
-after vault, runtime, settings, homepage, or menu changes. There is no rendered HTML
-cache or prerendered article HTML. The `dev` supervisor restarts Node after vault/source changes; full preview
+after vault, runtime, settings, homepage, or menu changes. Node responses remain
+uncached. HTML is rendered on demand; publication does not prerender pages.
+The `dev` supervisor restarts Node after vault/source changes; full preview
 uses a prepared snapshot and must be rerun after vault edits.
 [Cloudflare](cloudflare.md) owns the hosted storage/request details.
 

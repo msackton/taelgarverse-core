@@ -3,10 +3,11 @@ import {openSnapshot} from './runtime-snapshot.mjs';
 import {serveAsset,themeFiles} from './http-assets.mjs';
 import {RenderError} from './common.mjs';
 import {createD1Search} from './search.mjs';
+import {pageCache} from './page-cache.mjs';
 
-export function createWorker(coreRelease = {}) {
+export function createWorker(coreRelease = {},{cache}={}) {
   let state;
-  return {async fetch(request,env) {
+  return {async fetch(request,env,context) {
     try {
       const url=new URL(request.url);
       if (url.pathname.startsWith('/theme/')) {
@@ -21,6 +22,8 @@ export function createWorker(coreRelease = {}) {
       }
       const published=await publication.json(), {revision}=published;
       if (!/^[a-f0-9]{64}$/.test(revision || '')) throw new RenderError(503,'Published content pointer is invalid');
+      const cached=pageCache(request,published,coreRelease,cache);
+      if(cached){const response=await cached.match();if(response)return cached.respond(response,true);}
       if (!state || state.revision!==revision || state.bucket!==env.CONTENT) {
         const pending=openSnapshot(env.CONTENT,revision);
         const current={revision,bucket:env.CONTENT,pending};state=current;
@@ -28,15 +31,20 @@ export function createWorker(coreRelease = {}) {
       }
       const snapshot=await state.pending;
       const {engine,store,index}=await snapshot.forRequest(request);
-      return await handleRequest(request,engine,{
+      let renderedPage=false;
+      const response=await handleRequest(request,engine,{
         runtime:'cloudflare-worker',revision,
         search:createD1Search(env.SEARCH_DB,{revision,descriptor:index.search,store}),
         releases:{core:coreRelease,content:{...(index.sourceVersion || {}),
           ...(published.commit ? {commit:published.commit,dirty:published.dirty} : {}),publishedAt:published.completedAt}},
         async renderPage(page,date,context,dm,campaigns,pov) {
-          return engine.renderAsync(page,date,context,dm,campaigns,entry=>store.getNote(entry),pov);
+          const result=await engine.renderAsync(page,date,context,dm,campaigns,entry=>store.getNote(entry),pov);
+          renderedPage=true;return result;
         },
-        renderHome:(context,siteHost)=>engine.renderHomeAsync(context,entry=>store.getNote(entry),siteHost),
+        async renderHome(context,siteHost) {
+          const result=await engine.renderHomeAsync(context,entry=>store.getNote(entry),siteHost);
+          renderedPage=!!result;return result;
+        },
         assets(entry,request) {
           return serveAsset(request,entry,async range=>{
             const object=await env.CONTENT.get(entry.objectKey,{range});
@@ -46,6 +54,11 @@ export function createWorker(coreRelease = {}) {
         },
         theme:(name,request)=>env.ASSETS.fetch(new Request(new URL('/'+themeFiles[name],request.url),request)),
       });
+      if(cached && renderedPage && cached.accepts(response)){
+        await cached.put(response,context);
+        return cached.respond(response,false);
+      }
+      return response;
     } catch(error) {
       const status=error instanceof URIError ? 400 : error.status || 500;
       if (status===500) console.error(error);
