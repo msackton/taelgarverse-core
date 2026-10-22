@@ -1,11 +1,10 @@
-Taelgarverse 0.5.0
+Taelgarverse 0.5.1
 
-- Add Residents, Settlements, Members, Rivers, and Places indexes calculated from vault metadata and the selected in-world date. Rivers includes secondary watershed membership; Places includes nested quarters, buildings, and shops.
-- Enable header popup buttons with an `indexes` frontmatter array. Buttons appear below the information callout in a `taelgar-header` block, stay hidden when empty, and calculate their contents when clicked.
-- Add inline `taelgar-index` blocks with image grids or compact tables. Each inline index starts with an H2 heading. Use `target`, `show`, and `recursive` to choose its note, renderer, and containment scope.
-- Use the existing people and location formatting for pronouns, pronunciation, ancestry, current location, and home. Residents follow active homes, Settlements includes ruins, and Members follows dated affiliations.
-- Speed up repeated renders with shared metadata lookups and a bounded query cache that refreshes when metadata or the date changes. Member indexes omit result counts.
+- Show one campaign encounter dot per full session, using the recap Cast's explicit “met” entries. Mention-only NPCs do not create encounter dots; older session-reference dots remain for sessions without a recap.
+- Open session popups directly with the session title, DR dates, tagline, and full-session link. Ignore beats entirely and remove beat details, transcript links, grouping, and zoom.
+- Remove the extra gap between the name and pronunciation in generated Obsidian headers.
+- Add the [taelgar-index code block guide](https://github.com/msackton/taelgarverse-obsidian/blob/main/docs/taelgar-index.md), covering index types, options, grids, tables, and examples.
 
-Indexes require no Dataview or CustomJS scripts and use native Obsidian links. Existing notes are unchanged; opt in with frontmatter or an inline block. Header popup buttons require the new `taelgar-header` block.
+Reload Taelgarverse after updating. Website session encounters require content republication; deploying the website code alone does not rebuild the interaction records.
 
 Desktop only. The minimum app version remains Obsidian 1.8.0.
