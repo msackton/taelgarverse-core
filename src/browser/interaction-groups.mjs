@@ -18,6 +18,19 @@ export function interactionDateLabel(event) {
   if (event.precision==='month') return months[Number(event.start.slice(5,7))-1]+' '+event.start.slice(0,4);
   return event.start===event.end ? event.start : event.start+'–'+event.end;
 }
+function groupDateLabel(events) {
+  const dated=events.filter(event=>event.start && event.end);
+  if(!dated.length)return 'Date unrecorded';
+  const first=dated.reduce((a,b)=>a.start<=b.start ? a : b),last=dated.reduce((a,b)=>a.end>=b.end ? a : b);
+  let label;
+  if(first.start===last.start && first.end===last.end && first.precision===last.precision)label=interactionDateLabel(first);
+  else {
+    const start=interactionDateLabel({...first,end:first.start,precision:first.precision==='range' ? 'day' : first.precision});
+    const end=interactionDateLabel({...last,start:last.end,precision:last.precision==='range' ? 'day' : last.precision});
+    label=start===end ? start : start+'–'+end;
+  }
+  return label+(dated.length<events.length ? ' · undated' : '');
+}
 export function interactionParts(events) {
   const beats=[],references=[];
   for(const event of events)(event.kind==='reference' ? references : beats).push(event);
@@ -38,5 +51,5 @@ export function groupInteractions(events,mode='auto') {
     } else {key='range:'+event.start+':'+event.end;title=interactionDateLabel(event);}
     if(!buckets.has(key))buckets.set(key,{key,title,events:[]});buckets.get(key).events.push(event);
   }
-  return [...buckets.values()].map(group=>({...group,dateLabel:group.events.length+' '+(group.events.length===1?'entry':'entries')}));
+  return [...buckets.values()].map(group=>({...group,dateLabel:groupDateLabel(group.events)}));
 }

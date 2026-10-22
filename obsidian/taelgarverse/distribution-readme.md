@@ -65,6 +65,9 @@ They omit explanatory commentary and repeated session titles. Recap beats retain
 their authored Short text and location. Popup titles use compact sans-serif text.
 Grouping is automatic. Counted dots zoom into their entries; **Zoom out** appears
 only while zoomed in and restores the full history.
+Each dot shows its title and date, even in long histories. Grouped dots show the
+session label and recorded date range. Titles use up to two lines; hover or open
+the popup for the complete title. Dots wrap into rows, with two columns on narrow screens.
 
 Recap beats contribute encounter dots and counts. Sessions without a recap use
 explicit NPC links in the official session note as hollow **Session reference**

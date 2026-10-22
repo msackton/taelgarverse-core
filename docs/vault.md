@@ -391,6 +391,9 @@ explanatory commentary or repeated session titles. Recap beats keep their author
 Short text and location.
 Grouping is automatic. Readers can zoom into counted dots; **Zoom out** appears
 only while zoomed in and restores the full history.
+Dots show their title and date even in long histories; grouped dots show the
+session label, recorded date range, and count. Labels wrap across rows, with
+two-line titles and full text in the popup.
 This does not infer encounters from mentions or filter page availability by party
 knowledge. See [campaign interaction sources and rules](campaign-interactions.md).
 

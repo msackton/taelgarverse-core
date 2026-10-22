@@ -400,6 +400,12 @@ test('dot grouping retains 27 entries, respects spans/undated records, and uses 
   const events=Array.from({length:27},(_,i)=>({id:String(i),title:'Interaction '+i,start:'1720-01-'+String(1+Math.floor(i/3)).padStart(2,'0'),end:'1720-01-'+String(1+Math.floor(i/3)).padStart(2,'0'),precision:'day',session:'s'+Math.floor(i/5),sessionLabel:'Session '+Math.floor(i/5)}));
   for(const mode of ['auto','session','day','week','event'])assert.equal(groupInteractions(events,mode).flatMap(group=>group.events).length,27);
   assert.equal(groupInteractions(events,'auto').length,6);assert.equal(groupInteractions(events,'day').length,9);assert.equal(groupInteractions(events,'week').length,2);
+  assert.equal(groupInteractions(events,'auto')[0].dateLabel,'1720-01-01–1720-01-02');
+  const month={...events[0],start:'1720-02-01',end:'1720-02-28',precision:'month'};
+  assert.equal(groupInteractions([month,{...month,id:'other'}],'session')[0].dateLabel,'Feb 1720');
+  const undated={...events[0],id:'undated',start:null,end:null,sessionStart:'1720-01-01'};
+  assert.equal(groupInteractions([events[0],undated],'session')[0].dateLabel,'1720-01-01 · undated');
+  assert.equal(groupInteractions([undated,{...undated,id:'other'}],'session')[0].dateLabel,'Date unrecorded');
   assert.equal(groupInteractions(events.slice(0,3),'auto').length,3);
   assert.equal(interactionDay('1720-03-01')-interactionDay('1720-02-28'),1);
   const span={...events[0],end:'1720-01-10',precision:'range'};
@@ -418,7 +424,10 @@ test('browser dots select details and zoom into/out of groups, with an accessibl
   assert.equal(root.querySelector('.interaction-controls').hidden,true,'zoom out is absent until zoomed in');
   assert.equal(root.querySelector('.interaction-detail').hidden,true,'nothing is expanded on initial render');
   assert.equal(root.querySelectorAll('.interaction-dot').length,6);
+  assert.equal(root.querySelector('.interaction-dot-title').textContent,'Session 0');
+  assert.equal(root.querySelector('.interaction-dot-date').textContent,'1720-01-01');
   root.querySelector('.interaction-dot').click();assert.equal(root.querySelectorAll('.interaction-dot').length,5);
+  assert.equal(root.querySelector('.interaction-dot-title').textContent,'Interaction 0');
   assert.equal(root.querySelector('.interaction-controls').hidden,false);
   assert.equal(root.querySelector('.interaction-detail').hidden,true,'zooming does not open details');
   root.querySelectorAll('.interaction-dot')[4].click();assert.equal(root.querySelector('.interaction-detail h4').textContent,'Interaction 4');
@@ -429,6 +438,12 @@ test('browser dots select details and zoom into/out of groups, with an accessibl
   const parsed=parseHTML('<html><body>'+hostile+'</body></html>').document;
   assert.equal(parsed.querySelectorAll('img').length,0);assert.equal(parsed.querySelectorAll('script').length,1);
   assert.equal(JSON.parse(parsed.querySelector('script').textContent).events[0].title,JSON.parse(JSON.stringify([{...events[0],title:'</script><img src=x onerror=alert(1)>'}]))[0].title);
+  const longHistory=events.map((event,index)=>({...event,session:'s'+index}));
+  const longPage=parseHTML('<html><body>'+interactionView([{...groups[0],events:longHistory}])+'</body></html>').document;
+  const longRoot=longPage.querySelector('[data-interaction-campaign]');mountInteractions(longRoot);
+  assert.deepEqual([...longRoot.querySelectorAll('.interaction-dot-title')].map(label=>label.textContent),longHistory.map(event=>event.title));
+  assert.equal(longRoot.querySelectorAll('.interaction-dot-date').length,27,'large histories retain date labels');
+  assert.ok([...longRoot.querySelectorAll('.interaction-dot-date')].every(label=>label.textContent==='1720-01-01'));
 });
 
 test('dot popups show source links, dismiss accessibly, stay in the viewport, and clean up when unmounted',()=>{

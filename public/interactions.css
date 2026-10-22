@@ -13,10 +13,8 @@
 .interaction-controls{display:flex;justify-content:flex-end;font:13px/1.5 system-ui,sans-serif}
 .interaction-breadcrumb{font:12px/1.5 system-ui,sans-serif;color:var(--muted)}
 .interaction-plot{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;row-gap:10px;padding:8px 0 12px;isolation:isolate}
-.md-typeset .interaction-dot{position:relative;flex:0 1 150px;min-width:0;height:auto;display:flex;flex-direction:column;align-items:center;padding:8px 4px;background:transparent;border:0;border-radius:5px;box-shadow:none;white-space:normal;color:var(--text);font:12px/1.4 system-ui,sans-serif;overflow-wrap:anywhere}
+.md-typeset .interaction-dot{position:relative;flex:0 1 160px;min-width:0;height:auto;display:flex;flex-direction:column;align-items:center;padding:8px 4px;background:transparent;border:0;border-radius:5px;box-shadow:none;white-space:normal;color:var(--text);font:12px/1.4 system-ui,sans-serif;overflow-wrap:anywhere}
 .md-typeset .interaction-dot[aria-expanded="true"]{background:var(--soft)}
-.interaction-plot[data-density="medium"] .interaction-dot{flex:1 1 85px;max-width:120px}
-.interaction-plot[data-density="dense"] .interaction-dot{flex:0 0 48px}
 .interaction-glyph{position:relative;display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin-bottom:7px}
 .interaction-dot:before{content:'';position:absolute;top:30px;height:1px;left:0;right:0;background:var(--line);z-index:-1}
 .interaction-dot:first-child:before{left:50%}.interaction-dot:last-child:before{right:50%}
@@ -25,7 +23,7 @@
 .interaction-mark.mention{background:var(--bg)}.interaction-mark.reference{background:var(--bg);border-style:dashed}
 .interaction-mark.authored{border-radius:2px;transform:rotate(45deg)}
 .interaction-count{width:32px;height:32px;border-radius:50%;background:var(--soft);border:1px solid var(--link);display:flex;align-items:center;justify-content:center;font-size:13px}
-.interaction-dot-title{display:block;font-weight:500;max-width:100%;text-align:center;margin-bottom:3px}
+.interaction-dot-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-weight:500;max-width:100%;min-height:2.8em;text-align:center;margin-bottom:3px}
 .interaction-dot-date{display:block;font-size:11px;color:var(--muted);text-align:center}
 .interaction-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font:11px/1.5 system-ui,sans-serif;color:var(--muted);margin-bottom:16px}
 .interaction-key{display:inline-flex;align-items:center;gap:6px}.interaction-key:before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--link);border:1px solid var(--link)}
@@ -61,5 +59,5 @@ html .md-typeset details.interaction-reference-more summary::before{content:'▸
 html .md-typeset details.interaction-reference-more[open] summary::before{content:'▾'}
 html .md-typeset details.interaction-reference-more summary::after{display:none}
 html .md-typeset details.interaction-reference-more summary:focus-visible{outline:2px solid var(--link);outline-offset:3px}
-@media(max-width:480px){.md-typeset .interaction-dot{flex-basis:33.333%}}
+@media(max-width:480px){.md-typeset .interaction-dot{flex-basis:50%}}
 @media(pointer:coarse){.interaction-controls button,.interaction-reference-links a,.interaction-reference-more summary{min-height:44px}.md-typeset .interaction-popup-close{width:44px;height:44px}.md-typeset .interaction-detail>.interaction-event-meta:first-of-type{padding-right:40px}}

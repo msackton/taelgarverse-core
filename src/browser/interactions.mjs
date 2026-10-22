@@ -75,14 +75,15 @@ export function mountInteractions(root) {
     const period=first ? ' · '+first+(first!==last ? '–'+last : '') : '';
     breadcrumb.textContent=focused ? 'All interactions / '+focusLabel+' · '+visible.length+' entries' : data.events.length+' recorded '+(data.events.length===1?'entry':'entries')+period;
     back.disabled=!focused;controls.hidden=!focused;
-    groups.forEach((group,index)=>{
+    groups.forEach(group=>{
       const cluster=group.events.length>1,button=node(document,'button','interaction-dot');button.type='button';
-      button.setAttribute('aria-label',cluster ? 'Zoom into '+group.title+', '+group.events.length+' entries' : kindLabel(group.events[0].kind)+': '+group.title+', '+group.dateLabel);
+      const title=cluster ? group.title : group.events[0].title,dateLabel=cluster ? group.dateLabel : interactionDateLabel(group.events[0]);
+      button.title=title+' · '+dateLabel;
+      button.setAttribute('aria-label',cluster ? 'Zoom into '+title+', '+group.events.length+' entries, '+dateLabel : kindLabel(group.events[0].kind)+': '+title+', '+dateLabel);
       if(!cluster){button.setAttribute('aria-haspopup','dialog');button.setAttribute('aria-controls',detail.id);button.setAttribute('aria-expanded','false');}
       const glyph=node(document,'span','interaction-glyph');glyph.setAttribute('aria-hidden','true');
       glyph.append(node(document,'span',cluster ? 'interaction-count' : 'interaction-mark '+group.events[0].kind,cluster ? group.events.length : ''));
-      button.append(glyph,node(document,'span','interaction-dot-title',groups.length>8 ? String(index+1) : group.title));
-      if(groups.length<=8)button.append(node(document,'span','interaction-dot-date',group.dateLabel));
+      button.append(glyph,node(document,'span','interaction-dot-title',title),node(document,'span','interaction-dot-date',dateLabel));
       button.addEventListener('click',()=>{
         if(cluster){focused=group.events.map(event=>event.id);focusLabel=group.title;render();back.focus();}
         else openPopup(group.events[0],button);

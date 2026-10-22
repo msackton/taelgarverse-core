@@ -35,6 +35,13 @@ and note closure also dismiss it. The popup fits the viewport and scrolls for lo
 text. Dates are labeled DR. Touch and keyboard use the same actions; without
 JavaScript, recap beats remain available as a linked list.
 
+Every individual dot shows its entry title and date, including long histories.
+Grouped dots show their session label and recorded date range, with the entry
+count inside the dot. Titles use up to two lines, with the complete title and
+date available on hover and in the popup. Labeled dots wrap onto additional rows;
+narrow screens use two columns. Group dates preserve month/year precision and
+mark partially undated groups without assigning dates to undated entries.
+
 Recap beats contribute encounter dots and counts. When a session has no recap
 file, explicit NPC links in its official session note contribute one hollow
 **Session reference** dot per person. These are counted separately from encounters,
