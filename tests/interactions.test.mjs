@@ -152,17 +152,30 @@ test('untagged, meta and background sources are excluded from both new and older
   assert.equal(eventsFor(store,index).filter(event=>event.kind==='reference').length,0,'changed metadata also filters an existing index');
 });
 
-test('the website renders every campaign in its context under one heading, with no component campaign picker',()=>{
-  const {store,index}=sample();
+test('the website shows only knownTo campaigns in the active context, even when other campaigns have recap records',()=>{
+  const {store}=sample(),clee=parseSessionRecap(recap),mawar={...parseSessionRecap(recap),campaign:'Mawar Adventures'};
+  const index=compileInteractionIndex(store,registry,null,[clee,mawar]);
   const engine=new RenderEngine({settings:{default_date:'1720-01-05'},store,headers:{registry},renderHeader:()=>'',navigationSource:null,interactionIndex:index});
-  for(const selected of [['clee','mawar'],['mawar'],[]]) {
-    const result=engine.render('Person','1720-01-05','custom',false,undefined,selected);
-    assert.deepEqual(result.interactions.map(group=>group.code),selected);
+  assert.ok(campaignInteractions(index,store,store.resolve('Person'),context('1720-01-05',['mawar']),registry)[0].events.length);
+  for(const {knownTo,selected,expected,date='1720-01-05'} of [
+    {knownTo:['Clee'],selected:['clee','mawar'],expected:['clee']},
+    {knownTo:['Clee'],selected:['mawar'],expected:[]},
+    {knownTo:['clee','mawar'],selected:[],expected:[]},
+    {knownTo:'Mawar Adventures',selected:['clee','mawar'],expected:['mawar']},
+    {knownTo:['Clee','Mawar Adventures'],selected:['clee','mawar'],expected:['clee','mawar']},
+    {knownTo:[],selected:['clee','mawar'],expected:[]},
+    {knownTo:undefined,selected:['clee'],expected:[]},
+    {knownTo:['clee'],selected:['clee'],expected:['clee'],date:'1719-12-31'},
+  ]) {
+    store.resolve('Person').note.metadata.knownTo=knownTo;
+    const result=engine.render('Person',date,'custom',false,undefined,selected);
+    assert.deepEqual(result.interactions.map(group=>group.code),expected);
     const parsed=parseHTML('<html><body>'+result.html+'</body></html>').document;
-    assert.equal(parsed.querySelectorAll('#campaign-interactions > h2').length,selected.length?1:0);
+    assert.equal(parsed.querySelectorAll('#campaign-interactions > h2').length,expected.length?1:0);
     assert.equal(parsed.querySelector('#campaign-interactions select[aria-label="Campaign"]'),null);
-    if(selected.includes('mawar'))assert.match(parsed.querySelector('#campaign-interactions').textContent,/Mawar Adventures · No recorded interactions/);
-    if(!selected.length)assert.equal(parsed.querySelector('#campaign-interactions'),null);
+    if(!expected.length)assert.equal(parsed.querySelector('#campaign-interactions,.campaign-interaction-summary'),null);
+    else if(date==='1719-12-31')assert.equal(result.interactions[0].events.length,0,'knowledge alone still displays for an intersecting campaign');
+    else assert.ok(result.interactions.every(group=>group.events.length && group.known));
   }
 });
 

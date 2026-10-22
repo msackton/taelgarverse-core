@@ -7,14 +7,15 @@ prose, interpret transcripts, or infer relationships.
 
 ## Reader experience
 
-The website shows every campaign selected in the active context, without a
-component campaign picker. No selected campaigns means no interaction component.
+The website shows the intersection of the page's registered `knownTo` campaigns
+and the campaigns selected in the active context, without a component campaign
+picker. An empty intersection means no interaction component, even if another
+campaign has recap beats or references for that person.
 Selected campaigns each have a separate history. `knownTo` supplies **Known to
 party** without inventing a first-known date or controlling page availability.
 Existing `campaignInfo` wording remains in the normal generated header; it does
-not create additional dots. A recap can record interactions for a campaign not
-listed in `knownTo`. A selected campaign with neither knowledge nor records shows
-a brief **No recorded interactions** indication.
+not create additional dots. The index retains authoritative recap records
+independently of `knownTo`; the website component only shows intersecting campaigns.
 
 A campaign with `knownTo` but no visible recap beats or campaign references uses
 a small **Known to Cleenseau** footnote beneath the **Campaign interactions**

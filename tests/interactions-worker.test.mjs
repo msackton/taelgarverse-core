@@ -24,6 +24,8 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     fs.writeFileSync(path.join(vault,'World.md'),'# World\n[[Person]]');
     fs.mkdirSync(path.join(vault,'Campaigns','Clee'),{recursive:true});
     fs.writeFileSync(path.join(vault,'Campaigns','Clee','Handout.md'),'---\ntags: [source]\n---\n# Handout\n[[Person]]');
+    fs.mkdirSync(path.join(vault,'Campaigns','Other'),{recursive:true});
+    fs.writeFileSync(path.join(vault,'Campaigns','Other','Other Handout.md'),'---\ntags: [source]\n---\n[[Person]]');
     for(const [name,tags] of [['Untagged',''],['List of NPCs','tags: [source, meta]'],['Background','tags: [background/lore]']])
       fs.writeFileSync(path.join(vault,'Campaigns','Clee',name+'.md'),'---\n'+tags+'\n---\n[[Person]]');
     fs.writeFileSync(path.join(vault,'Session.md'),'---\ntags: [session-note]\ncampaign: Cleenseau\nsessionNumber: 12.1\nDR: 1720-01-01\nDR_end: 1720-01-02\n---\n# Session\n\nThe party met [[Person]] at the inn.\n\n%%^Campaign:none%%\nPerson showed them a hidden room.\n%%^End%%');
@@ -87,12 +89,14 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
       const actual=await snapshot.engine.renderAsync('Person','1720-01-02','custom',false,campaigns,entry=>snapshot.store.getNote(entry));
       const expected=node.render('Person','1720-01-02','custom',false,undefined,campaigns);
       assert.deepEqual(actual.interactions,expected.interactions);
-      assert.deepEqual(actual.interactions.map(group=>group.code),campaigns);
+      const intersecting=campaigns.filter(code=>code==='clee');
+      assert.deepEqual(actual.interactions.map(group=>group.code),intersecting);
       assert.equal(actual.html,expected.html);
       const parsed=parseHTML('<html><body>'+actual.html+'</body></html>').document;
-      assert.equal(parsed.querySelectorAll('#campaign-interactions > h2').length,campaigns.length?1:0);
+      assert.equal(parsed.querySelectorAll('#campaign-interactions > h2').length,intersecting.length?1:0);
       assert.equal(parsed.querySelector('#campaign-interactions select[aria-label="Campaign"]'),null);
-      if(campaigns.includes('other'))assert.match(parsed.querySelector('#campaign-interactions').textContent,/Other · No recorded interactions/);
+      assert.doesNotMatch(parsed.querySelector('#campaign-interactions')?.textContent || '',/Other Handout/);
+      if(!intersecting.length)assert.equal(parsed.querySelector('#campaign-interactions'),null);
     }
     const legacy=structuredClone(index);
     for(const name of ['Untagged','List of NPCs','Background']) {

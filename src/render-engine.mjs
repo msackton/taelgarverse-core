@@ -79,7 +79,7 @@ export class RenderEngine {
     }
     const hide = Array.isArray(metadata.hide) ? metadata.hide : typeof metadata.hide === 'string' ? metadata.hide.split(/[\s,]+/) : [];
     const rendered = this.renderBody(body,entry,context,embedLoading);
-    const interactions = campaignInteractions(this.interactionIndex,this.store,entry,context,this.headers.registry);
+    const interactions = campaignInteractions(this.interactionIndex,this.store,entry,context,this.headers.registry).filter(group=>group.known);
     if (interactions.length) {
       const summary=interactionSummary(interactions);
       rendered.html=/<\/h1>/i.test(rendered.html) ? rendered.html.replace(/<\/h1>/i,match=>match+summary) : summary+rendered.html;

@@ -366,8 +366,9 @@ Nonempty backlinks appear in the right sidebar even on short articles; on mobile
 appear in a collapsed **Linked from** section below the article.
 
 Person pages also show a **Campaign interactions** summary and grouped dot history
-for every campaign in the active context, without a component campaign picker.
-No selected campaigns means no component. `knownTo` supplies undated party knowledge and
+for the intersection of the page's registered `knownTo` campaigns and the active
+context's campaigns, without a component campaign picker. An empty intersection
+means no component. `knownTo` supplies undated party knowledge and
 `campaignInfo` retains its normal header wording. Authoritative recap entries
 supply encounter dots using their explicit NPCs, dates, and Short text. Session
 notes supply only optional source links; non-session campaign-folder backlinks
