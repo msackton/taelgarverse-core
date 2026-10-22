@@ -9,6 +9,7 @@ import {escapeHtml, pageUrl, titleCase, contextQuery} from './common.mjs';
 import {IMAGE_TYPES, AUDIO_TYPES, availableInContext} from './content-store.mjs';
 import {decorateDMNotes} from './dm.mjs';
 import {renderMap} from './maps.mjs';
+import {renderIndexBlock} from './website-indexes.mjs';
 
 import {icons} from './icons.mjs';
 const aliases = {summary:'abstract',tldr:'abstract',hint:'tip',important:'tip',check:'success',done:'success',
@@ -168,6 +169,7 @@ export function createMarkdown(options = {}) {
     // The website already renders its campaign history after the article. An
     // empty Obsidian placement block must not add a visible code frame there.
     if (type==='taelgar-interactions' && !tokens[index].content.trim()) return '';
+    if (/^taelgar-index(?:\s|$)/i.test(type)) return renderIndexBlock(tokens[index].content,env);
     if (/^mermaid(?:\s|$)/i.test(type)) {
       const query = contextQuery(env.context || {kind:'custom',date:env.date});
       query.set('source',env.entry.id);

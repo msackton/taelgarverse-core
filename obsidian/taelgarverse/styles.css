@@ -28,3 +28,5 @@
 .markdown-source-view.mod-cm6 .cm-embed-block.cm-lang-taelgar-header > .embed-actions .edit-block-button {
   display: none;
 }
+
+.markdown-source-view.mod-cm6 .cm-embed-block:has(.taelgar-index-host[hidden]) { display:none; }

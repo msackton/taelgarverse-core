@@ -15,6 +15,7 @@ import {leadingBioBlock,leadingHeaderMarker} from './bio-block.mjs';
 import {HeaderDataError} from './header-core/errors.mjs';
 import {compileInteractionIndex,campaignInteractions} from './campaign-interactions.mjs';
 import {interactionSummary,interactionView} from './interaction-view.mjs';
+import {addHeaderIndexes,HEADER_INDEX_SLOT} from './website-indexes.mjs';
 
 export class RenderEngine {
   constructor({settings,store,headers,renderHeader,renderBio,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles,loadTranscript}) {
@@ -70,6 +71,9 @@ export class RenderEngine {
           const header = parseNote(this.renderHeader(this.headers, {source, name: entry.name, metadata, date})).body;
           generated = header;
         }
+        // The new header owns its controls. Place their slot after the complete
+        // generated header, outside its information box and before authored prose.
+        if (bio && metadata.indexes != null) generated=generated.trimEnd()+'\n\n'+HEADER_INDEX_SLOT;
         body = bio || headerMarker ? generated.trimEnd() + '\n\n' + body.slice(bio?.end ?? headerMarker[0].length).replace(/^(?:[ \t]*\r?\n)*/, '') : generated;
       } catch (error) {
         if(error instanceof HeaderDataError)throw new RenderError(422,`Header generation failed: circular ${error.kind} chain.`);
@@ -87,6 +91,7 @@ export class RenderEngine {
       rendered.html=/<\/h1>/i.test(rendered.html) ? rendered.html.replace(/<\/h1>/i,match=>match+summary) : summary+rendered.html;
       rendered.html+=interactionView(interactions);
     }
+    if (bio && metadata.indexes != null) rendered.html = addHeaderIndexes(rendered.html,{store:this.store,entry,context,headers:this.headers,warnings:rendered.warnings});
     if (hide.includes('toc')) rendered.toc = '';
     return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,hide,
       ...(metadata.layout === 'wide' ? {layout:'wide'} : {}),
@@ -155,7 +160,7 @@ export class RenderEngine {
       throw error;
     }
     const warnings = [];
-    const noteEmbeds = [], env = {store:this.store,entry,date,context,warnings,dmNotes,notesMarkdown:this.notesMarkdown,noteEmbeds};
+    const noteEmbeds = [], env = {store:this.store,entry,date,context,headers:this.headers,warnings,dmNotes,notesMarkdown:this.notesMarkdown,noteEmbeds};
     const rendered = renderMarkdown(this.markdown,body,env);
     if (noteEmbeds.length) rendered.html = expandNoteEmbeds(rendered.html,noteEmbeds,{...env,markdown:this.markdown},embedLoading);
     rendered.html = responsiveImages(rendered.html,this.store,{wide:entry.note?.metadata.layout === 'wide'});
@@ -179,11 +184,13 @@ export function document(result,contextOptions,navigation,releases) {
   const diagrams = result.html.includes('class="mermaid-diagram"') ? '<script type="module" src="/theme/diagrams.js"></script>' : '';
   const maps = result.html.includes('class="leaflet-map"');
   const interactions = result.interactions?.length;
+  const indexes = result.html.includes('class="taelgar-index');
   return '<!doctype html><html lang="en" dir="ltr" data-appearance="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><script src="/theme/appearance.js"></script>' +
     '<title>' + escapeHtml(result.title) + ' — TaelgarVerse</title><link rel="stylesheet" href="/theme/material.css">' +
     '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"><link rel="stylesheet" href="/theme/image-viewer.css"><link rel="stylesheet" href="/theme/quiet-library.css">' +
     (maps ? '<link rel="stylesheet" href="/theme/leaflet.css"><link rel="stylesheet" href="/theme/maps.css">' : '') +
     (interactions ? '<link rel="stylesheet" href="/theme/interactions.css">' : '') +
+    (indexes ? '<link rel="stylesheet" href="/theme/indexes.css">' : '') +
     (result.search ? '<link rel="stylesheet" href="/theme/search.css">' : '') +
     (result.homepage ? '<link rel="stylesheet" href="/theme/homepage.css">' : '') + '</head>' +
     '<body>' + siteHeader(result.context,contextOptions,{query:result.query,searchType:result.searchType,sections:showNavigation ? navigation.sections(view) : '',navigation:!!showNavigation}) +
@@ -191,5 +198,7 @@ export function document(result,contextOptions,navigation,releases) {
     '<main id="page-content" class="md-typeset article-main" tabindex="-1">' + breadcrumbs + article + '</main>' + pageNav +
     '</div>' + siteDialogs() + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/site-ui.js" defer></script><script type="module" src="/theme/search-overlay.js"></script><script src="/theme/image-viewer.js" defer></script>' + diagrams +
     (maps ? '<script type="module" src="/theme/maps.js"></script>' : '') +
-    (interactions ? '<script type="module" src="/theme/interactions.js"></script>' : '') + '</body></html>';
+    (interactions ? '<script type="module" src="/theme/interactions.js"></script>' : '') +
+    (indexes ? '<script type="module" src="/theme/indexes.js"></script>' : '') + '</body></html>';
+
 }

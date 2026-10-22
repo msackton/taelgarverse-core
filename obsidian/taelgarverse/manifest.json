@@ -3,7 +3,7 @@
   "name": "Taelgarverse",
   "version": "0.4.0",
   "minAppVersion": "1.8.0",
-  "description": "Taelgarverse tools for Obsidian: generated headers, campaign interactions, interactive maps with measurement, and an optional image viewer.",
+  "description": "Taelgarverse tools for Obsidian: generated headers and indexes, campaign interactions, interactive maps with measurement, and an optional image viewer.",
   "author": "Taelgar",
   "authorUrl": "https://github.com/msackton/taelgarverse-core",
   "isDesktopOnly": true

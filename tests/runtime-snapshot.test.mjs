@@ -11,6 +11,7 @@ import {ContentStore,parseNote,availableInContext,compileAvailability} from '../
 import {Navigation} from '../src/navigation.mjs';
 import {validatePublicationUploads,prunePublication} from '../scripts/content-retention.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
+import {indexSources} from './fixtures/indexes.mjs';
 
 let directory,report,objects,settings;
 class Bucket {
@@ -55,11 +56,19 @@ before(async()=>{
     'Adder Session.md':'---\ntags: [session-note]\ncampaign: adma\nDR: 1740-01-01\n---\nSession.',
   };
   Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/backlinks.json',import.meta.url),'utf8')));
+  Object.assign(notes,indexSources(),{
+    'Index Guide.md':'# Index Guide\n\n```taelgar-index\ntype: residents\ntarget: Town\n```\n\n```taelgar-index\ntype: members\ntarget: Guild\nshow: obsidian\n```',
+    'Index Embed.md':'# Index Embed\n\n![[Index Guide]]',
+    'Index Table.md':'```taelgar-index\ntype: residents\ntarget: Realm\nmode: table\n```',
+    'Settlement Table.md':'```taelgar-index\ntype: settlements\ntarget: Realm\nmode: table\n```',
+    'Member Table.md':'```taelgar-index\ntype: members\ntarget: Guild\nmode: table\n```',
+  });
   for(const [file,source] of Object.entries(notes)){
     fs.mkdirSync(path.dirname(path.join(directory,file)),{recursive:true});
     fs.writeFileSync(path.join(directory,file),source);
   }
   fs.writeFileSync(path.join(directory,'sound.mp3'),'fixture sound bytes');
+  fs.mkdirSync(path.join(directory,'portraits'));fs.copyFileSync(new URL('../node_modules/leaflet/dist/images/marker-icon.png',import.meta.url),path.join(directory,'portraits/alice.png'));
   fs.writeFileSync(path.join(directory,'_website/home.md'),'# Welcome\n\nA home ![[Other]]');
   fs.writeFileSync(path.join(directory,'_website/frontier.md'),'---\ncampaigns: [dufr]\nenforcePoV: 1\n---\n# Frontier\n\n![[Other]]');
   fs.writeFileSync(path.join(directory,'_website/navigation.md'),'- [Home](index.md)\n- World\n    - {glob: .}\n');
@@ -83,6 +92,37 @@ test('compiled and legacy snapshots produce identical dynamic HTML, APIs, embeds
     const a=await request(worker,current,url),b=await request(old,legacy,url);
     assert.equal(a.status,b.status,url);assert.deepEqual([...a.headers],[...b.headers],url);
     assert.equal(await a.text(),await b.text(),url);
+  }
+});
+
+test('compiled and legacy Workers calculate visible indexes from metadata and preserve inline blocks through publication',async()=>{
+  for(const legacy of [false,true]) {
+    const bucket=new Bucket(objects,{legacy}),worker=createWorker();
+    const response=await request(worker,bucket,'/api/page?page=Places/Realm.md&date=1720-01-01&campaigns=dufr&pov=1');
+    assert.equal(response.status,200);const result=await response.json();
+    assert.match(result.html,/Residents \(2\)/);assert.match(result.html,/Settlements \(2\)/);
+    assert.match(result.html,/taelgar-index-image/);
+    assert.match(result.html,/Alice Example<\/a> \(she\/her AL-iss\)/);
+    assert.doesNotMatch(result.html,/People\/(?:Hidden|Campaign Secret|POV Secret)|Dead|Future|Visitor/);
+    if(!legacy)assert.equal(bucket.calls.filter(key=>key.includes('/runtime/notes/')).length,1,'metadata indexes do not fetch candidate bodies');
+    const embedded=await request(worker,bucket,'/api/page?page=Index Embed&date=1720-01-01&campaigns=dufr&pov=1');
+    assert.equal(embedded.status,200);const page=await embedded.json();assert.match(page.html,/Alice Example/);
+    assert.doesNotMatch(page.html,/Treasurer/,'Obsidian-only inline indexes are absent on the website');
+    const table=await request(worker,bucket,'/api/page?page=Index Table&date=1720-01-01&campaigns=dufr&pov=1');
+    assert.equal(table.status,200);const tabular=await table.json();
+    assert.match(tabular.html,/Alice Example.*she\/her AL-iss/s);assert.match(tabular.html,/Townfolk human/);
+    assert.match(tabular.html,/Person<\/th>.*Info<\/th>.*Current Location<\/th>.*Home<\/th>/s);
+    assert.doesNotMatch(tabular.html,/Visitor/);assert.match(tabular.html,/January 1st, 1720/);
+    assert.doesNotMatch(tabular.html,/taelgar-index-image|People\/Hidden/);
+    const settlements=await request(worker,bucket,'/api/page?page=Settlement Table&date=1720-01-01&campaigns=dufr&pov=1');
+    assert.equal(settlements.status,200);const places=await settlements.json();
+    assert.match(places.html,/Place<\/th>.*Region<\/th>.*Type Of<\/th>.*Population<\/th>/s);
+    assert.match(places.html,/Ruin/);assert.match(places.html,/pop\. 1,234/);
+    const members=await request(worker,bucket,'/api/page?page=Member Table&date=1720-01-01&campaigns=dufr&pov=1');
+    assert.equal(members.status,200);const people=await members.json();
+    assert.match(people.html,/Person<\/th>.*Info<\/th>.*Current Location<\/th>/s);
+    assert.match(people.html,/she\/her AL-iss/);assert.match(people.html,/January 1st, 1720/);
+    assert.doesNotMatch(people.html,/People\/(?:Hidden|Campaign Secret|POV Secret)|Dead|Future/);
   }
 });
 

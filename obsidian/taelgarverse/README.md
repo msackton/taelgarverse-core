@@ -1,6 +1,6 @@
 # Taelgarverse for Obsidian
 
-The unified desktop Taelgarverse plugin: generated note headers, local image maps,
+The unified desktop Taelgarverse plugin: generated note headers and indexes, local image maps,
 calibrated distances, freehand tracing, enclosed areas, and an optional image viewer.
 Name Explorer and the materializer remain separate. Requires Obsidian 1.8.0+.
 
@@ -23,7 +23,7 @@ Without those, use the latest campaign session date, falling back to DR
 1750-01-01. Headers refresh after metadata changes and detect calendar/override
 date changes within two seconds. The vault's `.obsidian/metadata.json` (or its
 custom configuration-folder equivalent) and `_scripts/session_note_campaigns.json`
-are required only when rendering a bio block. Existing Maps-only test vaults
+are required only when rendering a bio block or generated index. Existing Maps-only test vaults
 continue to work.
 
 ## Campaign interactions
@@ -111,6 +111,36 @@ registry, and file changes. Calendar changes refresh visible panels within two
 seconds. Closing notes or unloading the plugin disposes panels, observers, and
 timers. The website consumes the empty placement fence without showing a code
 frame and retains its normal campaign-history section.
+
+## Generated indexes
+
+Residents, Settlements, and Members grids are calculated from vault metadata. Put
+`indexes: [residents, settlements]` in a place's frontmatter or
+`indexes: [members]` on an organization to add popup buttons at the bottom of
+its `taelgar-header` block, below and outside the information callout. Ordinary
+Markdown titles and saved headers do not receive buttons. Use a `taelgar-index` fence
+containing `type: residents`, `type: settlements`, or `type: members` for an
+inline grid. Optional `target` selects another note, `show` selects `obsidian`,
+`website`, or `both`, and `recursive` controls location/organization containment.
+Grid cards show available local images from each note's `image` frontmatter.
+People cards include pronouns and name pronunciation when available, using the
+same name formatting as tables. Settlement cards also include pronunciation.
+Use `mode: table` inline for Person (name, pronouns, pronunciation), Info (ancestry
+and main type), Current Location (last-known chain and date), and Home on Residents.
+Residents includes living people whose active home is in the place, including
+traveling residents. Transients whose home is elsewhere are excluded. Cards show
+the same Info and Current Location fields as tables, plus Home for Residents.
+Member tables show Person (name, pronouns,
+pronunciation), Info (ancestry and main type), and Current Location (last-known
+location chain and date), using the existing query's header templates and
+affiliation-date rules. Settlement tables show
+Place, Region, Type Of, and Population, sorted by their dated home region.
+Settlements includes ruins and matches current, last-known and secondary
+locations using the existing `inLocation(..., true, true, date)` rules.
+`mode: grid` is the default; popups always use grids.
+See [generated indexes](../../docs/vault.md#generated-indexes) for defaults,
+date semantics, website visibility, and complete examples. Grids refresh from
+current metadata without Dataview or CustomJS. Source mode keeps the YAML editable.
 
 ## Install and update
 

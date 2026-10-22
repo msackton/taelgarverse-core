@@ -1,6 +1,6 @@
 # Taelgarverse for Obsidian
 
-Taelgarverse tools for desktop Obsidian: generated note headers, interactive maps,
+Taelgarverse tools for desktop Obsidian: generated note headers and indexes, interactive maps,
 distance measurement, freehand tracing, enclosed-area measurement, and an optional image viewer.
 
 ## Install with BRAT
@@ -11,6 +11,48 @@ distance measurement, freehand tracing, enclosed-area measurement, and an option
 
 BRAT can follow the latest release or pin an individual installation to a specific
 version. Plugin files and BRAT preferences should stay outside vault Git tracking.
+
+## Generated indexes
+
+Version 0.4.0 adds Residents, Settlements, and Members grids from current vault
+metadata and the selected in-world date. Enable header popup buttons with
+`indexes: [residents, settlements]` on a place or `indexes: [members]` on an
+organization. Buttons appear only with a `taelgar-header` block, at the bottom
+of the generated header and outside the information callout.
+
+For an inline grid:
+
+````markdown
+```taelgar-index
+type: residents
+mode: grid
+show: both
+```
+````
+
+`target` optionally names another note. `show` accepts `obsidian`, `website`, or
+`both` (default). Residents includes living people whose active home is in the
+place, including traveling residents; transients whose home is elsewhere are
+excluded. Settlements follows
+`typeOf: settlement`, and Members follows active affiliations and leadership.
+Residents and Settlements include contained locations by default; Members
+matches the direct organization. Override this with `recursive: true` or `false`.
+Cards show available lead images from note `image` frontmatter. People cards
+include pronouns and pronunciation when available; settlement cards also show
+pronunciation. People cards show Info and Current Location using the same
+templates as tables, plus Home on Residents. Set `mode: table`
+inline to show Person (name, pronouns, pronunciation), Info (ancestry and main
+type), Current Location (last-known chain and date), and Home for Residents.
+Member tables show Person (name, pronouns, pronunciation),
+Info (ancestry and main type), and Current Location (last-known location chain
+and date), following the existing `isAffiliated` and header-template rules.
+Settlement tables show Place, Region,
+Type Of, and Population, sorted by dated home region, with the same type and
+population formatting as headers. Settlements includes ruins and matches
+current, last-known and secondary locations using the existing location rules.
+Table rows have no image column; popups always use image grids.
+Grids and buttons refresh when vault metadata or calendar dates change. Notes
+remain editable and are never rewritten.
 
 ## Generated headers
 

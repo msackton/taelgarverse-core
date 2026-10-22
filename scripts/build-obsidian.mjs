@@ -22,7 +22,7 @@ export async function buildObsidian(output=path.join(root,'dist/obsidian/taelgar
     const bytes=await fs.readFile(path.join(root,'node_modules/leaflet/dist/images',match[1]));
     leaflet=leaflet.replace(match[0],'url(data:image/png;base64,'+bytes.toString('base64')+')');
   }
-  const styles=await Promise.all(['public/maps.css','public/image-viewer.css','public/interactions.css','obsidian/taelgarverse/images.css','obsidian/taelgarverse/styles.css'].map(file=>fs.readFile(path.join(root,file),'utf8')));
+  const styles=await Promise.all(['public/maps.css','public/image-viewer.css','public/interactions.css','public/indexes.css','obsidian/taelgarverse/images.css','obsidian/taelgarverse/styles.css'].map(file=>fs.readFile(path.join(root,file),'utf8')));
   await fs.writeFile(path.join(output,'styles.css'),[leaflet,...styles].join('\n'));
   for(const file of ['manifest.json','versions.json'])await fs.copyFile(path.join(pluginSource,file),path.join(output,file));
   await fs.copyFile(path.join(root,'LICENSE'),path.join(output,'LICENSE'));
