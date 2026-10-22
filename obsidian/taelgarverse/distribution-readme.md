@@ -50,9 +50,10 @@ campaigns get a **Campaign** selector directly below the heading, with **All**
 selected by default to show them together. The choice is retained while the
 plugin is running. Source mode stays unchanged.
 
-Campaigns without visible recap beats use a small **Known to Cleenseau** footnote
-and any related campaign links. The **Campaign interactions** heading and picker
-stay above the content; choosing a campaign with recap beats restores the timeline.
+Campaigns without visible recap beats retain the same campaign-name heading and
+**Known to party** status line as a full timeline, with compact spacing and any
+related links. The **Campaign interactions** heading and picker stay above the
+content; choosing a campaign with recap beats adds its timeline below the same header.
 
 Only recap beats contribute encounter dots and counts. **Related campaign material**
 groups links on separate **Items** (`object`/`item`), **Stories** (`story`), and

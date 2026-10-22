@@ -134,17 +134,18 @@ test('reference filtering uses authored tags before local knownTo adaptation and
   }finally{h.feature.unload();}
 });
 
-test('All preserves the heading and picker above multiple knowledge-only footnotes',async()=>{
+test('All preserves the heading and picker above consistent knowledge-only campaign headers',async()=>{
   const p='People/Known Only.md',h=host({notes:{[p]:'---\nknownTo: [clee, other]\n---\n# Known Only'}});
   try {
     const {element,child}=h.block('',p);await child.ready;
     assert.equal(element.querySelectorAll('h2').length,1);
     assert.ok(element.querySelector('h2 + .taelgar-interaction-campaign select'));
     assert.equal(element.querySelector('select').value,'all');
-    assert.deepEqual([...element.querySelectorAll('.interaction-knowledge-footnote')].map(node=>node.textContent),['Known to Cleenseau.','Known to Other.']);
+    assert.deepEqual([...element.querySelectorAll('.interaction-campaign-header h3')].map(node=>node.textContent),['Cleenseau','Other']);
+    assert.deepEqual([...element.querySelectorAll('.interaction-knowledge')].map(node=>node.textContent),['Known to party','Known to party']);
     assert.equal(element.querySelector('.interaction-plot,.interaction-controls'),null);
     const select=element.querySelector('select');select.querySelector('option[value="clee"]').selected=true;select.dispatchEvent(new h.window.Event('change'));await h.settle();
-    assert.equal(element.querySelectorAll('.interaction-knowledge-footnote').length,1);
+    assert.equal(element.querySelectorAll('.interaction-campaign-header').length,1);
     assert.ok(element.querySelector('h2 + .taelgar-interaction-campaign select'));
     child.unload();
   }finally{h.feature.unload();}
@@ -183,7 +184,8 @@ test('reference-only campaign choices keep the picker below the heading and nati
     assert.ok(element.querySelector('h2 + .taelgar-interaction-campaign select'));
     assert.ok(element.classList.contains('taelgar-interactions--compact'));
     assert.equal(element.querySelector('h2').textContent,'Campaign interactions');
-    assert.equal(element.querySelector('h3,.interaction-plot,.interaction-controls,.interaction-detail'),null);
+    assert.equal(element.querySelector('.interaction-campaign-header h3').textContent,'Other');
+    assert.equal(element.querySelector('.interaction-plot,.interaction-controls,.interaction-detail'),null);
     assert.equal(element.querySelectorAll('.interaction-reference-links a').length,7);
     assert.equal(element.querySelectorAll('.interaction-reference-more a').length,2);
     assert.deepEqual([...element.querySelectorAll('.interaction-reference-label')].map(node=>node.textContent),['Items','Stories','Sources']);
@@ -201,21 +203,22 @@ test('reference-only campaign choices keep the picker below the heading and nati
   }finally{h.feature.unload();}
 });
 
-test('knownTo without campaign records renders a small footnote in blocks, Reading View and Live Preview',async()=>{
+test('knownTo without campaign records renders a compact campaign header in blocks, Reading View and Live Preview',async()=>{
   const p='People/Known Only.md',h=host({automatic:true,notes:{[p]:'---\nknownTo: Clee\n---\n# Known Only'}});
-  const footnote=element=>{
-    assert.equal(element.querySelector('.interaction-knowledge-footnote').textContent,'Known to Cleenseau.');
+  const heading=element=>{
+    assert.equal(element.querySelector('.interaction-campaign-header h3').textContent,'Cleenseau');
+    assert.equal(element.querySelector('.interaction-knowledge').textContent,'Known to party');
     assert.equal(element.querySelector('h2').textContent,'Campaign interactions');
-    assert.equal(element.querySelector('h3,.interaction-controls,.interaction-plot,.interaction-detail,script,select'),null);
+    assert.equal(element.querySelector('.interaction-controls,.interaction-plot,.interaction-detail,script,select'),null);
     assert.ok(element.classList.contains('taelgar-interactions--knowledge-only'));
     assert.doesNotMatch(element.textContent,/No recap/);
   };
   try {
-    const {element,child}=h.block('',p);await child.ready;footnote(element);child.unload();
+    const {element,child}=h.block('',p);await child.ready;heading(element);child.unload();
     h.view.file=h.app.vault.getAbstractFileByPath(p);await h.feature.syncReading();await h.settle();
-    footnote(h.document.querySelector('.markdown-preview-sizer .taelgar-interactions'));
+    heading(h.document.querySelector('.markdown-preview-sizer .taelgar-interactions'));
     const widget=h.extensions[0][0].create(h.editor('Body',p)).ranges[0].value.widget;
-    const preview=widget.toDOM({dom:h.document.createElement('div'),requestMeasure(){}});await h.settle();footnote(preview);widget.destroy(preview);
+    const preview=widget.toDOM({dom:h.document.createElement('div'),requestMeasure(){}});await h.settle();heading(preview);widget.destroy(preview);
     assert.equal(h.texts.get(p),'---\nknownTo: Clee\n---\n# Known Only');
   }finally{h.feature.unload();}
 });
@@ -233,16 +236,18 @@ test('the campaign picker stays below the heading for knowledge-only campaigns a
     await child.ready;assert.match(element.textContent,/Cleenseau party/);
     await choose('other');
     assert.ok(element.querySelector('h2 + .taelgar-interaction-campaign select[aria-label="Campaign"]'));
-    assert.match(element.querySelector('.interaction-knowledge-footnote').textContent,/^Known to /);
+    assert.equal(element.querySelector('.interaction-campaign-header h3').textContent,'Other');
+    assert.equal(element.querySelector('.interaction-knowledge').textContent,'Known to party');
     assert.ok(element.classList.contains('taelgar-interactions--knowledge-only'));
-    assert.equal(element.querySelector('h3,.interaction-plot'),null);
+    assert.equal(element.querySelector('.interaction-plot'),null);
     h.cache.trigger('changed');await pause(190);await h.settle();
     assert.equal(element.querySelector('select[aria-label="Campaign"]').value,'other');
     await choose('clee');
     assert.match(element.textContent,/Cleenseau party/);
     assert.ok(element.querySelector('.interaction-dot'));
     assert.equal(element.classList.contains('taelgar-interactions--knowledge-only'),false);
-    assert.equal(element.querySelector('.interaction-knowledge-footnote'),null);
+    assert.equal(element.querySelector('.interaction-campaign-header h3').textContent,'Cleenseau');
+    assert.equal(element.querySelector('.interaction-knowledge').textContent,'Known to party');
     child.unload();
   }finally{h.feature.unload();}
 });

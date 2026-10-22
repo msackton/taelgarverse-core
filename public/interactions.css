@@ -1,11 +1,14 @@
 .campaign-interaction-summary{font:14px/1.5 system-ui,sans-serif;color:var(--muted);margin:10px 0 20px}
 .campaign-interactions{clear:both;border-top:1px solid var(--line);margin-top:32px;padding-top:12px}
-.campaign-interactions--compact{border:0;margin-top:16px;padding:0}
-.md-typeset .campaign-interactions--compact>h2{margin:0 0 12px}
+.campaign-interactions--compact{margin-top:16px}
+.md-typeset .campaign-interactions>h2{margin:0 0 12px}
 .interaction-empty{color:var(--muted);font-size:.85em}
-.md-typeset .interaction-knowledge-footnote{margin:4px 0;font-size:.85em;line-height:1.5;color:var(--muted)}
 .interaction-campaign{margin:24px 0 32px}
 .interaction-campaign--compact{margin:8px 0}
+.interaction-campaign-header{margin-bottom:12px}
+.interaction-campaign--compact .interaction-campaign-header{margin-bottom:0}
+.md-typeset .interaction-campaign-header h3{margin:0 0 4px}
+.md-typeset .interaction-campaign-header .interaction-knowledge{margin:0}
 .interaction-knowledge{font:14px/1.5 system-ui,sans-serif}.interaction-knowledge span{color:var(--muted)}
 .interaction-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font:13px/1.5 system-ui,sans-serif}
 .interaction-controls label{display:flex;align-items:center;gap:8px;flex-wrap:wrap}

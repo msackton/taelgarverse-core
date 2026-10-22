@@ -217,26 +217,28 @@ test('an explicit Obsidian placement fence does not duplicate the website histor
   assert.doesNotMatch(result.html,/language-taelgar-interactions/);
 });
 
-test('campaigns known only through metadata use footnotes while campaigns with records retain their timeline',()=>{
+test('knowledge-only, reference-only and timeline views share campaign headings and knowledge status',()=>{
   const {store}=sample(),groups=campaignInteractions(null,store,store.resolve('Person'),context(),registry);
   assert.equal(groups[0].events.length,0);
   const {document}=parseHTML('<html><body>'+interactionSummary(groups)+interactionView(groups)+'</body></html>');
-  assert.equal(document.querySelector('#campaign-interactions .interaction-knowledge-footnote').textContent,'Known to Cleenseau.');
+  assert.equal(document.querySelector('.interaction-campaign-header h3').textContent,'Cleenseau');
+  assert.equal(document.querySelector('.interaction-knowledge').textContent,'Known to party');
   assert.ok(document.querySelector('.campaign-interactions--knowledge-only'));
   assert.equal(document.querySelector('#campaign-interactions > h2').textContent,'Campaign interactions');
-  assert.equal(document.querySelector('h3,.interaction-controls,.interaction-plot,.interaction-detail,script'),null);
+  assert.equal(document.querySelector('.interaction-controls,.interaction-plot,.interaction-detail,script'),null);
   assert.ok(document.querySelector(document.querySelector('.campaign-interaction-summary a').getAttribute('href')),'the header link still reaches the footnote');
   const actual=sample(),recorded=campaignInteractions(actual.index,actual.store,actual.store.resolve('Person'),context(),registry);
   const empty={code:'other',label:'Other <img src=x>',known:true,events:[]};
   const mixed=parseHTML('<html><body>'+interactionView([...recorded,empty])+'</body></html>').document;
+  assert.equal(mixed.querySelector('.interaction-campaign-header').outerHTML,document.querySelector('.interaction-campaign-header').outerHTML);
   assert.equal(mixed.querySelectorAll('[data-interaction-campaign]').length,1);
-  assert.match(mixed.querySelector('.interaction-knowledge-footnote').textContent,/Other <img src=x>/);
+  assert.equal(mixed.querySelectorAll('.interaction-campaign-header h3')[1].textContent,'Other <img src=x>');
   assert.equal(mixed.querySelector('img,.campaign-interactions--knowledge-only'),null);
   assert.ok(mixed.querySelector('h2'));
   const emptyOnly=parseHTML('<html><body>'+interactionView([...groups,empty])+'</body></html>').document;
-  assert.equal(emptyOnly.querySelectorAll('.interaction-knowledge-footnote').length,2);
+  assert.equal(emptyOnly.querySelectorAll('.interaction-campaign-header').length,2);
   assert.equal(emptyOnly.querySelector('h2').textContent,'Campaign interactions');
-  assert.equal(emptyOnly.querySelector('h3,script'),null);
+  assert.equal(emptyOnly.querySelector('script,.interaction-controls,.interaction-plot'),null);
 });
 
 test('campaign material uses typed links outside the dots and encounter counts, including without JavaScript',()=>{
@@ -269,12 +271,12 @@ test('campaign material uses typed links outside the dots and encounter counts, 
   const compact=parseHTML('<html><body>'+interactionView(referencesOnly)+'</body></html>').document;
   assert.ok(compact.querySelector('.campaign-interactions--compact'));
   assert.equal(compact.querySelector('h2').textContent,'Campaign interactions');
-  assert.equal(compact.querySelector('h3,.interaction-plot,.interaction-controls,.interaction-detail,script'),null);
+  assert.equal(compact.querySelector('.interaction-plot,.interaction-controls,.interaction-detail,script'),null);
   assert.equal(compact.querySelectorAll('.interaction-reference-links a').length,27);
-  assert.equal(compact.querySelector('.interaction-knowledge-footnote').textContent,'Known to Cleenseau.');
+  assert.equal(compact.querySelector('.interaction-campaign-header').outerHTML,root.querySelector('.interaction-campaign-header').outerHTML);
   const unflagged=parseHTML('<html><body>'+interactionView([{...referencesOnly[0],known:false}])+'</body></html>').document;
-  assert.equal(unflagged.querySelector('.interaction-campaign-label').textContent,'Cleenseau');
-  assert.equal(unflagged.querySelector('.interaction-knowledge-footnote'),null);
+  assert.equal(unflagged.querySelector('.interaction-campaign-header h3').textContent,'Cleenseau');
+  assert.equal(unflagged.querySelector('.interaction-knowledge'),null);
 });
 
 test('related material has one row per nonempty type with independently sorted and expandable lists',()=>{
@@ -326,7 +328,7 @@ test('reference labels are escaped and unrecognized reference types use a neutra
   assert.equal(document.querySelector('img,script'),null);
   assert.equal(document.querySelector('.interaction-reference-links a').textContent,'<img src=x onerror=bad()>');
   assert.equal(document.querySelector('.interaction-reference-label').textContent,'References');
-  assert.equal(document.querySelector('.interaction-knowledge-campaign').textContent,'Campaign <a>');
+  assert.equal(document.querySelector('.interaction-campaign-header h3').textContent,'Campaign <a>');
 });
 
 test('dot grouping retains 27 entries, respects spans/undated records, and uses the no-leap-day DR calendar',()=>{

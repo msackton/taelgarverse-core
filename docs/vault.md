@@ -387,8 +387,9 @@ The Obsidian plugin offers the same dots through an empty `taelgar-interactions`
 code block. It also adds a footer automatically to notes with registered
 `knownTo` campaigns, with a campaign selector when more than one is known.
 The selector sits directly below the heading and defaults to **All**; individual
-campaigns remain selectable. Knowledge-only views retain the heading, picker,
-and compact **Known to** footnote.
+campaigns remain selectable. Knowledge-only views retain the heading and picker,
+with the same campaign-name heading and **Known to party** status as full timelines,
+using compact spacing without an empty plot.
 Explicit blocks control placement and suppress automatic duplicates. The website
 consumes the empty fence and retains its normal history section. See the
 [plugin interaction guide](../obsidian/taelgarverse/README.md#campaign-interactions).

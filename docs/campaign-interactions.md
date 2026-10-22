@@ -17,12 +17,11 @@ Existing `campaignInfo` wording remains in the normal generated header; it does
 not create additional dots. The index retains authoritative recap records
 independently of `knownTo`; the website component only shows intersecting campaigns.
 
-A campaign with `knownTo` but no visible recap beats or campaign references uses
-a small **Known to Cleenseau** footnote beneath the **Campaign interactions**
-heading, without an empty timeline.
-When selected campaigns have no recap beats, the whole history section stays
-compact: knowledge footnotes and any related campaign material. Campaigns with
-recap beats keep their dot timelines.
+Every view uses the same campaign-name heading and **Known to party** status
+line. Campaigns without visible recap beats keep that header with compact
+spacing and any related material, beneath the **Campaign interactions** heading.
+They do not allocate an empty timeline. Campaigns with recap beats keep their
+dot timelines below the same header.
 
 Short histories show individual dots; automatic grouping switches to sessions
 above six entries. Readers can group by session, day, seven-day period, or
@@ -172,7 +171,8 @@ the default; it shows every known campaign together, or readers can choose an
 individual campaign. The heading and picker remain in knowledge-only views.
 This local author view includes DM
 text and ignores website publication exclusions. Campaigns without recap beats
-use the compact footnote and related links beneath the heading and picker;
+use the same campaign heading and knowledge status with compact spacing and
+related links beneath the component heading and picker;
 selecting a campaign with recap beats restores the timeline. Selected campaign
 and current date conditions remain effective. See the [plugin guide](../obsidian/taelgarverse/README.md#campaign-interactions)
 for syntax, date selection, settings, and lifecycle behavior.
