@@ -40,6 +40,47 @@ their existing plugins. Dates follow an active CustomJS override, the note's
 order. Otherwise, they use the latest campaign session date, falling back to
 DR 1750-01-01.
 
+## Campaign interactions
+
+The plugin automatically adds a **Campaign interactions** panel at the bottom
+of any note with at least one registered campaign in `knownTo`, in Reading View
+and Live Preview. Scalar and list values work; registry names, codes, and aliases
+resolve to the same campaign. A single campaign opens directly. Multiple
+campaigns get a **Campaign** selector, with the choice retained while the plugin
+is running. Source mode stays unchanged.
+
+To choose the panel's position, add an empty block:
+
+````markdown
+```taelgar-interactions
+```
+````
+
+An explicit block suppresses the automatic footer for that note. Code examples
+inside another fence do not suppress it. The **Automatic campaign interactions**
+setting turns automatic footers off immediately; explicit blocks continue to
+work. Rendering never inserts fences, modifies frontmatter, or saves note text.
+
+The dots, grouping, zoom, dates, and Short text use the same recap parser and
+interaction model as the website. Session notes supply source links, and
+non-session campaign material supplies separate references. Session-note bodies
+and raw transcripts are not interaction inputs. Links open session notes,
+campaign references, and available polished transcripts natively in Obsidian,
+including modified clicks to open another pane.
+
+Interactions require `_scripts/session_note_campaigns.json` and the local
+`_sessions/<campaign>/<session>/cleaned/*-session-recap.md` files.
+They do not require a website connection, Dataview, CustomJS, or header display
+metadata. Dates follow the header's override, note date, calendar, and fallback
+order. This is a local author view: DM text is available and website publication
+exclusions do not restrict local notes. Campaign/date conditions still apply.
+
+The index is shared across open notes and refreshed after metadata, recap,
+registry, and file changes. Calendar changes refresh visible panels within two
+seconds. Closing notes or unloading the plugin disposes panels, observers, and
+timers. The website consumes the empty placement fence without showing a code
+frame and retains its normal campaign-history section.
+
 ## Maps
 
 Use a `taelgar-map` code block containing your existing map definition:

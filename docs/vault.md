@@ -377,6 +377,13 @@ Readers can group by session, day, or seven-day period and zoom into counted dot
 This does not infer encounters from mentions or filter page availability by party
 knowledge. See [campaign interaction sources and rules](campaign-interactions.md).
 
+The Obsidian plugin offers the same dots through an empty `taelgar-interactions`
+code block. It also adds a footer automatically to notes with registered
+`knownTo` campaigns, with a campaign selector when more than one is known.
+Explicit blocks control placement and suppress automatic duplicates. The website
+consumes the empty fence and retains its normal history section. See the
+[plugin interaction guide](../obsidian/taelgarverse/README.md#campaign-interactions).
+
 The header gear offers **System**, **Light**, and **Dark** appearance. System is
 the default and follows operating-system changes. Explicit selections are saved
 in that browser. On small screens the gear also contains the context/date,

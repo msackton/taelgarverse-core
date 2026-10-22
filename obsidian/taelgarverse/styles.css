@@ -8,6 +8,12 @@
 .taelgar-image-viewer button, .taelgar-image-viewer a { font:inherit; }
 .taelgar-image-viewer img.image-viewer-preview { max-width:none; max-height:none; }
 
+.taelgar-interactions { --text:var(--text-normal); --muted:var(--text-muted); --line:var(--background-modifier-border); --soft:var(--background-secondary); --bg:var(--background-primary); --link:var(--interactive-accent); margin-top:1.5em; }
+.taelgar-interactions [hidden] { display:none !important; }
+.taelgar-interactions .campaign-interactions { margin-top:0; }
+.taelgar-interaction-campaign { display:flex; align-items:center; flex-wrap:wrap; gap:.5em; margin-bottom:.75em; }
+.taelgar-interactions .interaction-sources a { cursor:pointer; }
+
 /* Keep the generated bio's own callout, without Live Preview's code-block frame. */
 .markdown-source-view.mod-cm6 .cm-embed-block.cm-lang-taelgar-header,
 .markdown-source-view.mod-cm6 .cm-embed-block.cm-lang-taelgar-header:hover {

@@ -165,6 +165,9 @@ export function createMarkdown(options = {}) {
   const originalFence = md.renderer.rules.fence;
   md.renderer.rules.fence = (tokens, index, options, env, renderer) => {
     const type = tokens[index].info.trim();
+    // The website already renders its campaign history after the article. An
+    // empty Obsidian placement block must not add a visible code frame there.
+    if (type==='taelgar-interactions' && !tokens[index].content.trim()) return '';
     if (/^mermaid(?:\s|$)/i.test(type)) {
       const query = contextQuery(env.context || {kind:'custom',date:env.date});
       query.set('source',env.entry.id);

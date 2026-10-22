@@ -38,11 +38,11 @@ export function mountInteractions(root) {
     if(!current.start && current.sessionStart)detail.append(node(document,'p','interaction-event-meta','Session dates: '+current.sessionStart+(current.sessionEnd!==current.sessionStart ? '–'+current.sessionEnd : '')+' DR'));
     if(current.text)detail.append(node(document,'p','interaction-event-text',current.text));
     if(current.location)detail.append(node(document,'p','interaction-event-meta',current.location));
-    if(current.url){const link=node(document,'a','interaction-source',current.sourceTitle);link.href=current.url;detail.append(link);}
+    if(current.url){const link=node(document,'a','interaction-source',current.sourceTitle);link.setAttribute('href',current.url);detail.append(link);}
     else if(current.sourceTitle)detail.append(node(document,'p','interaction-event-meta',current.sessionLabel+' · '+current.sourceTitle));
     const links=[[current.sessionUrl,'Session note'],[current.transcriptUrl,'Transcript']].filter(([url])=>url);
     if(links.length){const sources=node(document,'nav','interaction-sources');sources.setAttribute('aria-label','Recap sources');
-      for(const [url,label] of links){const link=node(document,'a','interaction-source',label);link.href=url;sources.append(link);}detail.append(sources);}
+      for(const [url,label] of links){const link=node(document,'a','interaction-source',label);link.setAttribute('href',url);sources.append(link);}detail.append(sources);}
   }
   grouping.addEventListener('change',()=>{focused=null;render();});
   back.addEventListener('click',()=>{focused=null;render();plot.querySelector('button')?.focus();});

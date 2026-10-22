@@ -14,8 +14,8 @@ The site is [taelgarverse.msackton.workers.dev](https://taelgarverse.msackton.wo
 - **Website code in `taelgarverse-core`:** merging changes into `main` on
   GitHub runs tests, then deploys to Cloudflare only if they pass (after the
   one-time GitHub deployment setup below).
-- **Taelgarverse Obsidian plugin:** publish a separate BRAT release for Maps and
-  the optional Images feature; the materializer still follows the existing vault
+- **Taelgarverse Obsidian plugin:** publish a separate BRAT release for headers,
+  campaign interactions, Maps, and optional Images; the materializer follows the existing vault
   workflow. See [plugin development and releases](../obsidian/taelgarverse/README.md).
 
 Start with [publishing](#publish-your-latest-notes) for a normal update.

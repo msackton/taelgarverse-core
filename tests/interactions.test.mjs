@@ -157,6 +157,14 @@ test('serialized projections are stable across requests and rendering retains re
   assert.match(document(result,[]),/theme\/interactions\.js/);
 });
 
+test('an explicit Obsidian placement fence does not duplicate the website history or leave an empty code frame',()=>{
+  const {store,index}=sample();store.resolve('Person').note.body+='\n\n```taelgar-interactions\n```';
+  const engine=new RenderEngine({settings:{default_date:'1720-01-05'},store,headers:{registry},renderHeader:()=>'',navigationSource:null,interactionIndex:index});
+  const result=engine.render('Person','1720-01-05','custom',false,undefined,['clee']);
+  assert.equal((result.html.match(/id="campaign-interactions"/g) || []).length,1);
+  assert.doesNotMatch(result.html,/language-taelgar-interactions/);
+});
+
 test('dot grouping retains 27 entries, respects spans/undated records, and uses the no-leap-day DR calendar',()=>{
   const events=Array.from({length:27},(_,i)=>({id:String(i),title:'Interaction '+i,start:'1720-01-'+String(1+Math.floor(i/3)).padStart(2,'0'),end:'1720-01-'+String(1+Math.floor(i/3)).padStart(2,'0'),precision:'day',session:'s'+Math.floor(i/5),sessionLabel:'Session '+Math.floor(i/5)}));
   for(const mode of ['auto','session','day','week','event'])assert.equal(groupInteractions(events,mode).flatMap(group=>group.events).length,27);

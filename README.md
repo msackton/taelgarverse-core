@@ -32,7 +32,7 @@ The core documentation is:
 - [Architecture](docs/architecture.md): components, release boundaries, and documentation maintenance rules.
 - [Vault usage](docs/vault.md): input files, metadata, contexts, and rendering behavior.
 - [Cloudflare](docs/cloudflare.md): hosted resources, bindings, and snapshot storage.
-- [Taelgarverse for Obsidian](obsidian/taelgarverse/README.md): the Maps feature, local development, and BRAT releases.
+- [Taelgarverse for Obsidian](obsidian/taelgarverse/README.md): headers, campaign interactions, Maps, optional Images, local development, and BRAT releases.
 
 ## Run locally
 

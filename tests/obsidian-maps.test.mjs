@@ -9,11 +9,12 @@ import {build} from 'esbuild';
 import {buildObsidian} from '../scripts/build-obsidian.mjs';
 import {installObsidian} from '../scripts/install-obsidian.mjs';
 import {ROOT} from '../src/config.mjs';
+import {codeMirrorHost} from './helpers/codemirror-host.mjs';
 
 const require=createRequire(import.meta.url);
 await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
 const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export {default} from './obsidian/taelgarverse/main.mjs'; export {obsidianMapConfig} from './obsidian/taelgarverse/features/maps.mjs';",resolveDir:ROOT},write:false,bundle:true,
-  platform:'node',format:'cjs',external:['obsidian','leaflet','@codemirror/view'],logLevel:'silent'});
+  platform:'node',format:'cjs',external:['obsidian','leaflet','@codemirror/view','@codemirror/state'],logLevel:'silent'});
 
 function host(){
   let maps=0,removed=0,disconnected=0;
@@ -43,17 +44,19 @@ function host(){
     async saveData(data){this.savedData=data;}
     addSettingTab(){}
     registerEditorExtension(){}
-    registerMarkdownCodeBlockProcessor(language,processor){(this.processors ??= new Map()).set(language,processor);if(language!=='taelgar-header'){this.language=language;this.processor=processor;}}
+    registerMarkdownPostProcessor(){}
+    registerMarkdownCodeBlockProcessor(language,processor){(this.processors ??= new Map()).set(language,processor);if(!['taelgar-header','taelgar-interactions'].includes(language)){this.language=language;this.processor=processor;}}
   }
   class MarkdownRenderChild {constructor(container){this.containerEl=container;}unload(){this.onunload();}}
   const handler=()=>({enabled:()=>true,disable(){},enable(){}});
   const L={CRS:{Simple:{}},latLngBounds(points){return {pad(){return this;},getEast:()=>points[1][1],getWest:()=>points[0][1],getNorth:()=>points[1][0],getSouth:()=>points[0][0],getCenter:()=>({lat:50,lng:50})};},
     map(){maps++;return {invalidateSize(){},setMinZoom(){},setView(){},fitBounds(){},on(){},off(){},remove(){removed++;},doubleClickZoom:handler(),dragging:handler(),touchZoom:handler(),boxZoom:handler()};},
     imageOverlay(){return {on(){return this;},addTo(){return this;}};},layerGroup(){return {addTo(){return this;},clearLayers(){}};}};
-  const module={exports:{}},context={module,exports:module.exports,Buffer,TextDecoder,TextEncoder,console,setTimeout,clearTimeout,
+  const cm=codeMirrorHost();
+  const module={exports:{}},context={module,exports:module.exports,Buffer,TextDecoder,TextEncoder,console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},
     ResizeObserver:class{observe(){}disconnect(){disconnected++;}},
     require:name=>name==='obsidian'?{Plugin,Component,PluginSettingTab:class{},Setting:class{},Notice:class{},MarkdownRenderChild,TFile}:name==='leaflet'?L:
-      name==='@codemirror/view'?{ViewPlugin:{fromClass:value=>value}}:require(name)};
+      name==='@codemirror/view'?cm.view:name==='@codemirror/state'?cm.state:require(name)};
   vm.runInNewContext(compiled.outputFiles[0].text,context);
   const file=new TFile('assets/local map.png');let reads=0,fail=false,resolve;
   const app={workspace:{on(){return {};},onLayoutReady(fn){fn();},iterateAllLeaves(){}},
@@ -81,7 +84,7 @@ test('Taelgarverse keeps Images opt-in within the existing plugin and preserves 
     const h=host(),plugin=new h.default();plugin.app=h.app;plugin.savedData={legacyLeafletBlocks:true,...(enabled===undefined?{}:{imageViewer:enabled})};
     await plugin.onload();assert.equal(plugin.settings.imageViewer,enabled===true);
     assert.equal(plugin.images.enabled,enabled===true);assert.equal(plugin.settings.legacyLeafletBlocks,true);
-    assert.deepEqual([...plugin.processors.keys()],['taelgar-map','leaflet','taelgar-header']);plugin.unload();
+    assert.deepEqual([...plugin.processors.keys()],['taelgar-map','leaflet','taelgar-header','taelgar-interactions']);plugin.unload();
   }
 });
 
@@ -135,13 +138,13 @@ test('Taelgarverse leaves leaflet blocks alone by default and declines legacy ow
   for(const other of ['obsidian-leaflet-plugin','obsidian-leaflet','taelgar-map-tools']){
     const h=host(),plugin=new h.default();plugin.app=h.app;
     plugin.app.plugins={enabledPlugins:new Set([other])};
-    await plugin.onload();assert.deepEqual([...plugin.processors.keys()],['taelgar-map','taelgar-header']);
+    await plugin.onload();assert.deepEqual([...plugin.processors.keys()],['taelgar-map','taelgar-header','taelgar-interactions']);
     plugin.unload();
     plugin.savedData={legacyLeafletBlocks:true};await plugin.onload();
-    assert.deepEqual([...plugin.processors.keys()],['taelgar-map','taelgar-header']);
+    assert.deepEqual([...plugin.processors.keys()],['taelgar-map','taelgar-header','taelgar-interactions']);
   }
   const h=host(),plugin=new h.default();plugin.app=h.app;plugin.savedData={legacyLeafletBlocks:true};
-  await plugin.onload();assert.deepEqual([...plugin.processors.keys()],['taelgar-map','leaflet','taelgar-header']);
+  await plugin.onload();assert.deepEqual([...plugin.processors.keys()],['taelgar-map','leaflet','taelgar-header','taelgar-interactions']);
 });
 
 test('local upgrade retires Map Tools, coexists with Leaflet, and preserves plugin settings and old files',async t=>{

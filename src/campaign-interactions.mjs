@@ -1,6 +1,6 @@
 import {dateKey, pageUrl, contextQuery} from './common.mjs';
 import {availableInContext} from './content-store.mjs';
-import {buildBacklinkCampaigns} from './backlinks.mjs';
+import {buildBacklinkCampaigns} from './campaign-ownership.mjs';
 import {filterComments} from './comments.mjs';
 
 const list = value => Array.isArray(value) ? value : value == null ? [] : [value];

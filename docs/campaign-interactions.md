@@ -129,9 +129,25 @@ combinations. No new Cloudflare resources, bindings, or D1 migrations are needed
 Deployment and publication retain the permission gates in
 [deployment workflows](deploy.md).
 
+## Obsidian
+
+The plugin shares the pure recap parser, campaign ownership, interaction model,
+and dot controls. Its host adapter reads vault metadata, supported recap files,
+and Obsidian's native link cache. It resolves source links to local notes and
+polished transcript artifacts, with no website dependency or note writes.
+
+An empty `taelgar-interactions` block places a panel explicitly. Otherwise,
+Reading View and Live Preview automatically show a footer on any page with
+registered `knownTo` campaigns, including non-person pages. Multiple known
+campaigns use a single campaign selector. This local author view includes DM
+text and ignores website publication exclusions; selected campaign and current
+date conditions remain effective. See the [plugin guide](../obsidian/taelgarverse/README.md#campaign-interactions)
+for syntax, date selection, settings, and lifecycle behavior.
+
 ## Code and checks
 
-- `src/session-interactions.mjs`: Node-only recap discovery and selected-field parser.
+- `src/recap-parser.mjs`: pure selected-field parser shared with Obsidian.
+- `src/session-interactions.mjs`: Node-only recap and polished transcript discovery.
 - `src/campaign-interactions.mjs`: shared compiler and request-local projection.
 - `src/interaction-view.mjs`, `src/browser/interactions.mjs`,
   `src/browser/interaction-groups.mjs`, `public/interactions.css`: accessible dots,
