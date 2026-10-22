@@ -60,6 +60,10 @@ function beatVariants(scene,sourceTitle) {
   return [...variants.values()];
 }
 function isPerson(entry) { return list(entry?.note?.metadata.tags).includes('person'); }
+function referenceType(metadata) {
+  const tags=new Set(list(metadata.tags).filter(tag=>typeof tag==='string').flatMap(tag=>tag.split(/[\s,]+/)).map(tag=>tag.replace(/^#/,'').toLowerCase().split('/')[0]));
+  return tags.has('object') || tags.has('item') ? 'item' : tags.has('source') || tags.has('document') ? 'document' : 'reference';
+}
 function sessionSources(store,registry,identities,campaign,number) {
   const candidates=[...store.bySlug.values()].filter(entry=>list(entry.note.metadata.tags).includes('session-note') &&
     identities.get(normalize(entry.note.metadata.campaign))===campaign && String(entry.note.metadata.sessionNumber)===String(number));
@@ -154,9 +158,10 @@ export function campaignInteractions(index,store,entry,context,registry) {
       const source=store.bySlug.get(record.source);
       if (!availableInContext(source,context,store.settings) || (index.backlinkVersion===1 && context.campaigns.length>1) || !interactionRuleVisible(record.when,context)) continue;
       group.events.push({id:record.id,kind:'reference',title:source.title,text:'',start:null,end:null,precision:'undated',
-        session:null,sourceTitle:source.title,url:pageUrl(source.slug,context.date,context),location:''});
+        session:null,sourceTitle:source.title,url:pageUrl(source.slug,context.date,context),location:'',referenceType:referenceType(source.note.metadata)});
     }
   }
   return [...groups.values()].filter(group=>group.known || group.events.length).map(group=>({...group,events:group.events.sort((a,b)=>
-    (a.start || '9999').localeCompare(b.start || '9999') || (a.session || '').localeCompare(b.session || '') || a.id.localeCompare(b.id))}));
+    (a.start || a.sessionStart || '9999').localeCompare(b.start || b.sessionStart || '9999') ||
+    (a.session || '').localeCompare(b.session || '',undefined,{numeric:true}) || a.id.localeCompare(b.id,undefined,{numeric:true}))}));
 }

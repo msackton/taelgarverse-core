@@ -1,8 +1,9 @@
 .campaign-interaction-summary{font:14px/1.5 system-ui,sans-serif;color:var(--muted);margin:10px 0 20px}
 .campaign-interactions{clear:both;border-top:1px solid var(--line);margin-top:32px;padding-top:12px}
-.campaign-interactions--knowledge-only{border:0;margin-top:16px;padding:0}
+.campaign-interactions--compact{border:0;margin-top:16px;padding:0}
 .md-typeset .interaction-knowledge-footnote{margin:4px 0;font-size:.85em;line-height:1.5;color:var(--muted)}
 .interaction-campaign{margin:24px 0 32px}
+.interaction-campaign--compact{margin:8px 0}
 .interaction-knowledge{font:14px/1.5 system-ui,sans-serif}.interaction-knowledge span{color:var(--muted)}
 .interaction-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font:13px/1.5 system-ui,sans-serif}
 .interaction-controls label{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -28,5 +29,22 @@
 .interaction-detail{border-top:1px solid var(--line);padding-top:12px}.interaction-event-meta{font:12px/1.5 system-ui,sans-serif;color:var(--muted)}
 .interaction-detail h4{margin:6px 0}.interaction-source{font:13px/1.5 system-ui,sans-serif}
 .interaction-sources{display:flex;flex-wrap:wrap;gap:8px 20px;margin:10px 0;font:13px/1.5 system-ui,sans-serif}
+.interaction-references{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
+.interaction-campaign--compact .interaction-references{margin-top:8px;padding-top:8px}
+.md-typeset .interaction-references h4{margin:0 0 6px;font:500 13px/1.5 system-ui,sans-serif}
+.interaction-references h4 span{margin-left:8px;font-size:12px;font-weight:400;color:var(--muted)}
+.md-typeset .interaction-reference-links{display:flex;flex-wrap:wrap;gap:4px 20px;list-style:none;margin:0;padding:0}
+.md-typeset .interaction-reference-links li{display:flex;align-items:center;flex-wrap:wrap;gap:6px;max-width:100%;margin:0;font:13px/1.5 system-ui,sans-serif}
+.interaction-reference-links a{display:inline-flex;align-items:center;gap:6px;max-width:100%;min-width:0;overflow-wrap:anywhere;padding:4px 0}
+.interaction-reference-links a>span:last-child{min-width:0}
+.interaction-reference-icon{display:inline-flex;flex:0 0 16px;align-items:center;color:var(--muted)}
+.interaction-reference-icon svg{width:16px;height:16px}
+.interaction-reference-type{font-size:11px;color:var(--muted)}
+html .md-typeset details.interaction-reference-more{margin:6px 0 0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;color:var(--text);font:12px/1.5 system-ui,sans-serif}
+html .md-typeset details.interaction-reference-more summary{display:block;margin:0;padding:4px 0;border:0;border-radius:0;background:transparent;color:var(--muted);font:inherit;cursor:pointer}
+html .md-typeset details.interaction-reference-more summary::before{content:'▸';display:inline-block;position:static;width:auto;height:auto;margin-right:6px;background:none;mask:none;-webkit-mask:none;color:inherit}
+html .md-typeset details.interaction-reference-more[open] summary::before{content:'▾'}
+html .md-typeset details.interaction-reference-more summary::after{display:none}
+html .md-typeset details.interaction-reference-more summary:focus-visible{outline:2px solid var(--link);outline-offset:3px}
 @media(max-width:480px){.md-typeset .interaction-dot{flex-basis:33.333%}.interaction-controls select{font-size:16px}}
-@media(pointer:coarse){.interaction-controls select,.interaction-controls button{min-height:44px}}
+@media(pointer:coarse){.interaction-controls select,.interaction-controls button,.interaction-reference-links a,.interaction-reference-more summary{min-height:44px}}

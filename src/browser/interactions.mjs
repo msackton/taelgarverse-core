@@ -1,4 +1,4 @@
-import {groupInteractions,interactionDateLabel} from './interaction-groups.mjs';
+import {groupInteractions,interactionDateLabel,interactionParts} from './interaction-groups.mjs';
 
 const kindLabel=kind=>({encounter:'Encounter',reference:'Campaign reference'}[kind]);
 function node(document,tag,className,text) {
@@ -8,6 +8,7 @@ export function mountInteractions(root) {
   if(root.dataset.interactionsMounted)return;
   const document=root.ownerDocument,payload=root.querySelector('[data-interaction-records]');
   let data;try{data=JSON.parse(payload.textContent);}catch{return;}
+  data.events=interactionParts(data.events).beats;
   if(!data.events.length)return;
   const plot=root.querySelector('.interaction-plot'),detail=root.querySelector('.interaction-detail'),breadcrumb=root.querySelector('.interaction-breadcrumb');
   const grouping=root.querySelector('[data-interaction-group]'),back=root.querySelector('[data-interaction-back]');
@@ -47,7 +48,7 @@ export function mountInteractions(root) {
   grouping.addEventListener('change',()=>{focused=null;render();});
   back.addEventListener('click',()=>{focused=null;render();plot.querySelector('button')?.focus();});
   render();plot.hidden=false;root.dataset.interactionsMounted='true';
-  for(const item of root.querySelectorAll('.interaction-controls,.interaction-detail,.interaction-breadcrumb,.interaction-legend,.interaction-order'))item.hidden=false;
+  for(const item of root.querySelectorAll('.interaction-controls,.interaction-detail,.interaction-breadcrumb,.interaction-order'))item.hidden=false;
   root.querySelector('.interaction-fallback').hidden=true;
 }
 if(typeof document!=='undefined')for(const root of document.querySelectorAll('[data-interaction-campaign]'))mountInteractions(root);

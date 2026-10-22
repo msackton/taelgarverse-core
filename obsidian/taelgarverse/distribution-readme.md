@@ -49,6 +49,17 @@ resolve to the same campaign. A single campaign opens directly. Multiple
 campaigns get a **Campaign** selector, with the choice retained while the plugin
 is running. Source mode stays unchanged.
 
+Campaigns without visible recap beats use a small **Known to Cleenseau** footnote
+and any related campaign links. For multiple campaigns, the picker sits inline;
+choosing a campaign with recap beats restores the timeline.
+
+Only recap beats contribute encounter dots and counts. Items, documents, and
+other backlinks appear under **Related campaign material**, with icons and labels
+from authored tags (`object`/`item`, `source`/`document`, or a generic reference).
+The first three links are visible; **Show more** reveals the rest. Links open
+their notes natively. Undated recap beats retain their session labels, including
+when grouped by day or seven-day period, without inventing a date.
+
 To choose the panel's position, add an empty block:
 
 ````markdown

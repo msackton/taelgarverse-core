@@ -15,21 +15,33 @@ listed in `knownTo`. Modern and Custom with no campaigns omit these histories.
 
 A campaign with `knownTo` but no visible recap beats or campaign references uses
 a small **Known to Cleenseau** footnote, without an empty timeline or headings.
-When all selected campaigns have only this knowledge flag, the whole history
-section collapses to footnotes. Campaigns with records keep their dot timelines.
+When selected campaigns have no recap beats, the whole history section stays
+compact: knowledge footnotes and any related campaign material. Campaigns with
+recap beats keep their dot timelines.
 
 Short histories show individual dots; automatic grouping switches to sessions
 above six entries. Readers can group by session, day, seven-day period, or
 individual entry. Selecting a counted dot zooms into its entries; **Zoom out**
 returns to the whole history. A selected beat shows its date, title, Short text,
 location, and recap session/title, with **Session note** and **Transcript** links
-when available. Dates are labeled DR. Supplementary campaign references link to
-their source articles. The same actions work with touch and keyboard; without
-JavaScript, all records remain available as a linked list.
+when available. Dates are labeled DR. The same actions work with touch and
+keyboard; without JavaScript, recap beats remain available as a linked list.
 
-Dots distinguish **Encounter** and **Campaign reference** with shapes and labels.
+Only recap beats contribute timeline dots, encounter counts, and automatic
+session grouping. **Related campaign material** below the timeline shows
+supplementary backlinks as compact links. Authored `object`/`item` tags give an
+**Item** label and icon; `source`/`document` tags give **Document**; other notes
+use **Reference**. Nested tags work. Labels do not infer ownership or receipt of
+an item. Links sort by title, with the first three visible and a native **Show
+more** disclosure for the remainder. They work without JavaScript. A document's
+own date never becomes an encounter date.
+
 Position represents story order with compressed spacing. Date ranges retain
-their precision; undated entries remain explicitly undated. Seven-day groups use
+their precision. Undated recap beats show their session and **Date unrecorded**;
+day and seven-day grouping keep different undated sessions separate. The recap
+header's date helps order undated beats without assigning a beat date. Session
+identities and beat IDs use numeric ordering when dates are equal or absent.
+Seven-day groups use
 the vault's 365-day DR calendar, starting with the first visible date. A range
 spanning a group boundary retains its range rather than acquiring an invented day.
 
@@ -39,7 +51,7 @@ spanning a group boundary retains its range rather than acquiring an invented da
 | --- | --- |
 | Person `knownTo` and `campaignInfo` | Authored header information. |
 | Recap `## Recap` entries | One beat per explicitly listed, resolved NPC, using the entry's title, Date, Locations, and **Short** text. |
-| Non-session articles in registered campaign folders | Supplementary backlinks labeled **Campaign reference**, with no inferred encounter date. |
+| Non-session articles in registered campaign folders | Supplementary links under **Related campaign material**, typed using authored tags, with no inferred encounter date. |
 | Session notes, including legacy named notes | Optional source-link destinations; never interaction evidence. |
 
 The Node importer reads
@@ -71,8 +83,7 @@ Supplementary references use the existing authored backlink index. Sources must
 be inside a registered `campaignRoot`, belong to a selected campaign, and be
 non-session notes (neither tagged `session-note` nor carrying `sessionNumber`).
 General world articles and campaign-tagged articles outside campaign folders do
-not contribute these dots. These references are undated and separate from recap
-beats.
+not contribute these references. These links stay separate from recap beats.
 
 On person pages, generic **Linked from** backlinks exclude session notes and
 other campaign material in all contexts. Campaign ownership includes declared
@@ -145,10 +156,10 @@ An empty `taelgar-interactions` block places a panel explicitly. Otherwise,
 Reading View and Live Preview automatically show a footer on any page with
 registered `knownTo` campaigns, including non-person pages. Multiple known
 campaigns use a single campaign selector. This local author view includes DM
-text and ignores website publication exclusions. Knowledge-only campaigns use
-the compact footnote, with the selector inline when needed; selecting a campaign
-with records restores the timeline. Selected campaign and current
-date conditions remain effective. See the [plugin guide](../obsidian/taelgarverse/README.md#campaign-interactions)
+text and ignores website publication exclusions. Campaigns without recap beats
+use the compact footnote and related links, with the selector inline when needed;
+selecting a campaign with recap beats restores the timeline. Selected campaign
+and current date conditions remain effective. See the [plugin guide](../obsidian/taelgarverse/README.md#campaign-interactions)
 for syntax, date selection, settings, and lifecycle behavior.
 
 ## Code and checks
@@ -158,7 +169,7 @@ for syntax, date selection, settings, and lifecycle behavior.
 - `src/campaign-interactions.mjs`: shared compiler and request-local projection.
 - `src/interaction-view.mjs`, `src/browser/interactions.mjs`,
   `src/browser/interaction-groups.mjs`, `public/interactions.css`: accessible dots,
-  selection, grouping, zoom, and DR date arithmetic.
+  selection, grouping, zoom, related-material links, and DR date arithmetic.
 - `tests/interactions.test.mjs`, `tests/interactions-worker.test.mjs`: recap
   authority, session-note independence, references, visibility, provenance,
   fingerprinting, publication, compatibility, and Node/Worker parity.

@@ -22,7 +22,7 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     fs.writeFileSync(path.join(vault,'Party.md'),'# Party');fs.writeFileSync(path.join(vault,'Inn.md'),'# Inn');
     fs.writeFileSync(path.join(vault,'World.md'),'# World\n[[Person]]');
     fs.mkdirSync(path.join(vault,'Campaigns','Clee'),{recursive:true});
-    fs.writeFileSync(path.join(vault,'Campaigns','Clee','Handout.md'),'# Handout\n[[Person]]');
+    fs.writeFileSync(path.join(vault,'Campaigns','Clee','Handout.md'),'---\ntags: [source]\n---\n# Handout\n[[Person]]');
     fs.writeFileSync(path.join(vault,'Session.md'),'---\ntags: [session-note]\ncampaign: Cleenseau\nsessionNumber: 12.1\nDR: 1720-01-01\nDR_end: 1720-01-02\n---\n# Session\n\nThe party met [[Person]] at the inn.\n\n%%^Campaign:none%%\nPerson showed them a hidden room.\n%%^End%%');
     const cleaned=path.join(vault,'_sessions','cleenseau','cleenseau-012.1','cleaned');fs.mkdirSync(cleaned,{recursive:true});
     const recap=['# Session Recap','## Session Header','- Campaign: Cleenseau','- Session Number: 12.1','## Recap',
@@ -70,6 +70,8 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
       assert.deepEqual(actual.backlinks.map(link=>link.page),['world']);
       assert.equal(actual.html,expected.html);
       assert.equal(actual.interactions[0].events.length,dm ? 3 : 2);
+      assert.equal(actual.interactions[0].events.find(event=>event.kind==='reference').referenceType,'document');
+      assert.match(actual.html,/Related campaign material/);
       assert.ok(reads.every(key=>key.endsWith('/'+snapshot.store.resolve('Person').note.shard+'.json')),'only the person shard is loaded');
       assert.equal(actual.interactions[0].events[0].text,'An authoritative Short independent of generated prose.');
       assert.match(actual.html,/fought alongside/i); // Authored campaignInfo remains in the normal header.
@@ -121,6 +123,8 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     assert.equal(fallback.interactions[0].events.some(event=>event.kind==='reference'),true);
     assert.equal(fallback.interactions[0].events.length,1);
     assert.equal(fallback.interactions[0].events[0].title,'Handout');
+    assert.match(fallback.html,/Related campaign material/);
+    assert.doesNotMatch(fallback.html,/class="interaction-plot"/);
     assert.deepEqual(fallback.backlinks.map(link=>link.page),['world']);
     const invalid={...index,interactions:{version:99,byTarget:{}}};
     await assert.rejects(loadSnapshot({get:async()=>({json:async()=>invalid})},report.revision),/interaction index format/);

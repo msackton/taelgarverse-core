@@ -12,10 +12,16 @@ function fromDay(ordinal) {
 }
 const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 export function interactionDateLabel(event) {
-  if (!event.start) return 'Date unrecorded';
+  if (!event.start) return (event.sessionLabel ? event.sessionLabel+' · ' : '')+'Date unrecorded';
   if (event.precision==='year') return event.start.slice(0,4);
   if (event.precision==='month') return months[Number(event.start.slice(5,7))-1]+' '+event.start.slice(0,4);
   return event.start===event.end ? event.start : event.start+'–'+event.end;
+}
+export function interactionParts(events) {
+  const beats=[],references=[];
+  for(const event of events)(event.kind==='reference' ? references : beats).push(event);
+  references.sort((a,b)=>a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
+  return {beats,references};
 }
 export function groupInteractions(events,mode='auto') {
   if(mode==='auto')mode=events.length<=6 ? 'event' : 'session';
@@ -24,7 +30,7 @@ export function groupInteractions(events,mode='auto') {
   for(const event of events){
     let key,title;
     if(mode==='session') {key=event.session || 'authored:'+event.id;title=event.sessionLabel || event.title;}
-    else if(!event.start){key='undated';title='Date unrecorded';}
+    else if(!event.start){key='undated:'+(event.session || 'unknown');title=interactionDateLabel(event);}
     else if(mode==='day' && event.start===event.end){key=event.start;title=event.start;}
     else if(mode==='week' && Math.floor((interactionDay(event.start)-origin)/7)===Math.floor((interactionDay(event.end)-origin)/7)){
       const start=origin+Math.floor((interactionDay(event.start)-origin)/7)*7;key='week:'+start;title=fromDay(start)+'–'+fromDay(start+6);

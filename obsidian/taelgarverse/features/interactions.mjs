@@ -3,6 +3,7 @@ import {StateEffect,StateField} from '@codemirror/state';
 import {Decoration,EditorView,ViewPlugin,WidgetType} from '@codemirror/view';
 import {interactionView} from '../../../src/interaction-view.mjs';
 import {mountInteractions} from '../../../src/browser/interactions.mjs';
+import {interactionParts} from '../../../src/browser/interaction-groups.mjs';
 import {obsidianInteractions,hasKnownTo,hasInteractionsBlock,knownCampaigns,interactionsDate,localInteractions} from './interaction-data.mjs';
 
 class InteractionsChild extends MarkdownRenderChild {
@@ -38,7 +39,9 @@ class InteractionsChild extends MarkdownRenderChild {
       this.date=interactionsDate(metadata,globalThis,snapshot.fallback);
       const {group,links}=localInteractions(snapshot,this.path,campaigns.find(campaign=>campaign.code===this.selected),this.date,this.feature.app);
       const knowledgeOnly=!group.events.length;
+      const compact=!interactionParts(group.events).beats.length;
       element.classList.toggle('taelgar-interactions--knowledge-only',knowledgeOnly);
+      element.classList.toggle('taelgar-interactions--compact',compact);
       const output=element.ownerDocument.createElement('div');
       const timeline=element.ownerDocument.createElement('div');timeline.innerHTML=interactionView([group]);
       timeline.querySelector('#campaign-interactions')?.removeAttribute('id');
@@ -46,7 +49,7 @@ class InteractionsChild extends MarkdownRenderChild {
         const select=element.ownerDocument.createElement('select');select.setAttribute('aria-label','Campaign');
         for(const campaign of campaigns){const option=element.ownerDocument.createElement('option');option.value=campaign.code;option.textContent=campaign.name;option.selected=campaign.code===this.selected;select.append(option);}
         select.addEventListener('change',()=>{this.selected=select.value;this.feature.selections.set(this.path,this.selected);void this.render();});
-        if(knowledgeOnly)timeline.querySelector('.interaction-knowledge-campaign').replaceWith(select);
+        if(compact)timeline.querySelector('.interaction-knowledge-campaign').replaceWith(select);
         else {
           const label=element.ownerDocument.createElement('label');label.className='taelgar-interaction-campaign';label.textContent='Campaign ';
           label.append(select);output.append(label);
@@ -57,7 +60,7 @@ class InteractionsChild extends MarkdownRenderChild {
       if(campaign)mountInteractions(campaign);this.measure();
     } catch(error) {
       if(this.disposed || sequence!==this.sequence)return;
-      element.classList.remove('taelgar-interactions--knowledge-only');
+      element.classList.remove('taelgar-interactions--knowledge-only','taelgar-interactions--compact');
       element.textContent='Campaign interactions unavailable: '+error.message;this.measure();
     }
   }

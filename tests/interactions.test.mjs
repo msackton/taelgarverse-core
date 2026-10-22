@@ -185,6 +185,72 @@ test('campaigns known only through metadata use footnotes while campaigns with r
   assert.equal(emptyOnly.querySelector('h2,h3,script'),null);
 });
 
+test('campaign material uses typed links outside the dots and encounter counts, including without JavaScript',()=>{
+  const material={};
+  for(let i=0;i<27;i++)material['Campaigns/Clee/Reference '+String(i).padStart(2,'0')+'.md']='---\ntags: ['+(i===0?'object/weapon':i===1?'source':'other')+']\nDR: 1710-01-01\n---\n[[Person]]';
+  const {store,index}=sample(material),groups=campaignInteractions(index,store,store.resolve('Person'),context(),registry);
+  const references=groups[0].events.filter(event=>event.kind==='reference');
+  assert.equal(references.length,27);
+  assert.deepEqual(references.slice(0,3).map(event=>event.referenceType),['item','document','reference']);
+  assert.ok(references.every(event=>event.start===null),'document dates never become encounter dates');
+  const {document}=parseHTML('<html><body>'+interactionSummary(groups)+interactionView(groups)+'</body></html>');
+  const root=document.querySelector('[data-interaction-campaign]');
+  assert.equal(root.querySelectorAll('.interaction-fallback li').length,3);
+  assert.equal(root.querySelectorAll('.interaction-reference-links a').length,27);
+  assert.equal(root.querySelectorAll('.interaction-references > .interaction-reference-links a').length,3);
+  assert.equal(root.querySelectorAll('.interaction-reference-more a').length,24);
+  assert.match(root.querySelector('summary').textContent,/24 more references/);
+  assert.deepEqual([...root.querySelectorAll('.interaction-reference-type')].slice(0,3).map(node=>node.textContent),['Item','Document','Reference']);
+  assert.match(root.querySelector('.interaction-reference-links a').getAttribute('href'),/date=1720-01-05&campaigns=clee/);
+  assert.match(document.querySelector('.campaign-interaction-summary').textContent,/3 encounters, 27 references/);
+  assert.equal(JSON.parse(root.querySelector('[data-interaction-records]').textContent).events.length,3);
+  mountInteractions(root);
+  assert.equal(root.querySelectorAll('.interaction-dot').length,3,'references do not force automatic session grouping');
+  assert.match(root.querySelector('.interaction-breadcrumb').textContent,/^3 recorded entries/);
+  assert.equal(root.querySelector('.interaction-references').hidden,false);
+  assert.doesNotMatch(root.querySelector('.interaction-detail').textContent,/Reference 0/);
+  const referencesOnly=[{...groups[0],events:references}];
+  const compact=parseHTML('<html><body>'+interactionView(referencesOnly)+'</body></html>').document;
+  assert.ok(compact.querySelector('.campaign-interactions--compact'));
+  assert.equal(compact.querySelector('h2,h3,.interaction-plot,.interaction-controls,.interaction-detail,script'),null);
+  assert.equal(compact.querySelectorAll('.interaction-reference-links a').length,27);
+  assert.equal(compact.querySelector('.interaction-knowledge-footnote').textContent,'Known to Cleenseau.');
+  const unflagged=parseHTML('<html><body>'+interactionView([{...referencesOnly[0],known:false}])+'</body></html>').document;
+  assert.equal(unflagged.querySelector('.interaction-campaign-label').textContent,'Cleenseau');
+  assert.equal(unflagged.querySelector('.interaction-knowledge-footnote'),null);
+});
+
+test('undated recap beats retain their session when grouped by date, without borrowing a beat date',()=>{
+  const {store}=sample(),bundle=parseSessionRecap(recap);bundle.scenes=[{...bundle.scenes[0],date:null,end:null}];
+  const later={...structuredClone(bundle),number:'13',date:'1720-01-07',end:null};
+  const index=compileInteractionIndex(store,registry,null,[later,bundle]);
+  const events=eventsFor(store,index,context('1720-01-08'));
+  assert.deepEqual(events.map(event=>event.sessionLabel),['Session 12.1','Session 13']);
+  assert.ok(events.every(event=>event.start===null && event.end===null && event.precision==='undated'));
+  for(const mode of ['session','day','week','event']) {
+    const grouped=groupInteractions(events,mode);
+    assert.equal(grouped.length,2,mode+' retains separate sessions');
+    assert.deepEqual(grouped.flatMap(group=>group.events.map(event=>event.id)),events.map(event=>event.id));
+  }
+  const grouped=groupInteractions(events,'day');
+  assert.match(grouped[0].title,/Session 12\.1 · Date unrecorded/);
+  const {document}=parseHTML('<html><body>'+interactionView([{label:'Cleenseau',known:true,events}])+'</body></html>');
+  assert.match(document.querySelector('.interaction-fallback').textContent,/Session 12\.1 · Date unrecorded/);
+  const root=document.querySelector('[data-interaction-campaign]');mountInteractions(root);
+  assert.match(root.querySelector('.interaction-dot-date').textContent,/Session 12\.1 · Date unrecorded/);
+  assert.match(root.querySelector('.interaction-detail').textContent,/Session dates: 1720-01-01–1720-01-03 DR/);
+  assert.doesNotMatch(root.querySelector('.interaction-dot-date').textContent,/1720-01-01/);
+});
+
+test('reference labels are escaped and unrecognized reference types use a neutral icon',()=>{
+  const events=[{id:'ref',kind:'reference',referenceType:'__proto__',title:'<img src=x onerror=bad()>',url:'/page/ref?campaigns=clee&dm=1'}];
+  const {document}=parseHTML('<html><body>'+interactionView([{label:'Campaign <a>',known:true,events}])+'</body></html>');
+  assert.equal(document.querySelector('img,script'),null);
+  assert.equal(document.querySelector('.interaction-reference-links a').textContent,'<img src=x onerror=bad()>');
+  assert.equal(document.querySelector('.interaction-reference-type').textContent,'Reference');
+  assert.equal(document.querySelector('.interaction-knowledge-campaign').textContent,'Campaign <a>');
+});
+
 test('dot grouping retains 27 entries, respects spans/undated records, and uses the no-leap-day DR calendar',()=>{
   const events=Array.from({length:27},(_,i)=>({id:String(i),title:'Interaction '+i,start:'1720-01-'+String(1+Math.floor(i/3)).padStart(2,'0'),end:'1720-01-'+String(1+Math.floor(i/3)).padStart(2,'0'),precision:'day',session:'s'+Math.floor(i/5),sessionLabel:'Session '+Math.floor(i/5)}));
   for(const mode of ['auto','session','day','week','event'])assert.equal(groupInteractions(events,mode).flatMap(group=>group.events).length,27);
@@ -193,7 +259,7 @@ test('dot grouping retains 27 entries, respects spans/undated records, and uses 
   assert.equal(interactionDay('1720-03-01')-interactionDay('1720-02-28'),1);
   const span={...events[0],end:'1720-01-10',precision:'range'};
   assert.match(groupInteractions([span],'day')[0].title,/1720-01-01–1720-01-10/);
-  assert.equal(groupInteractions([{...span,start:null,end:null}],'week')[0].title,'Date unrecorded');
+  assert.equal(groupInteractions([{...span,start:null,end:null}],'week')[0].title,'Session 0 · Date unrecorded');
 });
 
 test('browser dots select details and zoom into/out of groups, with an accessible no-JS fallback',()=>{
