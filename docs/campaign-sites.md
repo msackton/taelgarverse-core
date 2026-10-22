@@ -42,6 +42,7 @@ A single campaign uses the same field:
 
 ```markdown
 ---
+subdomain: cleenseau
 campaigns: [clee]
 ---
 # Cleenseau Campaign
@@ -52,15 +53,26 @@ Welcome to the campaign.
 - [[Heroes of Cleenseau|The party]]
 ```
 
-This file enables `cleenseau.taelgar.org` and follows Cleenseau's latest published
-session date. A `date` field cannot override a single campaign's date. Campaign
+Save this as `_website/cleenseau-index.md` (or another distinct filename). The
+`subdomain` field enables `cleenseau.taelgar.org` independently of the filename,
+avoiding collisions with the actual Cleenseau place note in Obsidian.
+It follows Cleenseau's latest published session date. A `date` field cannot
+override a single campaign's date. Campaign
 names and aliases are normalized before counting; repeated references to the same
 campaign still count as one. A single campaign without a published session date
 is unavailable, rather than falling back to Modern.
 
-The filename must be a lowercase DNS
-label, at most 63 characters, containing letters, digits, or interior hyphens.
-`www`, `home`, and `navigation` are reserved. Every landing page uses `campaigns`;
+The optional `subdomain` field selects the host label, without `.taelgar.org`.
+Omit it to keep using the filename without `.md`, so existing landing pages
+need no changes. With an explicit `subdomain`, filenames can also contain spaces
+or capital letters, such as `Cleenseau Homepage.md`. Keep landing pages directly
+inside `_website`; `home.md`, `navigation.md`, and `AGENTS.md` are not campaign homes.
+
+The selected subdomain must be a lowercase DNS label, at most 63 characters,
+containing letters, digits, or interior hyphens. `www`, `home`, and `navigation`
+are reserved. Invalid explicit values and two files claiming the same subdomain
+stop publication, including collisions between explicit and filename-derived
+subdomains. Every landing page uses `campaigns`;
 `context` frontmatter is no longer supported. Replace `context: cleenseau` with
 `campaigns: [clee]` in existing files. Any supplied date must be a valid full DR
 date or `modern`, including on single-campaign pages where it is ignored.
@@ -73,11 +85,16 @@ main homepage's three entry buttons are not added. No note header is generated,
 and website sources are not indexed as articles or search results.
 
 Use the normal content publication workflow after adding, editing, or removing a
-campaign home. All opted-in filenames and Markdown enter the publisher fingerprint
+campaign home. All opted-in subdomain labels and Markdown enter the publisher fingerprint
 and revision index, so no `--force` or core redeployment is needed for later edits.
 Campaign-home images join normal image processing. Sources always come from the
 original vault's `_website`, including when `source_dir` selects a materialized
 export or `home_source` overrides the shared homepage.
+
+Use the updated local publisher to read `subdomain`. It stores the selected host
+in the existing `campaignHomes` map, so this field needs no snapshot migration,
+DNS change for an existing subdomain, or website redeployment. Publish the content
+after changing the file or its frontmatter to update the hosted site.
 
 ## POV date filtering
 
@@ -102,7 +119,7 @@ shared `respect_pov_dates` default. If omitted, readers retain the hidden
 supplied. Use 1 or 0 (quoted values also work); other values fail homepage
 validation. The field is optional, so existing microsites retain their behavior.
 
-Deploy core support first, then publish the edited `_website/<subdomain>.md`
+Deploy core support first, then publish the edited `_website/<name>.md`
 through the normal content workflow. Later field changes require only content
 publication. The raw landing page is already part of the snapshot and publisher
 fingerprint; no schema or database migration is needed.

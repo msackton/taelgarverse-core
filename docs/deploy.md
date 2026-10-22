@@ -4,8 +4,11 @@ The site is [taelgarverse.msackton.workers.dev](https://taelgarverse.msackton.wo
 
 - **Notes, images, audio, homepage, and menu in `taelgar`:** run the publishing command below.
   Saving them to GitHub alone does not update the website.
-  This includes opted-in `_website/<subdomain>.md` campaign landing pages;
+  This includes opted-in `_website/<name>.md` campaign landing pages;
   see [campaign landing pages](campaign-sites.md) for the format and DNS setup.
+  Use `subdomain: cleenseau` to serve `cleenseau.taelgar.org` from a distinct file
+  such as `cleenseau-index.md`. Publish with the updated local code; an existing
+  subdomain needs no DNS change or website redeployment for this field.
   Folder exclusions use a `.nopublish` marker in the original vault; adding or
   removing one also requires content publication. See [folder exclusions](vault.md#exclude-a-folder).
 - **Website code in `taelgarverse-core`:** merging changes into `main` on
@@ -450,7 +453,7 @@ updated core first, then publish content to store the new default. Changing this
 configuration default requires content publication; a code deployment alone does
 not change it. Readers can still override the default with either URL value.
 A microsite can enforce either mode with `enforcePoV: 1` or `enforcePoV: 0` in
-its `_website/<subdomain>.md` frontmatter; this overrides URL choices. See
+its `_website/<name>.md` frontmatter; this overrides URL choices. See
 [campaign landing pages](campaign-sites.md#pov-date-filtering).
 
 To use a vault in another location, create `config.local.json` in

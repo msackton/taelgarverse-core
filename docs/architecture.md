@@ -151,8 +151,9 @@ vault, including during export packaging. Explicit overrides resolve relative
 to their settings file; missing files fail configuration loading. Explicit null
 selects directory navigation or the old page-finder homepage, respectively.
 The publisher fingerprints both files so changes cannot be skipped as unchanged.
-`src/website-sources.mjs` also discovers opted-in `_website/<subdomain>.md` files
-from the original vault. `src/campaign-sites.mjs` validates their campaign
+`src/website-sources.mjs` also discovers opted-in `_website/<name>.md` files
+from the original vault, using an explicit `subdomain` or the filename as the
+host label and rejecting duplicates. `src/campaign-sites.mjs` validates their campaign
 selections, dates, and optional `enforcePoV` policy and selects sites by hostname. Sources enter the publication fingerprint, image-usage
 scan, and optional `campaignHomes` revision-index field. The shared application
 enforces the hostname's context per request without mutating the cached engine.

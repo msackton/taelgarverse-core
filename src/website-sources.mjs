@@ -5,6 +5,7 @@ import {validCampaignHost} from './campaign-sites.mjs';
 
 export function readCampaignHomes(settings) {
   const sources = {};
+  const filenames = new Map();
   if (!settings.vault_dir) return sources;
   const directory = path.join(settings.vault_dir,'_website');
   if (!fs.existsSync(directory)) return sources;
@@ -16,9 +17,14 @@ export function readCampaignHomes(settings) {
     // Detect the removed context field too, so validation reports a migration
     // error instead of silently dropping an existing campaign homepage.
     if (!frontmatter || !/^(?:context|campaigns)\s*:/m.test(frontmatter[1])) continue;
-    const host = file.name.slice(0,-3);
-    if (!validCampaignHost(host)) throw new Error('Invalid campaign homepage filename: '+file.name);
-    parseNote(source); // Fail publication on malformed opted-in YAML.
+    const {metadata} = parseNote(source); // Fail publication on malformed opted-in YAML.
+    const explicitHost = Object.hasOwn(metadata,'subdomain');
+    const host = explicitHost ? metadata.subdomain : file.name.slice(0,-3);
+    if (typeof host !== 'string' || !validCampaignHost(host)) {
+      throw new Error(explicitHost ? '_website/'+file.name+': subdomain must be a lowercase DNS label (excluding www, home and navigation)' : 'Invalid campaign homepage filename: '+file.name);
+    }
+    if (filenames.has(host)) throw new Error('Duplicate campaign subdomain "'+host+'": _website/'+filenames.get(host)+' and _website/'+file.name);
+    filenames.set(host,file.name);
     sources[host] = source;
   }
   return sources;

@@ -113,6 +113,63 @@ test('discovery opts in only explicit Markdown homes; fingerprints notice edits,
   fs.writeFileSync(path.join(website,'Bad Host.md'),source('cleenseau'));assert.throws(()=>readCampaignHomes(settings),/filename/);
 });
 
+test('explicit subdomains decouple source filenames from routing and publication fingerprints',async t=>{
+  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'taelgar-site-names-'));
+  t.after(()=>{assert.equal(path.dirname(directory),os.tmpdir());assert.ok(path.basename(directory).startsWith('taelgar-site-names-'));fs.rmSync(directory,{recursive:true});});
+  const website=path.join(directory,'_website');fs.mkdirSync(website);
+  const settings={vault_dir:directory},options=parseOptions([]);
+  const home=source('clee','# Independent homepage\n\n[[Story]]').replace('campaigns:','subdomain: cleenseau\ncampaigns:');
+  const file=path.join(website,'cleenseau-index.md');fs.writeFileSync(file,home);
+  const homes=readCampaignHomes(settings);
+  assert.deepEqual(homes,{cleenseau:home});
+  const app=engine(homes);
+  for (const host of ['cleenseau.taelgar.org','cleenseau.localhost']) {
+    const response=await request(app,host);assert.equal(response.status,200);
+    assert.equal(load(await response.text())('main h1').text(),'Independent homepage');
+    const page=await(await request(app,host,'/api/page?page=Story')).json();
+    assert.equal(page.context.id,'cleenseau');assert.deepEqual(page.campaigns,['clee']);
+  }
+  assert.equal((await request(app,'cleenseau-index.taelgar.org')).status,404);
+  const fingerprint=buildFingerprint(settings,options);
+  const renamed=path.join(website,'Cleenseau Homepage.md');fs.writeFileSync(renamed,home);fs.unlinkSync(file);
+  assert.deepEqual(readCampaignHomes(settings),homes);
+  assert.equal(buildFingerprint(settings,options),fingerprint);
+  fs.writeFileSync(renamed,home.replace('subdomain: cleenseau','subdomain: other'));
+  assert.deepEqual(Object.keys(readCampaignHomes(settings)),['other']);
+  assert.notEqual(buildFingerprint(settings,options),fingerprint);
+});
+
+test('discovery rejects invalid explicit subdomains and preserves filename fallback',t=>{
+  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'taelgar-site-hosts-'));
+  t.after(()=>{assert.equal(path.dirname(directory),os.tmpdir());assert.ok(path.basename(directory).startsWith('taelgar-site-hosts-'));fs.rmSync(directory,{recursive:true});});
+  const website=path.join(directory,'_website');fs.mkdirSync(website);
+  const settings={vault_dir:directory},file=path.join(website,'cleenseau-index.md');
+  for (const value of ['null','true','123','[]','{}','""','www','home','navigation','Cleenseau','cleenseau.taelgar.org','-cleenseau','cleenseau-','" cleenseau "','a'.repeat(64)]) {
+    fs.writeFileSync(file,source('clee').replace('campaigns:','subdomain: '+value+'\ncampaigns:'));
+    assert.throws(()=>readCampaignHomes(settings),/_website\/cleenseau-index\.md: subdomain must be a lowercase DNS label/);
+  }
+  for (const value of ['c','cleenseau-home','a'.repeat(63),'"123"']) {
+    fs.writeFileSync(file,source('clee').replace('campaigns:','subdomain: '+value+'\ncampaigns:'));
+    assert.equal(Object.keys(readCampaignHomes(settings))[0],value.replaceAll('"',''));
+  }
+  fs.writeFileSync(file,source('clee'));assert.deepEqual(readCampaignHomes(settings),{'cleenseau-index':source('clee')});
+  fs.writeFileSync(file,'---\nsubdomain: cleenseau\n---\n# Planning');assert.deepEqual(readCampaignHomes(settings),{});
+});
+
+test('discovery rejects duplicate explicit and filename-derived subdomains with both source names',t=>{
+  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'taelgar-site-duplicates-'));
+  t.after(()=>{assert.equal(path.dirname(directory),os.tmpdir());assert.ok(path.basename(directory).startsWith('taelgar-site-duplicates-'));fs.rmSync(directory,{recursive:true});});
+  const website=path.join(directory,'_website');fs.mkdirSync(website);
+  const settings={vault_dir:directory};
+  fs.writeFileSync(path.join(website,'cleenseau-index.md'),source('clee').replace('campaigns:','subdomain: cleenseau\ncampaigns:'));
+  const duplicate=path.join(website,'cleenseau.md');
+  for (const home of [source('clee'),source('dufr').replace('campaigns:','subdomain: cleenseau\ncampaigns:')]) {
+    fs.writeFileSync(duplicate,home);
+    assert.throws(()=>readCampaignHomes(settings),error=>error.message.includes('Duplicate campaign subdomain "cleenseau"') && error.message.includes('_website/cleenseau-index.md') && error.message.includes('_website/cleenseau.md'));
+    assert.throws(()=>buildFingerprint(settings,parseOptions([])),/Duplicate campaign subdomain/);
+  }
+});
+
 test('campaign landing images contribute responsive-image usages',()=>{
   const app=engine();
   const store=new ContentStore([...app.store.entries,{id:'picture.png',target:'picture.png',extension:'.png',note:null}]);
@@ -180,7 +237,7 @@ test('a single undated campaign stays unavailable even with an authored date',as
 test('landing metadata rejects invalid dates, campaigns and removed context metadata',()=>{
   const app=engine(),home=metadata=>'---\n'+metadata+'\n---\n# Home';
   for(const metadata of ['campaigns: [unknown]','campaigns: [dufr]\ndate: 1740-02-29','campaigns: [dufr]\ndate: 1740','campaigns: [dufr]\ndate: null','campaigns: [dufr]\ntitle: []','campaigns: [dufr]\ncontext: cleenseau','context: cleenseau','context: cleenseau\ndate: 1740-01-01','campaigns: {dufr: true}','campaigns: [null]']) {
-    assert.throws(()=>new CampaignSites({combined:home(metadata)},app.contexts),error=>error.status===503 && error.message.includes('_website/combined.md'));
+    assert.throws(()=>new CampaignSites({combined:home(metadata)},app.contexts),error=>error.status===503 && error.message.includes('Campaign homepage "combined"'));
   }
   for(const campaigns of ['all','[]','dufr, litf, mawar'])assert.doesNotThrow(()=>new CampaignSites({combined:home('campaigns: '+campaigns)},app.contexts));
 });
@@ -236,6 +293,6 @@ test('microsite enforcePoV accepts 1 or 0 and rejects malformed landing-page val
     assert.equal(sites.byHost.get('forced').enforcePoV,String(value).includes('1'));
   }
   for (const value of ['2','-1','null','true','false','[]','{}','yes','""']) {
-    assert.throws(()=>new CampaignSites({forced:'---\ncampaigns: [clee]\nenforcePoV: '+value+'\n---\n# Home'},contexts),/_website\/forced\.md: enforcePoV must be 1 or 0/);
+    assert.throws(()=>new CampaignSites({forced:'---\ncampaigns: [clee]\nenforcePoV: '+value+'\n---\n# Home'},contexts),/Campaign homepage "forced": enforcePoV must be 1 or 0/);
   }
 });

@@ -67,7 +67,7 @@ Files in the vault's `_website` folder supply the website's own content:
 | --- | --- |
 | `_website/home.md` | The homepage heading, introductory prose, and links within that prose. |
 | `_website/navigation.md` | The sidebar menu: section names, order, and links to notes. See the [menu format](../README.md#site-navigation-and-page-toc). |
-| `_website/<subdomain>.md` | A landing page with a locked campaign set and date on that subdomain. See [campaign landing pages](campaign-sites.md). |
+| `_website/<name>.md` | A landing page with a locked campaign set and date. The optional `subdomain` field selects its host; otherwise the filename does. See [campaign landing pages](campaign-sites.md). |
 
 Edit these in the vault and publish them with your notes. The homepage uses
 ordinary Markdown and supports the same links and campaign/date comments as
@@ -83,8 +83,11 @@ three-link navigation paragraph work without displaying duplicate entry links.
 
 The publisher reads these two files directly from the original vault, even when
 it prepares the other notes through Obsidian. They do not become searchable
-articles. Additional `_website/<subdomain>.md` files opt in with `campaigns`
+articles. Additional `_website/<name>.md` files opt in with `campaigns`
 frontmatter; other website files stay excluded.
+Set `subdomain: cleenseau` in a file such as `cleenseau-index.md` to keep
+`cleenseau.taelgar.org` without sharing the place note's filename. Omit `subdomain`
+to use the filename as before. Two files cannot claim the same subdomain.
 For example, `campaigns: [dufr, feywild, mawar]` keeps those three campaigns selected
 throughout that subdomain. An optional `date: 1748-05-05` fixes the in-world date;
 omitting it uses Modern. A single campaign, such as `campaigns: [clee]`, always

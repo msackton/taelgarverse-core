@@ -15,7 +15,7 @@ export class CampaignSites {
       try { note = parseNote(source); }
       catch { throw new RenderError(503,'Invalid campaign homepage YAML: '+host); }
       const {campaigns,date,title,enforcePoV} = note.metadata;
-      const invalid = message => new RenderError(503,'_website/'+host+'.md: '+message);
+      const invalid = message => new RenderError(503,'Campaign homepage "'+host+'": '+message);
       if (Object.hasOwn(note.metadata,'context')) throw invalid('context is no longer supported; use campaigns instead');
       if (title !== undefined && (typeof title !== 'string' || !title.trim())) throw invalid('title must be a nonempty string');
       if (!(typeof campaigns === 'string' || Array.isArray(campaigns) && campaigns.every(value=>typeof value === 'string' && value.trim()))) throw invalid('campaigns must be a list of campaign codes or a comma-separated string');
