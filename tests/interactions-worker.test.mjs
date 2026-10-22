@@ -1,0 +1,82 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import {ROOT,loadSettings,isInside} from '../src/config.mjs';
+import {Engine} from '../src/engine.mjs';
+import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
+import {buildFingerprint} from '../scripts/publish-content.mjs';
+import {loadSnapshot} from '../src/snapshot.mjs';
+import {createWorker} from '../src/worker-handler.mjs';
+
+test('publication compiles authoritative Short beats, Worker matches Node without session-body reads, and older snapshots retain campaign references',async()=>{
+  fs.mkdirSync(path.join(ROOT,'.cache'),{recursive:true});
+  const directory=fs.mkdtempSync(path.join(ROOT,'.cache','interaction-worker-'));
+  try {
+    const original=loadSettings(),vault=path.join(directory,'vault');fs.mkdirSync(vault);
+    fs.mkdirSync(path.join(vault,'_scripts'));
+    fs.mkdirSync(path.join(vault,'.obsidian'));
+    fs.copyFileSync(path.join(original.vault_dir,'.obsidian','metadata.json'),path.join(vault,'.obsidian','metadata.json'));
+    fs.writeFileSync(path.join(vault,'_scripts','session_note_campaigns.json'),JSON.stringify({campaigns:{cleenseau:{code:'clee',name:'Cleenseau',aliases:[],partyPage:'Party',campaignRoot:'Campaigns/Clee'}}}));
+    fs.writeFileSync(path.join(vault,'Person.md'),'---\nheaderVersion: 2023.11.25\ntags: [person]\nname: Person\nspecies: human\nwhereabouts: Inn\nknownTo: [clee]\ncampaignInfo: [{campaign: clee, date: 1720-01-01, type: fought alongside}]\n---\n<!-- taelgar:header -->\n\nPerson biography.');
+    fs.writeFileSync(path.join(vault,'Party.md'),'# Party');fs.writeFileSync(path.join(vault,'Inn.md'),'# Inn');
+    fs.mkdirSync(path.join(vault,'Campaigns','Clee'),{recursive:true});
+    fs.writeFileSync(path.join(vault,'Campaigns','Clee','Handout.md'),'# Handout\n[[Person]]');
+    fs.writeFileSync(path.join(vault,'Session.md'),'---\ntags: [session-note]\ncampaign: Cleenseau\nsessionNumber: 12.1\nDR: 1720-01-01\nDR_end: 1720-01-02\n---\n# Session\n\nThe party met [[Person]] at the inn.\n\n%%^Campaign:none%%\nPerson showed them a hidden room.\n%%^End%%');
+    const cleaned=path.join(vault,'_sessions','cleenseau','cleenseau-012.1','cleaned');fs.mkdirSync(cleaned,{recursive:true});
+    const recap=['# Session Recap','## Session Header','- Campaign: Cleenseau','- Session Number: 12.1','## Recap',
+      '### recap-001 | At the Inn','- Date: 1720-01-01','- NPCs: Person, Unpublished Unresolved Person','- Source Range: u0001 -> u0020','#### Short','An authoritative Short independent of generated prose.','#### Long','Unused Long narrative.',
+      '### recap-002 | Hidden Room','- Date: 1720-01-02','- NPCs: Person','#### Short','%%^Campaign:none%%Person showed them a hidden room.%%^End%%','#### Long','Unused secret Long narrative.',
+      '## Cast','### NPCs','- Person (met): innkeeper','## Source Files','- Cleaned Source: /private/transcript.md'].join('\n');
+    const recapFile=path.join(cleaned,'cleenseau-012.1-session-recap.md');fs.writeFileSync(recapFile,recap);
+    fs.writeFileSync(path.join(cleaned,'cleenseau-012.1-source-cleaned.md'),'UNPUBLISHED PRIVATE TRANSCRIPT');
+    const settings={...original,vault_dir:vault,source_dir:vault,nav_source:null,home_source:null,campaigns:[]};
+    const before=buildFingerprint(settings,{});
+    fs.writeFileSync(recapFile,recap.replace('At the Inn','At the Tavern'));
+    assert.notEqual(buildFingerprint(settings,{}),before);
+    fs.writeFileSync(recapFile,recap.replace('/private/transcript.md','D:/another/machine/transcript.md'));
+    assert.equal(buildFingerprint(settings,{}),before);
+    fs.writeFileSync(recapFile,recap.replace('Unused Long narrative.','An edited Long narrative.'));
+    assert.equal(buildFingerprint(settings,{}),before);
+    fs.writeFileSync(recapFile,recap);
+    const report=await prepareContent(settings,path.join(directory,'package'),{commit:'fixture',dirty:false});
+    const raw=fs.readFileSync(report.indexFile,'utf8'),index=JSON.parse(raw);
+    assert.equal(index.interactions.version,2);
+    assert.equal(index.interactions.byTarget.person.filter(event=>event.kind==='encounter').length,2);
+    assert.doesNotMatch(raw,/UNPUBLISHED PRIVATE TRANSCRIPT|Unpublished Unresolved Person|\/private\/|Source Range|u0001|session-recap\.md/);
+    assert.match(report.interactions.warnings.join('\n'),/Unpublished Unresolved Person/);
+    assert.doesNotMatch(JSON.stringify(index.interactions),/Long narrative|The party met|Source Range|u0001/);
+    const uploads=new Map(JSON.parse(fs.readFileSync(report.manifestFile,'utf8')).map(item=>[item.key,item.file]));
+    const reads=[];
+    const bucket={async get(key){reads.push(key);const file=uploads.get(key);if(!file)return null;return {json:async()=>JSON.parse(fs.readFileSync(file,'utf8'))};}};
+    const node=new Engine(settings),snapshot=await loadSnapshot(bucket,report.revision);
+    for(const dm of [false,true,false]) {
+      reads.length=0;
+      const actual=await snapshot.engine.renderAsync('Person','1720-01-02','custom',dm,['clee'],entry=>snapshot.store.getNote(entry));
+      const expected=node.render('Person','1720-01-02','custom',dm,undefined,['clee']);
+      assert.deepEqual(actual.interactions,expected.interactions);
+      assert.equal(actual.html,expected.html);
+      assert.equal(actual.interactions[0].events.length,dm ? 3 : 2);
+      assert.ok(reads.every(key=>key.endsWith('/'+snapshot.store.resolve('Person').note.shard+'.json')),'only the person shard is loaded');
+      assert.equal(actual.interactions[0].events[0].text,'An authoritative Short independent of generated prose.');
+      assert.match(actual.html,/fought alongside/i); // Authored campaignInfo remains in the normal header.
+    }
+    const originalGet=bucket.get.bind(bucket);
+    const env={CONTENT:{async get(key){if(key==='published/current.json')return {json:async()=>({revision:report.revision})};return originalGet(key);}},ASSETS:{fetch:async()=>new Response('asset')}};
+    const response=await createWorker().fetch(new Request('https://cleenseau.taelgar.org/api/page?page=Person'),env);
+    assert.equal(response.status,404); // No configured campaign host silently falls back.
+    const worker=createWorker();
+    const api=await worker.fetch(new Request('https://www.taelgar.org/api/page?page=Person&context=cleenseau'),env);
+    assert.equal(api.status,200);assert.equal((await api.json()).interactions[0].events.length,2);
+    const old=structuredClone(index);delete old.interactions;
+    const oldBucket={async get(key){return key.endsWith('/index.json') ? {json:async()=>old} : originalGet(key);}};
+    const loaded=await loadSnapshot(oldBucket,report.revision);
+    const fallback=await loaded.engine.renderAsync('Person','1720-01-02','custom',false,['clee'],entry=>loaded.store.getNote(entry));
+    assert.equal(fallback.interactions[0].events.some(event=>event.kind==='reference'),true);
+    assert.equal(fallback.interactions[0].events.length,1);
+    assert.equal(fallback.interactions[0].events[0].title,'Handout');
+    const invalid={...index,interactions:{version:99,byTarget:{}}};
+    await assert.rejects(loadSnapshot({get:async()=>({json:async()=>invalid})},report.revision),/interaction index format/);
+    await assert.rejects(loadSnapshot({get:async()=>({json:async()=>({...index,interactions:{version:1,byTarget:{}}})})},report.revision),/interaction index format/);
+  } finally {const resolved=fs.realpathSync(directory);assert.ok(isInside(fs.realpathSync(path.join(ROOT,'.cache')),resolved));assert.ok(path.basename(resolved).startsWith('interaction-worker-'));fs.rmSync(resolved,{recursive:true});}
+});

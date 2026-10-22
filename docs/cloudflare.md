@@ -116,7 +116,7 @@ contains the following files:
 | Location | What it contains |
 | --- | --- |
 | `published/current.json` | A small file saying which revision the website should use. It also records the Git version and publishing settings so unchanged content can be skipped next time. |
-| `revisions/<revision>/index.json`, `notes/` | Complete schema-1 snapshot and original Markdown shards, retained for legacy Workers and publication verification. |
+| `revisions/<revision>/index.json`, `notes/` | Complete schema-1 snapshot, including optional compiled campaign interaction scenes, and original Markdown shards, retained for legacy Workers and publication verification. |
 | `revisions/<revision>/runtime.json` | Runtime manifest with precomputed counts, campaign contexts and host policies, plus references to separate route data. |
 | `revisions/<revision>/runtime/` | Compiled renderer lookups, header indexes, backlink ownership/shard references, compact search metadata and navigation structure/views. `notes/` holds parsed bodies in roughly 64 KiB shards; `backlinks/` groups destination pages into roughly 32 KiB shards. An individual larger note or backlink list remains intact. `assets/` partitions media entries by the first two hex digits of the SHA-256 of their URL target. |
 | `assets/` | Images, audio, and other published attachments. Identical files share one stored copy, even across publications. |

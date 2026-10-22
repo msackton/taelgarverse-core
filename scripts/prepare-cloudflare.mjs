@@ -7,6 +7,8 @@ import {Store} from '../src/store.mjs';
 import {normalizeHeader} from '../src/bio-block.mjs';
 import {buildBacklinkIndex} from '../src/backlinks.mjs';
 import {headerCoreRevision} from './header-core-revision.mjs';
+import {compileInteractionIndex} from '../src/campaign-interactions.mjs';
+import {readInteractionBundles} from '../src/session-interactions.mjs';
 import {repositoryVersion} from './repository-version.mjs';
 import {compileSearch,searchDescriptor} from './compile-search.mjs';
 import {prepareMaps} from './build-maps.mjs';
@@ -85,8 +87,9 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   });
   const backlinks=await timed('Compiling backlinks',()=>buildBacklinkIndex(store));
   const searchManifest=await timed('Compiling search',()=>compileSearch(store)),search=searchDescriptor(searchManifest);
+  const bundles=readInteractionBundles(settings),{warnings:interactionWarnings,...interactions}=compileInteractionIndex(store,registry,backlinks,bundles.bundles);
   const base={schemaVersion:1,sourceVersion:{commit:sourceVersion.commit,dirty:sourceVersion.dirty},settings:{default_date:settings.default_date,campaigns:settings.campaigns,respect_pov_dates:settings.respect_pov_dates === true},backlinks,
-    registry,
+    registry,interactions,
     coreMeta:JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'.obsidian/metadata.json'),'utf8')),
     navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,
     homeSource,
@@ -126,7 +129,8 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const report={revision,indexFile,manifestFile,configFile,bucket:config.r2_buckets.find(b=>b.binding==='CONTENT').bucket_name,
     notes:entries.filter(e=>e.note).length,assets:entries.filter(e=>!e.note).length,objects:unique.length,
     assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision:headerCoreRevision(),search,searchFile,searchStats:searchManifest.stats,images,
-    derivativeManifestFile,derivativeCacheHits:{...derivativeCache.hits},timings,totalMs:Math.round(performance.now()-started)};
+    derivativeManifestFile,derivativeCacheHits:{...derivativeCache.hits},timings,totalMs:Math.round(performance.now()-started),
+    interactions:{people:Object.keys(interactions.byTarget).length,warnings:[...bundles.warnings,...interactionWarnings]}};
   writeJSON(path.join(output,'latest.json'),report);
   return report;
 }

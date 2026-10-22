@@ -42,10 +42,11 @@ export async function loadSnapshot(bucket,revision) {
     throw new RenderError(503,'Content snapshot format is not supported by this Worker');
   }
   if (index.backlinks && ![1,2].includes(index.backlinks.version)) throw new RenderError(503,'Backlink index format is not supported by this Worker');
+  if (index.interactions && (index.interactions.version!==2 || !index.interactions.byTarget || typeof index.interactions.byTarget!=='object' || Array.isArray(index.interactions.byTarget))) throw new RenderError(503,'Campaign interaction index format is not supported by this Worker');
   if (index.homeSource != null && typeof index.homeSource !== 'string') throw new RenderError(503,'Homepage content must be Markdown text');
   const store=new SnapshotStore(index,bucket);
   const headers=createHeaderSnapshot({pages:store.entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta:index.coreMeta,registry:index.registry});
   const engine=new RenderEngine({settings:index.settings,store,headers,renderHeader,renderBio,navigationSource:index.navigationSource,
-    homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null});
+    homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null,interactionIndex:index.interactions});
   return {engine,store,index};
 }

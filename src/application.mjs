@@ -24,7 +24,7 @@ const apiSpec = {
         {name:'context',in:'query',schema:{type:'string'},description:'modern, custom, or a campaign context ID'},
         {name:'campaigns',in:'query',schema:{type:'string'},description:'Custom only: all, comma-separated campaign codes, or empty for none; repeated parameters are also accepted'},
         {name:'dm',in:'query',schema:{type:'boolean',default:false},description:'See Behind the Curtain: 1/true shows comment notes and Campaign:none blocks; a viewing preference available to every visitor'}],
-      responses:{200:{description:'Article HTML, TOC, backlinks, date, campaigns and warnings'},400:{description:'Invalid input'},
+      responses:{200:{description:'Article HTML, TOC, backlinks, campaign interactions, date, campaigns and warnings'},400:{description:'Invalid input'},
         404:{description:'Missing/excluded/future page'},409:{description:'Ambiguous page'},422:{description:'Unsafe comment syntax or header error'}}}},
     '/health':{get:{summary:'Content snapshot status',responses:{200:{description:'Indexed page count and warnings'}}}},
     '/api/contexts':{get:{summary:'Available contexts, dates, campaign codes and date provenance',responses:{200:{description:'Context catalogue and warnings'}}}},

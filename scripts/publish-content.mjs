@@ -7,6 +7,7 @@ import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {ROOT, loadSettings, isInside} from '../src/config.mjs';
 import {prepareContent, loadCloudflareConfig} from './prepare-cloudflare.mjs';
+import {readInteractionBundles} from '../src/session-interactions.mjs';
 import {DerivativeCache} from './derivative-cache.mjs';
 import {withPublicationProgress} from './publication-progress.mjs';
 import {readCampaignHomes} from '../src/website-sources.mjs';
@@ -201,6 +202,7 @@ export function validateMaterializationReport(report, output) {
 export function buildFingerprint(settings, options, config={}) {
   const hash = createHash('sha256');
   hash.update(JSON.stringify({excludedFolders:readFolderExclusions(settings.vault_dir)}));
+  hash.update(JSON.stringify(readInteractionBundles(settings)));
   for (const [host,source] of Object.entries(readCampaignHomes(settings))) hash.update(JSON.stringify([host,source.replace(/\r\n/g,'\n')]));
   hash.update(JSON.stringify({version: 1, image: {maxSize: options.maxSize, quality: options.quality, ...IMAGE_VERSION},
     strict: !options.noStrict, default_date: settings.default_date, respect_pov_dates: settings.respect_pov_dates === true,searchDestination:{account:config.account_id,databases:config.d1_databases || []}}));
@@ -214,6 +216,7 @@ export function buildFingerprint(settings, options, config={}) {
     new URL('../src/map-distance.mjs', import.meta.url),
     new URL('./prepare-cloudflare.mjs', import.meta.url), new URL('../src/store.mjs', import.meta.url),
     new URL('../src/content-store.mjs', import.meta.url), new URL('../src/bio-block.mjs', import.meta.url), new URL('../src/backlinks.mjs', import.meta.url),
+    new URL('../src/campaign-interactions.mjs', import.meta.url), new URL('../src/session-interactions.mjs', import.meta.url),
     new URL('../src/markdown.mjs', import.meta.url), new URL('../src/comments.mjs', import.meta.url),
     new URL('../src/common.mjs', import.meta.url), new URL('./build-runtime.mjs', import.meta.url)]) {
     // A Windows checkout may use CRLF while macOS uses LF. That alone must not

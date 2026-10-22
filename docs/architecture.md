@@ -78,6 +78,7 @@ flowchart LR
 | `src/homepage.mjs`, `public/homepage.css`, `public/images/home-map.webp` | Homepage composition, entry buttons, responsive layout, and decorative map asset. Introductory content remains in the vault's `_website/home.md`. |
 | `src/contexts.mjs`, `src/navigation.mjs` | Session-derived dates and context-filtered navigation. |
 | `src/backlinks.mjs` | Index authored incoming links and filter them by source availability and visible comment states. |
+| `src/session-interactions.mjs`, `src/campaign-interactions.mjs`, `src/interaction-view.mjs`, `src/browser/interactions.mjs`, `src/browser/interaction-groups.mjs` | Import selected recap fields, compile person/campaign histories, filter each request, and render the grouped bead timeline. See [campaign interactions](campaign-interactions.md). |
 | `src/embeds.mjs` | Expand visible note/heading/block embeds, bound recursion, preserve source-relative rendering, and isolate anchors/popups. |
 | `src/maps.mjs`, `src/map-distance.mjs`, `src/map-path.mjs`, `src/browser/map-view.mjs`, `src/browser/map-measurement.mjs` | Map rendering, calibration read from vault `leaflet` blocks, flat point/stroke routes, and shared measurement controls. See [maps](maps.md). |
 | `obsidian/taelgarverse/`, `scripts/build-obsidian.mjs`, `scripts/install-obsidian.mjs`, `scripts/release-obsidian.mjs` | Unified desktop plugin with Maps and opt-in Images. Features share core modules and own their Component cleanup; plugin `images.css` owns inline image placement and sizing, scoped by the Images feature. Self-contained releases go to `msackton/taelgarverse-obsidian` for BRAT; installed artifacts stay outside vault Git. See the [plugin guide](../obsidian/taelgarverse/README.md). |
@@ -176,6 +177,13 @@ POV modes, and search applies the reader's metadata visibility before pagination
 Reader choices stay request-local and never mutate the shared engine.
 These rules are specified in [vault usage](vault.md).
 
+Person campaign histories use authoritative recap NPC beats and their Short text,
+with supplementary backlinks from non-session campaign-folder articles. Session
+notes are ignored by this index. Original `_sessions` files remain outside the
+article store; selected beat fields and their own visibility rules enter the
+revision index. The Worker requires no session-body reads. Older publications
+retain authored headers and non-session campaign references. See [campaign interactions](campaign-interactions.md).
+
 `RenderEngine.renderHome()` applies the shared comment and Markdown renderer to
 the authored homepage, without generating an article header or indexing it as a
 note. The root route uses it unless a `q` parameter requests search. Homepage and
@@ -242,6 +250,7 @@ uses a prepared snapshot and must be rerun after vault edits.
 | --- | --- |
 | Vault Markdown/media, session notes, registry, `.obsidian/metadata.json` | Run the content publisher. |
 | Add or remove a folder's `.nopublish` marker | Republish content; the publisher fingerprints the original-vault markers and excludes matching exported subtrees before packaging and search compilation. |
+| Structured session recap fields used by campaign interactions | Republish content; recap projections are revision-bound, and parsed source fields participate in the publisher fingerprint. |
 | `_website/home.md`, `_website/navigation.md`, `home_source`, `nav_source`, `default_date`, `respect_pov_dates`, materializer, packaging, image settings | Republish content; use `--force` if the change is outside the publisher's fingerprint. A core merge alone does not refresh the published homepage or menu. |
 | Renderer, routes, CSS/browser scripts, dependencies, Worker configuration | Merge core changes to `main`; GitHub deploys to Cloudflare after CI passes. |
 | Taelgarverse plugin or shared map code used by it | Test both consumers, bump the plugin's own version, then explicitly release to the BRAT distribution repository. A website deployment does not release the plugin. |

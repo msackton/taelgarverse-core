@@ -360,6 +360,15 @@ Generated header relationships and links back to the same article are excluded.
 Nonempty backlinks appear in the right sidebar even on short articles; on mobile they
 appear in a collapsed **Linked from** section below the article.
 
+Person pages also show a **Campaign interactions** summary and grouped dot history
+for the selected campaigns. `knownTo` supplies undated party knowledge and
+`campaignInfo` retains its normal header wording. Authoritative recap entries
+supply encounter dots using their explicit NPCs, dates, and Short text. Session
+notes are ignored; non-session campaign-folder backlinks supply separate references.
+Readers can group by session, day, or seven-day period and zoom into counted dots.
+This does not infer encounters from mentions or filter page availability by party
+knowledge. See [campaign interaction sources and rules](campaign-interactions.md).
+
 The header gear offers **System**, **Light**, and **Dark** appearance. System is
 the default and follows operating-system changes. Explicit selections are saved
 in that browser. On small screens the gear also contains the context/date,

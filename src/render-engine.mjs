@@ -13,9 +13,11 @@ import {CampaignSites} from './campaign-sites.mjs';
 import {articleLayout} from './article-layout.mjs';
 import {leadingBioBlock,leadingHeaderMarker} from './bio-block.mjs';
 import {HeaderDataError} from './header-core/errors.mjs';
+import {compileInteractionIndex,campaignInteractions} from './campaign-interactions.mjs';
+import {interactionSummary,interactionView} from './interaction-view.mjs';
 
 export class RenderEngine {
-  constructor({settings,store,headers,renderHeader,renderBio,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared}) {
+  constructor({settings,store,headers,renderHeader,renderBio,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles=[]}) {
     this.settings = settings;
     this.store = store;
     this.store.settings = settings;
@@ -32,6 +34,8 @@ export class RenderEngine {
     this.backlinkCampaigns = prepared?.backlinkCampaigns || buildBacklinkCampaigns(store,this.headers.registry);
     this.loadBacklinks = prepared?.loadBacklinks;
     if (backlinkIndex === undefined) this.store.warnings.push(...this.backlinkIndex.warnings);
+    this.interactionIndex = interactionIndex || compileInteractionIndex(store,headers.registry,this.backlinkIndex,interactionBundles);
+    if (!interactionIndex) this.store.warnings.push(...this.interactionIndex.warnings);
   }
 
   resolvePage(page, date, contextId, dm = false, selectedCampaigns, pov) {
@@ -74,10 +78,16 @@ export class RenderEngine {
     }
     const hide = Array.isArray(metadata.hide) ? metadata.hide : typeof metadata.hide === 'string' ? metadata.hide.split(/[\s,]+/) : [];
     const rendered = this.renderBody(body,entry,context,embedLoading);
+    const interactions = campaignInteractions(this.interactionIndex,this.store,entry,context,this.headers.registry);
+    if (interactions.length) {
+      const summary=interactionSummary(interactions);
+      rendered.html=/<\/h1>/i.test(rendered.html) ? rendered.html.replace(/<\/h1>/i,match=>match+summary) : summary+rendered.html;
+      rendered.html+=interactionView(interactions);
+    }
     if (hide.includes('toc')) rendered.toc = '';
     return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,hide,
       ...(metadata.layout === 'wide' ? {layout:'wide'} : {}),
-      ...rendered, backlinks:backlinkIndex && (backlinkIndex.version>=2 || context.campaigns.length<=1)
+      ...rendered, interactions, backlinks:backlinkIndex && (backlinkIndex.version>=2 || context.campaigns.length<=1)
         ? linkedFrom(backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
   }
 
@@ -140,15 +150,18 @@ export function document(result,contextOptions,navigation,releases) {
     toc + backlinks + '</aside>' : '';
   const diagrams = result.html.includes('class="mermaid-diagram"') ? '<script type="module" src="/theme/diagrams.js"></script>' : '';
   const maps = result.html.includes('class="leaflet-map"');
+  const interactions = result.interactions?.length;
   return '<!doctype html><html lang="en" dir="ltr" data-appearance="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><script src="/theme/appearance.js"></script>' +
     '<title>' + escapeHtml(result.title) + ' — TaelgarVerse</title><link rel="stylesheet" href="/theme/material.css">' +
     '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"><link rel="stylesheet" href="/theme/image-viewer.css"><link rel="stylesheet" href="/theme/quiet-library.css">' +
     (maps ? '<link rel="stylesheet" href="/theme/leaflet.css"><link rel="stylesheet" href="/theme/maps.css">' : '') +
+    (interactions ? '<link rel="stylesheet" href="/theme/interactions.css">' : '') +
     (result.search ? '<link rel="stylesheet" href="/theme/search.css">' : '') +
     (result.homepage ? '<link rel="stylesheet" href="/theme/homepage.css">' : '') + '</head>' +
     '<body>' + siteHeader(result.context,contextOptions,{query:result.query,searchType:result.searchType,sections:showNavigation ? navigation.sections(view) : '',navigation:!!showNavigation}) +
     '<a class="skip-link" href="#page-content">Skip to content</a><div class="layout' + (pageNav ? '' : ' layout--no-toc') + (hasSection ? '' : ' layout--no-navigation') + (result.homepage ? ' layout--home' : '') + '">' + sidebar +
     '<main id="page-content" class="md-typeset article-main" tabindex="-1">' + breadcrumbs + article + '</main>' + pageNav +
     '</div>' + siteDialogs() + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/site-ui.js" defer></script><script type="module" src="/theme/search-overlay.js"></script><script src="/theme/image-viewer.js" defer></script>' + diagrams +
-    (maps ? '<script type="module" src="/theme/maps.js"></script>' : '') + '</body></html>';
+    (maps ? '<script type="module" src="/theme/maps.js"></script>' : '') +
+    (interactions ? '<script type="module" src="/theme/interactions.js"></script>' : '') + '</body></html>';
 }
