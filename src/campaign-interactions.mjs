@@ -60,8 +60,9 @@ function beatVariants(scene,sourceTitle) {
   return [...variants.values()];
 }
 function isPerson(entry) { return list(entry?.note?.metadata.tags).includes('person'); }
-function referenceType(metadata) {
-  const tags=new Set(list(metadata.tags).filter(tag=>typeof tag==='string').flatMap(tag=>tag.split(/[\s,]+/)).map(tag=>tag.replace(/^#/,'').toLowerCase().split('/')[0]));
+export function interactionReferenceType(metadata) {
+  const tags=new Set(list(metadata?.tags).filter(tag=>typeof tag==='string').flatMap(tag=>tag.split(/[\s,]+/)).map(tag=>tag.replace(/^#/,'').toLowerCase().split('/')[0]).filter(Boolean));
+  if(!tags.size || tags.has('meta') || tags.has('background'))return null;
   return tags.has('object') || tags.has('item') ? 'item' : tags.has('source') || tags.has('document') ? 'document' : 'reference';
 }
 function sessionSources(store,registry,identities,campaign,number) {
@@ -128,7 +129,7 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=[]) {
     if (!isPerson(entry)) continue;
     for (const link of Object.hasOwn(backlinks?.byTarget || {},entry.slug) ? backlinks.byTarget[entry.slug] : []) {
       const source=store.bySlug.get(link.source),metadata=source?.note?.metadata;
-      if (!metadata || list(metadata.tags).includes('session-note') || metadata.sessionNumber!=null) continue;
+      if (!interactionReferenceType(metadata) || list(metadata.tags).includes('session-note') || metadata.sessionNumber!=null) continue;
       const id=normalize(source.id).replaceAll('\\','/');
       if (!roots.some(root=>id.startsWith(root+'/'))) continue;
       for (const campaign of ownership.get(source.slug) || []) append(entry.slug,{id:'reference:'+campaign+':'+source.slug,
@@ -156,12 +157,13 @@ export function campaignInteractions(index,store,entry,context,registry) {
         transcriptUrl:Object.hasOwn(index.transcripts || {},record.id) ? '/campaign-transcripts/'+encodeURIComponent(record.id)+'?'+contextQuery(context)+'&person='+encodeURIComponent(entry.slug) : null});
     } else {
       const source=store.bySlug.get(record.source);
-      if (!availableInContext(source,context,store.settings) || (index.backlinkVersion===1 && context.campaigns.length>1) || !interactionRuleVisible(record.when,context)) continue;
+      const type=interactionReferenceType(source?.note?.metadata);
+      if (!type || !availableInContext(source,context,store.settings) || (index.backlinkVersion===1 && context.campaigns.length>1) || !interactionRuleVisible(record.when,context)) continue;
       group.events.push({id:record.id,kind:'reference',title:source.title,text:'',start:null,end:null,precision:'undated',
-        session:null,sourceTitle:source.title,url:pageUrl(source.slug,context.date,context),location:'',referenceType:referenceType(source.note.metadata)});
+        session:null,sourceTitle:source.title,url:pageUrl(source.slug,context.date,context),location:'',referenceType:type});
     }
   }
-  return [...groups.values()].filter(group=>group.known || group.events.length).map(group=>({...group,events:group.events.sort((a,b)=>
+  return [...groups.values()].map(group=>({...group,events:group.events.sort((a,b)=>
     (a.start || a.sessionStart || '9999').localeCompare(b.start || b.sessionStart || '9999') ||
     (a.session || '').localeCompare(b.session || '',undefined,{numeric:true}) || a.id.localeCompare(b.id,undefined,{numeric:true}))}));
 }

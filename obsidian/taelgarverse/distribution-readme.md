@@ -46,16 +46,19 @@ The plugin automatically adds a **Campaign interactions** panel at the bottom
 of any note with at least one registered campaign in `knownTo`, in Reading View
 and Live Preview. Scalar and list values work; registry names, codes, and aliases
 resolve to the same campaign. A single campaign opens directly. Multiple
-campaigns get a **Campaign** selector, with the choice retained while the plugin
-is running. Source mode stays unchanged.
+campaigns get a **Campaign** selector directly below the heading, with **All**
+selected by default to show them together. The choice is retained while the
+plugin is running. Source mode stays unchanged.
 
 Campaigns without visible recap beats use a small **Known to Cleenseau** footnote
-and any related campaign links. For multiple campaigns, the picker sits inline;
-choosing a campaign with recap beats restores the timeline.
+and any related campaign links. The **Campaign interactions** heading and picker
+stay above the content; choosing a campaign with recap beats restores the timeline.
 
 Only recap beats contribute encounter dots and counts. Items, documents, and
 other backlinks appear under **Related campaign material**, with icons and labels
 from authored tags (`object`/`item`, `source`/`document`, or a generic reference).
+Untagged notes and notes with `meta` or `background` tags are excluded, including
+nested tags. A source note's `knownTo` flag does not bypass these exclusions.
 The first three links are visible; **Show more** reveals the rest. Links open
 their notes natively. Undated recap beats retain their session labels, including
 when grouped by day or seven-day period, without inventing a date.

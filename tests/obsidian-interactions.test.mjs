@@ -22,10 +22,10 @@ const initial={
   'World.md':'# World\n[[Person]]',
   'Campaigns/Clee/Session 01.md':'---\ntags: [session-note]\ncampaign: Clee\nsessionNumber: 1\nDR: 1748-01-01\n---\n[[Person]]',
   'Campaigns/Other/Session 01.md':'---\ntags: [session-note]\ncampaign: Other\nsessionNumber: 1\nDR: 1748-01-01\n---\n[[Person]]',
-  'Campaigns/Clee/Handout.md':'# Handout\n[[Person]] [[Inn]]',
-  'Campaigns/Clee/Conditional.md':'%%^Campaign:other%%[[Person]]%%^End%%',
-  'Campaigns/Clee/Later.md':'%%^Date:1750-01-02%%[[Person]]%%^End%%',
-  'Campaigns/Clee/Secret.md':'# Secret\n%% A DM reference to [[Person]]. %%',
+  'Campaigns/Clee/Handout.md':'---\ntags: [source]\n---\n# Handout\n[[Person]] [[Inn]]',
+  'Campaigns/Clee/Conditional.md':'---\ntags: [source]\n---\n%%^Campaign:other%%[[Person]]%%^End%%',
+  'Campaigns/Clee/Later.md':'---\ntags: [source]\n---\n%%^Date:1750-01-02%%[[Person]]%%^End%%',
+  'Campaigns/Clee/Secret.md':'---\ntags: [source]\n---\n# Secret\n%% A DM reference to [[Person]]. %%',
   'Campaigns/Clee/Header.md':'---\nheaderVersion: 1\ntags: [person]\n---\n# Header [[Person]]\n\nBody without a link.',
   'Campaigns/Clee/_generated/narrative.md':'[[Person]]',
   '_sessions/cleenseau/cleenseau-001/cleaned/cleenseau-001-session-recap.md':recap('Clee','Person met the Cleenseau party.'),
@@ -89,8 +89,13 @@ test('explicit blocks select known campaigns, retain choice after refresh, and o
   const h=host();
   try {
     const {element,child}=h.block();await child.ready;
-    assert.equal(element.querySelectorAll('select[aria-label="Campaign"] option').length,2);
+    assert.equal(element.querySelectorAll('select[aria-label="Campaign"] option').length,3);
+    assert.equal(element.querySelector('select[aria-label="Campaign"]').value,'all');
+    assert.ok(element.querySelector('.campaign-interactions > h2 + .taelgar-interaction-campaign select'));
+    assert.equal(element.querySelectorAll('.interaction-detail').length,2);
+    assert.equal(element.querySelectorAll('.interaction-dot').length,2,'All mounts both campaign timelines');
     assert.match(element.textContent,/Cleenseau party/);
+    assert.match(element.textContent,/other party/);
     const sessionLink=element.querySelector('.interaction-detail .interaction-sources a');
     assert.ok(child.links.has(sessionLink.getAttribute('href')),sessionLink.outerHTML+' '+JSON.stringify([...child.links]));
     h.click(sessionLink);
@@ -99,13 +104,54 @@ test('explicit blocks select known campaigns, retain choice after refresh, and o
     const select=element.querySelector('select[aria-label="Campaign"]');select.querySelector('option[value="other"]').selected=true;select.dispatchEvent(new h.window.Event('change'));await h.settle();
     assert.match(element.textContent,/other party/);assert.doesNotMatch(element.textContent,/Cleenseau party/);
     h.cache.trigger('changed');await pause(190);await h.settle();assert.match(element.textContent,/other party/);
+    const all=element.querySelector('select[aria-label="Campaign"]');all.querySelector('option[value="all"]').selected=true;all.dispatchEvent(new h.window.Event('change'));await h.settle();
+    assert.match(element.querySelectorAll('.interaction-detail')[0].textContent,/Cleenseau party/);
+    assert.match(element.querySelectorAll('.interaction-detail')[1].textContent,/other party/);
+    h.cache.trigger('changed');await pause(190);await h.settle();assert.equal(element.querySelector('select[aria-label="Campaign"]').value,'all');
     child.unload();assert.equal(h.feature.panels.size,0);
   }finally{h.feature.unload();}
   assert.equal(h.intervals.size,0);assert.equal(h.cache.count,0);assert.equal(h.vault.count,0);assert.equal(h.workspace.count,0);assert.equal(h.resize.size,0);
 });
 
+test('reference filtering uses authored tags before local knownTo adaptation and leaves excluded source bodies unread',async()=>{
+  const ignored={
+    'List of NPCs':'tags: [meta, source]',
+    'Background notes':'tags: [source, background/lore]',
+    'Untagged known page':'knownTo: clee',
+    'No tags':'',
+  };
+  const notes=Object.fromEntries(Object.entries(ignored).map(([name,metadata])=>['Campaigns/Clee/'+name+'.md','---\n'+metadata+'\n---\n[[Person]]']));
+  const h=host({notes});
+  try {
+    const {element,child}=h.block();await child.ready;
+    assert.match(element.querySelector('.interaction-references').textContent,/Handout/);
+    for(const name of Object.keys(ignored)) {
+      assert.equal([...element.querySelectorAll('.interaction-reference-links a')].some(link=>link.textContent===name),false);
+      assert.equal(h.reads.includes('Campaigns/Clee/'+name+'.md'),false);
+    }
+    assert.equal(h.metadata.get('Campaigns/Clee/Untagged known page.md').tags,undefined);
+    child.unload();
+  }finally{h.feature.unload();}
+});
+
+test('All preserves the heading and picker above multiple knowledge-only footnotes',async()=>{
+  const p='People/Known Only.md',h=host({notes:{[p]:'---\nknownTo: [clee, other]\n---\n# Known Only'}});
+  try {
+    const {element,child}=h.block('',p);await child.ready;
+    assert.equal(element.querySelectorAll('h2').length,1);
+    assert.ok(element.querySelector('h2 + .taelgar-interaction-campaign select'));
+    assert.equal(element.querySelector('select').value,'all');
+    assert.deepEqual([...element.querySelectorAll('.interaction-knowledge-footnote')].map(node=>node.textContent),['Known to Cleenseau.','Known to Other.']);
+    assert.equal(element.querySelector('.interaction-plot,.interaction-controls'),null);
+    const select=element.querySelector('select');select.querySelector('option[value="clee"]').selected=true;select.dispatchEvent(new h.window.Event('change'));await h.settle();
+    assert.equal(element.querySelectorAll('.interaction-knowledge-footnote').length,1);
+    assert.ok(element.querySelector('h2 + .taelgar-interaction-campaign select'));
+    child.unload();
+  }finally{h.feature.unload();}
+});
+
 test('native backlink offsets preserve CRLF frontmatter and saved-header boundaries',async()=>{
-  const h=host({notes:{'Campaigns/Clee/Windows.md':'---\r\nname: Windows letter\r\n---\r\n\r\n[[Person]]\r\n',
+  const h=host({notes:{'Campaigns/Clee/Windows.md':'---\r\nname: Windows letter\r\ntags: [source]\r\n---\r\n\r\n[[Person]]\r\n',
     'Campaigns/Clee/Windows header.md':'---\r\nheaderVersion: 1\r\ntags: [person]\r\n---\r\n# Saved header [[Person]]\r\n\r\nBody.\r\n'}});
   try{
     const snapshot=await h.obsidianInteractions(h.app),events=h.localInteractions(snapshot,'People/Person.md',registry.campaigns.cleenseau,'1748-01-02',h.app).group.events;
@@ -114,7 +160,7 @@ test('native backlink offsets preserve CRLF frontmatter and saved-header boundar
   }finally{h.feature.unload();}
 });
 
-test('reference-only campaign choices use inline pickers and native item/document links, then restore the recap timeline',async()=>{
+test('reference-only campaign choices keep the picker below the heading and native item/document links, then restore the recap timeline',async()=>{
   const recapPath='_sessions/other/other-001/cleaned/other-001-session-recap.md';
   const sword='Campaigns/Other/Sword.md',letter='Campaigns/Other/Letter.md';
   const notes={
@@ -122,7 +168,7 @@ test('reference-only campaign choices use inline pickers and native item/documen
     [sword]:'---\ntags: [object/weapon]\nknownTo: other\n---\n[[Person]]',
     [letter]:'---\ntags: [source]\nDR: 1740-01-01\n---\n[[Person]]',
   };
-  for(let i=0;i<4;i++)notes['Campaigns/Other/Handout '+i+'.md']='[[Person]]';
+  for(let i=0;i<4;i++)notes['Campaigns/Other/Handout '+i+'.md']='---\ntags: [source]\n---\n[[Person]]';
   const h=host({notes}),{element,child}=h.block();
   const choose=async code=>{
     const select=element.querySelector('select[aria-label="Campaign"]');select.querySelector('option[value="'+code+'"]').selected=true;
@@ -133,9 +179,10 @@ test('reference-only campaign choices use inline pickers and native item/documen
     assert.equal(element.querySelectorAll('.interaction-dot').length,1);
     assert.match(element.querySelector('.interaction-breadcrumb').textContent,/^1 recorded entry/);
     await choose('other');
-    assert.ok(element.querySelector('.interaction-knowledge-footnote select'));
+    assert.ok(element.querySelector('h2 + .taelgar-interaction-campaign select'));
     assert.ok(element.classList.contains('taelgar-interactions--compact'));
-    assert.equal(element.querySelector('h2,h3,.interaction-plot,.interaction-controls,.interaction-detail'),null);
+    assert.equal(element.querySelector('h2').textContent,'Campaign interactions');
+    assert.equal(element.querySelector('h3,.interaction-plot,.interaction-controls,.interaction-detail'),null);
     assert.equal(element.querySelectorAll('.interaction-reference-links a').length,6);
     assert.equal(element.querySelectorAll('.interaction-reference-more a').length,3);
     for(const [path,type] of [[sword,'Item'],[letter,'Document']]) {
@@ -156,7 +203,8 @@ test('knownTo without campaign records renders a small footnote in blocks, Readi
   const p='People/Known Only.md',h=host({automatic:true,notes:{[p]:'---\nknownTo: Clee\n---\n# Known Only'}});
   const footnote=element=>{
     assert.equal(element.querySelector('.interaction-knowledge-footnote').textContent,'Known to Cleenseau.');
-    assert.equal(element.querySelector('h2,h3,.interaction-controls,.interaction-plot,.interaction-detail,script,select'),null);
+    assert.equal(element.querySelector('h2').textContent,'Campaign interactions');
+    assert.equal(element.querySelector('h3,.interaction-controls,.interaction-plot,.interaction-detail,script,select'),null);
     assert.ok(element.classList.contains('taelgar-interactions--knowledge-only'));
     assert.doesNotMatch(element.textContent,/No recap/);
   };
@@ -170,7 +218,7 @@ test('knownTo without campaign records renders a small footnote in blocks, Readi
   }finally{h.feature.unload();}
 });
 
-test('the campaign picker stays inline for knowledge-only campaigns and restores records when switching campaigns',async()=>{
+test('the campaign picker stays below the heading for knowledge-only campaigns and restores records when switching campaigns',async()=>{
   const p='_sessions/other/other-001/cleaned/other-001-session-recap.md';
   const h=host({notes:{[p]:recap('Other','No interaction with this person.').replace('- NPCs: Person','- NPCs: Someone Else')}});
   const choose=async code=>{
@@ -182,10 +230,10 @@ test('the campaign picker stays inline for knowledge-only campaigns and restores
   try {
     await child.ready;assert.match(element.textContent,/Cleenseau party/);
     await choose('other');
-    assert.ok(element.querySelector('.interaction-knowledge-footnote select[aria-label="Campaign"]'));
+    assert.ok(element.querySelector('h2 + .taelgar-interaction-campaign select[aria-label="Campaign"]'));
     assert.match(element.querySelector('.interaction-knowledge-footnote').textContent,/^Known to /);
     assert.ok(element.classList.contains('taelgar-interactions--knowledge-only'));
-    assert.equal(element.querySelector('h2,h3,.interaction-plot,.taelgar-interaction-campaign'),null);
+    assert.equal(element.querySelector('h3,.interaction-plot'),null);
     h.cache.trigger('changed');await pause(190);await h.settle();
     assert.equal(element.querySelector('select[aria-label="Campaign"]').value,'other');
     await choose('clee');

@@ -1,6 +1,8 @@
 .campaign-interaction-summary{font:14px/1.5 system-ui,sans-serif;color:var(--muted);margin:10px 0 20px}
 .campaign-interactions{clear:both;border-top:1px solid var(--line);margin-top:32px;padding-top:12px}
 .campaign-interactions--compact{border:0;margin-top:16px;padding:0}
+.md-typeset .campaign-interactions--compact>h2{margin:0 0 12px}
+.interaction-empty{color:var(--muted);font-size:.85em}
 .md-typeset .interaction-knowledge-footnote{margin:4px 0;font-size:.85em;line-height:1.5;color:var(--muted)}
 .interaction-campaign{margin:24px 0 32px}
 .interaction-campaign--compact{margin:8px 0}

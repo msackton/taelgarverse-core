@@ -41,7 +41,7 @@ test('recap beats exist without session notes and use Short independently of Lon
   assert.equal(campaignInteractions(index,store,store.resolve('Person'),context(),registry)[0].known,true);
   assert.equal(events.some(event=>event.kind==='authored'),false);
   assert.deepEqual(campaignInteractions(index,store,store.resolve('Person'),context('1720-01-05',[]),registry),[]);
-  assert.deepEqual(campaignInteractions(index,store,store.resolve('Person'),context('1720-01-05',['mawar']),registry),[]);
+  assert.deepEqual(campaignInteractions(index,store,store.resolve('Person'),context('1720-01-05',['mawar']),registry),[{code:'mawar',label:'Mawar Adventures',known:false,events:[]}]);
   assert.deepEqual(interactionDate('1720'),{start:'1720-01-01',end:'1720-12-31',precision:'year'});
   assert.equal(interactionDate('1720-02-29'),null);
 });
@@ -106,11 +106,11 @@ test('recap date and both source links appear in browser details and the no-JS f
 
 test('only non-session campaign-folder backlinks supplement recap beats and preserve occurrence visibility',()=>{
   const {store,index}=sample({
-    'Campaigns/Clee/Handout.md':'# Handout\n[[Person]]',
-    'Campaigns/Clee/Secrets.md':'# Secrets\n%%^Campaign:none%%[[Person]]%%^End%%',
-    'Campaigns/Clee/Later.md':'# Later\n%%^Date:1720-01-06%%[[Person]]%%^End%%',
-    'Campaigns/Mawar/Handout.md':'# Mawar\n[[Person]]',
-    'Campaigns/Unknown/Handout.md':'# Unknown\n[[Person]]',
+    'Campaigns/Clee/Handout.md':'---\ntags: [source]\n---\n# Handout\n[[Person]]',
+    'Campaigns/Clee/Secrets.md':'---\ntags: [source]\n---\n# Secrets\n%%^Campaign:none%%[[Person]]%%^End%%',
+    'Campaigns/Clee/Later.md':'---\ntags: [source]\n---\n# Later\n%%^Date:1720-01-06%%[[Person]]%%^End%%',
+    'Campaigns/Mawar/Handout.md':'---\ntags: [source]\n---\n# Mawar\n[[Person]]',
+    'Campaigns/Unknown/Handout.md':'---\ntags: [source]\n---\n# Unknown\n[[Person]]',
     'World.md':'# World\n[[Person]]',
     'Outside.md':'---\ncampaign: Cleenseau\n---\n[[Person]]',
     'Campaigns/Clee/Session.md':session,
@@ -125,6 +125,45 @@ test('only non-session campaign-folder backlinks supplement recap beats and pres
   const legacy={...index,backlinkVersion:1};
   assert.equal(eventsFor(store,legacy,context('1720-01-06',['clee','mawar'],true)).some(event=>event.kind==='reference'),false);
   assert.equal(eventsFor(store,legacy,context('1720-01-06',['clee','mawar'],true)).filter(event=>event.kind==='encounter').length,4);
+});
+
+test('untagged, meta and background sources are excluded from both new and older compiled reference lists',()=>{
+  const material={
+    'Untagged':'knownTo: clee',
+    'Empty tags':'tags: []',
+    'Meta':'tags: [meta, source]',
+    'Nested meta':'tags: "#Meta/index"',
+    'Background':'tags: [object, background/lore]',
+    'Allowed':'tags: [source/letter]',
+  };
+  const notes=Object.fromEntries(Object.entries(material).map(([name,metadata])=>['Campaigns/Clee/'+name+'.md','---\n'+metadata+'\n---\n[[Person]]']));
+  const {store,index}=sample(notes);
+  const references=eventsFor(store,index).filter(event=>event.kind==='reference');
+  assert.deepEqual(references.map(event=>event.title),['Allowed']);
+  assert.equal(index.byTarget.person.filter(event=>event.kind==='reference').length,1);
+  const older=structuredClone(index);
+  for(const name of Object.keys(material).filter(name=>name!=='Allowed')) {
+    const source=store.lookup('Campaigns/Clee/'+name+'.md').entry.slug;
+    older.byTarget.person.push({id:'reference:clee:'+source,kind:'reference',source,campaign:'clee',when:[{}]});
+  }
+  assert.deepEqual(eventsFor(store,older).filter(event=>event.kind==='reference').map(event=>event.title),['Allowed']);
+  assert.equal(eventsFor(store,older).filter(event=>event.kind==='encounter').length,3);
+  store.lookup('Campaigns/Clee/Allowed.md').entry.note.metadata.tags=['source','background'];
+  assert.equal(eventsFor(store,index).filter(event=>event.kind==='reference').length,0,'changed metadata also filters an existing index');
+});
+
+test('the website renders every campaign in its context under one heading, with no component campaign picker',()=>{
+  const {store,index}=sample();
+  const engine=new RenderEngine({settings:{default_date:'1720-01-05'},store,headers:{registry},renderHeader:()=>'',navigationSource:null,interactionIndex:index});
+  for(const selected of [['clee','mawar'],['mawar'],[]]) {
+    const result=engine.render('Person','1720-01-05','custom',false,undefined,selected);
+    assert.deepEqual(result.interactions.map(group=>group.code),selected);
+    const parsed=parseHTML('<html><body>'+result.html+'</body></html>').document;
+    assert.equal(parsed.querySelectorAll('#campaign-interactions > h2').length,selected.length?1:0);
+    assert.equal(parsed.querySelector('#campaign-interactions select[aria-label="Campaign"]'),null);
+    if(selected.includes('mawar'))assert.match(parsed.querySelector('#campaign-interactions').textContent,/Mawar Adventures · No recorded interactions/);
+    if(!selected.length)assert.equal(parsed.querySelector('#campaign-interactions'),null);
+  }
 });
 
 test('ambiguous names, duplicate recap identities and duplicate beat IDs are diagnosed without arbitrary selection',()=>{
@@ -171,7 +210,8 @@ test('campaigns known only through metadata use footnotes while campaigns with r
   const {document}=parseHTML('<html><body>'+interactionSummary(groups)+interactionView(groups)+'</body></html>');
   assert.equal(document.querySelector('#campaign-interactions .interaction-knowledge-footnote').textContent,'Known to Cleenseau.');
   assert.ok(document.querySelector('.campaign-interactions--knowledge-only'));
-  assert.equal(document.querySelector('h2,h3,.interaction-controls,.interaction-plot,.interaction-detail,script'),null);
+  assert.equal(document.querySelector('#campaign-interactions > h2').textContent,'Campaign interactions');
+  assert.equal(document.querySelector('h3,.interaction-controls,.interaction-plot,.interaction-detail,script'),null);
   assert.ok(document.querySelector(document.querySelector('.campaign-interaction-summary a').getAttribute('href')),'the header link still reaches the footnote');
   const actual=sample(),recorded=campaignInteractions(actual.index,actual.store,actual.store.resolve('Person'),context(),registry);
   const empty={code:'other',label:'Other <img src=x>',known:true,events:[]};
@@ -182,7 +222,8 @@ test('campaigns known only through metadata use footnotes while campaigns with r
   assert.ok(mixed.querySelector('h2'));
   const emptyOnly=parseHTML('<html><body>'+interactionView([...groups,empty])+'</body></html>').document;
   assert.equal(emptyOnly.querySelectorAll('.interaction-knowledge-footnote').length,2);
-  assert.equal(emptyOnly.querySelector('h2,h3,script'),null);
+  assert.equal(emptyOnly.querySelector('h2').textContent,'Campaign interactions');
+  assert.equal(emptyOnly.querySelector('h3,script'),null);
 });
 
 test('campaign material uses typed links outside the dots and encounter counts, including without JavaScript',()=>{
@@ -212,7 +253,8 @@ test('campaign material uses typed links outside the dots and encounter counts, 
   const referencesOnly=[{...groups[0],events:references}];
   const compact=parseHTML('<html><body>'+interactionView(referencesOnly)+'</body></html>').document;
   assert.ok(compact.querySelector('.campaign-interactions--compact'));
-  assert.equal(compact.querySelector('h2,h3,.interaction-plot,.interaction-controls,.interaction-detail,script'),null);
+  assert.equal(compact.querySelector('h2').textContent,'Campaign interactions');
+  assert.equal(compact.querySelector('h3,.interaction-plot,.interaction-controls,.interaction-detail,script'),null);
   assert.equal(compact.querySelectorAll('.interaction-reference-links a').length,27);
   assert.equal(compact.querySelector('.interaction-knowledge-footnote').textContent,'Known to Cleenseau.');
   const unflagged=parseHTML('<html><body>'+interactionView([{...referencesOnly[0],known:false}])+'</body></html>').document;

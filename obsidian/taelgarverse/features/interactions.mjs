@@ -35,29 +35,27 @@ class InteractionsChild extends MarkdownRenderChild {
       const metadata=this.feature.app.metadataCache.getFileCache(file)?.frontmatter || {};
       const campaigns=knownCampaigns(snapshot,metadata);
       if(!campaigns.length)throw new Error('Add at least one registered campaign to knownTo.');
-      this.selected=campaigns.find(campaign=>campaign.code===(this.selected || this.feature.selections.get(this.path)))?.code || campaigns[0].code;
+      const previous=this.selected || this.feature.selections.get(this.path) || 'all';
+      this.selected=previous==='all' || !campaigns.some(campaign=>campaign.code===previous) ? 'all' : previous;
       this.date=interactionsDate(metadata,globalThis,snapshot.fallback);
-      const {group,links}=localInteractions(snapshot,this.path,campaigns.find(campaign=>campaign.code===this.selected),this.date,this.feature.app);
-      const knowledgeOnly=!group.events.length;
-      const compact=!interactionParts(group.events).beats.length;
+      const results=campaigns.filter(campaign=>this.selected==='all' || campaign.code===this.selected).map(campaign=>localInteractions(snapshot,this.path,campaign,this.date,this.feature.app));
+      const groups=results.map(result=>result.group),links=new Map(results.flatMap(result=>[...result.links]));
+      const knowledgeOnly=groups.every(group=>!group.events.length);
+      const compact=groups.every(group=>!interactionParts(group.events).beats.length);
       element.classList.toggle('taelgar-interactions--knowledge-only',knowledgeOnly);
       element.classList.toggle('taelgar-interactions--compact',compact);
       const output=element.ownerDocument.createElement('div');
-      const timeline=element.ownerDocument.createElement('div');timeline.innerHTML=interactionView([group]);
+      const timeline=element.ownerDocument.createElement('div');timeline.innerHTML=interactionView(groups);
       timeline.querySelector('#campaign-interactions')?.removeAttribute('id');
       if(campaigns.length>1) {
         const select=element.ownerDocument.createElement('select');select.setAttribute('aria-label','Campaign');
-        for(const campaign of campaigns){const option=element.ownerDocument.createElement('option');option.value=campaign.code;option.textContent=campaign.name;option.selected=campaign.code===this.selected;select.append(option);}
+        for(const campaign of [{code:'all',name:'All'},...campaigns]){const option=element.ownerDocument.createElement('option');option.value=campaign.code;option.textContent=campaign.name;option.selected=campaign.code===this.selected;select.append(option);}
         select.addEventListener('change',()=>{this.selected=select.value;this.feature.selections.set(this.path,this.selected);void this.render();});
-        if(compact)timeline.querySelector('.interaction-knowledge-campaign').replaceWith(select);
-        else {
-          const label=element.ownerDocument.createElement('label');label.className='taelgar-interaction-campaign';label.textContent='Campaign ';
-          label.append(select);output.append(label);
-        }
+        const label=element.ownerDocument.createElement('label');label.className='taelgar-interaction-campaign';label.textContent='Campaign ';
+        label.append(select);timeline.querySelector('.campaign-interactions > h2').after(label);
       }
       output.append(timeline);this.links=links;element.replaceChildren(output);
-      const campaign=timeline.querySelector('[data-interaction-campaign]');
-      if(campaign)mountInteractions(campaign);this.measure();
+      for(const campaign of timeline.querySelectorAll('[data-interaction-campaign]'))mountInteractions(campaign);this.measure();
     } catch(error) {
       if(this.disposed || sequence!==this.sequence)return;
       element.classList.remove('taelgar-interactions--knowledge-only','taelgar-interactions--compact');

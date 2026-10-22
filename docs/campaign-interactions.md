@@ -7,14 +7,18 @@ prose, interpret transcripts, or infer relationships.
 
 ## Reader experience
 
+The website shows every campaign selected in the active context, without a
+component campaign picker. No selected campaigns means no interaction component.
 Selected campaigns each have a separate history. `knownTo` supplies **Known to
 party** without inventing a first-known date or controlling page availability.
 Existing `campaignInfo` wording remains in the normal generated header; it does
 not create additional dots. A recap can record interactions for a campaign not
-listed in `knownTo`. Modern and Custom with no campaigns omit these histories.
+listed in `knownTo`. A selected campaign with neither knowledge nor records shows
+a brief **No recorded interactions** indication.
 
 A campaign with `knownTo` but no visible recap beats or campaign references uses
-a small **Known to Cleenseau** footnote, without an empty timeline or headings.
+a small **Known to Cleenseau** footnote beneath the **Campaign interactions**
+heading, without an empty timeline.
 When selected campaigns have no recap beats, the whole history section stays
 compact: knowledge footnotes and any related campaign material. Campaigns with
 recap beats keep their dot timelines.
@@ -32,7 +36,10 @@ session grouping. **Related campaign material** below the timeline shows
 supplementary backlinks as compact links. Authored `object`/`item` tags give an
 **Item** label and icon; `source`/`document` tags give **Document**; other notes
 use **Reference**. Nested tags work. Labels do not infer ownership or receipt of
-an item. Links sort by title, with the first three visible and a native **Show
+an item. Untagged notes and notes carrying `meta` or `background` tags are excluded,
+including nested tags and notes that also have other types. These exclusions
+apply to references in existing published indexes as well as new indexes.
+Links sort by title, with the first three visible and a native **Show
 more** disclosure for the remainder. They work without JavaScript. A document's
 own date never becomes an encounter date.
 
@@ -82,6 +89,7 @@ rather than selected arbitrarily. Other valid beats still appear.
 Supplementary references use the existing authored backlink index. Sources must
 be inside a registered `campaignRoot`, belong to a selected campaign, and be
 non-session notes (neither tagged `session-note` nor carrying `sessionNumber`).
+They must have authored tags and must not carry `meta` or `background` tags.
 General world articles and campaign-tagged articles outside campaign folders do
 not contribute these references. These links stay separate from recap beats.
 
@@ -155,12 +163,18 @@ polished transcript artifacts, with no website dependency or note writes.
 An empty `taelgar-interactions` block places a panel explicitly. Otherwise,
 Reading View and Live Preview automatically show a footer on any page with
 registered `knownTo` campaigns, including non-person pages. Multiple known
-campaigns use a single campaign selector. This local author view includes DM
+campaigns use a single campaign selector directly below the heading. **All** is
+the default; it shows every known campaign together, or readers can choose an
+individual campaign. The heading and picker remain in knowledge-only views.
+This local author view includes DM
 text and ignores website publication exclusions. Campaigns without recap beats
-use the compact footnote and related links, with the selector inline when needed;
+use the compact footnote and related links beneath the heading and picker;
 selecting a campaign with recap beats restores the timeline. Selected campaign
 and current date conditions remain effective. See the [plugin guide](../obsidian/taelgarverse/README.md#campaign-interactions)
 for syntax, date selection, settings, and lifecycle behavior.
+
+Reference eligibility uses the note's authored tags. Local adaptation of a
+`knownTo` page for recap lookup does not turn an untagged source into a reference.
 
 ## Code and checks
 

@@ -1,6 +1,6 @@
 import {ContentStore,authoredBody} from '../../../src/content-store.mjs';
 import {buildBacklinkCampaigns} from '../../../src/campaign-ownership.mjs';
-import {compileInteractionIndex,campaignIdentities,campaignInteractions,interactionDate} from '../../../src/campaign-interactions.mjs';
+import {compileInteractionIndex,campaignIdentities,campaignInteractions,interactionDate,interactionReferenceType} from '../../../src/campaign-interactions.mjs';
 import {parseSessionRecap} from '../../../src/recap-parser.mjs';
 import {Contexts} from '../../../src/contexts.mjs';
 import {codeRanges,filterComments} from '../../../src/comments.mjs';
@@ -34,7 +34,9 @@ export async function obsidianInteractions(app) {
     return file && byPath.has(file.path) ? {status:'found',entry:byPath.get(file.path)} : lookup(raw);
   };
   const roots=Object.values(registry.campaigns || {}).map(campaign=>String(campaign.campaignRoot || '').replace(/\/+$/,'')).filter(Boolean);
-  const references=entries.filter(entry=>roots.some(root=>entry.id.startsWith(root+'/')) && !list(entry.note.metadata.tags).includes('session-note') && entry.note.metadata.sessionNumber==null);
+  const references=entries.filter(entry=>roots.some(root=>entry.id.startsWith(root+'/')) &&
+    interactionReferenceType(app.metadataCache.getFileCache(entry.file)?.frontmatter) &&
+    !list(entry.note.metadata.tags).includes('session-note') && entry.note.metadata.sessionNumber==null);
   const incoming=new Map(),warnings=[];
   await readFiles(references,async entry=>{
     const source=await app.vault.cachedRead(entry.file);

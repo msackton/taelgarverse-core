@@ -366,11 +366,14 @@ Nonempty backlinks appear in the right sidebar even on short articles; on mobile
 appear in a collapsed **Linked from** section below the article.
 
 Person pages also show a **Campaign interactions** summary and grouped dot history
-for the selected campaigns. `knownTo` supplies undated party knowledge and
+for every campaign in the active context, without a component campaign picker.
+No selected campaigns means no component. `knownTo` supplies undated party knowledge and
 `campaignInfo` retains its normal header wording. Authoritative recap entries
 supply encounter dots using their explicit NPCs, dates, and Short text. Session
 notes supply only optional source links; non-session campaign-folder backlinks
-supply separate references. Beat details show DR dates and links to available
+supply separate links under **Related campaign material**. Untagged sources and
+sources with `meta` or `background` tags (including nested tags) are excluded.
+Beat details show DR dates and links to available
 session notes and polished beat transcript views. Missing source links never
 remove recap beats.
 Readers can group by session, day, or seven-day period and zoom into counted dots.
@@ -380,6 +383,9 @@ knowledge. See [campaign interaction sources and rules](campaign-interactions.md
 The Obsidian plugin offers the same dots through an empty `taelgar-interactions`
 code block. It also adds a footer automatically to notes with registered
 `knownTo` campaigns, with a campaign selector when more than one is known.
+The selector sits directly below the heading and defaults to **All**; individual
+campaigns remain selectable. Knowledge-only views retain the heading, picker,
+and compact **Known to** footnote.
 Explicit blocks control placement and suppress automatic duplicates. The website
 consumes the empty fence and retains its normal history section. See the
 [plugin interaction guide](../obsidian/taelgarverse/README.md#campaign-interactions).

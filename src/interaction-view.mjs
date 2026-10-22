@@ -31,6 +31,7 @@ export function interactionSummary(groups) {
     if(group.known)facts.push('known to party');
     if(beats.length)facts.push(count(beats.length,'encounter'));
     if(references.length)facts.push(count(references.length,'reference'));
+    if(!facts.length)facts.push('no recorded interactions');
     return escapeHtml(group.label)+': '+facts.join(', ');
   }).join(' · ')+'</p>';
 }
@@ -39,10 +40,11 @@ export function interactionView(groups) {
   const knowledgeOnly=groups.every(group=>group.known && !group.events.length);
   const compact=groups.every(group=>!interactionParts(group.events).beats.length);
   return '<section id="campaign-interactions" class="campaign-interactions'+(compact ? ' campaign-interactions--compact' : '')+(knowledgeOnly ? ' campaign-interactions--knowledge-only' : '')+'" aria-label="Campaign interactions">'+
-    (compact ? '' : '<h2>Campaign interactions</h2>')+groups.map(group=>{
+    '<h2>Campaign interactions</h2>'+groups.map(group=>{
     const {beats,references}=interactionParts(group.events),related=referenceView(references);
     if(!beats.length)return '<section class="interaction-campaign interaction-campaign--compact">'+
-      (group.known ? knowledgeFootnote(group) : '<p class="interaction-campaign-label">'+escapeHtml(group.label)+'</p>')+related+'</section>';
+      (group.known ? knowledgeFootnote(group) : '<p class="interaction-campaign-label">'+escapeHtml(group.label)+
+        (references.length ? '' : '<span class="interaction-empty"> · No recorded interactions.</span>')+'</p>')+related+'</section>';
     const data=JSON.stringify({...group,events:beats}).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
     return '<section class="interaction-campaign" data-interaction-campaign><h3>'+escapeHtml(group.label)+'</h3>'+
       (group.known ? '<p class="interaction-knowledge">Known to party</p>' : '')+

@@ -12,7 +12,6 @@
 .taelgar-interactions [hidden] { display:none !important; }
 .taelgar-interactions .campaign-interactions { margin-top:0; }
 .taelgar-interactions.taelgar-interactions--compact { margin-top:.75em; }
-.taelgar-interactions .interaction-knowledge-footnote select { font:inherit; color:inherit; height:auto; padding:0 .25em; vertical-align:baseline; }
 .taelgar-interaction-campaign { display:flex; align-items:center; flex-wrap:wrap; gap:.5em; margin-bottom:.75em; }
 .taelgar-interactions .interaction-sources a { cursor:pointer; }
 .taelgar-interactions .interaction-reference-links a { cursor:pointer; }
