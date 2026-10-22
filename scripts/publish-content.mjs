@@ -235,6 +235,8 @@ async function removeWorkingDirectory(directory) {
 }
 
 export async function main(options) {
+  const started=performance.now(),timings={};
+  const timed=(label,action)=>withPublicationProgress(label,action,console.log,timings);
   const settings = loadSettings(options.config, {vault: options.vault});
   const vault = settings.vault_dir;
   const config = loadCloudflareConfig();
@@ -261,13 +263,13 @@ export async function main(options) {
     const result = await publishContent({...options, fingerprint}, {
       withPublicationLock:async (action,lockOptions)=>{publicationIndex=await index();return publicationIndex.withPublicationLock(action,lockOptions);},
       readPointer:async()=>(await retainedStorage()).getJSON(CHECKPOINT_KEY),
-      prune:async pointer=>prunePublication(await retainedStorage(),publicationIndex,pointer,{log:console.log}),
+      prune:async pointer=>timed('Completing retention cleanup',async()=>prunePublication(await retainedStorage(),publicationIndex,pointer,{log:console.log})),
       repositoryState: () => repositoryState(vault),
       readCheckpoint: () => storage.readCheckpoint(path.join(CACHE, 'previous-checkpoint.json')),
       writeCheckpoint: value => storage.writeCheckpoint(value, path.join(CACHE, 'checkpoint.json')),
       log: console.log,
       stageSearch:async report=>{
-        const receipt=await (await index()).stage(report.revision,readPreparedSearch(report));
+        const receipt=await timed('Publishing search index',async()=>(await index()).stage(report.revision,readPreparedSearch(report)));
         await json(path.join(CACHE,'search-receipt.json'),receipt);
       },
       verifySearch:async report=>{await (await index()).verify(report.revision,report.search);},
@@ -289,22 +291,22 @@ export async function main(options) {
         if (options.obsidianVault) args.push('--obsidian-vault', options.obsidianVault);
         if (options.noStrict) args.push('--no-strict');
         console.log('Exporting dynamic website Markdown from ' + vault);
-        await runCommand(process.execPath, args, {cwd: vault, live: true});
+        await timed('Exporting vault Markdown',()=>runCommand(process.execPath, args, {cwd: vault, live: true}));
         const reportFile = path.join(output, '.dataview-materialization-report.json');
         const report = JSON.parse(await fs.readFile(reportFile, 'utf8'));
         validateMaterializationReport(report, output);
         await fs.copyFile(reportFile, path.join(CACHE, 'materialization-report.json'));
         const preparedSettings = {...settings, source_dir: output};
-        console.log('Preparing responsive images; preserving full-resolution exports…');
-        const derivativeCache=options.buildOnly ? new DerivativeCache() : await DerivativeCache.load(await retainedStorage());
+        const derivativeCache=options.buildOnly ? new DerivativeCache() : await timed('Loading R2 image recipes and asset inventory',async()=>DerivativeCache.load(await retainedStorage()));
         let lastLog = 0;
         const prepared = await prepareContent(preparedSettings,undefined,sourceVersion,
           {maxSize: options.maxSize, quality: options.quality}, progress => {
-            if (Date.now() - lastLog > 5000) {
-              console.log(`Images: ${progress.images} processed | ${progress.currentFile}`);
+            if (Date.now() - lastLog > 5000 || progress.processed===progress.total) {
+              console.log(`Images: ${progress.processed}/${progress.total} processed | ${progress.generated} generated, ${progress.reusedLocal} local cache, ${progress.reusedRemote} R2 cache, ${progress.skipped} skipped | ${(progress.elapsedMs/1000).toFixed(1)}s | ${progress.currentFile}`);
               lastLog = Date.now();
             }
-          },derivativeCache);
+          },derivativeCache,{log:console.log});
+        Object.assign(timings,prepared.timings);
         const images = prepared.images;
         console.log(`R2 recipes reused: ${derivativeCache.hits.images} image(s), ${derivativeCache.hits.maps} map pyramid(s); no derivative downloads or encoding for these.`);
         console.log(`Images: ${images.images} originals retained; ${images.variants} responsive variants (${(images.variantBytes / 1048576).toFixed(1)} MiB stored)`);
@@ -314,7 +316,7 @@ export async function main(options) {
         }
         return {...prepared, images, queries: {errors: report.counts.errors, unsupported: report.counts.unsupported}};
       },
-      upload: (report,uploadOptions) => storage.upload(report,uploadOptions),
+      upload: (report,uploadOptions) => timed('Uploading assets and content',()=>storage.upload(report,uploadOptions)),
       async recordBuild(value, report) {
         await json(path.join(CACHE, 'latest.json'), value);
         if (!options.local && !options.buildOnly) await json(path.join(ROOT, '.cache/cloudflare/remote-upload.json'), {
@@ -323,11 +325,13 @@ export async function main(options) {
         });
       },
     });
-    if (working) { await withPublicationProgress('Removing temporary export files',()=>removeWorkingDirectory(working),console.log); working = undefined; }
+    if (working) { await timed('Removing temporary export files',()=>removeWorkingDirectory(working)); working = undefined; }
+    await json(path.join(CACHE,'timings.json'),{totalMs:Math.round(performance.now()-started),phases:timings});
     if(result.assetsOnly)console.log('Assets staged. Published notes and search are unchanged; run the normal publish command to activate them.');
     else if (!result.skipped) console.log(options.buildOnly ?
       'Prepared content and search locally; no R2/D1 reads or writes. Run node scripts/cloudflare.mjs check to verify the Worker package.' :
       `Content published (${result.revision.slice(0, 12)}). The Worker will read the new revision from R2.`);
+    console.log(`Publish complete (${((performance.now()-started)/1000).toFixed(1)}s).`);
     return result;
   } catch (error) {
     if (working) console.error('Export files retained for inspection: ' + working);

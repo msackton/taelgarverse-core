@@ -17,6 +17,7 @@ import {CampaignSites} from '../src/campaign-sites.mjs';
 import {Contexts} from '../src/contexts.mjs';
 import {DerivativeCache} from './derivative-cache.mjs';
 import {compileRuntime} from './compile-runtime.mjs';
+import {withPublicationProgress} from './publication-progress.mjs';
 
 const sha = value=>createHash('sha256').update(value).digest('hex');
 const writeJSON = (file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value)+'\n');};
@@ -33,47 +34,57 @@ async function hashFile(file) {
   return hash.digest('hex');
 }
 
-export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare'),sourceVersion=repositoryVersion(settings.vault_dir),imageOptions={},imageProgress,derivativeCache=new DerivativeCache(),{runtime=true}={}) {
+export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare'),sourceVersion=repositoryVersion(settings.vault_dir),imageOptions={},imageProgress,derivativeCache=new DerivativeCache(),{runtime=true,log=()=>{}}={}) {
   output=path.resolve(output);
   if (!isInside(ROOT,output) || output===ROOT) throw new Error('Content staging directory must be inside this project');
-  const store=new Store(settings), shards=new Map(), uploads=[];
-  // Use one header format before hashing, backlinks, search or media discovery.
-  // This also accepts raw vault notes when no Dataview export is needed.
-  for (const entry of store.entries) if (entry.note) {
-    try { entry.note=normalizeHeader(entry.note); }
-    catch (error) { throw new Error(entry.id + ': ' + error.message, {cause:error}); }
-  }
-  const homeSource=settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null;
-  const registry=JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'_scripts/session_note_campaigns.json'),'utf8'));
-  const campaignHomes=readCampaignHomes(settings);
-  new CampaignSites(campaignHomes,new Contexts(store,registry,settings));
-  const usages=collectImageUsages(store,{homeSource,campaignHomes});
-  const images=await prepareImages(store,path.join(ROOT,'.cache/images'),{...imageOptions,usages},undefined,imageProgress,derivativeCache);
-  await prepareMaps(store,path.join(ROOT,'.cache/maps'),derivativeCache);
-  const entries=[];
-  for (const original of store.entries) {
-    const {filename,note,remoteAsset,...entry}=original;
-    if (note) {
-      const shard=(Number.parseInt(sha(entry.id).slice(0,2),16)%32).toString(16).padStart(2,'0');
-      const notes=shards.get(shard) || {};
-      notes[entry.id]=note.source;shards.set(shard,notes);
-      entry.note={metadata:note.metadata,shard,sha256:sha(note.source)};
-    } else {
-      const hash=remoteAsset ? remoteAsset.key.slice('assets/'.length) : await hashFile(filename);
-      const cached=path.join(output,'objects',hash);
-      if (!remoteAsset && !fs.existsSync(cached)) {
-        fs.mkdirSync(path.dirname(cached),{recursive:true});
-        const temporary=cached+'.tmp';
-        fs.copyFileSync(filename,temporary);
-        if (await hashFile(temporary)!==hash) throw new Error('Asset changed while packaging: '+entry.id+'; prepare the snapshot again');
-        fs.renameSync(temporary,cached);
-      }
-      entry.size=remoteAsset ? remoteAsset.size : fs.statSync(cached).size;entry.sha256=hash;entry.etag='"'+hash+'"';entry.objectKey='assets/'+hash;
-      uploads.push(remoteAsset ? {key:entry.objectKey,size:entry.size,remoteOnly:true} : {key:entry.objectKey,file:cached});entry.note=null;
+  const started=performance.now(),timings={};
+  const timed=(label,action)=>withPublicationProgress(label,action,log,timings);
+  const shards=new Map(),uploads=[];
+  const {store,homeSource,registry,campaignHomes}=await timed('Reading vault content',()=>{
+    const store=new Store(settings);
+    // Use one header format before hashing, backlinks, search or media discovery.
+    // This also accepts raw vault notes when no Dataview export is needed.
+    for (const entry of store.entries) if (entry.note) {
+      try { entry.note=normalizeHeader(entry.note); }
+      catch (error) { throw new Error(entry.id + ': ' + error.message, {cause:error}); }
     }
-    entries.push(entry);
-  }
-  const backlinks=buildBacklinkIndex(store),searchManifest=compileSearch(store),search=searchDescriptor(searchManifest);
+    const homeSource=settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null;
+    const registry=JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'_scripts/session_note_campaigns.json'),'utf8'));
+    const campaignHomes=readCampaignHomes(settings);
+    new CampaignSites(campaignHomes,new Contexts(store,registry,settings));
+    return {store,homeSource,registry,campaignHomes};
+  });
+  const usages=await timed('Discovering image sizes',()=>collectImageUsages(store,{homeSource,campaignHomes}));
+  const images=await timed('Preparing responsive images',()=>prepareImages(store,path.join(ROOT,'.cache/images'),{...imageOptions,usages},undefined,imageProgress,derivativeCache));
+  await timed('Preparing map tiles',()=>prepareMaps(store,path.join(ROOT,'.cache/maps'),derivativeCache));
+  const entries=await timed('Packaging notes and assets',async()=>{
+    const entries=[];
+    for (const original of store.entries) {
+      const {filename,note,remoteAsset,...entry}=original;
+      if (note) {
+        const shard=(Number.parseInt(sha(entry.id).slice(0,2),16)%32).toString(16).padStart(2,'0');
+        const notes=shards.get(shard) || {};
+        notes[entry.id]=note.source;shards.set(shard,notes);
+        entry.note={metadata:note.metadata,shard,sha256:sha(note.source)};
+      } else {
+        const hash=remoteAsset ? remoteAsset.key.slice('assets/'.length) : await hashFile(filename);
+        const cached=path.join(output,'objects',hash);
+        if (!remoteAsset && !fs.existsSync(cached)) {
+          fs.mkdirSync(path.dirname(cached),{recursive:true});
+          const temporary=cached+'.tmp';
+          fs.copyFileSync(filename,temporary);
+          if (await hashFile(temporary)!==hash) throw new Error('Asset changed while packaging: '+entry.id+'; prepare the snapshot again');
+          fs.renameSync(temporary,cached);
+        }
+        entry.size=remoteAsset ? remoteAsset.size : fs.statSync(cached).size;entry.sha256=hash;entry.etag='"'+hash+'"';entry.objectKey='assets/'+hash;
+        uploads.push(remoteAsset ? {key:entry.objectKey,size:entry.size,remoteOnly:true} : {key:entry.objectKey,file:cached});entry.note=null;
+      }
+      entries.push(entry);
+    }
+    return entries;
+  });
+  const backlinks=await timed('Compiling backlinks',()=>buildBacklinkIndex(store));
+  const searchManifest=await timed('Compiling search',()=>compileSearch(store)),search=searchDescriptor(searchManifest);
   const base={schemaVersion:1,sourceVersion:{commit:sourceVersion.commit,dirty:sourceVersion.dirty},settings:{default_date:settings.default_date,campaigns:settings.campaigns,respect_pov_dates:settings.respect_pov_dates === true},backlinks,
     registry,
     coreMeta:JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'.obsidian/metadata.json'),'utf8')),
@@ -81,7 +92,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     homeSource,
     campaignHomes,
     search,warnings:[...store.warnings,...backlinks.warnings,...searchManifest.warnings],entries};
-  const compiled=runtime ? compileRuntime(base,store) : null;
+  const compiled=runtime ? await timed('Compiling runtime data',()=>compileRuntime(base,store)) : null;
   if(compiled)base.runtime={version:compiled.manifest.version,digest:compiled.digest};
   const revision=sha(JSON.stringify(base)), prefix='revisions/'+revision;
   const directory=path.join(output,'revisions',revision);
@@ -115,7 +126,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const report={revision,indexFile,manifestFile,configFile,bucket:config.r2_buckets.find(b=>b.binding==='CONTENT').bucket_name,
     notes:entries.filter(e=>e.note).length,assets:entries.filter(e=>!e.note).length,objects:unique.length,
     assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision:headerCoreRevision(),search,searchFile,searchStats:searchManifest.stats,images,
-    derivativeManifestFile,derivativeCacheHits:{...derivativeCache.hits}};
+    derivativeManifestFile,derivativeCacheHits:{...derivativeCache.hits},timings,totalMs:Math.round(performance.now()-started)};
   writeJSON(path.join(output,'latest.json'),report);
   return report;
 }

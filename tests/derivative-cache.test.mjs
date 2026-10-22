@@ -52,7 +52,8 @@ test('cold machines reuse images and complete map pyramids without derivative fi
   assert.ok(Object.keys(records).some(id=>id.startsWith('maps/')));
   const inventory=new Map(store.entries.filter(e=>!e.note).map(e=>[e.objectKey,e.size]));
   const cold=new DerivativeCache(records,inventory),fresh=makeStore();
-  await prepareImages(fresh,path.join(directory,'cold-images'),{},undefined,undefined,cold);
+  const stats=await prepareImages(fresh,path.join(directory,'cold-images'),{},undefined,undefined,cold);
+  assert.equal(stats.reusedRemote,stats.images);assert.equal(stats.generated,0);assert.equal(stats.reusedLocal,0);
   await prepareMaps(fresh,path.join(directory,'cold-maps'),cold);
   assert.equal(cold.hits.images,cache.used.size-1);assert.equal(cold.hits.maps,1);
   await assert.rejects(fs.access(path.join(directory,'cold-images')),/ENOENT/);
@@ -83,12 +84,16 @@ test('packaging from R2 yields the same snapshot and uploads only metadata; lost
   const {directory,source}=await fixture(t),storage=memoryStorage();
   const settings={...loadSettings(),source_dir:source,home_source:null,nav_source:null};
   const version={commit:'a'.repeat(40),dirty:false};
-  const first=await prepareContent(settings,path.join(directory,'package-first'),version);
+  const logs=[];
+  const first=await prepareContent(settings,path.join(directory,'package-first'),version,{concurrency:1},undefined,undefined,{log:message=>logs.push(message)});
+  assert.ok(logs.some(line=>/^Preparing responsive images complete \(\d+\.\ds\)\.$/.test(line)));
+  assert.ok(logs.some(line=>line.startsWith('Compiling search complete')));
+  assert.ok(first.timings['Preparing responsive images']>=0);
   await uploadContent(first,storage,{assetsOnly:true});
   assert.ok(storage.objects.has(DERIVATIVE_MANIFEST_KEY));
   assert.ok(!storage.writes.some(key=>key.startsWith('revisions/')));
   const remote=await DerivativeCache.load(storage);
-  const second=await prepareContent(settings,path.join(directory,'package-second'),version,{},undefined,remote);
+  const second=await prepareContent(settings,path.join(directory,'package-second'),version,{concurrency:3},undefined,remote);
   assert.ok(remote.hits.images>0);assert.equal(remote.hits.maps,1);
   assert.equal(second.revision,first.revision);
   assert.deepEqual(JSON.parse(await fs.readFile(second.indexFile)),JSON.parse(await fs.readFile(first.indexFile)));

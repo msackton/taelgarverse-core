@@ -330,6 +330,14 @@ activation; cleanup may still be deleting obsolete R2 objects or compacting D1.
 The final completion message follows cleanup and removal of temporary export
 files. These are phase counts, not an estimated overall completion percentage.
 
+Earlier phases also report elapsed seconds: Obsidian export, R2 recipe loading,
+vault scanning, image-size discovery, responsive images, map tiles, packaging,
+backlinks, and search/runtime compilation. Completion logs include each phase's
+duration and the overall publish duration. Successful runs save milliseconds in
+`.cache/publish/timings.json` (`totalMs` and a `phases` map); standalone preparation
+includes its own timings in `.cache/cloudflare/latest.json`. These reports stay
+local and do not affect publication hashes.
+
 Normal publication automatically uses this behavior:
 
 ```sh
@@ -358,6 +366,19 @@ and sizes after checking the bucket inventory. A machine with an empty local
 cache still reads/hashes original files and their image metadata, but does no
 derivative encoding or downloading for these hits. The log reports reused image
 recipes and map pyramids.
+
+Responsive-image progress distinguishes actual encoding from cache reuse:
+
+```text
+Images: 229/614 processed | 12 generated, 17 local cache, 200 R2 cache, 0 skipped | 34.2s | assets/crystal-peak.png
+```
+
+Counts refer to source images, not individual output widths. `processed` includes
+cache hits and skipped animated/undecodable images. `generated` counts images
+whose recipe needed encoding; local reuse also includes identical images sharing
+another job's completed recipe. Up to three image jobs run concurrently, with
+large encodes serialized to limit memory pressure. Scheduling and logging changes
+do not invalidate existing image recipes. See [image delivery](images.md#publication-and-caching).
 
 The first asset upload with this publisher seeds the manifest, using existing
 local derivatives when available. Subsequent runs save new recipes only after

@@ -7,6 +7,23 @@ import {collectImageUsages} from './image-usage.mjs';
 
 const formats = new Set(['.png','.jpg','.jpeg','.webp']);
 const pending = new Map();
+// Bound simultaneous decodes as well as job count. An unusually large image
+// takes the whole budget and runs alone; variants of each image stay serial.
+const pixelBudget = 32_000_000;
+let activePixels = 0;
+const encodingQueue = [];
+function drainEncoders() {
+  while (encodingQueue.length && activePixels+encodingQueue[0].pixels<=pixelBudget) {
+    const next=encodingQueue.shift();activePixels+=next.pixels;next.start();
+  }
+}
+async function encodeImage(pixels,action) {
+  if (!Number.isSafeInteger(pixels) || pixels<1) throw new Error('Invalid image dimensions');
+  pixels=Math.min(pixelBudget,pixels);
+  await new Promise(start=>{encodingQueue.push({pixels,start});drainEncoders();});
+  try{return await action();}
+  finally{activePixels-=pixels;drainEncoders();}
+}
 
 export function usedImageWidths(width,height,usages,maxSize=IMAGE_DEFAULTS.maxSize) {
   const limit = Math.max(1,Math.min(width,Math.round(width*Math.min(1,maxSize/Math.max(width,height)))));
@@ -44,64 +61,87 @@ async function variants(entry,cacheDir,settings,usages,derivativeCache) {
       widths.some(plan=>plan.width===item.width && plan.inline===item.inline) && item.file===item.width+'.webp' &&
       Number.isSafeInteger(item.height) && item.height>0 && item.height<=height &&
       outputs[index].target==='image-variants/'+key+'/'+item.file && outputs[index].size===item.bytes));
-  if(remote)return {...remote.data,key,directory,remoteOutputs:new Map(remote.outputs.map(o=>[o.target,o]))};
-  let result;
-  try {
-    result = JSON.parse(await fs.readFile(marker,'utf8'));
-    await Promise.all(result.variants.map(item=>fs.access(path.join(directory,item.file))));
-  } catch { result = undefined; }
-  if (!result) {
-    result = {width,height,sourceBytes:input.length,variants:[]};
-    await fs.mkdir(directory,{recursive:true});
-    for (const {width:target,inline} of widths) {
-      const file = target+'.webp', temporary = path.join(directory,randomUUID()+'.webp');
-      try {
-        // Lossless PNG derivatives retain transparency, lettering and fine lines.
-        const info = await sharp(input).autoOrient().resize({width:target,withoutEnlargement:true})
-          .webp(metadata.format==='png' ? {lossless:true} : {quality:settings.quality}).toFile(temporary);
-        await fs.rename(temporary,path.join(directory,file));
-        result.variants.push({file,width:info.width,height:info.height,bytes:info.size,inline});
-      } finally { await fs.rm(temporary,{force:true}); }
+  if(remote)return {...remote.data,key,directory,cache:'remote',remoteOutputs:new Map(remote.outputs.map(o=>[o.target,o]))};
+  // Different vault paths can contain identical bytes. Share a recipe build
+  // so parallel workers never race to replace the same cache files.
+  const pendingKey=path.resolve(directory),existing=pending.get(pendingKey);
+  if(existing)return {...await existing,cache:'local'};
+  const task=(async()=>{
+    let result,cache='local';
+    try {
+      result = JSON.parse(await fs.readFile(marker,'utf8'));
+      await Promise.all(result.variants.map(item=>fs.access(path.join(directory,item.file))));
+    } catch { result = undefined; }
+    if (!result) {
+      cache='generated';
+      await encodeImage(metadata.width*metadata.height,async()=>{
+        result = {width,height,sourceBytes:input.length,variants:[]};
+        await fs.mkdir(directory,{recursive:true});
+        for (const {width:target,inline} of widths) {
+          const file = target+'.webp', temporary = path.join(directory,randomUUID()+'.webp');
+          try {
+            // Lossless PNG derivatives retain transparency, lettering and fine lines.
+            const info = await sharp(input).autoOrient().resize({width:target,withoutEnlargement:true})
+              .webp(metadata.format==='png' ? {lossless:true} : {quality:settings.quality}).toFile(temporary);
+            await fs.rename(temporary,path.join(directory,file));
+            result.variants.push({file,width:info.width,height:info.height,bytes:info.size,inline});
+          } finally { await fs.rm(temporary,{force:true}); }
+        }
+        const temporary = path.join(directory,randomUUID()+'.json');
+        await fs.writeFile(temporary,JSON.stringify(result));
+        await fs.rename(temporary,marker);
+      });
     }
-    const temporary = path.join(directory,randomUUID()+'.json');
-    await fs.writeFile(temporary,JSON.stringify(result));
-    await fs.rename(temporary,marker);
-  }
-  return {...result,key,directory};
+    return {...result,key,directory,cache};
+  })();
+  pending.set(pendingKey,task);
+  try{return await task;}
+  finally{pending.delete(pendingKey);}
 }
 
 // Original exports are never rewritten. Every generated asset is an ordinary
 // snapshot entry, so uploads, deduplication, retention and rollback work as usual.
 export async function prepareImages(store,cacheDir,options={},entries=store.entries,onProgress=()=>{},derivativeCache) {
-  const {usages=collectImageUsages(store),...imageOptions} = options;
+  const {usages=collectImageUsages(store),concurrency=3,...imageOptions} = options;
   const settings = {...IMAGE_DEFAULTS,...imageOptions};
   if (!Number.isInteger(settings.maxSize) || settings.maxSize<1 || !Number.isInteger(settings.quality) || settings.quality<1 || settings.quality>100) throw new Error('Invalid image variant settings');
-  const stats = {images:0,variants:0,sourceBytes:0,variantBytes:0};
-  for (const entry of [...entries]) {
-    if (entry.note || entry.generatedMapTile || entry.generatedImageVariant || !formats.has(entry.extension)) continue;
-    const used = usages.get(entry.id);
-    if (!used?.length) continue;
-    const taskKey = JSON.stringify([entry.filename,cacheDir,settings,used]);
-    let task = derivativeCache ? undefined : pending.get(taskKey);
-    if (!task) {
-      task = variants(entry,cacheDir,settings,used,derivativeCache);
-      if(!derivativeCache){pending.set(taskKey,task);task.finally(()=>pending.delete(taskKey)).catch(()=>{});}
+  if (!Number.isInteger(concurrency) || concurrency<1 || concurrency>4) throw new Error('Image concurrency must be between 1 and 4');
+  const jobs=[...entries].filter(entry=>!entry.note && !entry.generatedMapTile && !entry.generatedImageVariant && formats.has(entry.extension) && usages.get(entry.id)?.length);
+  const stats = {images:0,variants:0,sourceBytes:0,variantBytes:0,total:jobs.length,processed:0,generated:0,reusedLocal:0,reusedRemote:0,skipped:0};
+  const results=new Array(jobs.length),started=performance.now();
+  let next=0,failure;
+  // Drain in-flight jobs on failure before the caller releases its publish lock.
+  await Promise.all(Array.from({length:Math.min(concurrency,jobs.length)},async()=>{
+    while(!failure && next<jobs.length){
+      const index=next++,entry=jobs[index];let result;
+      try {
+        result=await variants(entry,cacheDir,settings,usages.get(entry.id),derivativeCache);
+      } catch (error) {
+        // An undecodable source still has its original URL and browser fallback.
+        if (!/unsupported image format|corrupt|invalid.*header|bad.*header|premature end/i.test(error.message)) {failure ??=error;break;}
+        results[index]={warning:'Image variants omitted for undecodable image: '+entry.id};
+      }
+      if(result){
+        // Omit variants dominated by a sharper, cheaper copy in the same group.
+        const efficient=result.variants.filter((item,index)=>!result.variants.slice(index+1).some(next=>next.inline===item.inline && next.bytes<=item.bytes));
+        results[index]={result,efficient};
+        stats.images++;stats.variants+=efficient.length;stats.sourceBytes+=result.sourceBytes;
+        stats.variantBytes+=efficient.reduce((sum,item)=>sum+item.bytes,0);
+        stats[result.cache==='remote'?'reusedRemote':result.cache==='local'?'reusedLocal':'generated']++;
+      }else stats.skipped++;
+      stats.processed++;
+      try{onProgress({...stats,currentFile:entry.id,elapsedMs:performance.now()-started});}
+      catch(error){failure ??=error;}
     }
-    let result;
-    try { result = await task; }
-    catch (error) {
-      // An undecodable source still has its original URL and browser fallback.
-      if (!/unsupported image format|corrupt|invalid.*header|bad.*header|premature end/i.test(error.message)) throw error;
-      const warning = 'Image variants omitted for undecodable image: '+entry.id;
-      if (!store.warnings.includes(warning)) store.warnings.push(warning);
-      continue;
-    }
-    if (!result) continue;
+  }));
+  if(failure)throw failure;
+  // Commit in source order, independent of completion order. This preserves
+  // snapshot hashes and numeric page/asset IDs across cached and fresh builds.
+  for(const [index,entry] of jobs.entries()){
+    const {result,efficient,warning}=results[index] || {};
+    if(warning && !store.warnings.includes(warning))store.warnings.push(warning);
+    if(!result)continue;
     const {width,height,key,directory} = result;
-    // Resampling line art can add colours and cost more than a sharper copy.
-    // Keep the cheapest choices without removing the inline/screen boundary.
-    const efficient = result.variants.filter((item,index)=>!result.variants.slice(index+1).some(next=>
-      next.inline===item.inline && next.bytes<=item.bytes));
     const images = efficient.map(({file,width,height,bytes,inline})=>{
       const target = 'image-variants/'+key+'/'+file;
       if (!store.assets.has(target)) {
@@ -113,9 +153,6 @@ export async function prepareImages(store,cacheDir,options={},entries=store.entr
     });
     entry.image = {width,height,variants:images};
     derivativeCache?.record('images',key,{width,height,sourceBytes:result.sourceBytes,variants:efficient},images.map(image=>image.url.slice('/assets/'.length)));
-    stats.images++;stats.variants+=images.length;stats.sourceBytes+=result.sourceBytes;
-    stats.variantBytes+=images.reduce((sum,item)=>sum+item.bytes,0);
-    onProgress({...stats,currentFile:entry.id});
   }
   return stats;
 }
