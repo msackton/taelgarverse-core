@@ -389,7 +389,9 @@ remove recap beats.
 Session references show only title, date, and a session-number link, with no
 explanatory commentary or repeated session titles. Recap beats keep their authored
 Short text and location.
-Grouping is automatic. Readers can zoom into counted dots; **Zoom out** appears
+Grouping is automatic. Session references on the same exact recorded day share
+one counted **Sessions** dot, even in short histories. Date ranges, partial dates,
+and undated references stay separate. Readers can zoom into counted dots; **Zoom out** appears
 only while zoomed in and restores the full history.
 Dots show their title and date even in long histories; grouped dots show the
 session label, recorded date range, and count. Labels wrap across rows, with

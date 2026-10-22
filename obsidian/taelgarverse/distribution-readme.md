@@ -63,7 +63,9 @@ users can activate dots with Enter or Space; Escape returns focus to the dot.
 Session references contain only the title, date, and a link such as **Session 30**.
 They omit explanatory commentary and repeated session titles. Recap beats retain
 their authored Short text and location. Popup titles use compact sans-serif text.
-Grouping is automatic. Counted dots zoom into their entries; **Zoom out** appears
+Grouping is automatic. Session references on the same exact recorded day share
+one counted **Sessions** dot, even in short histories. Date ranges, partial dates,
+and undated references stay separate. Counted dots zoom into their entries; **Zoom out** appears
 only while zoomed in and restores the full history.
 Each dot shows its title and date, even in long histories. Grouped dots show the
 session label and recorded date range. Titles use up to two lines; hover or open

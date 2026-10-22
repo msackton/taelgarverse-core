@@ -110,6 +110,25 @@ test('Obsidian reads only missing-recap official session notes for fallback dots
   }finally{h.feature.unload();}
 });
 
+test('Obsidian combines same-day official session notes and zooms to their native links',async()=>{
+  const notes=Object.fromEntries([2,3].map(number=>['Campaigns/Clee/Session 0'+number+'.md','---\ntags: [session-note]\ncampaign: Clee\nsessionNumber: '+number+'\nDR: 1748-01-02\n---\n[[Person]]']));
+  const h=host({notes});
+  try {
+    const {element,child}=h.block();await child.ready;
+    const root=element.querySelector('[data-interaction-campaign]');
+    assert.equal(root.querySelectorAll('.interaction-dot').length,2,'one recap beat plus one day of session references');
+    const group=root.querySelector('.interaction-count').closest('button');
+    assert.equal(group.querySelector('.interaction-dot-date').textContent,'1748-01-02');h.click(group);
+    assert.equal(root.querySelectorAll('.interaction-dot').length,2);
+    for(const [index,dot] of [...root.querySelectorAll('.interaction-dot')].entries()) {
+      h.click(dot);h.click(root.querySelector('.interaction-detail .interaction-sources a'));
+      assert.equal(h.opened.at(-1)[0],'Campaigns/Clee/Session 0'+(index+2)+'.md');
+    }
+    h.click(root.querySelector('[data-interaction-back]'));
+    assert.equal(root.querySelector('.interaction-count').textContent,'2');child.unload();
+  }finally{h.feature.unload();}
+});
+
 test('explicit blocks select known campaigns, retain choice after refresh, and open native session and transcript links',async()=>{
   const h=host();
   try {

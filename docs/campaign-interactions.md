@@ -24,7 +24,9 @@ They do not allocate an empty timeline. Campaigns with recap beats keep their
 dot timelines below the same header.
 
 Short histories show individual dots; automatic grouping switches to sessions
-above six entries, with no grouping selector. Selecting a counted dot zooms into
+above six entries, with no grouping selector. Session references recorded on the
+same exact day share one counted **Sessions** dot, even in short histories.
+Date ranges, partial dates, and undated notes do not merge by day. Selecting a counted dot zooms into
 its entries; **Zoom out** appears while zoomed in and returns to the whole history.
 Selecting an individual dot opens a compact popup
 beside it with its date, title, Short text, location, and recap session/title,
@@ -36,7 +38,7 @@ text. Dates are labeled DR. Touch and keyboard use the same actions; without
 JavaScript, recap beats remain available as a linked list.
 
 Every individual dot shows its entry title and date, including long histories.
-Grouped dots show their session label and recorded date range, with the entry
+Grouped dots show their session label (or **Sessions** for same-day notes) and recorded date range, with the entry
 count inside the dot. Titles use up to two lines, with the complete title and
 date available on hover and in the popup. Labeled dots wrap onto additional rows;
 narrow screens use two columns. Group dates preserve month/year precision and

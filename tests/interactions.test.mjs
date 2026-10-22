@@ -446,6 +446,39 @@ test('browser dots select details and zoom into/out of groups, with an accessibl
   assert.ok([...longRoot.querySelectorAll('.interaction-dot-date')].every(label=>label.textContent==='1720-01-01'));
 });
 
+test('automatic dots combine exact same-day session references and zoom back to every original note',()=>{
+  const references=Array.from({length:3},(_,number)=>({id:'ref-'+number,kind:'session-reference',title:'Session title '+number,start:'1720-01-01',end:'1720-01-01',precision:'day',session:'session-'+number,sessionLabel:'Session '+number,sessionUrl:'/page/session-'+number}));
+  const encounter={...references[0],id:'beat',kind:'encounter',title:'Recap beat'};
+  const events=[references[0],encounter,references[1]];
+  const grouped=groupInteractions(events);
+  assert.deepEqual(grouped.map(group=>group.events.map(event=>event.id)),[['ref-0','ref-1'],['beat']]);
+  assert.equal(grouped[0].title,'Sessions');assert.equal(grouped[0].dateLabel,'1720-01-01');
+  assert.equal(groupInteractions(events,'event').length,3,'zoom never collapses its members again');
+  assert.equal(groupInteractions(references,'session').length,3,'explicit session mode still respects session identities');
+  const longHistory=Array.from({length:27},(_,number)=>({...references[number%3],id:'long-'+number,session:'session-'+number,start:'1720-01-'+String(1+Math.floor(number/3)).padStart(2,'0'),end:'1720-01-'+String(1+Math.floor(number/3)).padStart(2,'0')}));
+  assert.equal(groupInteractions(longHistory).length,9);
+  assert.deepEqual(groupInteractions(longHistory).flatMap(group=>group.events),longHistory,'grouping retains every note in order');
+  for(const date of [
+    {start:'1720-01-01',end:'1720-01-03',precision:'range'},
+    {start:'1720-01-01',end:'1720-01-31',precision:'month'},
+    {start:'1720-01-01',end:'1720-12-31',precision:'year'},
+    {start:null,end:null,precision:'undated'},
+  ])assert.equal(groupInteractions([...longHistory,...references.map(event=>({...event,...date}))]).length,12,'imprecise dates and ranges never imply the same day');
+  const {document}=parseHTML('<html><body>'+interactionView([{code:'clee',label:'Cleenseau',events}])+'</body></html>');
+  const root=document.querySelector('[data-interaction-campaign]'),dispose=mountInteractions(root);
+  assert.equal(root.querySelectorAll('.interaction-dot').length,2);
+  assert.equal(root.querySelector('.interaction-count').textContent,'2');
+  assert.match(root.querySelector('.interaction-dot').getAttribute('aria-label'),/Zoom into Sessions, 2 entries, 1720-01-01/);
+  root.querySelector('.interaction-dot').click();
+  assert.deepEqual([...root.querySelectorAll('.interaction-dot-title')].map(node=>node.textContent),references.slice(0,2).map(event=>event.title));
+  for(const [index,dot] of [...root.querySelectorAll('.interaction-dot')].entries()) {
+    dot.click();assert.equal(root.querySelector('.interaction-detail a').getAttribute('href'),references[index].sessionUrl);
+  }
+  root.querySelector('[data-interaction-back]').click();
+  assert.equal(root.querySelectorAll('.interaction-dot').length,2);assert.equal(root.querySelector('.interaction-detail').hidden,true);
+  dispose();
+});
+
 test('dot popups show source links, dismiss accessibly, stay in the viewport, and clean up when unmounted',()=>{
   const event={id:'one',kind:'encounter',title:'An encounter',text:'Authored recap text.',start:'1720-01-01',end:'1720-01-01',precision:'day',sessionLabel:'Session 1',sourceTitle:'At the Inn',sessionUrl:'/page/session',transcriptUrl:'/campaign-transcripts/one'};
   const markup=interactionView([{code:'clee',label:'Cleenseau',known:true,events:[event]}]);

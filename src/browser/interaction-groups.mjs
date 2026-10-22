@@ -38,12 +38,17 @@ export function interactionParts(events) {
   return {beats,references};
 }
 export function groupInteractions(events,mode='auto') {
-  if(mode==='auto')mode=events.length<=6 ? 'event' : 'session';
-  if(mode==='event')return events.map(event=>({key:event.id,title:event.title,dateLabel:interactionDateLabel(event),events:[event]}));
+  const automatic=mode==='auto';
+  if(automatic)mode=events.length<=6 ? 'event' : 'session';
+  if(mode==='event' && !automatic)return events.map(event=>({key:event.id,title:event.title,dateLabel:interactionDateLabel(event),events:[event]}));
   const origin=Math.min(...events.filter(event=>event.start).map(event=>interactionDay(event.start))),buckets=new Map();
   for(const event of events){
     let key,title;
-    if(mode==='session') {key=event.session || 'authored:'+event.id;title=event.sessionLabel || event.title;}
+    // Only exact single-day session references share a date bucket. Recap
+    // beats keep their session grouping; ranges and unknown dates stay distinct.
+    if(automatic && event.kind==='session-reference' && event.precision==='day' && event.start && event.start===event.end) {key='session-day:'+event.start;title='Sessions';}
+    else if(mode==='event') {key='event:'+event.id;title=event.title;}
+    else if(mode==='session') {key=event.session || 'authored:'+event.id;title=event.sessionLabel || event.title;}
     else if(!event.start){key='undated:'+(event.session || 'unknown');title=interactionDateLabel(event);}
     else if(mode==='day' && event.start===event.end){key=event.start;title=event.start;}
     else if(mode==='week' && Math.floor((interactionDay(event.start)-origin)/7)===Math.floor((interactionDay(event.end)-origin)/7)){
