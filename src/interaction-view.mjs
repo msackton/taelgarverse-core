@@ -1,5 +1,5 @@
 import {escapeHtml} from './common.mjs';
-import {interactionDateLabel,interactionParts} from './browser/interaction-groups.mjs';
+import {interactionDateLabel,interactionParts,interactionKindLabel} from './browser/interaction-groups.mjs';
 
 const referenceKinds={
   item:{label:'Items',singular:'item',path:'m12 3 9 5-9 5-9-5 9-5ZM3 8v9l9 5 9-5V8M12 13v9'},
@@ -30,14 +30,16 @@ function referenceView(references) {
 }
 function sourceLinks(event) {
   const links=[[event.sessionUrl,'Session note'],[event.transcriptUrl,'Transcript']].filter(([url])=>url);
-  return links.length ? '<nav class="interaction-sources" aria-label="Recap sources">'+links.map(([url,label])=>'<a href="'+escapeHtml(url)+'">'+label+'</a>').join('')+'</nav>' : '';
+  return links.length ? '<nav class="interaction-sources" aria-label="Interaction sources">'+links.map(([url,label])=>'<a href="'+escapeHtml(url)+'">'+label+'</a>').join('')+'</nav>' : '';
 }
 export function interactionSummary(groups) {
   if (!groups.length) return '';
   return '<p class="campaign-interaction-summary"><a href="#campaign-interactions">Campaign interactions</a> · '+groups.map(group=>{
     const {beats,references}=interactionParts(group.events),facts=[];
     if(group.known)facts.push('known to party');
-    if(beats.length)facts.push(count(beats.length,'encounter'));
+    const sessions=beats.filter(event=>event.kind==='session-reference').length;
+    if(beats.length-sessions)facts.push(count(beats.length-sessions,'encounter'));
+    if(sessions)facts.push(count(sessions,'session reference'));
     if(references.length)facts.push(count(references.length,'reference'));
     if(!facts.length)facts.push('no recorded interactions');
     return escapeHtml(group.label)+': '+facts.join(', ');
@@ -58,7 +60,7 @@ export function interactionView(groups) {
       '<div class="interaction-controls" hidden><label>Group by <select data-interaction-group aria-label="Group by"><option value="auto">Automatic</option><option value="session">Session</option><option value="day">Day</option><option value="week">7-day period</option><option value="event">Individual entry</option></select></label><button type="button" data-interaction-back disabled>Zoom out</button></div>'+
       '<p class="interaction-breadcrumb" aria-live="polite" hidden></p><div class="interaction-plot" role="group" aria-label="Interaction dots" hidden></div>'+
       '<div class="interaction-detail" aria-live="polite" hidden></div><p class="interaction-order" hidden>Story order · spacing compressed</p>'+
-      '<ol class="interaction-fallback">'+beats.map(event=>'<li><span>'+escapeHtml(interactionDateLabel(event)+(event.start ? ' DR' : ''))+' · Encounter</span> '+
+      '<ol class="interaction-fallback">'+beats.map(event=>'<li><span>'+escapeHtml(interactionDateLabel(event)+(event.start ? ' DR' : '')+' · '+interactionKindLabel(event.kind))+'</span> '+
         (event.url ? '<a href="'+escapeHtml(event.url)+'">'+escapeHtml(event.title)+'</a>' : escapeHtml(event.title))+
         (event.text ? '<p>'+escapeHtml(event.text)+'</p>' : '')+(!event.url && event.sourceTitle ? '<p class="interaction-event-meta">'+escapeHtml(event.sessionLabel+' · '+event.sourceTitle)+'</p>' : '')+sourceLinks(event)+'</li>').join('')+'</ol>'+
       related+'<script type="application/json" data-interaction-records>'+data+'</script></section>';

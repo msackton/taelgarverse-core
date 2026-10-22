@@ -77,6 +77,43 @@ function sessionSources(store,registry,identities,campaign,number) {
   }
   return {candidates:candidates.map(entry=>entry.slug),...(preferred ? {preferred} : {})};
 }
+function recapIdentity(bundle,registry,identities) {
+  const campaign=identities.get(normalize(bundle.campaign));
+  if(campaign && bundle.number!=null)return campaign+':'+bundle.number;
+  // An unreadable recap must not quietly restore generated-note evidence.
+  // Its standard artifact directory can still reserve the session identity.
+  const parts=String(bundle.key).replaceAll('\\','/').split('/');
+  const config=Object.entries(registry.campaigns || {}).find(([id,item])=>normalize(item.sessionRoot || id)===normalize(parts[1]))?.[1];
+  const number=/-(\d+(?:\.\d+)?)$/.exec(parts[2] || '')?.[1];
+  if(parts[0]==='_sessions' && config && number)return config.code+':'+String(Number(number));
+  return null;
+}
+// A fallback belongs to the whole session, never to an NPC missing from a recap.
+// Choose the registry filename, or one unambiguous legacy metadata candidate.
+export function sessionNoteFallbacks(store,registry,bundles=[]) {
+  const identities=campaignIdentities(registry),recaps=new Set(bundles.map(bundle=>recapIdentity(bundle,registry,identities)).filter(Boolean));
+  const sessions=new Map(),fallbacks=new Map();
+  for(const entry of store.bySlug.values()) {
+    const metadata=entry.note.metadata,campaign=identities.get(normalize(metadata.campaign)),number=String(metadata.sessionNumber);
+    if(!list(metadata.tags).includes('session-note') || !campaign || !/^\d+(?:\.\d+)?$/.test(number))continue;
+    sessions.set(campaign+':'+number,{campaign,number});
+  }
+  for(const [identity,{campaign,number}] of sessions) {
+    if(recaps.has(identity))continue;
+    const sources=sessionSources(store,registry,identities,campaign,number);
+    const source=sources.preferred || (sources.candidates.length===1 ? sources.candidates[0] : null);
+    if(!source)continue;
+    const metadata=store.bySlug.get(source).note.metadata;
+    if(!interactionReferenceType(metadata))continue;
+    const period=interactionDate(metadata.DR),until=interactionDate(metadata.DR_end) || period;
+    if(period && until.end<period.start)continue;
+    fallbacks.set(source,{id:'session:'+identity,campaign,source,kind:'session-reference',session:'recap:'+identity,
+      sessionLabel:'Session '+number,sessionStart:period?.start || null,sessionEnd:until?.end || null,
+      start:period?.start || null,end:until?.end || null,cutoff:until?.end || null,
+      precision:period ? period.start===until.end ? period.precision : 'range' : 'undated'});
+  }
+  return fallbacks;
+}
 function explicitTarget(store,name,warnings,source) {
   const raw=String(name).trim(),match=/^\[\[([^\]|]+)(?:\|[^\]]*)?\]\]$/.exec(raw);
   let found=store.lookup(match ? match[1] : raw);
@@ -87,10 +124,11 @@ function explicitTarget(store,name,warnings,source) {
   if (found.status!=='found') {warnings.push(source+': '+found.status+' person '+raw);return null;}
   return isPerson(found.entry) ? found.entry : null;
 }
-export function compileInteractionIndex(store,registry,backlinks,bundles=[]) {
+export function compileInteractionIndex(store,registry,backlinks,bundles=null) {
   const identities=campaignIdentities(registry),byTarget=Object.create(null),transcripts=Object.create(null),warnings=[],recaps=new Map();
   const append=(target,record)=>{(byTarget[target] ||= []).push(record);};
-  for (const bundle of bundles) {
+  for (const bundle of bundles || []) {
+    if(bundle.invalid)continue;
     const campaign=identities.get(normalize(bundle.campaign));
     if (!campaign) {warnings.push(bundle.key+': unknown campaign '+bundle.campaign);continue;}
     const key=campaign+':'+bundle.number,items=recaps.get(key) || [];
@@ -123,12 +161,16 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=[]) {
       } catch(error) {warnings.push(bundle.key+': beat '+scene.id+' omitted: '+error.message);}
     }
   }
+  // No scan supplied (older snapshots) does not prove that recaps are absent.
+  const fallbacks=bundles ? sessionNoteFallbacks(store,registry,bundles) : new Map();
   const ownership=buildBacklinkCampaigns(store,registry);
   const roots=Object.values(registry.campaigns || {}).map(campaign=>normalize(campaign.campaignRoot).replaceAll('\\','/').replace(/\/+$/,'')).filter(Boolean);
   for (const entry of store.bySlug.values()) {
     if (!isPerson(entry)) continue;
     for (const link of Object.hasOwn(backlinks?.byTarget || {},entry.slug) ? backlinks.byTarget[entry.slug] : []) {
       const source=store.bySlug.get(link.source),metadata=source?.note?.metadata;
+      const fallback=fallbacks.get(link.source);
+      if(fallback) {append(entry.slug,{...fallback,when:link.when});continue;}
       if (!interactionReferenceType(metadata) || list(metadata.tags).includes('session-note') || metadata.sessionNumber!=null) continue;
       const id=normalize(source.id).replaceAll('\\','/');
       if (!roots.some(root=>id.startsWith(root+'/'))) continue;
@@ -155,6 +197,14 @@ export function campaignInteractions(index,store,entry,context,registry) {
       const source=candidates.find(entry=>entry.slug===sources?.preferred) || (candidates.length===1 ? candidates[0] : null);
       group.events.push({...event,...text,url:null,sessionUrl:source ? pageUrl(source.slug,context.date,context) : null,
         transcriptUrl:Object.hasOwn(index.transcripts || {},record.id) ? '/campaign-transcripts/'+encodeURIComponent(record.id)+'?'+contextQuery(context)+'&person='+encodeURIComponent(entry.slug) : null});
+    } else if(record.kind==='session-reference') {
+      const source=store.bySlug.get(record.source);
+      if((record.cutoff && record.cutoff>context.date) || !interactionReferenceType(source?.note?.metadata) || !availableInContext(source,context,store.settings) ||
+        (index.backlinkVersion===1 && context.campaigns.length>1) || !interactionRuleVisible(record.when,context))continue;
+      const {cutoff,when,campaign,...event}=record;
+      group.events.push({...event,title:interactionText(source.note.metadata.descTitle || source.title),
+        text:'Linked in the official session note.',sourceTitle:source.title,location:'',url:null,
+        sessionUrl:pageUrl(source.slug,context.date,context),transcriptUrl:null});
     } else {
       const source=store.bySlug.get(record.source);
       const type=interactionReferenceType(source?.note?.metadata);

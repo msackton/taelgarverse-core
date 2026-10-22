@@ -180,8 +180,9 @@ These rules are specified in [vault usage](vault.md).
 
 Person campaign histories use authoritative recap NPC beats and their Short text,
 with supplementary backlinks from non-session campaign-folder articles. Session
-notes supply only optional source links. Original `_sessions` files remain outside the
-article store; selected beat fields and their own visibility rules enter the
+notes supply optional source links; sessions without a recap use explicit links
+in the official session note as separately labeled session references. Original
+`_sessions` files remain outside the article store; selected beat fields and their own visibility rules enter the
 revision index. Selected polished beat transcript bodies are stored separately
 in revision-bound shards and loaded only by their context-filtered transcript
 views. The Worker requires no session-body reads. Older publications

@@ -36,14 +36,20 @@ campaigns get a **Campaign** selector directly below the heading, with **All**
 selected by default to show them together. The choice is retained while the
 plugin is running. Source mode stays unchanged.
 
-When the selected campaign has no visible recap beats, it retains the same
+When the selected campaign has no visible timeline entries, it retains the same
 campaign-name heading and **Known to party** status line as a full timeline,
 with compact spacing and any related campaign links below it. The **Campaign
 interactions** heading and campaign picker stay above the content; choosing a
 campaign with recap beats adds its timeline below the same header. This applies
 to automatic footers and explicit blocks.
 
-Only recap beats contribute encounter dots and counts. **Related campaign material**
+Recap beats contribute encounter dots and counts. Sessions without a recap use
+explicit NPC links in the official session note as hollow **Session reference**
+dots, counted separately, with the session date and a native note link. An
+existing recap suppresses this fallback for the entire session. The registry
+filename wins; a unique legacy metadata candidate is also supported.
+
+**Related campaign material**
 groups links on separate **Items** (`object`/`item`), **Stories** (`story`), and
 **Sources** (`source`/`document`) lines, with a **References** line for other types.
 Empty categories are omitted. A note appears once; item tags take precedence over
@@ -68,13 +74,16 @@ work. Rendering never inserts fences, modifies frontmatter, or saves note text.
 
 The dots, grouping, zoom, dates, and Short text use the same recap parser and
 interaction model as the website. Session notes supply source links, and
-non-session campaign material supplies separate references. Session-note bodies
-and raw transcripts are not interaction inputs. Links open session notes,
+non-session campaign material supplies separate references. Only missing-recap
+sessions use session-note bodies, to identify explicit links and preserve their
+conditional visibility; no prose summary is generated. Raw transcripts are not
+interaction inputs. Links open session notes,
 campaign references, and available polished transcripts natively in Obsidian,
 including modified clicks to open another pane.
 
-Interactions require `_scripts/session_note_campaigns.json` and the local
-`_sessions/<campaign>/<session>/cleaned/*-session-recap.md` files.
+Interactions require `_scripts/session_note_campaigns.json`. Authoritative beats
+come from local `_sessions/<campaign>/<session>/cleaned/*-session-recap.md` files;
+sessions without those files use the official session-note fallback.
 They do not require a website connection, Dataview, CustomJS, or header display
 metadata. Dates follow the header's override, note date, calendar, and fallback
 order. This is a local author view: DM text is available and website publication

@@ -85,6 +85,30 @@ test('Obsidian indexes authoritative recaps and native campaign references, reta
   }finally{h.feature.unload();}
 });
 
+test('Obsidian reads only missing-recap official session notes for fallback dots and preserves native occurrence visibility',async()=>{
+  const official='Campaigns/Clee/Session 02.md',legacy='Campaigns/Clee/Legacy second.md';
+  const note='---\ntags: [session-note]\ncampaign: Clee\nsessionNumber: 2\nDR: 1748-01-02\nDR_end: 1748-01-03\n---\n';
+  const h=host({notes:{[official]:note+'%%^Date:1748-01-04%%[[Person]] [[Person]]%%^End%%',
+    [legacy]:note+'[[Person]]','People/Person.md':initial['People/Person.md'].replace('1748-01-02','1748-01-04')}});
+  try {
+    const snapshot=await h.obsidianInteractions(h.app);
+    const events=date=>h.localInteractions(snapshot,'People/Person.md',registry.campaigns.cleenseau,date,h.app).group.events;
+    assert.equal(events('1748-01-03').some(event=>event.kind==='session-reference'),false,'link date conditions apply');
+    const records=events('1748-01-04').filter(event=>event.kind==='session-reference');
+    assert.equal(records.length,1);assert.equal(records[0].start,'1748-01-02');assert.equal(records[0].end,'1748-01-03');
+    assert.ok(h.reads.includes(official));assert.ok(!h.reads.includes(legacy));
+    assert.ok(!h.reads.includes('Campaigns/Clee/Session 01.md'),'existing recaps keep session bodies out of evidence');
+    const {element,child}=h.block();await child.ready;
+    const dot=element.querySelector('.interaction-mark.session-reference').closest('button');h.click(dot);
+    assert.match(element.querySelector('.interaction-detail').textContent,/Session reference/);
+    const link=element.querySelector('.interaction-detail .interaction-sources a');h.click(link);
+    assert.equal(h.opened.at(-1)[0],official);child.unload();
+    h.texts.set('_sessions/cleenseau/cleenseau-001/cleaned/cleenseau-001-session-recap.md','Malformed recap');
+    const broken=await h.obsidianInteractions(h.app);
+    assert.ok(!broken.index.byTarget['People/Person.md'].some(event=>event.id==='session:clee:1'),'malformed recap also blocks a fallback');
+  }finally{h.feature.unload();}
+});
+
 test('explicit blocks select known campaigns, retain choice after refresh, and open native session and transcript links',async()=>{
   const h=host();
   try {

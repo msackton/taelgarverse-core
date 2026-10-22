@@ -11,6 +11,7 @@ function fromDay(ordinal) {
   return String(year).padStart(4,'0')+'-'+String(month+1).padStart(2,'0')+'-'+String(day-daysBeforeMonth[month]+1).padStart(2,'0');
 }
 const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+export const interactionKindLabel=kind=>kind==='session-reference' ? 'Session reference' : kind==='reference' ? 'Campaign reference' : 'Encounter';
 export function interactionDateLabel(event) {
   if (!event.start) return (event.sessionLabel ? event.sessionLabel+' · ' : '')+'Date unrecorded';
   if (event.precision==='year') return event.start.slice(0,4);

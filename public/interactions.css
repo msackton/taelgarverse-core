@@ -23,6 +23,7 @@
 .interaction-dot:before{content:'';position:absolute;top:30px;height:1px;left:0;right:0;background:var(--line);z-index:-1}
 .interaction-dot:first-child:before{left:50%}.interaction-dot:last-child:before{right:50%}
 .interaction-mark{width:14px;height:14px;border-radius:50%;background:var(--link);border:1px solid var(--link)}
+.interaction-mark.session-reference{background:var(--bg)}
 .interaction-mark.mention{background:var(--bg)}.interaction-mark.reference{background:var(--bg);border-style:dashed}
 .interaction-mark.authored{border-radius:2px;transform:rotate(45deg)}
 .interaction-count{width:32px;height:32px;border-radius:50%;background:var(--soft);border:1px solid var(--link);display:flex;align-items:center;justify-content:center;font-size:13px}

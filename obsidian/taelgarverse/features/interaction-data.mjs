@@ -1,6 +1,6 @@
 import {ContentStore,authoredBody} from '../../../src/content-store.mjs';
 import {buildBacklinkCampaigns} from '../../../src/campaign-ownership.mjs';
-import {compileInteractionIndex,campaignIdentities,campaignInteractions,interactionDate,interactionReferenceType} from '../../../src/campaign-interactions.mjs';
+import {compileInteractionIndex,campaignIdentities,campaignInteractions,interactionDate,interactionReferenceType,sessionNoteFallbacks} from '../../../src/campaign-interactions.mjs';
 import {parseSessionRecap} from '../../../src/recap-parser.mjs';
 import {Contexts} from '../../../src/contexts.mjs';
 import {codeRanges,filterComments} from '../../../src/comments.mjs';
@@ -33,11 +33,29 @@ export async function obsidianInteractions(app) {
     const file=app.metadataCache.getFirstLinkpathDest(raw,'');
     return file && byPath.has(file.path) ? {status:'found',entry:byPath.get(file.path)} : lookup(raw);
   };
+  const recaps=files.filter(file=>/^_sessions\/[^/]+\/[^/]+\/cleaned\/[^/]+-session-recap\.md$/.test(file.path));
+  const bundles=[],transcriptPaths=new Map(),identities=campaignIdentities(registry),warnings=[];
+  await readFiles(recaps,async file=>{
+    try {
+      const bundle=parseSessionRecap(await app.vault.cachedRead(file),file.path);
+      // Native links open the referenced polished artifact without importing or
+      // rendering raw transcripts, and without using paths in Source Files.
+      const campaign=identities.get(String(bundle.campaign).trim().toLowerCase());
+      for(const scene of bundle.scenes) {
+        if(!/^beat-transcripts\/[\w.-]+\.md$/.test(scene.transcriptPath || ''))continue;
+        const target=file.path.slice(0,file.path.lastIndexOf('/')+1)+scene.transcriptPath;
+        if(app.vault.getAbstractFileByPath(target)?.extension==='md')transcriptPaths.set('recap:'+campaign+':'+bundle.number+':'+scene.id,target);
+      }
+      bundles.push(bundle);
+    } catch(error){warnings.push(file.path+': '+error.message);bundles.push({key:file.path,invalid:true});}
+  });
+  bundles.sort((a,b)=>a.key.localeCompare(b.key));
+  const fallbacks=sessionNoteFallbacks(store,registry,bundles);
   const roots=Object.values(registry.campaigns || {}).map(campaign=>String(campaign.campaignRoot || '').replace(/\/+$/,'')).filter(Boolean);
-  const references=entries.filter(entry=>roots.some(root=>entry.id.startsWith(root+'/')) &&
+  const references=entries.filter(entry=>fallbacks.has(entry.slug) || (roots.some(root=>entry.id.startsWith(root+'/')) &&
     interactionReferenceType(app.metadataCache.getFileCache(entry.file)?.frontmatter) &&
-    !list(entry.note.metadata.tags).includes('session-note') && entry.note.metadata.sessionNumber==null);
-  const incoming=new Map(),warnings=[];
+    !list(entry.note.metadata.tags).includes('session-note') && entry.note.metadata.sessionNumber==null));
+  const incoming=new Map();
   await readFiles(references,async entry=>{
     const source=await app.vault.cachedRead(entry.file);
     // Cache positions refer to the original text. Preserve CRLF while removing
@@ -62,27 +80,14 @@ export async function obsidianInteractions(app) {
     try{filterComments(marked,{date:'0001-01-01'});}catch(error){warnings.push(entry.id+': '+error.message);return;}
     for(const [target,markers] of targets){const records=incoming.get(target) || [];records.push({source:entry.slug,marked,markers});incoming.set(target,records);}
   });
-  const recaps=files.filter(file=>/^_sessions\/[^/]+\/[^/]+\/cleaned\/[^/]+-session-recap\.md$/.test(file.path));
-  const bundles=[],transcriptPaths=new Map(),identities=campaignIdentities(registry);
-  await readFiles(recaps,async file=>{
-    try {
-      const bundle=parseSessionRecap(await app.vault.cachedRead(file),file.path);
-      // Native links open the referenced polished artifact without importing or
-      // rendering raw transcripts, and without using paths in Source Files.
-      const campaign=identities.get(String(bundle.campaign).trim().toLowerCase());
-      for(const scene of bundle.scenes) {
-        if(!/^beat-transcripts\/[\w.-]+\.md$/.test(scene.transcriptPath || ''))continue;
-        const target=file.path.slice(0,file.path.lastIndexOf('/')+1)+scene.transcriptPath;
-        if(app.vault.getAbstractFileByPath(target)?.extension==='md')transcriptPaths.set('recap:'+campaign+':'+bundle.number+':'+scene.id,target);
-      }
-      bundles.push(bundle);
-    } catch(error){warnings.push(file.path+': '+error.message);}
-  });
-  bundles.sort((a,b)=>a.key.localeCompare(b.key));
-  const index=compileInteractionIndex(store,registry,null,bundles);
+  // Native occurrence visibility is evaluated per render below; the compiled
+  // fallback stores only the session identity and dates, never session prose.
+  const backlinks={version:2,byTarget:Object.fromEntries([...incoming].map(([target,records])=>
+    [target,records.filter(record=>fallbacks.has(record.source)).map(record=>({source:record.source,when:[{}]}))]))};
+  const index=compileInteractionIndex(store,registry,backlinks,bundles);
   for(const id of transcriptPaths.keys())index.transcripts[id]=true;
   const fallback=new Contexts(store,registry,{default_date:'1750-01-01'}).resolve().date;
-  return {store,registry,index,incoming,ownership:buildBacklinkCampaigns(store,registry),transcriptPaths,fallback,warnings:[...warnings,...index.warnings]};
+  return {store,registry,index,incoming,sessionFallbacks:fallbacks,ownership:buildBacklinkCampaigns(store,registry),transcriptPaths,fallback,warnings:[...warnings,...index.warnings]};
 }
 export function knownCampaigns(snapshot,metadata) {
   const identities=campaignIdentities(snapshot.registry),codes=new Set(list(metadata.knownTo).map(value=>identities.get(String(value).trim().toLowerCase())).filter(Boolean));
@@ -98,14 +103,18 @@ export function interactionsDate(metadata,globals,fallback) {
 }
 export function localInteractions(snapshot,path,campaign,date,app) {
   const entry=snapshot.store.bySlug.get(path);
-  const context={kind:'custom',id:'custom',campaigns:[campaign.code],date,dm:true},references=[];
+  const context={kind:'custom',id:'custom',campaigns:[campaign.code],date,dm:true},references=[],visibleSources=new Set();
   for(const reference of snapshot.incoming.get(path) || []) {
     if(!snapshot.ownership.get(reference.source)?.includes(campaign.code))continue;
     const notes=[],body=filterComments(reference.marked,{...context,notes});
     const visible=body+'\n'+notes.map(note=>note.text).join('\n');
-    if(reference.markers.some(marker=>visible.includes(marker)))references.push({id:'reference:'+campaign.code+':'+reference.source,campaign:campaign.code,source:reference.source,kind:'reference',when:[{}]});
+    if(reference.markers.some(marker=>visible.includes(marker))) {
+      visibleSources.add(reference.source);
+      if(!snapshot.sessionFallbacks.has(reference.source))references.push({id:'reference:'+campaign.code+':'+reference.source,campaign:campaign.code,source:reference.source,kind:'reference',when:[{}]});
+    }
   }
-  const index={...snapshot.index,byTarget:{[path]:[...(snapshot.index.byTarget[path] || []),...references]}};
+  const records=(snapshot.index.byTarget[path] || []).filter(record=>record.kind!=='session-reference' || visibleSources.has(record.source));
+  const index={...snapshot.index,byTarget:{[path]:[...records,...references]}};
   const groups=campaignInteractions(index,snapshot.store,entry,context,snapshot.registry);
   const group=groups[0] || {code:campaign.code,label:campaign.name,known:true,events:[]},links=new Map();
   const native=target=>{

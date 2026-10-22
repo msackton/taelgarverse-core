@@ -18,8 +18,8 @@ not create additional dots. The index retains authoritative recap records
 independently of `knownTo`; the website component only shows intersecting campaigns.
 
 Every view uses the same campaign-name heading and **Known to party** status
-line. Campaigns without visible recap beats keep that header with compact
-spacing and any related material, beneath the **Campaign interactions** heading.
+line. Campaigns without visible recap beats or session references keep that header
+with compact spacing and any related material, beneath the **Campaign interactions** heading.
 They do not allocate an empty timeline. Campaigns with recap beats keep their
 dot timelines below the same header.
 
@@ -31,8 +31,12 @@ location, and recap session/title, with **Session note** and **Transcript** link
 when available. Dates are labeled DR. The same actions work with touch and
 keyboard; without JavaScript, recap beats remain available as a linked list.
 
-Only recap beats contribute timeline dots, encounter counts, and automatic
-session grouping. **Related campaign material** below the timeline shows
+Recap beats contribute encounter dots and counts. When a session has no recap
+file, explicit NPC links in its official session note contribute one hollow
+**Session reference** dot per person. These are counted separately from encounters,
+use the session's recorded date range, and link to the note without deriving a
+summary from its prose. Both kinds support the same grouping and zoom controls.
+**Related campaign material** below the timeline shows
 supplementary backlinks on separate **Items**, **Stories**, **Sources**, and
 **References** lines. Authored `object`/`item` tags select Items, `story` selects
 Stories, and `source`/`document` selects Sources; other eligible notes use
@@ -62,7 +66,7 @@ spanning a group boundary retains its range rather than acquiring an invented da
 | Person `knownTo` and `campaignInfo` | Authored header information. |
 | Recap `## Recap` entries | One beat per explicitly listed, resolved NPC, using the entry's title, Date, Locations, and **Short** text. |
 | Non-session articles in registered campaign folders | Supplementary links under **Related campaign material**, typed using authored tags, with no inferred encounter date. |
-| Session notes, including legacy named notes | Optional source-link destinations; never interaction evidence. |
+| Official session note | Optional recap source link; if the session has no recap file, explicit NPC links supply session-reference dots. |
 
 The Node importer reads
 `_sessions/<campaign>/<session>/cleaned/*-session-recap.md`. Campaign identity
@@ -75,6 +79,15 @@ candidates. The registry's exact `campaignRoot`/`notePattern` path takes
 precedence; otherwise a single available candidate is required. Ambiguous or
 unavailable notes omit the link while preserving the recap beat. Links retain
 the reader's date, campaign, DM, and POV context.
+
+Session-note fallback uses that same filename preference, or one unambiguous
+legacy metadata candidate. The choice is made before request visibility: an
+unavailable official note does not make a duplicate note authoritative. An
+existing recap suppresses fallback for the entire session, including people it
+does not list, hidden or invalid beats, empty recaps, and duplicate recap
+identities. Malformed recap files reserve their standard artifact-directory
+session identity when it can be resolved. A missing visible beat is not evidence
+that the recap file is absent. Ambiguous session notes supply no fallback.
 
 **Short** is the display text, with Markdown presentation converted to plain
 text. It need not match **Long** or a generated session note. Missing Short text
@@ -116,6 +129,11 @@ Malformed markers omit the affected beat. Session-note comments do not affect
 recap visibility. Campaign references retain source availability, POV, and
 occurrence-level campaign/date/DM filtering.
 
+Session-reference dots retain those same source and occurrence rules, and wait
+until the session's recorded end date. Unknown dates remain undated. Only explicit
+authored links qualify; plain-text names, frontmatter, and generated headers do
+not. No session prose is copied into the interaction projection.
+
 Only selected, compiled fields enter the publication index. Raw transcripts, Long
 narratives, source ranges, full recap files, filesystem paths, cast bookkeeping,
 and editorial annotations are excluded. Diagnostics remain in the local preparation report
@@ -150,6 +168,8 @@ Deploy core through the normal website workflow, then publish content to enable
 recap beats and polished transcript links. Older version-2 projections without
 transcript descriptors remain readable and simply omit those links. Snapshots without an interaction index remain readable and supply
 authored header information and available non-session campaign references.
+They do not invent session fallbacks without a recap-file scan; newly prepared
+snapshots include compiled session references.
 Experimental version-1 interaction projections and unknown versions require
 repreparation. Legacy version-1 backlinks remain omitted for multi-campaign
 combinations. No new Cloudflare resources, bindings, or D1 migrations are needed.
@@ -162,6 +182,8 @@ The plugin shares the pure recap parser, campaign ownership, interaction model,
 and dot controls. Its host adapter reads vault metadata, supported recap files,
 and Obsidian's native link cache. It resolves source links to local notes and
 polished transcript artifacts, with no website dependency or note writes.
+Only sessions missing a recap require session-note body reads, to preserve native
+link offsets and conditional visibility for fallback dots.
 
 An empty `taelgar-interactions` block places a panel explicitly. Otherwise,
 Reading View and Live Preview automatically show a footer on any page with
@@ -170,7 +192,7 @@ campaigns use a single campaign selector directly below the heading. **All** is
 the default; it shows every known campaign together, or readers can choose an
 individual campaign. The heading and picker remain in knowledge-only views.
 This local author view includes DM
-text and ignores website publication exclusions. Campaigns without recap beats
+text and ignores website publication exclusions. Campaigns without timeline entries
 use the same campaign heading and knowledge status with compact spacing and
 related links beneath the component heading and picker;
 selecting a campaign with recap beats restores the timeline. Selected campaign

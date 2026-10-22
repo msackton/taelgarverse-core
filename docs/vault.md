@@ -371,8 +371,13 @@ context's campaigns, without a component campaign picker. An empty intersection
 means no component. `knownTo` supplies undated party knowledge and
 `campaignInfo` retains its normal header wording. Authoritative recap entries
 supply encounter dots using their explicit NPCs, dates, and Short text. Session
-notes supply only optional source links; non-session campaign-folder backlinks
-supply separate links under **Related campaign material**. Untagged sources and
+notes supply optional source links. If a session has no recap file, its official
+session note's explicit NPC links supply hollow **Session reference** dots, counted
+separately from encounters, with session dates and a note link. The registry
+filename wins, with a unique legacy metadata candidate as a fallback; ambiguous
+notes supply no dots. An existing recap suppresses note fallback for the whole
+session, even when it contains no visible beat for the person. Non-session
+campaign-folder backlinks supply separate links under **Related campaign material**. Untagged sources and
 sources with `meta` or `background` tags (including nested tags) are excluded.
 Related links have separate Items, Stories, Sources, and other References lines,
 based on authored tags, each with its own **Show more** for longer lists.

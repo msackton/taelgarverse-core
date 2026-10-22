@@ -91,6 +91,54 @@ test('session links prefer the registry path, preserve context, and omit ambiguo
   assert.equal(eventsFor(store,ambiguous)[0].sessionUrl,null);
 });
 
+test('missing recaps fall back to explicit links in the official session note, with dates and distinct provenance',()=>{
+  const campaigns={campaigns:{cleenseau:{...registry.campaigns.cleenseau,notePattern:'Session {session_padded}.md'}}};
+  const store=storeFor({'Person.md':person,'Other.md':'---\ntags: [person]\n---\n# Other',
+    'Campaigns/Clee/Session 12.1.md':session+'\n[[Person]]\n%%^Campaign:mawar%%[[Other]]%%^End%%',
+    'Campaigns/Clee/Legacy.md':session.replace('[[Person]]','[[Other]]')});
+  const backlinks=buildBacklinkIndex(store),index=compileInteractionIndex(store,campaigns,backlinks,[]);
+  const events=ctx=>campaignInteractions(index,store,store.resolve('Person'),ctx,campaigns)[0]?.events || [];
+  assert.equal(events(context('1720-01-02')).length,0,'a session range waits until its end');
+  const [event]=events(context());
+  assert.equal(events(context()).length,1,'repeated links produce one session reference');
+  assert.equal(event.kind,'session-reference');assert.equal(event.id,'session:clee:12.1');
+  assert.equal(event.start,'1720-01-01');assert.equal(event.end,'1720-01-03');assert.equal(event.precision,'range');
+  assert.equal(event.text,'Linked in the official session note.');assert.equal(event.transcriptUrl,null);
+  assert.match(event.sessionUrl,/session-12\.1\?date=1720-01-05&campaigns=clee/);
+  assert.doesNotMatch(JSON.stringify(index),/Completely different generated prose/);
+  assert.equal(campaignInteractions(index,store,store.resolve('Other'),context(),campaigns)[0].events.length,0,'the legacy duplicate cannot add evidence');
+  assert.equal(campaignInteractions(index,store,store.resolve('Other'),context('1720-01-05',['clee','mawar']),campaigns)[0].events.length,1);
+  const groups=campaignInteractions(index,store,store.resolve('Person'),context(),campaigns);
+  const parsed=parseHTML('<html><body>'+interactionSummary(groups)+interactionView(groups)+'</body></html>').document;
+  assert.match(parsed.querySelector('.campaign-interaction-summary').textContent,/1 session reference/);
+  assert.doesNotMatch(parsed.querySelector('.campaign-interaction-summary').textContent,/encounter/);
+  assert.match(parsed.querySelector('.interaction-fallback').textContent,/Session reference/);
+  const root=parsed.querySelector('[data-interaction-campaign]');mountInteractions(root);
+  assert.ok(root.querySelector('.interaction-mark.session-reference'));
+  assert.match(root.querySelector('.interaction-dot').getAttribute('aria-label'),/^Session reference:/);
+  store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.tags.push('meta');
+  assert.equal(events(context()).length,0,'meta also filters an existing fallback projection');
+  store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.tags.pop();
+  store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.excludePublish=['clee'];
+  assert.equal(events(context()).length,0,'an unavailable official note does not switch to a legacy duplicate');
+});
+
+test('recap presence suppresses whole-session fallbacks even for empty, invalid, duplicate and hidden beats',()=>{
+  const store=storeFor({'Person.md':person,'Legacy.md':session}),backlinks=buildBacklinkIndex(store);
+  const eventList=bundles=>eventsFor(store,compileInteractionIndex(store,registry,backlinks,bundles));
+  assert.equal(eventList([])[0].kind,'session-reference','one legacy metadata candidate is accepted');
+  const bundle=parseSessionRecap(recap);
+  for(const bundles of [[bundle],[{...bundle,scenes:[]}],[bundle,bundle],[{...bundle,scenes:[{...bundle.scenes[0],short:''}]}],
+    [{...bundle,scenes:[{...bundle.scenes[0],people:['Someone Else']}]}],
+    [{key:'_sessions/cleenseau/cleenseau-012.1/cleaned/broken-session-recap.md',invalid:true}]]) {
+    assert.ok(eventList(bundles).every(event=>event.kind!=='session-reference'));
+  }
+  const duplicate=storeFor({'Person.md':person,'Legacy.md':session,'Other legacy.md':session});
+  assert.equal(eventsFor(duplicate,compileInteractionIndex(duplicate,registry,buildBacklinkIndex(duplicate),[])).length,0);
+  store.resolve('Legacy').note.metadata.DR='unknown';delete store.resolve('Legacy').note.metadata.DR_end;
+  const undated=eventList([])[0];assert.equal(undated.start,null);assert.equal(undated.precision,'undated');
+});
+
 test('recap date and both source links appear in browser details and the no-JS fallback',()=>{
   const {store,index}=sample({'Session.md':session});
   index.transcripts['recap:clee:12.1:recap-001']='Person: A polished conversation.';
@@ -382,5 +430,11 @@ test('Node recap reader imports only supported recap files and ignores private s
     assert.equal(result.bundles[0].scenes[2].transcript,undefined);
     assert.doesNotMatch(JSON.stringify(result.bundles),/private\/raw|u0001|Source Transcript|transcriptPath/);
     assert.match(result.warnings.join('\n'),/invalid polished transcript reference/);
+    const broken=path.join(directory,'_sessions','cleenseau','cleenseau-013','cleaned');fs.mkdirSync(broken,{recursive:true});
+    fs.writeFileSync(path.join(broken,'cleenseau-013-session-recap.md'),'Malformed recap');
+    const invalid=readInteractionBundles({vault_dir:directory});
+    assert.ok(invalid.bundles.some(bundle=>bundle.invalid && bundle.key.includes('cleenseau-013')));
+    const store=storeFor({'Person.md':person,'Session.md':session.replace('12.1','13')});
+    assert.equal(eventsFor(store,compileInteractionIndex(store,registry,buildBacklinkIndex(store),invalid.bundles)).some(event=>event.kind==='session-reference'),false);
   } finally {const resolved=fs.realpathSync(directory);assert.ok(isInside(fs.realpathSync(path.join(ROOT,'.cache')),resolved));assert.ok(path.basename(resolved).startsWith('interactions-'));fs.rmSync(resolved,{recursive:true});}
 });

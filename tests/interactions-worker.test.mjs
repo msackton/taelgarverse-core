@@ -30,6 +30,7 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     for(const [name,tags] of [['Untagged',''],['List of NPCs','tags: [source, meta]'],['Background','tags: [background/lore]']])
       fs.writeFileSync(path.join(vault,'Campaigns','Clee',name+'.md'),'---\n'+tags+'\n---\n[[Person]]');
     fs.writeFileSync(path.join(vault,'Session.md'),'---\ntags: [session-note]\ncampaign: Cleenseau\nsessionNumber: 12.1\nDR: 1720-01-01\nDR_end: 1720-01-02\n---\n# Session\n\nThe party met [[Person]] at the inn.\n\n%%^Campaign:none%%\nPerson showed them a hidden room.\n%%^End%%');
+    fs.writeFileSync(path.join(vault,'Campaigns','Clee','Older session.md'),'---\ntags: [session-note]\ncampaign: Cleenseau\nsessionNumber: 13\nDR: 1720-01-03\n---\n%%^Campaign:other%%[[Person]]%%^End%%\nSESSION PROSE NOT COMPILED');
     const cleaned=path.join(vault,'_sessions','cleenseau','cleenseau-012.1','cleaned');fs.mkdirSync(cleaned,{recursive:true});
     const recap=['# Session Recap','## Session Header','- Campaign: Cleenseau','- Session Number: 12.1','## Recap',
       '### recap-001 | At the Inn','- Date: 1720-01-01','- NPCs: Person, Unpublished Unresolved Person','- Source Range: u0001 -> u0020','- Polished Transcript: beat-transcripts/public.md','#### Short','An authoritative Short independent of generated prose.','#### Long','Unused Long narrative.',
@@ -89,6 +90,17 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
       assert.match(actual.interactions[0].events[0].transcriptUrl,/campaign-transcripts\//);
     }
     const originalGet=bucket.get.bind(bucket);
+    for(const campaigns of [['clee'],['clee','other']]) {
+      reads.length=0;
+      const actual=await snapshot.engine.renderAsync('Person','1720-01-03','custom',false,campaigns,entry=>snapshot.store.getNote(entry));
+      const expected=node.render('Person','1720-01-03','custom',false,undefined,campaigns);
+      assert.deepEqual(actual.interactions,expected.interactions);
+      const sessions=actual.interactions[0].events.filter(event=>event.kind==='session-reference');
+      assert.equal(sessions.length,campaigns.includes('other')?1:0);
+      if(sessions.length)assert.match(sessions[0].sessionUrl,/older-session/);
+      assert.ok(reads.every(key=>key.endsWith('/'+snapshot.store.resolve('Person').note.shard+'.json')),'fallbacks require no Worker session-body reads');
+    }
+    assert.doesNotMatch(JSON.stringify(index.interactions),/SESSION PROSE NOT COMPILED/);
     for(const campaigns of [['clee','other'],['other'],[]]) {
       reads.length=0;
       const actual=await snapshot.engine.renderAsync('Person','1720-01-02','custom',false,campaigns,entry=>snapshot.store.getNote(entry));

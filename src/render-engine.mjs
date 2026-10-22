@@ -17,7 +17,7 @@ import {compileInteractionIndex,campaignInteractions} from './campaign-interacti
 import {interactionSummary,interactionView} from './interaction-view.mjs';
 
 export class RenderEngine {
-  constructor({settings,store,headers,renderHeader,renderBio,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles=[],loadTranscript}) {
+  constructor({settings,store,headers,renderHeader,renderBio,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles,loadTranscript}) {
     this.settings = settings;
     this.store = store;
     this.store.settings = settings;

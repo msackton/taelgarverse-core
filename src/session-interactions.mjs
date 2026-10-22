@@ -50,7 +50,7 @@ export function readInteractionBundles(settings) {
         } catch(error) {warnings.push(key+': transcript for '+scene.id+' omitted: '+error.message);}
       }
       bundles.push(bundle);
-    } catch(error){warnings.push(key+': '+error.message);}
+    } catch(error){warnings.push(key+': '+error.message);bundles.push({key,invalid:true});}
   }
   return {bundles,warnings};
 }
