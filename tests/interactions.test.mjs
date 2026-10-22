@@ -315,9 +315,9 @@ test('campaign material uses typed links outside the dots and encounter counts, 
   const root=document.querySelector('[data-interaction-campaign]');
   assert.equal(root.querySelectorAll('.interaction-fallback li').length,3);
   assert.equal(root.querySelectorAll('.interaction-reference-links a').length,27);
-  assert.equal(root.querySelectorAll('.interaction-reference-body > .interaction-reference-links a').length,6);
-  assert.equal(root.querySelectorAll('.interaction-reference-more a').length,21);
-  assert.match(root.querySelector('summary').textContent,/21 more references/);
+  assert.equal(root.querySelectorAll('.interaction-reference-body > .interaction-reference-links a').length,13);
+  assert.equal(root.querySelectorAll('.interaction-reference-more a').length,14);
+  assert.match(root.querySelector('summary').textContent,/14 more references/);
   assert.deepEqual([...root.querySelectorAll('.interaction-reference-label')].map(node=>node.textContent),['Items','Stories','Sources','References']);
   assert.equal(root.querySelector('[data-reference-kind="story"] a').textContent,'Reference 02');
   assert.equal(root.querySelector('[data-reference-kind="document"] a').textContent,'Reference 01');
@@ -343,22 +343,23 @@ test('campaign material uses typed links outside the dots and encounter counts, 
 
 test('related material has one row per nonempty type with independently sorted and expandable lists',()=>{
   const notes={'Campaigns/Clee/Item.md':'---\ntags: [object]\n---\n[[Person]]'};
-  for(const number of [4,2,1,3]) {
-    notes['Campaigns/Clee/Story '+number+'.md']='---\ntags: [source, "#Story/ballad"]\n---\n[[Person]]';
-    notes['Campaigns/Clee/Source '+number+'.md']='---\ntags: [source]\n---\n[[Person]]';
+  for(const number of [11,4,2,10,1,9,3,8,5,7,6]) {
+    const label=String(number).padStart(2,'0');
+    notes['Campaigns/Clee/Story '+label+'.md']='---\ntags: [source, "#Story/ballad"]\n---\n[[Person]]';
+    notes['Campaigns/Clee/Source '+label+'.md']='---\ntags: [source]\n---\n[[Person]]';
   }
   const {store,index}=sample(notes),groups=campaignInteractions(index,store,store.resolve('Person'),context(),registry);
   const {document}=parseHTML('<html><body>'+interactionView(groups)+'</body></html>');
   assert.deepEqual([...document.querySelectorAll('[data-reference-kind]')].map(row=>row.dataset.referenceKind),['item','story','document']);
   for(const [type,name] of [['story','Story'],['document','Source']]) {
     const row=document.querySelector('[data-reference-kind="'+type+'"]');
-    assert.deepEqual([...row.querySelectorAll('a')].map(link=>link.textContent),[1,2,3,4].map(number=>name+' '+number));
-    assert.equal(row.querySelectorAll('.interaction-reference-body > .interaction-reference-links a').length,3);
+    assert.deepEqual([...row.querySelectorAll('a')].map(link=>link.textContent),Array.from({length:11},(_,number)=>name+' '+String(number+1).padStart(2,'0')));
+    assert.equal(row.querySelectorAll('.interaction-reference-body > .interaction-reference-links a').length,10);
     assert.equal(row.querySelector('summary').textContent,'Show 1 more '+name.toLowerCase());
-    assert.equal(row.querySelector('details a').textContent,name+' 4');
+    assert.equal(row.querySelector('details a').textContent,name+' 11');
   }
   const links=[...document.querySelectorAll('.interaction-reference-links a')].map(link=>link.getAttribute('href'));
-  assert.equal(links.length,9);assert.equal(new Set(links).size,9,'a story tagged source appears only in Stories');
+  assert.equal(links.length,23);assert.equal(new Set(links).size,23,'a story tagged source appears only in Stories');
   assert.equal(document.querySelector('[data-reference-kind="item"] details'),null);
 });
 

@@ -80,7 +80,7 @@ story tags, then source tags.
 Untagged notes and notes with `meta` or `background` tags are excluded, including
 nested tags. A source note's `knownTo` flag does not bypass these exclusions.
 Links run horizontally within each category and wrap as needed. Each line shows
-its first three links; **Show more** reveals the rest in the same layout. Links open
+its first ten links; **Show more** reveals the rest in the same layout. Links open
 their notes natively. Undated recap beats retain their session labels without
 inventing a date.
 

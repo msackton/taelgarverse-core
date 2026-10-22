@@ -7,6 +7,7 @@ const referenceKinds={
   document:{label:'Sources',singular:'source',path:'M14 3H5v18h14V8l-5-5ZM14 3v5h5M8 12h8M8 16h8'},
   reference:{label:'References',singular:'reference',path:'M10 5H5v14h14v-5M13 5h6v6M19 5l-9 9'},
 };
+const referencePreviewLimit=10;
 const count=(number,singular,plural=singular+'s')=>number+' '+(number===1 ? singular : plural);
 function campaignHeading(group) {
   return '<header class="interaction-campaign-header"><h3>'+escapeHtml(group.label)+'</h3>'+
@@ -25,7 +26,7 @@ function referenceView(references) {
       const type=referenceKinds[kind];
       const icon='<span class="interaction-reference-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="'+type.path+'"/></svg></span>';
       return '<div class="interaction-reference-group" data-reference-kind="'+kind+'"><h5 class="interaction-reference-label">'+icon+type.label+'</h5><div class="interaction-reference-body">'+
-        links(items.slice(0,3))+(items.length>3 ? '<details class="interaction-reference-more"><summary>Show '+count(items.length-3,'more '+type.singular,'more '+(type.plural || type.singular+'s'))+'</summary>'+links(items.slice(3))+'</details>' : '')+'</div></div>';
+        links(items.slice(0,referencePreviewLimit))+(items.length>referencePreviewLimit ? '<details class="interaction-reference-more"><summary>Show '+count(items.length-referencePreviewLimit,'more '+type.singular,'more '+(type.plural || type.singular+'s'))+'</summary>'+links(items.slice(referencePreviewLimit))+'</details>' : '')+'</div></div>';
     }).join('')+'</div></section>';
 }
 function sourceLinks(event) {

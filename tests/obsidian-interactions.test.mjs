@@ -219,7 +219,8 @@ test('reference-only campaign choices keep the picker below the heading and nati
     assert.equal(element.querySelector('.interaction-campaign-header h3').textContent,'Other');
     assert.equal(element.querySelector('.interaction-plot,.interaction-controls,.interaction-detail'),null);
     assert.equal(element.querySelectorAll('.interaction-reference-links a').length,7);
-    assert.equal(element.querySelectorAll('.interaction-reference-more a').length,2);
+    assert.equal(element.querySelectorAll('.interaction-reference-more a').length,0);
+    assert.equal(element.querySelectorAll('.interaction-reference-body > .interaction-reference-links a').length,7);
     assert.deepEqual([...element.querySelectorAll('.interaction-reference-label')].map(node=>node.textContent),['Items','Stories','Sources']);
     for(const [path,type] of [[sword,'item'],[story,'story'],[letter,'document']]) {
       const anchor=[...element.querySelectorAll('.interaction-reference-links a')].find(link=>child.links.get(link.getAttribute('href'))===path);
