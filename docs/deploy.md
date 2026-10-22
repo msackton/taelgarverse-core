@@ -50,12 +50,14 @@ continues to read existing R2 snapshots, so deployment needs no R2 rewrite.
 
 Both previews compile [person campaign interactions](campaign-interactions.md)
 from authoritative recap Short entries in the original vault's `_sessions`
-directory, plus non-session campaign-folder backlinks. Session notes are ignored
-by the interaction index. Raw transcripts and editorial artifacts are not
+directory, plus non-session campaign-folder backlinks. Session notes supply only
+optional source links. Referenced polished beat transcripts receive separate
+revision-bound shards and website views; raw transcripts and editorial artifacts are not
 published. Recap changes refresh quick preview and participate in publication
 fingerprints. Structured scene histories require a fresh content publication;
 deploying core alone supplies authored headers and non-session references for older
-snapshots. Deploy the updated core through GitHub before publishing new content.
+snapshots. Fresh publication enables polished transcript links as well as recap
+beats. Deploy the updated core through GitHub before publishing new content.
 
 ### Roll out compiled runtime snapshots
 

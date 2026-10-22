@@ -49,7 +49,8 @@ test('recap beats exist without session notes and use Short independently of Lon
 test('renamed, duplicate, excluded and malformed session notes cannot affect recap beats',()=>{
   const expected=sample(),actual=sample({'Campaigns/Clee/Session 12.1.md':session,'Campaigns/Clee/Old session.md':session+'\n%% broken'});
   actual.store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.excludePublish=['clee'];
-  assert.deepEqual(eventsFor(actual.store,actual.index),eventsFor(expected.store,expected.index));
+  const beats=events=>events.map(({sessionUrl,...beat})=>beat);
+  assert.deepEqual(beats(eventsFor(actual.store,actual.index)),beats(eventsFor(expected.store,expected.index)));
   const plain=compileInteractionIndex(actual.store,registry,buildBacklinkIndex(actual.store));
   assert.equal(eventsFor(actual.store,plain).length,0);
 });
@@ -72,6 +73,35 @@ test('the recap owns its campaign/date/DM conditions and date intervals',()=>{
   assert.equal(eventsFor(store,undated,context('1720-01-02')).some(event=>event.title==='Meeting'),false);
   const event=eventsFor(store,undated).find(event=>event.title==='Meeting');
   assert.equal(event.precision,'undated');assert.equal(event.start,null);
+});
+
+test('session links prefer the registry path, preserve context, and omit ambiguous or unavailable destinations',()=>{
+  const campaigns={campaigns:{cleenseau:{...registry.campaigns.cleenseau,notePattern:'Session {session_padded}.md'}}};
+  const {store}=sample({'Campaigns/Clee/Session 12.1.md':session,'Campaigns/Clee/Legacy.md':session});
+  const index=compileInteractionIndex(store,campaigns,null,[parseSessionRecap(recap)]);
+  const ctx={...context('1720-01-05',['clee'],true),pov:true};
+  const events=()=>campaignInteractions(index,store,store.resolve('Person'),ctx,campaigns)[0].events;
+  assert.match(events()[0].sessionUrl,/session-12\.1\?date=1720-01-05&campaigns=clee&dm=1&pov=1/);
+  store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.excludePublish=['clee'];
+  assert.match(events()[0].sessionUrl,/legacy\?/);
+  store.lookup('Campaigns/Clee/Legacy.md').entry.note.metadata.excludePublish=['clee'];
+  assert.equal(events()[0].sessionUrl,null);assert.equal(events().length,4);
+  const ambiguous=compileInteractionIndex(store,registry,null,[parseSessionRecap(recap)]);
+  for(const entry of store.bySlug.values())delete entry.note.metadata.excludePublish;
+  assert.equal(eventsFor(store,ambiguous)[0].sessionUrl,null);
+});
+
+test('recap date and both source links appear in browser details and the no-JS fallback',()=>{
+  const {store,index}=sample({'Session.md':session});
+  index.transcripts['recap:clee:12.1:recap-001']='Person: A polished conversation.';
+  const groups=campaignInteractions(index,store,store.resolve('Person'),context(),registry);
+  const {document}=parseHTML('<html><body>'+interactionView(groups)+'</body></html>'),root=document.querySelector('[data-interaction-campaign]');
+  assert.match(root.querySelector('.interaction-fallback li').textContent,/1720-01-01 DR/);
+  assert.equal(root.querySelectorAll('.interaction-fallback li:first-child .interaction-sources a').length,2);
+  mountInteractions(root);
+  assert.match(root.querySelector('.interaction-detail').textContent,/1720-01-01 DR/);
+  assert.deepEqual([...root.querySelectorAll('.interaction-detail .interaction-sources a')].map(link=>link.textContent),['Session note','Transcript']);
+  assert.equal(root.querySelector('.interaction-detail a').getAttribute('href'),groups[0].events[0].sessionUrl);
 });
 
 test('only non-session campaign-folder backlinks supplement recap beats and preserve occurrence visibility',()=>{
@@ -164,8 +194,19 @@ test('Node recap reader imports only supported recap files and ignores private s
     const cleaned=path.join(directory,'_sessions','cleenseau','cleenseau-012.1','cleaned');fs.mkdirSync(cleaned,{recursive:true});
     fs.writeFileSync(path.join(cleaned,'cleenseau-012.1-session-recap.md'),recap);
     fs.writeFileSync(path.join(cleaned,'cleenseau-012.1-source-cleaned.md'),'private transcript');
+    fs.mkdirSync(path.join(cleaned,'beat-transcripts'));
+    fs.writeFileSync(path.join(cleaned,'beat-transcripts','approved.md'),'# Beat\n- Source Transcript: /private/raw.md\n## Transcript\n%% u0001-u0003 %%\nPerson: Polished words.');
+    const linked=recap.replace('- Locations: Inn','- Locations: Inn\n- Polished Transcript: beat-transcripts/approved.md')
+      .replace('### recap-002 | A secret','### recap-002 | A secret\n- Polished Transcript: ../cleenseau-012.1-source-cleaned.md')
+      .replace('### recap-003 | Returning','### recap-003 | Returning\n- Polished Transcript: beat-transcripts/missing.md');
+    fs.writeFileSync(path.join(cleaned,'cleenseau-012.1-session-recap.md'),linked);
     const result=readInteractionBundles({vault_dir:directory});assert.equal(result.bundles.length,1);
     assert.equal(result.bundles[0].number,'12.1');assert.equal(result.bundles[0].scenes.length,4);
     assert.doesNotMatch(JSON.stringify(result),/private transcript|Long narrative|long account/);
+    assert.equal(result.bundles[0].scenes[0].transcript,'Person: Polished words.');
+    assert.equal(result.bundles[0].scenes[1].transcript,undefined);
+    assert.equal(result.bundles[0].scenes[2].transcript,undefined);
+    assert.doesNotMatch(JSON.stringify(result.bundles),/private\/raw|u0001|Source Transcript|transcriptPath/);
+    assert.match(result.warnings.join('\n'),/invalid polished transcript reference/);
   } finally {const resolved=fs.realpathSync(directory);assert.ok(isInside(fs.realpathSync(path.join(ROOT,'.cache')),resolved));assert.ok(path.basename(resolved).startsWith('interactions-'));fs.rmSync(resolved,{recursive:true});}
 });

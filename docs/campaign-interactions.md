@@ -17,7 +17,8 @@ Short histories show individual dots; automatic grouping switches to sessions
 above six entries. Readers can group by session, day, seven-day period, or
 individual entry. Selecting a counted dot zooms into its entries; **Zoom out**
 returns to the whole history. A selected beat shows its date, title, Short text,
-location, and recap session/title. Supplementary campaign references link to
+location, and recap session/title, with **Session note** and **Transcript** links
+when available. Dates are labeled DR. Supplementary campaign references link to
 their source articles. The same actions work with touch and keyboard; without
 JavaScript, all records remain available as a linked list.
 
@@ -34,7 +35,7 @@ spanning a group boundary retains its range rather than acquiring an invented da
 | Person `knownTo` and `campaignInfo` | Authored header information. |
 | Recap `## Recap` entries | One beat per explicitly listed, resolved NPC, using the entry's title, Date, Locations, and **Short** text. |
 | Non-session articles in registered campaign folders | Supplementary backlinks labeled **Campaign reference**, with no inferred encounter date. |
-| Session notes, including legacy named notes | Ignored by the interaction index. |
+| Session notes, including legacy named notes | Optional source-link destinations; never interaction evidence. |
 
 The Node importer reads
 `_sessions/<campaign>/<session>/cleaned/*-session-recap.md`. Campaign identity
@@ -42,6 +43,11 @@ comes from the existing registry; the recap's **Campaign** and **Session Number*
 identify the session. Fractional numbers remain intact. Recap IDs identify beats.
 Neither registry `notePattern` nor any session article's filename, existence,
 body, metadata, or publication status determines whether a recap beat exists.
+For the optional session-note link, campaign and session metadata identify
+candidates. The registry's exact `campaignRoot`/`notePattern` path takes
+precedence; otherwise a single available candidate is required. Ambiguous or
+unavailable notes omit the link while preserving the recap beat. Links retain
+the reader's date, campaign, DM, and POV context.
 
 **Short** is the display text, with Markdown presentation converted to plain
 text. It need not match **Long** or a generated session note. Missing Short text
@@ -83,22 +89,39 @@ Malformed markers omit the affected beat. Session-note comments do not affect
 recap visibility. Campaign references retain source availability, POV, and
 occurrence-level campaign/date/DM filtering.
 
-Only selected, compiled fields enter the publication. Raw transcripts, Long
+Only selected, compiled fields enter the publication index. Raw transcripts, Long
 narratives, source ranges, full recap files, filesystem paths, cast bookkeeping,
-and editorial annotations are excluded. Recap files have no public article route,
-so beat details show the session and recap title without inventing a session-note
-link. Diagnostics remain in the local preparation report
+and editorial annotations are excluded. Diagnostics remain in the local preparation report
 (`.cache/cloudflare/latest.json`), outside the published index.
+
+An entry's **Polished Transcript** may reference a Markdown file directly inside
+the recap's `beat-transcripts/` directory. Only its `## Transcript` body is
+imported, with source-line marker comments removed; source-file headers are
+discarded. Missing, invalid, unreadable, or symlinked files supply no link and
+do not remove the beat. Unreferenced files and raw cleaned session transcripts
+are never discovered as transcript inputs.
+
+`/campaign-transcripts/<beat-id>` renders the polished body using the current
+date/campaign/DM/POV rules. The view requires a visible recap beat on an available
+person page before loading any text. It includes the DR date, session title, an
+available session-note link, and a return link to the originating person. Hidden
+or unavailable beats return 404; direct links cannot bypass those rules.
 
 Local previews and publication use the same compiler. Publication stores an
 optional version-2 `interactions` projection in the revision index; the Worker
 filters it per request without fetching session bodies. The person article's
-normal shard read is sufficient. Projection changes affect the revision hash.
+normal shard read is sufficient. Polished transcript bodies live in separate
+`transcripts/` shards, with content hashes in the index. They load only when a
+transcript view is opened, share the bounded Worker shard cache, and are verified
+against their hashes. Active and previous good snapshots retain those shards;
+cleanup collects shards belonging to older revisions. Projection changes affect the revision hash.
 Fingerprints include the importer/compiler and parsed fields; changing only
 Long text or machine-specific source bookkeeping does not change these inputs.
+Referenced polished transcript text does participate in the fingerprint.
 
 Deploy core through the normal website workflow, then publish content to enable
-recap beats. Snapshots without an interaction index remain readable and supply
+recap beats and polished transcript links. Older version-2 projections without
+transcript descriptors remain readable and simply omit those links. Snapshots without an interaction index remain readable and supply
 authored header information and available non-session campaign references.
 Experimental version-1 interaction projections and unknown versions require
 repreparation. Legacy version-1 backlinks remain omitted for multi-campaign

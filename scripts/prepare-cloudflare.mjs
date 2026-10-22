@@ -87,7 +87,13 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   });
   const backlinks=await timed('Compiling backlinks',()=>buildBacklinkIndex(store));
   const searchManifest=await timed('Compiling search',()=>compileSearch(store)),search=searchDescriptor(searchManifest);
-  const bundles=readInteractionBundles(settings),{warnings:interactionWarnings,...interactions}=compileInteractionIndex(store,registry,backlinks,bundles.bundles);
+  const bundles=readInteractionBundles(settings),{warnings:interactionWarnings,transcripts,...interactions}=compileInteractionIndex(store,registry,backlinks,bundles.bundles);
+  const transcriptShards=new Map();interactions.transcripts=Object.create(null);
+  for (const [id,body] of Object.entries(transcripts)) {
+    const shard=(Number.parseInt(sha(id).slice(0,2),16)%32).toString(16).padStart(2,'0');
+    const texts=transcriptShards.get(shard) || {};texts[id]=body;transcriptShards.set(shard,texts);
+    interactions.transcripts[id]={shard,sha256:sha(body)};
+  }
   const base={schemaVersion:1,sourceVersion:{commit:sourceVersion.commit,dirty:sourceVersion.dirty},settings:{default_date:settings.default_date,campaigns:settings.campaigns,respect_pov_dates:settings.respect_pov_dates === true},backlinks,
     registry,interactions,
     coreMeta:JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'.obsidian/metadata.json'),'utf8')),
@@ -102,6 +108,10 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   for (const [shard,notes] of shards) {
     const file=path.join(directory,'notes',shard+'.json');
     writeJSON(file,notes);uploads.push({key:prefix+'/notes/'+shard+'.json',file});
+  }
+  for (const [shard,texts] of transcriptShards) {
+    const file=path.join(directory,'transcripts',shard+'.json');
+    writeJSON(file,texts);uploads.push({key:prefix+'/transcripts/'+shard+'.json',file});
   }
   const index={...base,revision};
   const indexFile=path.join(directory,'index.json');writeJSON(indexFile,index);

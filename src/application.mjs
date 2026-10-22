@@ -94,6 +94,11 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns,
         if (!page) throw new RenderError(400,'page is required');
         return send(200,await renderArticle(page,date,contextId,dm,selectedCampaigns));
       }
+      if (pathname.startsWith('/campaign-transcripts/')) {
+        const id=pathname.slice('/campaign-transcripts/'.length);
+        const result=await engine.renderTranscript(id,date,contextId,dm,selectedCampaigns,pov,url.searchParams.get('person'));
+        return send(200,document({...result,context:lock(result.context)},contextOptions,engine.navigation,releases),'text/html');
+      }
       if(pathname==='/api/search'){
         const context=resolveContext();
         const input=searchInput(url.searchParams.get('q') || '',{limit:url.searchParams.get('limit') ?? 20,offset:url.searchParams.get('offset') ?? 0,type:url.searchParams.get('type') ?? ''});

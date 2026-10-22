@@ -11,7 +11,14 @@ export class SnapshotStore extends ContentStore {
     this.shards=new Map();this.pending=new Map();this.maxShards=8;
   }
   async getNote(entry) {
-    const key='revisions/'+this.revision+'/notes/'+entry.note.shard+'.json';
+    return parseNote(await this.getText('notes',entry.id,entry.note));
+  }
+  async getTranscript(id,descriptor) {
+    if (!descriptor || !/^[a-f0-9]{2}$/.test(descriptor.shard) || !/^[a-f0-9]{64}$/.test(descriptor.sha256)) throw new RenderError(503,'Transcript index is incomplete');
+    return this.getText('transcripts',id,descriptor);
+  }
+  async getText(namespace,id,descriptor) {
+    const key='revisions/'+this.revision+'/'+namespace+'/'+descriptor.shard+'.json';
     let shard=this.shards.get(key);
     if (shard) {this.shards.delete(key);this.shards.set(key,shard);}
     else {
@@ -25,11 +32,11 @@ export class SnapshotStore extends ContentStore {
       })().finally(()=>this.pending.delete(key)));
       shard=await this.pending.get(key);
     }
-    const source=shard[entry.id];
-    if (typeof source!=='string' || createHash('sha256').update(source).digest('hex')!==entry.note.sha256) {
+    const source=shard[id];
+    if (typeof source!=='string' || createHash('sha256').update(source).digest('hex')!==descriptor.sha256) {
       throw new RenderError(503,'Content snapshot does not match its index');
     }
-    return parseNote(source);
+    return source;
   }
 }
 
@@ -47,6 +54,7 @@ export async function loadSnapshot(bucket,revision) {
   const store=new SnapshotStore(index,bucket);
   const headers=createHeaderSnapshot({pages:store.entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta:index.coreMeta,registry:index.registry});
   const engine=new RenderEngine({settings:index.settings,store,headers,renderHeader,renderBio,navigationSource:index.navigationSource,
-    homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null,interactionIndex:index.interactions});
+    homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null,interactionIndex:index.interactions,
+    loadTranscript:id=>store.getTranscript(id,index.interactions?.transcripts?.[id])});
   return {engine,store,index};
 }

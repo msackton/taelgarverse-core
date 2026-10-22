@@ -1,6 +1,10 @@
 import {escapeHtml} from './common.mjs';
 
 const label = kind => ({encounter:'Encounter',reference:'Campaign reference'}[kind]);
+function sourceLinks(event) {
+  const links=[[event.sessionUrl,'Session note'],[event.transcriptUrl,'Transcript']].filter(([url])=>url);
+  return links.length ? '<nav class="interaction-sources" aria-label="Recap sources">'+links.map(([url,label])=>'<a href="'+escapeHtml(url)+'">'+label+'</a>').join('')+'</nav>' : '';
+}
 export function interactionSummary(groups) {
   if (!groups.length) return '';
   return '<p class="campaign-interaction-summary"><a href="#campaign-interactions">Campaign interactions</a> · '+groups.map(group=>
@@ -16,9 +20,9 @@ export function interactionView(groups) {
       '<p class="interaction-breadcrumb" aria-live="polite" hidden></p><div class="interaction-plot" role="group" aria-label="Interaction dots" hidden></div>'+
       '<p class="interaction-legend" hidden><span class="interaction-key encounter">Encounter</span><span class="interaction-key reference">Campaign reference</span></p>'+
       '<div class="interaction-detail" aria-live="polite" hidden></div><p class="interaction-order" hidden>Story order · spacing compressed</p>'+
-      '<ol class="interaction-fallback">'+group.events.map(event=>'<li><span>'+escapeHtml(event.start ? event.start+(event.end!==event.start ? '–'+event.end : '') : 'Date unrecorded')+' · '+label(event.kind)+'</span> '+
+      '<ol class="interaction-fallback">'+group.events.map(event=>'<li><span>'+escapeHtml(event.start ? event.start+(event.end!==event.start ? '–'+event.end : '')+' DR' : 'Date unrecorded')+' · '+label(event.kind)+'</span> '+
         (event.url ? '<a href="'+escapeHtml(event.url)+'">'+escapeHtml(event.title)+'</a>' : escapeHtml(event.title))+
-        (event.text ? '<p>'+escapeHtml(event.text)+'</p>' : '')+(!event.url && event.sourceTitle ? '<p class="interaction-event-meta">'+escapeHtml(event.sessionLabel+' · '+event.sourceTitle)+'</p>' : '')+'</li>').join('')+'</ol>'+
+        (event.text ? '<p>'+escapeHtml(event.text)+'</p>' : '')+(!event.url && event.sourceTitle ? '<p class="interaction-event-meta">'+escapeHtml(event.sessionLabel+' · '+event.sourceTitle)+'</p>' : '')+sourceLinks(event)+'</li>').join('')+'</ol>'+
       (!group.events.length ? '<p>No recap beats or campaign references recorded.</p>' : '')+
       '<script type="application/json" data-interaction-records>'+data+'</script></section>';
   }).join('')+'</section>';

@@ -25,5 +25,6 @@
 .interaction-key.mention:before{background:var(--bg)}.interaction-key.reference:before{background:var(--bg);border-style:dashed}.interaction-key.authored:before{border-radius:0;transform:rotate(45deg)}
 .interaction-detail{border-top:1px solid var(--line);padding-top:12px}.interaction-event-meta{font:12px/1.5 system-ui,sans-serif;color:var(--muted)}
 .interaction-detail h4{margin:6px 0}.interaction-source{font:13px/1.5 system-ui,sans-serif}
+.interaction-sources{display:flex;flex-wrap:wrap;gap:8px 20px;margin:10px 0;font:13px/1.5 system-ui,sans-serif}
 @media(max-width:480px){.md-typeset .interaction-dot{flex-basis:33.333%}.interaction-controls select{font-size:16px}}
 @media(pointer:coarse){.interaction-controls select,.interaction-controls button{min-height:44px}}

@@ -1,5 +1,5 @@
 // Node-only reader. The Worker receives the compiled projection, never files
-// from _sessions or the full structured recap/transcript.
+// from _sessions. Only explicitly referenced polished transcript bodies qualify.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -26,7 +26,7 @@ export function parseSessionRecap(text,key='<recap>') {
     const metadata=fields(match[3]);
     const prose=heading=>new RegExp('^#### '+heading+'\\s*\\n([\\s\\S]*?)(?=^#### |$(?![\\s\\S]))','m').exec(match[3])?.[1].trim() || '';
     scenes.push({id:match[1],title:match[2].trim(),...dates(metadata.Date),
-      people:names(metadata.NPCs),location:metadata.Locations || '',short:prose('Short')});
+      people:names(metadata.NPCs),location:metadata.Locations || '',short:prose('Short'),transcriptPath:metadata['Polished Transcript'] || null});
   }
   if (!header.Campaign || !header['Session Number']) throw new Error('Recap has no campaign/session identity');
   return {key,campaign:header.Campaign,number:header['Session Number'],title:header['Desc Title'] || header.Title || '',...dates(header['DR Date']),scenes};
@@ -53,7 +53,29 @@ export function readSessionRecaps(settings) {
 export function readInteractionBundles(settings) {
   const bundles=[],warnings=[];
   for (const {key,text} of readSessionRecaps(settings)) {
-    try {bundles.push(parseSessionRecap(text,key));}catch(error){warnings.push(key+': '+error.message);}
+    try {
+      const bundle=parseSessionRecap(text,key);
+      for (const scene of bundle.scenes) {
+        const {transcriptPath}=scene;delete scene.transcriptPath;
+        if (!transcriptPath) continue;
+        try {
+          // Polished beat artifacts are siblings of the recap, never arbitrary
+          // Source Files paths, raw cleaned sources, URLs, or symlink targets.
+          if (!/^beat-transcripts\/[\w.-]+\.md$/.test(transcriptPath)) {warnings.push(key+': invalid polished transcript reference for '+scene.id);continue;}
+          const directory=path.join(settings.vault_dir,path.dirname(key),'beat-transcripts');
+          if (!fs.existsSync(directory) || fs.lstatSync(directory).isSymbolicLink()) continue;
+          const filename=path.join(directory,path.basename(transcriptPath));
+          if (!fs.existsSync(filename)) continue;
+          const stat=fs.lstatSync(filename);
+          if (!stat.isFile() || stat.isSymbolicLink() || stat.size>8*1024*1024) {warnings.push(key+': unsupported polished transcript for '+scene.id);continue;}
+          const content=fs.readFileSync(filename,'utf8').replace(/\r\n?/g,'\n');
+          const body=/^## Transcript[ \t]*\n([\s\S]*)$/m.exec(content)?.[1]
+            .replace(/^[ \t]*%%\s*u\d+(?:\s*[-–]\s*u?\d+)?\s*%%[ \t]*(?:\n|$)/gm,'').trim();
+          if (body) scene.transcript=body;
+        } catch(error) {warnings.push(key+': transcript for '+scene.id+' omitted: '+error.message);}
+      }
+      bundles.push(bundle);
+    } catch(error){warnings.push(key+': '+error.message);}
   }
   return {bundles,warnings};
 }

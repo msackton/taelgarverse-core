@@ -8,6 +8,8 @@ test('every publication path restricts uploads to immutable keys from its own re
   assert.doesNotThrow(()=>validatePublicationUploads(rev('a'),[{key:key('a')},{key:asset('b')} ]));
   for(const uploads of [[],null,[null],[{key:POINTER_KEY}],[{key:key('b')}],[{key:'revisions/'+rev('a')+'/../index.json'}]])assert.throws(()=>validatePublicationUploads(rev('a'),uploads),/unexpected object keys/);
   assert.throws(()=>validatePublicationUploads('.*',[{key:key('a')}]),/unexpected object keys/);
+  assert.doesNotThrow(()=>validatePublicationUploads(rev('a'),[{key:`revisions/${rev('a')}/transcripts/01.json`}]));
+  for(const suffix of ['../01.json','zz.json','01/extra.json'])assert.throws(()=>validatePublicationUploads(rev('a'),[{key:`revisions/${rev('a')}/transcripts/${suffix}`}]),/unexpected object keys/);
 });
 test('only successful distinct activations rotate the one rollback snapshot; same revision and rollback preserve it',()=>{
   const a={revision:rev('a')},b=activationPointer(a,{revision:rev('b')});
@@ -38,6 +40,16 @@ test('R2 sweep deletes old snapshots and orphaned assets, preserving shared asse
   assert.equal(result.deletedBytes,30);assert.ok(f.objects.has(asset('b')));
   assert.equal((await prunePublication(f.storage,f.index,f.pointer)).deletedObjects,0);
 });
+test('transcript shards follow active and rollback revisions and missing retained transcripts stop cleanup',async()=>{
+  for(const missing of [false,true]) {
+    const f=fixture(),old=`revisions/${rev('a')}/transcripts/01.json`,previous=`revisions/${rev('b')}/transcripts/02.json`;
+    f.objects.get(key('b')).interactions={transcripts:{beat:{shard:'02'}}};
+    f.objects.set(old,{});if(!missing)f.objects.set(previous,{});
+    if(missing){await assert.rejects(prunePublication(f.storage,f.index,f.pointer),/missing/);assert.equal(f.deleted.length,0);}
+    else{await prunePublication(f.storage,f.index,f.pointer);assert.ok(f.deleted.includes(old));assert.ok(f.objects.has(previous));}
+  }
+});
+
 test('dry-run does not delete anything; rollback verifies before swapping the two good snapshots',async()=>{
   const f=fixture();const plan=await prunePublication(f.storage,f.index,f.pointer,{dryRun:true});assert.equal(plan.deletedObjects,3);assert.equal(f.pruned.length,0);assert.equal(f.deleted.length,0);
   f.index.withPublicationLock=action=>action();f.storage.putPointer=async pointer=>f.objects.set(POINTER_KEY,pointer);

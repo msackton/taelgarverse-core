@@ -11,7 +11,7 @@ import {validRuntimeDescriptor,runtimeHash,supportedRuntimeVersion} from '../src
 export const POINTER_KEY='published/current.json';
 const revisionPattern=/^[a-f0-9]{64}$/;
 const assetPattern=/^assets\/[a-f0-9]{64}$/;
-const snapshotPattern=/^revisions\/([a-f0-9]{64})\/(?:index\.json|runtime\.json|notes\/[a-f0-9]{2}\.json|runtime\/(?:render|navigation|headers|backlinks|search-metadata|assets\/[a-f0-9]{2}|(?:notes|backlinks)\/[0-9]{4,})\.json)$/;
+const snapshotPattern=/^revisions\/([a-f0-9]{64})\/(?:index\.json|runtime\.json|(?:notes|transcripts)\/[a-f0-9]{2}\.json|runtime\/(?:render|navigation|headers|backlinks|search-metadata|assets\/[a-f0-9]{2}|(?:notes|backlinks)\/[0-9]{4,})\.json)$/;
 
 export function validatePublicationUploads(revision,uploads){
   if(!revisionPattern.test(revision || '') || !Array.isArray(uploads) || !uploads.length || uploads.some(item=>{
@@ -160,6 +160,10 @@ export async function prunePublication(storage,index,pointer,{log=()=>{},dryRun=
         if(descriptors.some(value=>!validRuntimeDescriptor(value)))throw new Error('Invalid retained prepared note descriptor');
         keep.add(prefix+'runtime.json');
         for(const descriptor of descriptors)keep.add(prefix+descriptor.file);
+      }
+      for(const descriptor of Object.values(content.interactions?.transcripts || {})) {
+        if(!/^[a-f0-9]{2}$/.test(descriptor?.shard || ''))throw new Error('Invalid retained transcript shard');
+        keep.add(`revisions/${snapshot.revision}/transcripts/${descriptor.shard}.json`);
       }
       if(snapshot.search && JSON.stringify(snapshot.search)!==JSON.stringify(content.search))throw new Error('Retained search descriptor does not match R2');
       if(content.search)await index.verify(snapshot.revision,content.search);

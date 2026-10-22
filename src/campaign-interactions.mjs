@@ -1,4 +1,4 @@
-import {dateKey, pageUrl} from './common.mjs';
+import {dateKey, pageUrl, contextQuery} from './common.mjs';
 import {availableInContext} from './content-store.mjs';
 import {buildBacklinkCampaigns} from './backlinks.mjs';
 import {filterComments} from './comments.mjs';
@@ -60,6 +60,18 @@ function beatVariants(scene,sourceTitle) {
   return [...variants.values()];
 }
 function isPerson(entry) { return list(entry?.note?.metadata.tags).includes('person'); }
+function sessionSources(store,registry,identities,campaign,number) {
+  const candidates=[...store.bySlug.values()].filter(entry=>list(entry.note.metadata.tags).includes('session-note') &&
+    identities.get(normalize(entry.note.metadata.campaign))===campaign && String(entry.note.metadata.sessionNumber)===String(number));
+  const config=Object.values(registry.campaigns || {}).find(item=>item.code===campaign);
+  let preferred;
+  if (config?.campaignRoot && config.notePattern && /^\d+(?:\.\d+)?$/.test(String(number))) {
+    const [whole,fraction]=String(number).split('.'),padded=whole.padStart(2,'0')+(fraction ? '.'+fraction : '');
+    const expected=(config.campaignRoot.replace(/[\\/]+$/,'')+'/'+config.notePattern.replaceAll('{session_padded}',padded).replaceAll('{session}',String(number))).replaceAll('\\','/');
+    preferred=candidates.find(entry=>entry.id===expected)?.slug;
+  }
+  return {candidates:candidates.map(entry=>entry.slug),...(preferred ? {preferred} : {})};
+}
 function explicitTarget(store,name,warnings,source) {
   const raw=String(name).trim(),match=/^\[\[([^\]|]+)(?:\|[^\]]*)?\]\]$/.exec(raw);
   let found=store.lookup(match ? match[1] : raw);
@@ -71,7 +83,7 @@ function explicitTarget(store,name,warnings,source) {
   return isPerson(found.entry) ? found.entry : null;
 }
 export function compileInteractionIndex(store,registry,backlinks,bundles=[]) {
-  const identities=campaignIdentities(registry),byTarget=Object.create(null),warnings=[],recaps=new Map();
+  const identities=campaignIdentities(registry),byTarget=Object.create(null),transcripts=Object.create(null),warnings=[],recaps=new Map();
   const append=(target,record)=>{(byTarget[target] ||= []).push(record);};
   for (const bundle of bundles) {
     const campaign=identities.get(normalize(bundle.campaign));
@@ -84,6 +96,7 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=[]) {
     const bundle=items[0],campaign=identities.get(normalize(bundle.campaign)),ids=new Set(),duplicates=new Set();
     for (const scene of bundle.scenes) {if(ids.has(scene.id))duplicates.add(scene.id);ids.add(scene.id);}
     const headerEnd=interactionDate(bundle.end || bundle.date)?.end;
+    const sources=sessionSources(store,registry,identities,campaign,bundle.number);
     for (const scene of bundle.scenes) {
       if (duplicates.has(scene.id)) {warnings.push(bundle.key+': duplicate beat '+scene.id);continue;}
       const period=interactionDate(scene.date),until=interactionDate(scene.end) || period;
@@ -92,8 +105,14 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=[]) {
         const variants=beatVariants(scene,bundle.title || 'Session '+bundle.number);
         if (!variants.length) {warnings.push(bundle.key+': missing visible Short text for '+scene.id);continue;}
         const targets=new Set(scene.people.map(name=>explicitTarget(store,name,warnings,bundle.key)?.slug).filter(Boolean));
-        for (const target of targets) append(target,{id:'recap:'+identity+':'+scene.id,campaign,kind:'encounter',
+        const id='recap:'+identity+':'+scene.id;
+        if (targets.size && scene.transcript) {
+          try {filterComments(scene.transcript,{date:'0001-01-01'});transcripts[id]=scene.transcript;}
+          catch(error) {warnings.push(bundle.key+': transcript for '+scene.id+' omitted: '+error.message);}
+        }
+        for (const target of targets) append(target,{id,campaign,kind:'encounter',sessionSources:sources,
           session:'recap:'+identity,sessionLabel:'Session '+bundle.number,variants,
+          sessionStart:interactionDate(bundle.date)?.start || null,sessionEnd:headerEnd || null,
           start:period?.start || null,end:until?.end || null,cutoff:until?.end || headerEnd || null,
           precision:period ? period.start===until.end ? period.precision : 'range' : 'undated'});
       } catch(error) {warnings.push(bundle.key+': beat '+scene.id+' omitted: '+error.message);}
@@ -112,7 +131,7 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=[]) {
         campaign,source:source.slug,kind:'reference',when:link.when});
     }
   }
-  return {version:2,backlinkVersion:backlinks?.version || null,byTarget,warnings};
+  return {version:2,backlinkVersion:backlinks?.version || null,byTarget,transcripts,warnings};
 }
 export function campaignInteractions(index,store,entry,context,registry) {
   if (!isPerson(entry) || !availableInContext(entry,context,store.settings)) return [];
@@ -126,8 +145,11 @@ export function campaignInteractions(index,store,entry,context,registry) {
       if (record.cutoff && record.cutoff>context.date) continue;
       const variant=record.variants.find(item=>interactionRuleVisible(item.when,context));
       if (!variant) continue;
-      const {when,...text}=variant,{variants,cutoff,campaign,...event}=record;
-      group.events.push({...event,...text,url:null});
+      const {when,...text}=variant,{variants,cutoff,campaign,sessionSources:sources,...event}=record;
+      const candidates=(sources?.candidates || []).map(slug=>store.bySlug.get(slug)).filter(source=>availableInContext(source,context,store.settings));
+      const source=candidates.find(entry=>entry.slug===sources?.preferred) || (candidates.length===1 ? candidates[0] : null);
+      group.events.push({...event,...text,url:null,sessionUrl:source ? pageUrl(source.slug,context.date,context) : null,
+        transcriptUrl:Object.hasOwn(index.transcripts || {},record.id) ? '/campaign-transcripts/'+encodeURIComponent(record.id)+'?'+contextQuery(context)+'&person='+encodeURIComponent(entry.slug) : null});
     } else {
       const source=store.bySlug.get(record.source);
       if (!availableInContext(source,context,store.settings) || (index.backlinkVersion===1 && context.campaigns.length>1) || !interactionRuleVisible(record.when,context)) continue;

@@ -1,4 +1,4 @@
-import {RenderError, escapeHtml, parseDM, parsePOV} from './common.mjs';
+import {RenderError, escapeHtml, parseDM, parsePOV, pageUrl} from './common.mjs';
 import {buildBacklinkIndex,buildBacklinkCampaigns,linkedFrom} from './backlinks.mjs';
 import {parseNote, availableInContext} from './content-store.mjs';
 import {filterComments} from './comments.mjs';
@@ -17,7 +17,7 @@ import {compileInteractionIndex,campaignInteractions} from './campaign-interacti
 import {interactionSummary,interactionView} from './interaction-view.mjs';
 
 export class RenderEngine {
-  constructor({settings,store,headers,renderHeader,renderBio,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles=[]}) {
+  constructor({settings,store,headers,renderHeader,renderBio,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles=[],loadTranscript}) {
     this.settings = settings;
     this.store = store;
     this.store.settings = settings;
@@ -35,6 +35,7 @@ export class RenderEngine {
     this.loadBacklinks = prepared?.loadBacklinks;
     if (backlinkIndex === undefined) this.store.warnings.push(...this.backlinkIndex.warnings);
     this.interactionIndex = interactionIndex || compileInteractionIndex(store,headers.registry,this.backlinkIndex,interactionBundles);
+    this.loadTranscript = loadTranscript;
     if (!interactionIndex) this.store.warnings.push(...this.interactionIndex.warnings);
   }
 
@@ -95,6 +96,31 @@ export class RenderEngine {
     const {entry} = this.resolvePage(page,date,contextId,dm,selectedCampaigns,pov);
     const [note,backlinks] = await Promise.all([loadNote(entry),this.loadBacklinks ? this.loadBacklinks(entry) : this.backlinkIndex]);
     return this.loadEmbeds(loading=>this.render(page,date,contextId,dm,note,selectedCampaigns,loading,pov,backlinks),loadNote,new Map([[entry.id,note]]));
+  }
+
+  async renderTranscript(id,date,contextId,dm=false,selectedCampaigns,pov,fromPerson) {
+    const context={...this.contexts.resolve(contextId,date,selectedCampaigns),dm:parseDM(dm),...(pov===undefined ? {} : {pov:parsePOV(pov)})};
+    const transcripts=this.interactionIndex.transcripts || {};
+    if (!Object.hasOwn(transcripts,id)) throw new RenderError(404,'Transcript is not available in this context');
+    let entry,event;
+    for (const [target,records] of Object.entries(this.interactionIndex.byTarget)) {
+      if (fromPerson && target!==fromPerson) continue;
+      if (!records.some(record=>record.id===id)) continue;
+      const person=this.store.bySlug.get(target);
+      const visible=campaignInteractions(this.interactionIndex,this.store,person,context,this.headers.registry).flatMap(group=>group.events).find(record=>record.id===id);
+      if (visible?.transcriptUrl) {entry=person;event=visible;break;}
+    }
+    if (!event) throw new RenderError(404,'Transcript is not available in this context');
+    // Check context before loading a transcript shard. Ordinary person requests
+    // never load transcript text, and the revision index contains no bodies.
+    const body=this.loadTranscript ? await this.loadTranscript(id) : transcripts[id];
+    if (typeof body!=='string') throw new RenderError(503,'Transcript content is incomplete');
+    const rendered=this.renderBody(body,entry,context);
+    const period=event.start ? event.start+(event.end!==event.start ? '–'+event.end : '')+' DR' : 'Date unrecorded';
+    const links='<a href="'+escapeHtml(pageUrl(entry.slug,context.date,context))+'#campaign-interactions">Back to '+escapeHtml(entry.title)+'</a>'+
+      (event.sessionUrl ? ' · <a href="'+escapeHtml(event.sessionUrl)+'">Session note</a>' : '');
+    return {...rendered,title:event.title+' — Transcript',context,date:context.date,dm:context.dm,campaigns:[...context.campaigns],
+      html:'<h1>'+escapeHtml(event.title)+' — Transcript</h1><p>'+escapeHtml(period+' · '+event.sessionLabel+' · '+event.sourceTitle)+'</p><p>'+links+'</p>'+rendered.html};
   }
 
   async loadEmbeds(render,loadNote,notes=new Map()) {

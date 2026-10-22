@@ -369,7 +369,10 @@ Person pages also show a **Campaign interactions** summary and grouped dot histo
 for the selected campaigns. `knownTo` supplies undated party knowledge and
 `campaignInfo` retains its normal header wording. Authoritative recap entries
 supply encounter dots using their explicit NPCs, dates, and Short text. Session
-notes are ignored; non-session campaign-folder backlinks supply separate references.
+notes supply only optional source links; non-session campaign-folder backlinks
+supply separate references. Beat details show DR dates and links to available
+session notes and polished beat transcript views. Missing source links never
+remove recap beats.
 Readers can group by session, day, or seven-day period and zoom into counted dots.
 This does not infer encounters from mentions or filter page availability by party
 knowledge. See [campaign interaction sources and rules](campaign-interactions.md).
