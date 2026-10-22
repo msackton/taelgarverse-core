@@ -54,16 +54,18 @@ class InteractionsChild extends MarkdownRenderChild {
         const label=element.ownerDocument.createElement('label');label.className='taelgar-interaction-campaign';label.textContent='Campaign ';
         label.append(select);timeline.querySelector('.campaign-interactions > h2').after(label);
       }
-      output.append(timeline);this.links=links;element.replaceChildren(output);
-      for(const campaign of timeline.querySelectorAll('[data-interaction-campaign]'))mountInteractions(campaign);this.measure();
+      this.disposeTimelines();output.append(timeline);this.links=links;element.replaceChildren(output);
+      this.timelines=[...timeline.querySelectorAll('[data-interaction-campaign]')].map(campaign=>mountInteractions(campaign));this.measure();
     } catch(error) {
       if(this.disposed || sequence!==this.sequence)return;
+      this.disposeTimelines();
       element.classList.remove('taelgar-interactions--knowledge-only','taelgar-interactions--compact');
       element.textContent='Campaign interactions unavailable: '+error.message;this.measure();
     }
   }
+  disposeTimelines() {for(const dispose of this.timelines || [])dispose?.();this.timelines=[];}
   onunload() {
-    this.disposed=true;this.sequence++;this.observer?.disconnect();
+    this.disposed=true;this.sequence++;this.observer?.disconnect();this.disposeTimelines();
     this.feature.panels.delete(this.containerEl);this.containerEl.replaceChildren();
   }
 }

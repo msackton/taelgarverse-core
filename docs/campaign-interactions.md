@@ -26,10 +26,14 @@ dot timelines below the same header.
 Short histories show individual dots; automatic grouping switches to sessions
 above six entries. Readers can group by session, day, seven-day period, or
 individual entry. Selecting a counted dot zooms into its entries; **Zoom out**
-returns to the whole history. A selected beat shows its date, title, Short text,
-location, and recap session/title, with **Session note** and **Transcript** links
-when available. Dates are labeled DR. The same actions work with touch and
-keyboard; without JavaScript, recap beats remain available as a linked list.
+returns to the whole history. Selecting an individual dot opens a compact popup
+beside it with its date, title, Short text, location, and recap session/title,
+with **Session note** and **Transcript** links when available. Details start
+closed. A close button, Escape, an outside click, or selecting the dot again
+dismisses the popup; only one is open across campaigns. Grouping, campaign changes,
+and note closure also dismiss it. The popup fits the viewport and scrolls for long
+text. Dates are labeled DR. Touch and keyboard use the same actions; without
+JavaScript, recap beats remain available as a linked list.
 
 Recap beats contribute encounter dots and counts. When a session has no recap
 file, explicit NPC links in its official session note contribute one hollow

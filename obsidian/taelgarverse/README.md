@@ -43,6 +43,12 @@ interactions** heading and campaign picker stay above the content; choosing a
 campaign with recap beats adds its timeline below the same header. This applies
 to automatic footers and explicit blocks.
 
+Click or tap an individual dot to open a compact popup containing its date,
+details, and source links. Details stay closed initially, and one popup is shown
+at a time across campaigns. Close it with its close button, Escape, an outside
+click, or the same dot. Grouping and campaign changes also close it. Keyboard
+users can activate dots with Enter or Space; Escape returns focus to the dot.
+
 Recap beats contribute encounter dots and counts. Sessions without a recap use
 explicit NPC links in the official session note as hollow **Session reference**
 dots, counted separately, with the session date and a native note link. An

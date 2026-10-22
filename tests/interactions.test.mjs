@@ -11,6 +11,7 @@ import {parseSessionRecap,readInteractionBundles} from '../src/session-interacti
 import {interactionSummary,interactionView} from '../src/interaction-view.mjs';
 import {groupInteractions,interactionDay} from '../src/browser/interaction-groups.mjs';
 import {mountInteractions} from '../src/browser/interactions.mjs';
+import {imageDOM} from './helpers/image-dom.mjs';
 import {RenderEngine,document} from '../src/render-engine.mjs';
 import {ROOT,isInside} from '../src/config.mjs';
 
@@ -147,6 +148,8 @@ test('recap date and both source links appear in browser details and the no-JS f
   assert.match(root.querySelector('.interaction-fallback li').textContent,/1720-01-01 DR/);
   assert.equal(root.querySelectorAll('.interaction-fallback li:first-child .interaction-sources a').length,2);
   mountInteractions(root);
+  assert.equal(root.querySelector('.interaction-detail').hidden,true);
+  root.querySelector('.interaction-dot').click();
   assert.match(root.querySelector('.interaction-detail').textContent,/1720-01-01 DR/);
   assert.deepEqual([...root.querySelectorAll('.interaction-detail .interaction-sources a')].map(link=>link.textContent),['Session note','Transcript']);
   assert.equal(root.querySelector('.interaction-detail a').getAttribute('href'),groups[0].events[0].sessionUrl);
@@ -366,6 +369,7 @@ test('undated recap beats retain their session when grouped by date, without bor
   assert.match(document.querySelector('.interaction-fallback').textContent,/Session 12\.1 · Date unrecorded/);
   const root=document.querySelector('[data-interaction-campaign]');mountInteractions(root);
   assert.match(root.querySelector('.interaction-dot-date').textContent,/Session 12\.1 · Date unrecorded/);
+  root.querySelector('.interaction-dot').click();
   assert.match(root.querySelector('.interaction-detail').textContent,/Session dates: 1720-01-01–1720-01-03 DR/);
   assert.doesNotMatch(root.querySelector('.interaction-dot-date').textContent,/1720-01-01/);
 });
@@ -397,8 +401,10 @@ test('browser dots select details and zoom into/out of groups, with an accessibl
   const root=document.querySelector('[data-interaction-campaign]');
   assert.equal(root.querySelectorAll('.interaction-fallback li').length,27);
   mountInteractions(root);assert.equal(root.querySelector('.interaction-fallback').hidden,true);
+  assert.equal(root.querySelector('.interaction-detail').hidden,true,'nothing is expanded on initial render');
   assert.equal(root.querySelectorAll('.interaction-dot').length,6);
   root.querySelector('.interaction-dot').click();assert.equal(root.querySelectorAll('.interaction-dot').length,5);
+  assert.equal(root.querySelector('.interaction-detail').hidden,true,'zooming does not open details');
   root.querySelectorAll('.interaction-dot')[4].click();assert.equal(root.querySelector('.interaction-detail h4').textContent,'Interaction 4');
   root.querySelector('[data-interaction-back]').click();assert.equal(root.querySelectorAll('.interaction-dot').length,6);
   const select=root.querySelector('select');select.querySelector('option[value="event"]').selected=true;select.dispatchEvent(new window.Event('change'));
@@ -407,6 +413,50 @@ test('browser dots select details and zoom into/out of groups, with an accessibl
   const parsed=parseHTML('<html><body>'+hostile+'</body></html>').document;
   assert.equal(parsed.querySelectorAll('img').length,0);assert.equal(parsed.querySelectorAll('script').length,1);
   assert.equal(JSON.parse(parsed.querySelector('script').textContent).events[0].title,JSON.parse(JSON.stringify([{...events[0],title:'</script><img src=x onerror=alert(1)>'}]))[0].title);
+});
+
+test('dot popups show source links, dismiss accessibly, stay in the viewport, and clean up when unmounted',()=>{
+  const event={id:'one',kind:'encounter',title:'An encounter',text:'Authored recap text.',start:'1720-01-01',end:'1720-01-01',precision:'day',sessionLabel:'Session 1',sourceTitle:'At the Inn',sessionUrl:'/page/session',transcriptUrl:'/campaign-transcripts/one'};
+  const markup=interactionView([{code:'clee',label:'Cleenseau',known:true,events:[event]}]);
+  const dom=imageDOM(markup+markup+'<button id="outside">Elsewhere</button>'),{document,window,click}=dom;
+  Object.defineProperty(window,'innerWidth',{value:400,configurable:true});Object.defineProperty(window,'innerHeight',{value:600,configurable:true});
+  const roots=[...document.querySelectorAll('[data-interaction-campaign]')],disposers=roots.map(root=>mountInteractions(root));
+  const [first,second]=roots.map(root=>({dot:root.querySelector('.interaction-dot'),popup:root.querySelector('.interaction-detail')}));
+  roots[0].getBoundingClientRect=()=>({left:20,top:100});
+  first.dot.getBoundingClientRect=()=>({left:350,right:394,top:500,bottom:544,width:44,height:44});
+  first.popup.getBoundingClientRect=()=>({width:300,height:240});
+  assert.equal(first.popup.hidden,true);assert.equal(first.dot.getAttribute('aria-expanded'),'false');
+  assert.notEqual(first.popup.id,second.popup.id,'multiple campaign views have unique dialog identities');
+  click(first.dot);
+  assert.equal(first.popup.hidden,false);assert.equal(first.popup.getAttribute('role'),'dialog');
+  assert.equal(first.dot.getAttribute('aria-controls'),first.popup.id);assert.equal(first.dot.getAttribute('aria-expanded'),'true');
+  assert.equal(first.popup.style.left,'68px');assert.equal(first.popup.style.top,'152px','the popup flips above a dot near the bottom edge');
+  assert.match(first.popup.textContent,/1720-01-01 DR/);assert.equal(first.popup.querySelectorAll('a').length,2);
+  assert.equal(document.activeElement,first.popup.querySelector('button'));
+  click(first.popup.querySelector('a'));assert.equal(first.popup.hidden,false,'source links remain clickable');
+  click(document.querySelector('#outside'));assert.equal(first.popup.hidden,true);assert.equal(first.dot.getAttribute('aria-expanded'),'false');
+  click(first.dot);dom.event(document,'keydown',{key:'Escape'});
+  assert.equal(first.popup.hidden,true);assert.equal(document.activeElement,first.dot);
+  click(first.dot);click(first.dot);assert.equal(first.popup.hidden,true,'clicking the same dot toggles the popup');
+  click(first.dot);click(second.dot);assert.equal(first.popup.hidden,true);assert.equal(second.popup.hidden,false,'only one popup remains open across campaigns');
+  click(second.popup.querySelector('button'));assert.equal(second.popup.hidden,true);assert.equal(document.activeElement,second.dot);
+  click(first.dot);disposers[0]();assert.equal(first.popup.hidden,true);
+  dom.event(document,'keydown',{key:'Escape'});assert.notEqual(document.activeElement,first.dot,'unmount removes the global Escape handler');
+  disposers[1]();
+});
+
+test('native interaction popovers escape scroll clipping and close on grouping changes or disposal',()=>{
+  const events=[1,2].map(number=>({id:String(number),kind:'encounter',title:'Encounter '+number,start:'1720-01-01',end:'1720-01-01',precision:'day'}));
+  const dom=imageDOM(interactionView([{code:'clee',label:'Cleenseau',events}]));
+  const root=dom.document.querySelector('[data-interaction-campaign]'),popup=root.querySelector('.interaction-detail');
+  let opens=0,closes=0;popup.showPopover=()=>{opens++;};popup.hidePopover=()=>{closes++;};
+  const dispose=mountInteractions(root);
+  assert.equal(popup.getAttribute('popover'),'manual');assert.equal(opens,0);
+  dom.click(root.querySelector('.interaction-dot'));assert.equal(opens,1);
+  const select=root.querySelector('select');select.querySelector('option[value="day"]').selected=true;dom.event(select,'change');
+  assert.equal(popup.hidden,true);assert.equal(closes,1);
+  dom.click(root.querySelector('.interaction-dot'));assert.equal(opens,1,'a grouped dot zooms without opening details');
+  dom.click(root.querySelector('.interaction-dot'));assert.equal(opens,2);dispose();assert.equal(closes,2);
 });
 
 test('Node recap reader imports only supported recap files and ignores private source artifacts',()=>{

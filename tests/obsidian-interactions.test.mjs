@@ -118,21 +118,27 @@ test('explicit blocks select known campaigns, retain choice after refresh, and o
     assert.ok(element.querySelector('.campaign-interactions > h2 + .taelgar-interaction-campaign select'));
     assert.equal(element.querySelectorAll('.interaction-detail').length,2);
     assert.equal(element.querySelectorAll('.interaction-dot').length,2,'All mounts both campaign timelines');
+    assert.ok([...element.querySelectorAll('.interaction-detail')].every(popup=>popup.hidden),'campaign details start closed');
     assert.match(element.textContent,/Cleenseau party/);
     assert.match(element.textContent,/other party/);
+    h.click(element.querySelector('.interaction-dot'));
     const sessionLink=element.querySelector('.interaction-detail .interaction-sources a');
     assert.ok(child.links.has(sessionLink.getAttribute('href')),sessionLink.outerHTML+' '+JSON.stringify([...child.links]));
     h.click(sessionLink);
     assert.equal(h.opened[0][0],'Campaigns/Clee/Session 01.md');
     h.click(element.querySelector('.interaction-detail .interaction-sources a:last-child'));assert.match(h.opened[1][0],/beat-transcripts\/meeting.md/);
+    const previousPopup=element.querySelector('.interaction-detail');assert.equal(previousPopup.hidden,false);
     const select=element.querySelector('select[aria-label="Campaign"]');select.querySelector('option[value="other"]').selected=true;select.dispatchEvent(new h.window.Event('change'));await h.settle();
+    assert.equal(previousPopup.hidden,true,'switching campaigns disposes the open popup');
     assert.match(element.textContent,/other party/);assert.doesNotMatch(element.textContent,/Cleenseau party/);
     h.cache.trigger('changed');await pause(190);await h.settle();assert.match(element.textContent,/other party/);
     const all=element.querySelector('select[aria-label="Campaign"]');all.querySelector('option[value="all"]').selected=true;all.dispatchEvent(new h.window.Event('change'));await h.settle();
+    for(const dot of element.querySelectorAll('.interaction-dot'))h.click(dot);
     assert.match(element.querySelectorAll('.interaction-detail')[0].textContent,/Cleenseau party/);
     assert.match(element.querySelectorAll('.interaction-detail')[1].textContent,/other party/);
     h.cache.trigger('changed');await pause(190);await h.settle();assert.equal(element.querySelector('select[aria-label="Campaign"]').value,'all');
-    child.unload();assert.equal(h.feature.panels.size,0);
+    h.click(element.querySelector('.interaction-dot'));const openPopup=element.querySelector('.interaction-detail');
+    child.unload();assert.equal(openPopup.hidden,true);assert.equal(h.feature.panels.size,0);
   }finally{h.feature.unload();}
   assert.equal(h.intervals.size,0);assert.equal(h.cache.count,0);assert.equal(h.vault.count,0);assert.equal(h.workspace.count,0);assert.equal(h.resize.size,0);
 });
@@ -222,6 +228,7 @@ test('reference-only campaign choices keep the picker below the heading and nati
     await choose('clee');
     assert.ok(element.querySelector('.interaction-dot'));
     assert.equal(element.classList.contains('taelgar-interactions--compact'),false);
+    h.click(element.querySelector('.interaction-dot'));
     assert.match(element.querySelector('.interaction-detail').textContent,/Cleenseau party/);
     child.unload();
   }finally{h.feature.unload();}
