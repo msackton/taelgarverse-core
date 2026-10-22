@@ -50,7 +50,8 @@ do not infer ownership or receipt of an item. Untagged notes and notes carrying
 `meta` or `background` tags are excluded,
 including nested tags and notes that also have other types. These exclusions
 apply to references in existing published indexes as well as new indexes.
-Each line sorts its links by title, with the first three visible and its own
+Links flow horizontally within each category and wrap onto another line when
+needed, including expanded links. Each line sorts its links by title, with the first three visible and its own
 native **Show more** disclosure for the remainder. They work without JavaScript.
 A document's own date never becomes an encounter date.
 

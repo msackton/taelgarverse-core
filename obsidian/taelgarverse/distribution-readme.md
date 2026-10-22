@@ -74,7 +74,8 @@ Empty categories are omitted. A note appears once; item tags take precedence ove
 story tags, then source tags.
 Untagged notes and notes with `meta` or `background` tags are excluded, including
 nested tags. A source note's `knownTo` flag does not bypass these exclusions.
-Each line shows its first three links; **Show more** reveals the rest. Links open
+Links run horizontally within each category and wrap as needed. Each line shows
+its first three links; **Show more** reveals the rest in the same layout. Links open
 their notes natively. Undated recap beats retain their session labels, including
 when grouped by day or seven-day period, without inventing a date.
 

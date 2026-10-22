@@ -131,8 +131,8 @@ html[dir] .md-typeset .breadcrumbs li { display: inline-flex; align-items: basel
 .md-typeset h4 { font-size: 19px; }
 .md-typeset p { margin: 0 0 1.1em; }
 /* Indent prose lists without changing navigation, gallery, or card layouts. */
-html[dir] .md-typeset :is(ul,ol):not(:where(.breadcrumbs *, .grid.cards *, .gallery *, .home-destinations *)) { padding-inline-start: 2em; margin-inline: 0; }
-html[dir] .md-typeset li:not(:where(.breadcrumbs *, .grid.cards *, .gallery *, .home-destinations *)) { margin-inline: 0; padding-inline-start: .25em; }
+html[dir] .md-typeset :is(ul,ol):not(:where(.breadcrumbs *, .grid.cards *, .gallery *, .home-destinations *, .interaction-reference-links)) { padding-inline-start: 2em; margin-inline: 0; }
+html[dir] .md-typeset li:not(:where(.breadcrumbs *, .grid.cards *, .gallery *, .home-destinations *, .interaction-reference-links *)) { margin-inline: 0; padding-inline-start: .25em; }
 .md-typeset .grid.cards { background: var(--surface); font: 14px/1.65 system-ui, sans-serif; padding: 12px 16px; border-left: 2px solid var(--accent); margin-bottom: 24px; }
 .md-typeset .grid.cards.ext-one-column { font-size: 16px; }
 .md-typeset .grid.cards > ul > li { border: 0; padding: 0; border-radius: 0; }

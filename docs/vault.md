@@ -379,7 +379,7 @@ notes supply no dots. An existing recap suppresses note fallback for the whole
 session, even when it contains no visible beat for the person. Non-session
 campaign-folder backlinks supply separate links under **Related campaign material**. Untagged sources and
 sources with `meta` or `background` tags (including nested tags) are excluded.
-Related links have separate Items, Stories, Sources, and other References lines,
+Related links run horizontally with wrapping on separate Items, Stories, Sources, and other References lines,
 based on authored tags, each with its own **Show more** for longer lists.
 Selecting a dot opens its details in a compact popup with DR dates and links to
 available session notes and polished beat transcript views. Popups start closed

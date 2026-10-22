@@ -51,8 +51,8 @@
 .interaction-reference-group{display:contents}
 .md-typeset h5.interaction-reference-label{display:flex;align-items:center;gap:6px;margin:0;padding:4px 0;color:var(--muted);font:500 13px/1.5 system-ui,sans-serif;text-transform:none}
 .interaction-reference-body{min-width:0}
-.md-typeset .interaction-reference-links{display:flex;flex-wrap:wrap;gap:4px 20px;list-style:none;margin:0;padding:0}
-.md-typeset .interaction-reference-links li{display:flex;align-items:center;flex-wrap:wrap;gap:6px;max-width:100%;margin:0;font:13px/1.5 system-ui,sans-serif}
+html .md-typeset ul.interaction-reference-links{display:flex;flex-flow:row wrap;align-items:baseline;gap:4px 20px;width:auto;list-style:none;margin:0;padding:0}
+html .md-typeset ul.interaction-reference-links>li{display:flex;flex:0 1 auto;align-items:center;gap:6px;width:auto;min-width:0;max-width:100%;margin:0;padding:0;font:13px/1.5 system-ui,sans-serif}
 .interaction-reference-links a{display:inline-flex;align-items:center;gap:6px;max-width:100%;min-width:0;overflow-wrap:anywhere;padding:4px 0}
 .interaction-reference-links a>span:last-child{min-width:0}
 .interaction-reference-icon{display:inline-flex;flex:0 0 16px;align-items:center;color:var(--muted)}
