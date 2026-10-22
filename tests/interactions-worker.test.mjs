@@ -9,6 +9,8 @@ import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {buildFingerprint} from '../scripts/publish-content.mjs';
 import {loadSnapshot} from '../src/snapshot.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
+import {compileRuntime} from '../scripts/compile-runtime.mjs';
+import {openSnapshot} from '../src/runtime-snapshot.mjs';
 
 test('publication compiles authoritative Short beats, Worker matches Node without session-body reads, and older snapshots retain campaign references',async()=>{
   fs.mkdirSync(path.join(ROOT,'.cache'),{recursive:true});
@@ -170,6 +172,15 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     assert.match(fallback.html,/Related campaign material/);
     assert.doesNotMatch(fallback.html,/class="interaction-plot"/);
     assert.deepEqual(fallback.backlinks.map(link=>link.page),['world']);
+    const oldRuntime=compileRuntime(old,node.store);
+    const oldCompiled=await openSnapshot({async get(key){
+      if(key.endsWith('/runtime.json'))return {json:async()=>({...oldRuntime.manifest,revision:report.revision})};
+      const relative=key.slice(('revisions/'+report.revision+'/').length),json=oldRuntime.objects.get(relative);
+      return json ? {text:async()=>json} : originalGet(key);
+    }},report.revision);
+    const {engine:oldEngine,store:oldStore}=await oldCompiled.renderer();
+    const oldResult=await oldEngine.renderAsync('Person','1720-01-02','custom',false,['clee'],entry=>oldStore.getNote(entry));
+    assert.deepEqual(oldResult.interactions,fallback.interactions,'older compiled publications retain non-session references using only the target backlink shard');
     const invalid={...index,interactions:{version:99,byTarget:{}}};
     await assert.rejects(loadSnapshot({get:async()=>({json:async()=>invalid})},report.revision),/interaction index format/);
     await assert.rejects(loadSnapshot({get:async()=>({json:async()=>({...index,interactions:{version:1,byTarget:{}}})})},report.revision),/interaction index format/);

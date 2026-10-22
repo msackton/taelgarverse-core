@@ -188,6 +188,12 @@ in revision-bound shards and loaded only by their context-filtered transcript
 views. The Worker requires no session-body reads. Older publications
 retain authored headers and non-session campaign references. See [campaign interactions](campaign-interactions.md).
 
+Compiled runtime render data carries the same interaction projections and
+transcript descriptors as the legacy index. Both use the shared snapshot text
+reader for verified transcript shards. Older compiled publications without an
+interaction projection derive non-session references from the request's target
+backlink shard, keeping the shared engine immutable.
+
 `RenderEngine.renderHome()` applies the shared comment and Markdown renderer to
 the authored homepage, without generating an article header or indexing it as a
 note. The root route uses it unless a `q` parameter requests search. Homepage and

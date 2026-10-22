@@ -71,7 +71,8 @@ export function compileRuntime(index,sourceStore,{noteShardBytes=65536,backlinkS
   flushLinks();
   const backlinks=add('runtime/backlinks.json',{shards:backlinkShards,targets,
     campaigns:[...buildBacklinkCampaigns(store,index.registry)].map(([slug,campaigns])=>[pageIds.get(slug),campaigns])});
-  const render=add('runtime/render.json',{entries,noteShards,lookups:store.compileLookups(),home:index.homeSource==null?null:parseNote(index.homeSource),sites:sites.compile()});
+  const render=add('runtime/render.json',{entries,noteShards,lookups:store.compileLookups(),home:index.homeSource==null?null:parseNote(index.homeSource),sites:sites.compile(),
+    ...(index.interactions ? {interactions:index.interactions} : {})});
   const partitions=new Map();
   for(const entry of index.entries.filter(entry=>!entry.note)){
     const key=assetPartition(entry.target),items=partitions.get(key) || [];

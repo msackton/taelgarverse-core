@@ -1,4 +1,3 @@
-import {ContentStore} from './content-store.mjs';
 import {Contexts} from './contexts.mjs';
 import {CampaignSites} from './campaign-sites.mjs';
 import {Navigation} from './navigation.mjs';
@@ -6,7 +5,7 @@ import {RenderEngine} from './render-engine.mjs';
 import {hydrateHeaderSnapshot} from './header-core/snapshot.mjs';
 import {renderHeader,renderBio} from './header-core/index.mjs';
 import {RenderError} from './common.mjs';
-import {loadSnapshot} from './snapshot.mjs';
+import {loadSnapshot,SnapshotStore} from './snapshot.mjs';
 import {supportedRuntimeVersion,runtimeHash,assetPartition,validRuntimeDescriptor} from './runtime-format.mjs';
 
 const failure=()=>new RenderError(503,'Compiled content snapshot is missing or invalid');
@@ -109,12 +108,14 @@ export class RuntimeSnapshot {
         this.read(this.index.parts.render),this.read(this.index.parts.headers),this.read(this.index.parts.backlinks),this.read(this.index.parts.navigation)]);
       if(this.index.version===2 && (!Array.isArray(data.noteShards) || data.noteShards.some(value=>!validRuntimeDescriptor(value)) ||
         data.entries.some(entry=>entry.note && (!Number.isSafeInteger(entry.note.prepared) || entry.note.prepared<0 || !data.noteShards[entry.note.prepared]))))throw failure();
-      const store=new ContentStore(data.entries,this.index.warnings,this.index.settings,data.lookups);
+      if(data.interactions && (data.interactions.version!==2 || !data.interactions.byTarget || typeof data.interactions.byTarget!=='object' || Array.isArray(data.interactions.byTarget)))throw failure();
+      const store=new SnapshotStore({entries:data.entries,warnings:this.index.warnings,settings:this.index.settings,revision:this.revision},this.bucket,data.lookups);
       store.getNote=entry=>this.getNote(entry,data.noteShards);
       const navigation=await this.navigation(store,compiledNavigation);
       const compactBacklinks=this.index.version===2 ? this.backlinkLoader(backlinks,store) : null;
       const headers=hydrateHeaderSnapshot(compiledHeaders,store.entries.filter(entry=>entry.note).map(entry=>({path:entry.id,metadata:entry.note.metadata})));
       const engine=new RenderEngine({settings:this.index.settings,store,headers,renderHeader,renderBio,backlinkIndex:compactBacklinks ? null : backlinks.index,
+        interactionIndex:data.interactions,loadTranscript:id=>store.getTranscript(id,data.interactions?.transcripts?.[id]),
         prepared:{contexts:this.contexts,campaignSites:CampaignSites.hydrate(data.sites),navigation,home:data.home,
           backlinkCampaigns:compactBacklinks?.campaigns || new Map(backlinks.campaigns),loadBacklinks:compactBacklinks?.load}});
       return {engine,store,index:this.index};
@@ -127,7 +128,7 @@ export class RuntimeSnapshot {
     // loading route data first.
     let pathname='';
     try{if(['GET','HEAD'].includes(request.method))pathname=decodeURIComponent(url.pathname);}catch{}
-    if(pathname==='/api/page' || pathname==='/api/diagram-links' || pathname.startsWith('/page/') || pathname==='/' && !url.searchParams.has('q'))return this.renderer();
+    if(pathname==='/api/page' || pathname==='/api/diagram-links' || pathname.startsWith('/page/') || pathname.startsWith('/campaign-transcripts/') || pathname==='/' && !url.searchParams.has('q'))return this.renderer();
     let store={bySlug:{size:this.index.pages},warnings:this.index.warnings,assets:new Map(),settings:this.index.settings};
     const engine={settings:this.index.settings,contexts:this.contexts,campaignSites:this.campaignSites};
     if(pathname.startsWith('/assets/')){
