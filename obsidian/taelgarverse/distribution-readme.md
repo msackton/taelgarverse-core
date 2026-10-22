@@ -54,12 +54,14 @@ Campaigns without visible recap beats use a small **Known to Cleenseau** footnot
 and any related campaign links. The **Campaign interactions** heading and picker
 stay above the content; choosing a campaign with recap beats restores the timeline.
 
-Only recap beats contribute encounter dots and counts. Items, documents, and
-other backlinks appear under **Related campaign material**, with icons and labels
-from authored tags (`object`/`item`, `source`/`document`, or a generic reference).
+Only recap beats contribute encounter dots and counts. **Related campaign material**
+groups links on separate **Items** (`object`/`item`), **Stories** (`story`), and
+**Sources** (`source`/`document`) lines, with a **References** line for other types.
+Empty categories are omitted. A note appears once; item tags take precedence over
+story tags, then source tags.
 Untagged notes and notes with `meta` or `background` tags are excluded, including
 nested tags. A source note's `knownTo` flag does not bypass these exclusions.
-The first three links are visible; **Show more** reveals the rest. Links open
+Each line shows its first three links; **Show more** reveals the rest. Links open
 their notes natively. Undated recap beats retain their session labels, including
 when grouped by day or seven-day period, without inventing a date.
 

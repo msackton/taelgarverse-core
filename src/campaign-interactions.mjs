@@ -63,7 +63,7 @@ function isPerson(entry) { return list(entry?.note?.metadata.tags).includes('per
 export function interactionReferenceType(metadata) {
   const tags=new Set(list(metadata?.tags).filter(tag=>typeof tag==='string').flatMap(tag=>tag.split(/[\s,]+/)).map(tag=>tag.replace(/^#/,'').toLowerCase().split('/')[0]).filter(Boolean));
   if(!tags.size || tags.has('meta') || tags.has('background'))return null;
-  return tags.has('object') || tags.has('item') ? 'item' : tags.has('source') || tags.has('document') ? 'document' : 'reference';
+  return tags.has('object') || tags.has('item') ? 'item' : tags.has('story') ? 'story' : tags.has('source') || tags.has('document') ? 'document' : 'reference';
 }
 function sessionSources(store,registry,identities,campaign,number) {
   const candidates=[...store.bySlug.values()].filter(entry=>list(entry.note.metadata.tags).includes('session-note') &&

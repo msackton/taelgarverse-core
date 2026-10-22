@@ -24,6 +24,7 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     fs.writeFileSync(path.join(vault,'World.md'),'# World\n[[Person]]');
     fs.mkdirSync(path.join(vault,'Campaigns','Clee'),{recursive:true});
     fs.writeFileSync(path.join(vault,'Campaigns','Clee','Handout.md'),'---\ntags: [source]\n---\n# Handout\n[[Person]]');
+    fs.writeFileSync(path.join(vault,'Campaigns','Clee','Story.md'),'---\ntags: [source, story]\n---\n[[Person]]');
     fs.mkdirSync(path.join(vault,'Campaigns','Other'),{recursive:true});
     fs.writeFileSync(path.join(vault,'Campaigns','Other','Other Handout.md'),'---\ntags: [source]\n---\n[[Person]]');
     for(const [name,tags] of [['Untagged',''],['List of NPCs','tags: [source, meta]'],['Background','tags: [background/lore]']])
@@ -74,9 +75,13 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
       assert.deepEqual(actual.backlinks,expected.backlinks);
       assert.deepEqual(actual.backlinks.map(link=>link.page),['world']);
       assert.equal(actual.html,expected.html);
-      assert.equal(actual.interactions[0].events.length,dm ? 3 : 2);
+      assert.equal(actual.interactions[0].events.length,dm ? 4 : 3);
       assert.equal(actual.interactions[0].events.find(event=>event.kind==='reference').referenceType,'document');
+      assert.equal(actual.interactions[0].events.find(event=>event.title==='Story').referenceType,'story');
       assert.match(actual.html,/Related campaign material/);
+      const grouped=parseHTML('<html><body>'+actual.html+'</body></html>').document;
+      assert.equal(grouped.querySelector('[data-reference-kind="story"] a').textContent,'Story');
+      assert.equal(grouped.querySelector('[data-reference-kind="document"] a').textContent,'Handout');
       assert.ok(reads.every(key=>key.endsWith('/'+snapshot.store.resolve('Person').note.shard+'.json')),'only the person shard is loaded');
       assert.equal(actual.interactions[0].events[0].text,'An authoritative Short independent of generated prose.');
       assert.match(actual.html,/fought alongside/i); // Authored campaignInfo remains in the normal header.
@@ -105,7 +110,7 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     }
     const legacySnapshot=await loadSnapshot({get:async key=>key.endsWith('/index.json') ? {json:async()=>legacy} : originalGet(key)},report.revision);
     const filtered=await legacySnapshot.engine.renderAsync('Person','1720-01-02','custom',false,['clee'],entry=>legacySnapshot.store.getNote(entry));
-    assert.deepEqual(filtered.interactions[0].events.filter(event=>event.kind==='reference').map(event=>event.title),['Handout']);
+    assert.deepEqual(filtered.interactions[0].events.filter(event=>event.kind==='reference').map(event=>event.title),['Handout','Story']);
     const env={CONTENT:{async get(key){if(key==='published/current.json')return {json:async()=>({revision:report.revision})};return originalGet(key);}},ASSETS:{fetch:async()=>new Response('asset')}};
     const response=await createWorker().fetch(new Request('https://cleenseau.taelgar.org/api/page?page=Person'),env);
     assert.equal(response.status,404); // No configured campaign host silently falls back.
@@ -113,7 +118,7 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     const api=await worker.fetch(new Request('https://www.taelgar.org/api/page?page=Person&context=cleenseau'),env);
     assert.equal(api.status,200);
     const result=await api.json();
-    assert.equal(result.interactions[0].events.length,2);
+    assert.equal(result.interactions[0].events.length,3);
     assert.deepEqual(result.backlinks.map(link=>link.page),['world']);
     const event=result.interactions[0].events[0];
     assert.equal((await worker.fetch(new Request('https://www.taelgar.org'+event.sessionUrl),env)).status,200);
@@ -148,7 +153,7 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     const loaded=await loadSnapshot(oldBucket,report.revision);
     const fallback=await loaded.engine.renderAsync('Person','1720-01-02','custom',false,['clee'],entry=>loaded.store.getNote(entry));
     assert.equal(fallback.interactions[0].events.some(event=>event.kind==='reference'),true);
-    assert.equal(fallback.interactions[0].events.length,1);
+    assert.equal(fallback.interactions[0].events.length,2);
     assert.equal(fallback.interactions[0].events[0].title,'Handout');
     assert.match(fallback.html,/Related campaign material/);
     assert.doesNotMatch(fallback.html,/class="interaction-plot"/);

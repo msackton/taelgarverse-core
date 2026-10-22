@@ -34,15 +34,18 @@ keyboard; without JavaScript, recap beats remain available as a linked list.
 
 Only recap beats contribute timeline dots, encounter counts, and automatic
 session grouping. **Related campaign material** below the timeline shows
-supplementary backlinks as compact links. Authored `object`/`item` tags give an
-**Item** label and icon; `source`/`document` tags give **Document**; other notes
-use **Reference**. Nested tags work. Labels do not infer ownership or receipt of
-an item. Untagged notes and notes carrying `meta` or `background` tags are excluded,
+supplementary backlinks on separate **Items**, **Stories**, **Sources**, and
+**References** lines. Authored `object`/`item` tags select Items, `story` selects
+Stories, and `source`/`document` selects Sources; other eligible notes use
+References. Empty categories are omitted. Nested tags work. A note appears once,
+using item, story, then source precedence if it has several type tags. Labels
+do not infer ownership or receipt of an item. Untagged notes and notes carrying
+`meta` or `background` tags are excluded,
 including nested tags and notes that also have other types. These exclusions
 apply to references in existing published indexes as well as new indexes.
-Links sort by title, with the first three visible and a native **Show
-more** disclosure for the remainder. They work without JavaScript. A document's
-own date never becomes an encounter date.
+Each line sorts its links by title, with the first three visible and its own
+native **Show more** disclosure for the remainder. They work without JavaScript.
+A document's own date never becomes an encounter date.
 
 Position represents story order with compressed spacing. Date ranges retain
 their precision. Undated recap beats show their session and **Date unrecorded**;

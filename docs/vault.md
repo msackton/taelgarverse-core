@@ -374,6 +374,8 @@ supply encounter dots using their explicit NPCs, dates, and Short text. Session
 notes supply only optional source links; non-session campaign-folder backlinks
 supply separate links under **Related campaign material**. Untagged sources and
 sources with `meta` or `background` tags (including nested tags) are excluded.
+Related links have separate Items, Stories, Sources, and other References lines,
+based on authored tags, each with its own **Show more** for longer lists.
 Beat details show DR dates and links to available
 session notes and polished beat transcript views. Missing source links never
 remove recap beats.

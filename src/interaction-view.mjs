@@ -2,9 +2,10 @@ import {escapeHtml} from './common.mjs';
 import {interactionDateLabel,interactionParts} from './browser/interaction-groups.mjs';
 
 const referenceKinds={
-  item:{label:'Item',path:'m12 3 9 5-9 5-9-5 9-5ZM3 8v9l9 5 9-5V8M12 13v9'},
-  document:{label:'Document',path:'M14 3H5v18h14V8l-5-5ZM14 3v5h5M8 12h8M8 16h8'},
-  reference:{label:'Reference',path:'M10 5H5v14h14v-5M13 5h6v6M19 5l-9 9'},
+  item:{label:'Items',singular:'item',path:'m12 3 9 5-9 5-9-5 9-5ZM3 8v9l9 5 9-5V8M12 13v9'},
+  story:{label:'Stories',singular:'story',plural:'stories',path:'M12 5v16M12 5C9 3 5 3 2 4v15c3-1 7-1 10 2 3-3 7-3 10-2V4c-3-1-7-1-10 1Z'},
+  document:{label:'Sources',singular:'source',path:'M14 3H5v18h14V8l-5-5ZM14 3v5h5M8 12h8M8 16h8'},
+  reference:{label:'References',singular:'reference',path:'M10 5H5v14h14v-5M13 5h6v6M19 5l-9 9'},
 };
 const count=(number,singular,plural=singular+'s')=>number+' '+(number===1 ? singular : plural);
 function knowledgeFootnote(group) {
@@ -12,13 +13,19 @@ function knowledgeFootnote(group) {
 }
 function referenceView(references) {
   if(!references.length)return '';
+  const groups=new Map(Object.keys(referenceKinds).map(kind=>[kind,[]]));
+  for(const event of references)groups.get(Object.hasOwn(referenceKinds,event.referenceType) ? event.referenceType : 'reference').push(event);
   const links=items=>'<ul class="interaction-reference-links">'+items.map(event=>{
-    const type=Object.hasOwn(referenceKinds,event.referenceType) ? referenceKinds[event.referenceType] : referenceKinds.reference;
-    const name='<span class="interaction-reference-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="'+type.path+'"/></svg></span><span>'+escapeHtml(event.title)+'</span>';
-    return '<li>'+(event.url ? '<a href="'+escapeHtml(event.url)+'">'+name+'</a>' : name)+'<span class="interaction-reference-type">'+type.label+'</span></li>';
+    const name='<span>'+escapeHtml(event.title)+'</span>';
+    return '<li>'+(event.url ? '<a href="'+escapeHtml(event.url)+'">'+name+'</a>' : name)+'</li>';
   }).join('')+'</ul>';
   return '<section class="interaction-references" aria-label="Related campaign material"><h4>Related campaign material <span>'+count(references.length,'reference')+'</span></h4>'+
-    links(references.slice(0,3))+(references.length>3 ? '<details class="interaction-reference-more"><summary>Show '+count(references.length-3,'more reference')+'</summary>'+links(references.slice(3))+'</details>' : '')+'</section>';
+    '<div class="interaction-reference-groups">'+[...groups].filter(([,items])=>items.length).map(([kind,items])=>{
+      const type=referenceKinds[kind];
+      const icon='<span class="interaction-reference-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" focusable="false"><path d="'+type.path+'"/></svg></span>';
+      return '<div class="interaction-reference-group" data-reference-kind="'+kind+'"><h5 class="interaction-reference-label">'+icon+type.label+'</h5><div class="interaction-reference-body">'+
+        links(items.slice(0,3))+(items.length>3 ? '<details class="interaction-reference-more"><summary>Show '+count(items.length-3,'more '+type.singular,'more '+(type.plural || type.singular+'s'))+'</summary>'+links(items.slice(3))+'</details>' : '')+'</div></div>';
+    }).join('')+'</div></section>';
 }
 function sourceLinks(event) {
   const links=[[event.sessionUrl,'Session note'],[event.transcriptUrl,'Transcript']].filter(([url])=>url);

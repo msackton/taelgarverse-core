@@ -241,20 +241,22 @@ test('campaigns known only through metadata use footnotes while campaigns with r
 
 test('campaign material uses typed links outside the dots and encounter counts, including without JavaScript',()=>{
   const material={};
-  for(let i=0;i<27;i++)material['Campaigns/Clee/Reference '+String(i).padStart(2,'0')+'.md']='---\ntags: ['+(i===0?'object/weapon':i===1?'source':'other')+']\nDR: 1710-01-01\n---\n[[Person]]';
+  for(let i=0;i<27;i++)material['Campaigns/Clee/Reference '+String(i).padStart(2,'0')+'.md']='---\ntags: ['+(i===0?'object/weapon':i===1?'source':i===2?'story, source':'other')+']\nDR: 1710-01-01\n---\n[[Person]]';
   const {store,index}=sample(material),groups=campaignInteractions(index,store,store.resolve('Person'),context(),registry);
   const references=groups[0].events.filter(event=>event.kind==='reference');
   assert.equal(references.length,27);
-  assert.deepEqual(references.slice(0,3).map(event=>event.referenceType),['item','document','reference']);
+  assert.deepEqual(references.slice(0,4).map(event=>event.referenceType),['item','document','story','reference']);
   assert.ok(references.every(event=>event.start===null),'document dates never become encounter dates');
   const {document}=parseHTML('<html><body>'+interactionSummary(groups)+interactionView(groups)+'</body></html>');
   const root=document.querySelector('[data-interaction-campaign]');
   assert.equal(root.querySelectorAll('.interaction-fallback li').length,3);
   assert.equal(root.querySelectorAll('.interaction-reference-links a').length,27);
-  assert.equal(root.querySelectorAll('.interaction-references > .interaction-reference-links a').length,3);
-  assert.equal(root.querySelectorAll('.interaction-reference-more a').length,24);
-  assert.match(root.querySelector('summary').textContent,/24 more references/);
-  assert.deepEqual([...root.querySelectorAll('.interaction-reference-type')].slice(0,3).map(node=>node.textContent),['Item','Document','Reference']);
+  assert.equal(root.querySelectorAll('.interaction-reference-body > .interaction-reference-links a').length,6);
+  assert.equal(root.querySelectorAll('.interaction-reference-more a').length,21);
+  assert.match(root.querySelector('summary').textContent,/21 more references/);
+  assert.deepEqual([...root.querySelectorAll('.interaction-reference-label')].map(node=>node.textContent),['Items','Stories','Sources','References']);
+  assert.equal(root.querySelector('[data-reference-kind="story"] a').textContent,'Reference 02');
+  assert.equal(root.querySelector('[data-reference-kind="document"] a').textContent,'Reference 01');
   assert.match(root.querySelector('.interaction-reference-links a').getAttribute('href'),/date=1720-01-05&campaigns=clee/);
   assert.match(document.querySelector('.campaign-interaction-summary').textContent,/3 encounters, 27 references/);
   assert.equal(JSON.parse(root.querySelector('[data-interaction-records]').textContent).events.length,3);
@@ -273,6 +275,27 @@ test('campaign material uses typed links outside the dots and encounter counts, 
   const unflagged=parseHTML('<html><body>'+interactionView([{...referencesOnly[0],known:false}])+'</body></html>').document;
   assert.equal(unflagged.querySelector('.interaction-campaign-label').textContent,'Cleenseau');
   assert.equal(unflagged.querySelector('.interaction-knowledge-footnote'),null);
+});
+
+test('related material has one row per nonempty type with independently sorted and expandable lists',()=>{
+  const notes={'Campaigns/Clee/Item.md':'---\ntags: [object]\n---\n[[Person]]'};
+  for(const number of [4,2,1,3]) {
+    notes['Campaigns/Clee/Story '+number+'.md']='---\ntags: [source, "#Story/ballad"]\n---\n[[Person]]';
+    notes['Campaigns/Clee/Source '+number+'.md']='---\ntags: [source]\n---\n[[Person]]';
+  }
+  const {store,index}=sample(notes),groups=campaignInteractions(index,store,store.resolve('Person'),context(),registry);
+  const {document}=parseHTML('<html><body>'+interactionView(groups)+'</body></html>');
+  assert.deepEqual([...document.querySelectorAll('[data-reference-kind]')].map(row=>row.dataset.referenceKind),['item','story','document']);
+  for(const [type,name] of [['story','Story'],['document','Source']]) {
+    const row=document.querySelector('[data-reference-kind="'+type+'"]');
+    assert.deepEqual([...row.querySelectorAll('a')].map(link=>link.textContent),[1,2,3,4].map(number=>name+' '+number));
+    assert.equal(row.querySelectorAll('.interaction-reference-body > .interaction-reference-links a').length,3);
+    assert.equal(row.querySelector('summary').textContent,'Show 1 more '+name.toLowerCase());
+    assert.equal(row.querySelector('details a').textContent,name+' 4');
+  }
+  const links=[...document.querySelectorAll('.interaction-reference-links a')].map(link=>link.getAttribute('href'));
+  assert.equal(links.length,9);assert.equal(new Set(links).size,9,'a story tagged source appears only in Stories');
+  assert.equal(document.querySelector('[data-reference-kind="item"] details'),null);
 });
 
 test('undated recap beats retain their session when grouped by date, without borrowing a beat date',()=>{
@@ -302,7 +325,7 @@ test('reference labels are escaped and unrecognized reference types use a neutra
   const {document}=parseHTML('<html><body>'+interactionView([{label:'Campaign <a>',known:true,events}])+'</body></html>');
   assert.equal(document.querySelector('img,script'),null);
   assert.equal(document.querySelector('.interaction-reference-links a').textContent,'<img src=x onerror=bad()>');
-  assert.equal(document.querySelector('.interaction-reference-type').textContent,'Reference');
+  assert.equal(document.querySelector('.interaction-reference-label').textContent,'References');
   assert.equal(document.querySelector('.interaction-knowledge-campaign').textContent,'Campaign <a>');
 });
 

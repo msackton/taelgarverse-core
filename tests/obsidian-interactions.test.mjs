@@ -162,11 +162,12 @@ test('native backlink offsets preserve CRLF frontmatter and saved-header boundar
 
 test('reference-only campaign choices keep the picker below the heading and native item/document links, then restore the recap timeline',async()=>{
   const recapPath='_sessions/other/other-001/cleaned/other-001-session-recap.md';
-  const sword='Campaigns/Other/Sword.md',letter='Campaigns/Other/Letter.md';
+  const sword='Campaigns/Other/Sword.md',letter='Campaigns/Other/Letter.md',story='Campaigns/Other/Story.md';
   const notes={
     [recapPath]:recap('Other','A different person.').replace('- NPCs: Person','- NPCs: Someone Else'),
     [sword]:'---\ntags: [object/weapon]\nknownTo: other\n---\n[[Person]]',
     [letter]:'---\ntags: [source]\nDR: 1740-01-01\n---\n[[Person]]',
+    [story]:'---\ntags: [story, source]\n---\n[[Person]]',
   };
   for(let i=0;i<4;i++)notes['Campaigns/Other/Handout '+i+'.md']='---\ntags: [source]\n---\n[[Person]]';
   const h=host({notes}),{element,child}=h.block();
@@ -183,11 +184,12 @@ test('reference-only campaign choices keep the picker below the heading and nati
     assert.ok(element.classList.contains('taelgar-interactions--compact'));
     assert.equal(element.querySelector('h2').textContent,'Campaign interactions');
     assert.equal(element.querySelector('h3,.interaction-plot,.interaction-controls,.interaction-detail'),null);
-    assert.equal(element.querySelectorAll('.interaction-reference-links a').length,6);
-    assert.equal(element.querySelectorAll('.interaction-reference-more a').length,3);
-    for(const [path,type] of [[sword,'Item'],[letter,'Document']]) {
+    assert.equal(element.querySelectorAll('.interaction-reference-links a').length,7);
+    assert.equal(element.querySelectorAll('.interaction-reference-more a').length,2);
+    assert.deepEqual([...element.querySelectorAll('.interaction-reference-label')].map(node=>node.textContent),['Items','Stories','Sources']);
+    for(const [path,type] of [[sword,'item'],[story,'story'],[letter,'document']]) {
       const anchor=[...element.querySelectorAll('.interaction-reference-links a')].find(link=>child.links.get(link.getAttribute('href'))===path);
-      assert.equal(anchor.parentElement.querySelector('.interaction-reference-type').textContent,type);
+      assert.equal(anchor.closest('[data-reference-kind]').dataset.referenceKind,type);
       h.click(anchor);assert.equal(h.opened.at(-1)[0],path);
     }
     assert.deepEqual(h.metadata.get(sword).tags,['object/weapon'],'local type adaptation does not change authored tags');
