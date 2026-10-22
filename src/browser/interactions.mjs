@@ -12,7 +12,7 @@ export function mountInteractions(root) {
   data.events=interactionParts(data.events).beats;
   if(!data.events.length)return;
   const plot=root.querySelector('.interaction-plot'),detail=root.querySelector('.interaction-detail'),breadcrumb=root.querySelector('.interaction-breadcrumb');
-  const grouping=root.querySelector('[data-interaction-group]'),back=root.querySelector('[data-interaction-back]');
+  const controls=root.querySelector('.interaction-controls'),back=root.querySelector('[data-interaction-back]');
   const view=document.defaultView,nativePopover=typeof detail.showPopover==='function';
   detail.id='interaction-popup-'+(++popupId);detail.setAttribute('role','dialog');
   detail.setAttribute('aria-modal','false');detail.setAttribute('aria-labelledby',detail.id+'-title');
@@ -69,12 +69,12 @@ export function mountInteractions(root) {
   function render(){
     closePopup();
     const visible=focused ? data.events.filter(event=>focused.includes(event.id)) : data.events;
-    const groups=groupInteractions(visible,focused ? 'event' : grouping.value);
+    const groups=groupInteractions(visible,focused ? 'event' : 'auto');
     plot.replaceChildren();plot.dataset.density=groups.length>8 ? 'dense' : groups.length>3 ? 'medium' : 'sparse';
     const dated=visible.filter(event=>event.start),first=dated.map(event=>event.start).sort()[0],last=dated.map(event=>event.end).sort().at(-1);
     const period=first ? ' · '+first+(first!==last ? '–'+last : '') : '';
     breadcrumb.textContent=focused ? 'All interactions / '+focusLabel+' · '+visible.length+' entries' : data.events.length+' recorded '+(data.events.length===1?'entry':'entries')+period;
-    back.disabled=!focused;
+    back.disabled=!focused;controls.hidden=!focused;
     groups.forEach((group,index)=>{
       const cluster=group.events.length>1,button=node(document,'button','interaction-dot');button.type='button';
       button.setAttribute('aria-label',cluster ? 'Zoom into '+group.title+', '+group.events.length+' entries' : kindLabel(group.events[0].kind)+': '+group.title+', '+group.dateLabel);
@@ -89,11 +89,11 @@ export function mountInteractions(root) {
       });plot.append(button);
     });
   }
-  const regroup=()=>{focused=null;render();},zoomOut=()=>{focused=null;render();plot.querySelector('button')?.focus();};
-  grouping.addEventListener('change',regroup);back.addEventListener('click',zoomOut);
+  const zoomOut=()=>{focused=null;render();plot.querySelector('button')?.focus();};
+  back.addEventListener('click',zoomOut);
   render();plot.hidden=false;root.dataset.interactionsMounted='true';
-  for(const item of root.querySelectorAll('.interaction-controls,.interaction-breadcrumb'))item.hidden=false;
+  breadcrumb.hidden=false;
   root.querySelector('.interaction-fallback').hidden=true;
-  return ()=>{closePopup();grouping.removeEventListener('change',regroup);back.removeEventListener('click',zoomOut);};
+  return ()=>{closePopup();back.removeEventListener('click',zoomOut);};
 }
 if(typeof document!=='undefined')for(const root of document.querySelectorAll('[data-interaction-campaign]'))mountInteractions(root);

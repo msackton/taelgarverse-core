@@ -10,9 +10,7 @@
 .md-typeset .interaction-campaign-header h3{margin:0 0 4px}
 .md-typeset .interaction-campaign-header .interaction-knowledge{margin:0}
 .interaction-knowledge{font:14px/1.5 system-ui,sans-serif}.interaction-knowledge span{color:var(--muted)}
-.interaction-controls{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;font:13px/1.5 system-ui,sans-serif}
-.interaction-controls label{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.interaction-controls select{max-width:100%}.interaction-controls button:disabled{opacity:.5}
+.interaction-controls{display:flex;justify-content:flex-end;font:13px/1.5 system-ui,sans-serif}
 .interaction-breadcrumb{font:12px/1.5 system-ui,sans-serif;color:var(--muted)}
 .interaction-plot{display:flex;flex-wrap:wrap;justify-content:center;align-content:center;row-gap:10px;padding:8px 0 12px;isolation:isolate}
 .md-typeset .interaction-dot{position:relative;flex:0 1 150px;min-width:0;height:auto;display:flex;flex-direction:column;align-items:center;padding:8px 4px;background:transparent;border:0;border-radius:5px;box-shadow:none;white-space:normal;color:var(--text);font:12px/1.4 system-ui,sans-serif;overflow-wrap:anywhere}
@@ -63,5 +61,5 @@ html .md-typeset details.interaction-reference-more summary::before{content:'▸
 html .md-typeset details.interaction-reference-more[open] summary::before{content:'▾'}
 html .md-typeset details.interaction-reference-more summary::after{display:none}
 html .md-typeset details.interaction-reference-more summary:focus-visible{outline:2px solid var(--link);outline-offset:3px}
-@media(max-width:480px){.md-typeset .interaction-dot{flex-basis:33.333%}.interaction-controls select{font-size:16px}}
-@media(pointer:coarse){.interaction-controls select,.interaction-controls button,.interaction-reference-links a,.interaction-reference-more summary{min-height:44px}.md-typeset .interaction-popup-close{width:44px;height:44px}.md-typeset .interaction-detail>.interaction-event-meta:first-of-type{padding-right:40px}}
+@media(max-width:480px){.md-typeset .interaction-dot{flex-basis:33.333%}}
+@media(pointer:coarse){.interaction-controls button,.interaction-reference-links a,.interaction-reference-more summary{min-height:44px}.md-typeset .interaction-popup-close{width:44px;height:44px}.md-typeset .interaction-detail>.interaction-event-meta:first-of-type{padding-right:40px}}

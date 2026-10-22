@@ -58,11 +58,13 @@ content; choosing a campaign with recap beats adds its timeline below the same h
 Click or tap an individual dot to open a compact popup containing its date,
 details, and source links. Details stay closed initially, and one popup is shown
 at a time across campaigns. Close it with its close button, Escape, an outside
-click, or the same dot. Grouping and campaign changes also close it. Keyboard
+click, or the same dot. Zooming and campaign changes also close it. Keyboard
 users can activate dots with Enter or Space; Escape returns focus to the dot.
 Session references contain only the title, date, and a link such as **Session 30**.
 They omit explanatory commentary and repeated session titles. Recap beats retain
 their authored Short text and location. Popup titles use compact sans-serif text.
+Grouping is automatic. Counted dots zoom into their entries; **Zoom out** appears
+only while zoomed in and restores the full history.
 
 Recap beats contribute encounter dots and counts. Sessions without a recap use
 explicit NPC links in the official session note as hollow **Session reference**
@@ -79,8 +81,8 @@ Untagged notes and notes with `meta` or `background` tags are excluded, includin
 nested tags. A source note's `knownTo` flag does not bypass these exclusions.
 Links run horizontally within each category and wrap as needed. Each line shows
 its first three links; **Show more** reveals the rest in the same layout. Links open
-their notes natively. Undated recap beats retain their session labels, including
-when grouped by day or seven-day period, without inventing a date.
+their notes natively. Undated recap beats retain their session labels without
+inventing a date.
 
 To choose the panel's position, add an empty block:
 

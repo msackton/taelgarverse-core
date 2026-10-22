@@ -24,13 +24,13 @@ They do not allocate an empty timeline. Campaigns with recap beats keep their
 dot timelines below the same header.
 
 Short histories show individual dots; automatic grouping switches to sessions
-above six entries. Readers can group by session, day, seven-day period, or
-individual entry. Selecting a counted dot zooms into its entries; **Zoom out**
-returns to the whole history. Selecting an individual dot opens a compact popup
+above six entries, with no grouping selector. Selecting a counted dot zooms into
+its entries; **Zoom out** appears while zoomed in and returns to the whole history.
+Selecting an individual dot opens a compact popup
 beside it with its date, title, Short text, location, and recap session/title,
 with a numbered session link and a **Transcript** link when available. Details start
 closed. A close button, Escape, an outside click, or selecting the dot again
-dismisses the popup; only one is open across campaigns. Grouping, campaign changes,
+dismisses the popup; only one is open across campaigns. Zooming, campaign changes,
 and note closure also dismiss it. The popup fits the viewport and scrolls for long
 text. Dates are labeled DR. Touch and keyboard use the same actions; without
 JavaScript, recap beats remain available as a linked list.
@@ -62,12 +62,9 @@ A document's own date never becomes an encounter date.
 
 Position represents story order with compressed spacing. Date ranges retain
 their precision. Undated recap beats show their session and **Date unrecorded**;
-day and seven-day grouping keep different undated sessions separate. The recap
+automatic grouping keeps different sessions separate. The recap
 header's date helps order undated beats without assigning a beat date. Session
 identities and beat IDs use numeric ordering when dates are equal or absent.
-Seven-day groups use
-the vault's 365-day DR calendar, starting with the first visible date. A range
-spanning a group boundary retains its range rather than acquiring an invented day.
 
 ## Authoritative sources
 

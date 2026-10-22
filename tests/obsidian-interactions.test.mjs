@@ -115,6 +115,7 @@ test('explicit blocks select known campaigns, retain choice after refresh, and o
   try {
     const {element,child}=h.block();await child.ready;
     assert.equal(element.querySelectorAll('select[aria-label="Campaign"] option').length,3);
+    assert.equal(element.querySelector('select[aria-label="Group by"]'),null);
     assert.equal(element.querySelector('select[aria-label="Campaign"]').value,'all');
     assert.ok(element.querySelector('.campaign-interactions > h2 + .taelgar-interaction-campaign select'));
     assert.equal(element.querySelectorAll('.interaction-detail').length,2);

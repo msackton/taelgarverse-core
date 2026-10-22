@@ -59,7 +59,7 @@ export function interactionView(groups) {
       heading+(!group.known && !references.length ? '<p class="interaction-empty">No recorded interactions.</p>' : '')+related+'</section>';
     const data=JSON.stringify({...group,events:beats}).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
     return '<section class="interaction-campaign" data-interaction-campaign>'+heading+
-      '<div class="interaction-controls" hidden><label>Group by <select data-interaction-group aria-label="Group by"><option value="auto">Automatic</option><option value="session">Session</option><option value="day">Day</option><option value="week">7-day period</option><option value="event">Individual entry</option></select></label><button type="button" data-interaction-back disabled>Zoom out</button></div>'+
+      '<div class="interaction-controls" hidden><button type="button" data-interaction-back disabled>Zoom out</button></div>'+
       '<p class="interaction-breadcrumb" aria-live="polite" hidden></p><div class="interaction-plot" role="group" aria-label="Interaction dots" hidden></div>'+
       '<div class="interaction-detail" hidden></div>'+
       '<ol class="interaction-fallback">'+beats.map(event=>'<li><span>'+escapeHtml(event.start ? interactionDateLabel(event)+' DR' : 'Date unrecorded')+'</span> '+

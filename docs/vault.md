@@ -389,7 +389,8 @@ remove recap beats.
 Session references show only title, date, and a session-number link, with no
 explanatory commentary or repeated session titles. Recap beats keep their authored
 Short text and location.
-Readers can group by session, day, or seven-day period and zoom into counted dots.
+Grouping is automatic. Readers can zoom into counted dots; **Zoom out** appears
+only while zoomed in and restores the full history.
 This does not infer encounters from mentions or filter page availability by party
 knowledge. See [campaign interaction sources and rules](campaign-interactions.md).
 

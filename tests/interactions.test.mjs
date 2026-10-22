@@ -409,18 +409,21 @@ test('dot grouping retains 27 entries, respects spans/undated records, and uses 
 test('browser dots select details and zoom into/out of groups, with an accessible no-JS fallback',()=>{
   const events=Array.from({length:27},(_,i)=>({id:String(i),kind:'encounter',title:'Interaction '+i,text:'Original text '+i,start:'1720-01-01',end:'1720-01-01',precision:'day',session:'s'+Math.floor(i/5),sessionLabel:'Session '+Math.floor(i/5),sourceTitle:'Session',url:'/page/session?context=cleenseau'}));
   const groups=[{label:'Cleenseau',code:'clee',known:true,events}],markup=interactionView(groups);
-  const {document,window}=parseHTML('<html><body>'+interactionSummary(groups)+markup+'</body></html>');
+  const {document}=parseHTML('<html><body>'+interactionSummary(groups)+markup+'</body></html>');
   const root=document.querySelector('[data-interaction-campaign]');
   assert.equal(root.querySelectorAll('.interaction-fallback li').length,27);
   mountInteractions(root);assert.equal(root.querySelector('.interaction-fallback').hidden,true);
+  assert.equal(root.querySelector('select'),null,'grouping is automatic without a selector');
+  assert.equal(root.querySelector('.interaction-controls').hidden,true,'zoom out is absent until zoomed in');
   assert.equal(root.querySelector('.interaction-detail').hidden,true,'nothing is expanded on initial render');
   assert.equal(root.querySelectorAll('.interaction-dot').length,6);
   root.querySelector('.interaction-dot').click();assert.equal(root.querySelectorAll('.interaction-dot').length,5);
+  assert.equal(root.querySelector('.interaction-controls').hidden,false);
   assert.equal(root.querySelector('.interaction-detail').hidden,true,'zooming does not open details');
   root.querySelectorAll('.interaction-dot')[4].click();assert.equal(root.querySelector('.interaction-detail h4').textContent,'Interaction 4');
   root.querySelector('[data-interaction-back]').click();assert.equal(root.querySelectorAll('.interaction-dot').length,6);
-  const select=root.querySelector('select');select.querySelector('option[value="event"]').selected=true;select.dispatchEvent(new window.Event('change'));
-  assert.equal(root.querySelectorAll('.interaction-dot').length,27);
+  assert.equal(root.querySelector('.interaction-controls').hidden,true);
+  assert.equal(JSON.parse(root.querySelector('[data-interaction-records]').textContent).events.length,27);
   const hostile=interactionView([{...groups[0],events:[{...events[0],title:'</script><img src=x onerror=alert(1)>',text:'<script>bad</script>'}]}]);
   const parsed=parseHTML('<html><body>'+hostile+'</body></html>').document;
   assert.equal(parsed.querySelectorAll('img').length,0);assert.equal(parsed.querySelectorAll('script').length,1);
@@ -457,17 +460,19 @@ test('dot popups show source links, dismiss accessibly, stay in the viewport, an
   disposers[1]();
 });
 
-test('native interaction popovers escape scroll clipping and close on grouping changes or disposal',()=>{
-  const events=[1,2].map(number=>({id:String(number),kind:'encounter',title:'Encounter '+number,start:'1720-01-01',end:'1720-01-01',precision:'day'}));
+test('native interaction popovers escape scroll clipping and close on zoom out or disposal',()=>{
+  const events=Array.from({length:9},(_,number)=>({id:String(number),kind:'encounter',title:'Encounter '+number,start:'1720-01-01',end:'1720-01-01',precision:'day',session:'session-'+Math.floor(number/3)}));
   const dom=imageDOM(interactionView([{code:'clee',label:'Cleenseau',events}]));
   const root=dom.document.querySelector('[data-interaction-campaign]'),popup=root.querySelector('.interaction-detail');
   let opens=0,closes=0;popup.showPopover=()=>{opens++;};popup.hidePopover=()=>{closes++;};
   const dispose=mountInteractions(root);
   assert.equal(popup.getAttribute('popover'),'manual');assert.equal(opens,0);
+  assert.equal(root.querySelector('select'),null);
+  dom.click(root.querySelector('.interaction-dot'));assert.equal(opens,0,'a grouped dot zooms without opening details');
   dom.click(root.querySelector('.interaction-dot'));assert.equal(opens,1);
-  const select=root.querySelector('select');select.querySelector('option[value="day"]').selected=true;dom.event(select,'change');
+  dom.click(root.querySelector('[data-interaction-back]'));
   assert.equal(popup.hidden,true);assert.equal(closes,1);
-  dom.click(root.querySelector('.interaction-dot'));assert.equal(opens,1,'a grouped dot zooms without opening details');
+  dom.click(root.querySelector('.interaction-dot'));assert.equal(opens,1,'automatic grouping is restored after zooming out');
   dom.click(root.querySelector('.interaction-dot'));assert.equal(opens,2);dispose();assert.equal(closes,2);
 });
 
