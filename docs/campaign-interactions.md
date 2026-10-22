@@ -63,6 +63,13 @@ General world articles and campaign-tagged articles outside campaign folders do
 not contribute these dots. These references are undated and separate from recap
 beats.
 
+On person pages, generic **Linked from** backlinks exclude session notes and
+other campaign material in all contexts. Campaign ownership includes declared
+campaign metadata, registered campaign folders, and unregistered campaign folders;
+session tags or session numbers also identify session material. Shared world
+references remain in **Linked from**. The compiled backlink index stays intact
+so the interaction component can still use eligible campaign references.
+
 ## Visibility and publication
 
 Person availability retains existing publication and POV rules. A beat waits until

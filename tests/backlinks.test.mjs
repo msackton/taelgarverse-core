@@ -87,6 +87,36 @@ test('campaign ownership recognizes registry identities and folders while keepin
   assert.equal(all.includes('other'),false); // Publication exclusions still apply.
 });
 
+test('person Linked from omits campaign material in every context without removing it from the index or other pages',() => {
+  const sample = makeStore({
+    'Person.md':'---\ntags: person\n---\n# Person',
+    'Place.md':'# Place',
+    'World.md':'---\nknownTo: [adma]\ncampaignInfo: [{campaign: adma}]\n---\n[[Person]] [[Place]]',
+    'Session.md':'---\ntags: [session-note]\ncampaign: adma\n---\n[[Person]] [[Place]]',
+    'Unassigned Session.md':'---\ntags: session-note\n---\n[[Person]] [[Place]]',
+    'Legacy Session.md':'---\nsessionNumber: 1\n---\n[[Person]] [[Place]]',
+    'Declared.md':'---\ncampaign: [Addermarch, Dunmari Frontier]\n---\n[[Person]] [[Place]]',
+    'Unknown.md':'---\ncampaign: Unregistered\n---\n[[Person]] [[Place]]',
+    'Campaigns/Addermarch Campaign/Handout.md':'[[Person]] [[Place]]',
+    'Campaigns/Unregistered/Handout.md':'[[Person]] [[Place]]',
+    'Adventures/Letter.md':'[[Person]] [[Place]]',
+  });
+  const compiled = buildBacklinkIndex(sample), owners = buildBacklinkCampaigns(sample,{campaigns:{
+    ...registry.campaigns,other:{code:'other',name:'Other',campaignRoot:'Adventures'},
+  }});
+  const before = JSON.stringify(compiled);
+  for (const campaigns of [[],['adma'],['adma','dufr','other']]) for (const dm of [false,true]) for (const allCampaigns of [false,true]) {
+    const ctx = {...context('1720-01-01',campaigns,dm),allCampaigns};
+    assert.deepEqual(linkedFrom(compiled,sample,'person',ctx,owners).map(link=>link.page),['world']);
+  }
+  const all = {...context('1720-01-01',['adma','dufr','other']),allCampaigns:true};
+  const places = linkedFrom(compiled,sample,'place',all,owners).map(link=>link.page);
+  for (const source of ['session','unassigned-session','declared','unknown','campaigns/addermarch-campaign/handout','campaigns/unregistered/handout','adventures/letter']) assert.ok(places.includes(source),source);
+  assert.equal(compiled.byTarget.person.length,9);
+  assert.equal(JSON.stringify(compiled),before);
+  assert.equal(linkedFrom(compiled,sample,'person',all).some(link=>link.page==='legacy-session'),false);
+});
+
 test('compiled references agree with actual filtered Markdown, including cross-block reference definitions',() => {
   const sample = makeStore({
     'Target.md':'---\ncreated: 1750-01-01\n---\n# Target',

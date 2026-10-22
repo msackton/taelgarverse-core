@@ -117,11 +117,17 @@ export function buildBacklinkCampaigns(store, registry) {
 }
 
 export function linkedFrom(index, store, target, context, sourceCampaigns) {
-  if (!index || !availableInContext(store.bySlug.get(target),context,store.settings)) return [];
+  const entry = store.bySlug.get(target);
+  if (!index || !availableInContext(entry,context,store.settings)) return [];
+  const tags = Array.isArray(entry.note.metadata.tags) ? entry.note.metadata.tags : [entry.note.metadata.tags];
+  // Person histories own campaign references. Keep the full compiled backlink
+  // index for that component; omit these sources only from generic Linked from.
+  const personCampaigns = tags.includes('person') ? sourceCampaigns || buildBacklinkCampaigns(store,{}) : null;
   const date = dateKey(context.date), campaigns = new Set(context.campaigns.map(code => code.toLowerCase()));
   const incoming = Object.hasOwn(index.byTarget,target) ? index.byTarget[target] : [];
   return incoming.filter(link => {
     const source = store.bySlug.get(link.source);
+    if (personCampaigns && (personCampaigns.has(link.source) || source?.note.metadata.sessionNumber != null)) return false;
     const ownership = sourceCampaigns?.get(link.source);
     return (context.allCampaigns || !ownership || ownership.some(code=>campaigns.has(code))) &&
       source?.slug !== target && availableInContext(source,context,store.settings) && link.when.some(rule =>

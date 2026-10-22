@@ -357,6 +357,11 @@ also includes unrecognized campaign sources. Campaign ownership comes from the
 source note's `campaign` property or its registered campaign folder. This does
 not change whether those articles can be opened directly.
 Generated header relationships and links back to the same article are excluded.
+On person-tagged NPC pages, **Linked from** also excludes session notes and other
+campaign material in every view, including Modern and Behind the Curtain.
+Their campaign history belongs in **Campaign interactions**; shared world
+references remain in **Linked from**. Backlinks on other article types keep the
+normal campaign filtering described above.
 Nonempty backlinks appear in the right sidebar even on short articles; on mobile they
 appear in a collapsed **Linked from** section below the article.
 

@@ -20,6 +20,7 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     fs.writeFileSync(path.join(vault,'_scripts','session_note_campaigns.json'),JSON.stringify({campaigns:{cleenseau:{code:'clee',name:'Cleenseau',aliases:[],partyPage:'Party',campaignRoot:'Campaigns/Clee'}}}));
     fs.writeFileSync(path.join(vault,'Person.md'),'---\nheaderVersion: 2023.11.25\ntags: [person]\nname: Person\nspecies: human\nwhereabouts: Inn\nknownTo: [clee]\ncampaignInfo: [{campaign: clee, date: 1720-01-01, type: fought alongside}]\n---\n<!-- taelgar:header -->\n\nPerson biography.');
     fs.writeFileSync(path.join(vault,'Party.md'),'# Party');fs.writeFileSync(path.join(vault,'Inn.md'),'# Inn');
+    fs.writeFileSync(path.join(vault,'World.md'),'# World\n[[Person]]');
     fs.mkdirSync(path.join(vault,'Campaigns','Clee'),{recursive:true});
     fs.writeFileSync(path.join(vault,'Campaigns','Clee','Handout.md'),'# Handout\n[[Person]]');
     fs.writeFileSync(path.join(vault,'Session.md'),'---\ntags: [session-note]\ncampaign: Cleenseau\nsessionNumber: 12.1\nDR: 1720-01-01\nDR_end: 1720-01-02\n---\n# Session\n\nThe party met [[Person]] at the inn.\n\n%%^Campaign:none%%\nPerson showed them a hidden room.\n%%^End%%');
@@ -55,6 +56,8 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
       const actual=await snapshot.engine.renderAsync('Person','1720-01-02','custom',dm,['clee'],entry=>snapshot.store.getNote(entry));
       const expected=node.render('Person','1720-01-02','custom',dm,undefined,['clee']);
       assert.deepEqual(actual.interactions,expected.interactions);
+      assert.deepEqual(actual.backlinks,expected.backlinks);
+      assert.deepEqual(actual.backlinks.map(link=>link.page),['world']);
       assert.equal(actual.html,expected.html);
       assert.equal(actual.interactions[0].events.length,dm ? 3 : 2);
       assert.ok(reads.every(key=>key.endsWith('/'+snapshot.store.resolve('Person').note.shard+'.json')),'only the person shard is loaded');
@@ -67,7 +70,10 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     assert.equal(response.status,404); // No configured campaign host silently falls back.
     const worker=createWorker();
     const api=await worker.fetch(new Request('https://www.taelgar.org/api/page?page=Person&context=cleenseau'),env);
-    assert.equal(api.status,200);assert.equal((await api.json()).interactions[0].events.length,2);
+    assert.equal(api.status,200);
+    const result=await api.json();
+    assert.equal(result.interactions[0].events.length,2);
+    assert.deepEqual(result.backlinks.map(link=>link.page),['world']);
     const old=structuredClone(index);delete old.interactions;
     const oldBucket={async get(key){return key.endsWith('/index.json') ? {json:async()=>old} : originalGet(key);}};
     const loaded=await loadSnapshot(oldBucket,report.revision);
@@ -75,6 +81,7 @@ test('publication compiles authoritative Short beats, Worker matches Node withou
     assert.equal(fallback.interactions[0].events.some(event=>event.kind==='reference'),true);
     assert.equal(fallback.interactions[0].events.length,1);
     assert.equal(fallback.interactions[0].events[0].title,'Handout');
+    assert.deepEqual(fallback.backlinks.map(link=>link.page),['world']);
     const invalid={...index,interactions:{version:99,byTarget:{}}};
     await assert.rejects(loadSnapshot({get:async()=>({json:async()=>invalid})},report.revision),/interaction index format/);
     await assert.rejects(loadSnapshot({get:async()=>({json:async()=>({...index,interactions:{version:1,byTarget:{}}})})},report.revision),/interaction index format/);
