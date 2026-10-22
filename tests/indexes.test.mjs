@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import {load} from 'cheerio';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {headerFixture as legacyFixture} from './helpers/legacy-header-fixture.mjs';
-import {indexNotes,indexSources} from './fixtures/indexes.mjs';
-import {headerIndexes,parseIndex,queryIndex} from '../src/indexes.mjs';
-import {indexGrid} from '../src/index-view.mjs';
+import {indexNotes,indexSources,featureIndexNotes} from './fixtures/indexes.mjs';
+import {headerIndexes,parseIndex,queryIndex,indexHasResults} from '../src/indexes.mjs';
+import {indexGrid,indexPopupShell} from '../src/index-view.mjs';
+import {handleRequest} from '../src/application.mjs';
 import {ContentStore,parseNote} from '../src/content-store.mjs';
 import {RenderEngine,document} from '../src/render-engine.mjs';
 import {renderBio,renderHeader} from '../src/header-core/index.mjs';
@@ -215,11 +216,14 @@ function website(extraSources={},assets=[]) {
 }
 
 test('website header popups and inline grids filter before counts and retain reader context',()=>{
-  const engine=website();
+  const engine=website({
+    'Places/Empty.md':"---\ntags: [place]\nindexes: [residents, settlements]\n---\n```taelgar-header\n```\n\nAuthored prose.",
+  });
   const result=engine.render('Places/Realm.md','1720-01-01','custom',true,undefined,['dufr'],undefined,true);
   const $=load(result.html,{},false);
   assert.equal($('.taelgar-index-popup').length,2);
-  assert.equal($('.taelgar-index-popup summary').first().text(),'Residents (2)');
+  assert.equal($('.taelgar-index-popup summary').first().text(),'Residents');
+  assert.equal($('.taelgar-index-card,img').length,0,'popup content waits for activation');
   const buttons=$('.taelgar-index-buttons');
   assert.equal(buttons.prev().is('.grid.cards'),true,'buttons follow the complete generated information box');
   assert.equal(buttons.closest('.grid.cards,.admonition,details.info').length,0,'buttons are outside the information box');
@@ -227,11 +231,15 @@ test('website header popups and inline grids filter before counts and retain rea
   assert.equal($('h1').next().is('.taelgar-index-buttons'),false);
   assert.equal($('.taelgar-header-index-slot').length,0);
   assert.doesNotMatch(result.html,/People\/(Hidden|Campaign Secret|POV Secret)|Future|Dead|Visitor/);
-  const url=new URL($('.taelgar-index-link').first().attr('href'),'https://test.invalid');
+  const url=new URL($('.taelgar-index-popup').first().attr('data-index-url'),'https://test.invalid');
+  assert.equal(url.pathname,'/api/index');assert.equal(url.searchParams.get('type'),'residents');
   assert.equal(url.searchParams.get('date'),'1720-01-01');assert.equal(url.searchParams.get('campaigns'),'dufr');
   assert.equal(url.searchParams.get('dm'),'1');assert.equal(url.searchParams.get('pov'),'1');
   const page=document(result,engine.contexts.list(),engine.navigation);
   assert.match(page,/\/theme\/indexes.css/);assert.match(page,/\/theme\/indexes.js/);
+  const empty=engine.render('Places/Empty.md','1720-01-01','custom');
+  assert.doesNotMatch(empty.html,/taelgar-index-buttons|taelgar-index-popup|taelgar-header-index-slot/);
+  assert.match(empty.html,/Authored prose/);
 });
 
 test('inline blocks select host, support other targets and embeds, and never enter search or backlinks',()=>{
@@ -251,6 +259,21 @@ test('inline blocks select host, support other targets and embeds, and never ent
   const compiled=compileSearch(engine.store);
   assert.ok(compiled.documents.filter(doc=>doc.page==='guide').every(doc=>!doc.text.includes('Alice')));
   assert.ok(!engine.render('People/Alice.md','1720-01-01','custom').backlinks?.some(link=>link.title==='Guide'));
+});
+
+test('all inline index types have one H2 label in grids and tables, including empty indexes',()=>{
+  const sources=indexSources(featureIndexNotes);
+  const cases=[['residents','Realm','Residents'],['settlements','Realm','Settlements'],['members','Guild','Members'],['rivers','Basin','Rivers'],['places','Town','Places'],['places','Inn','Places']];
+  for(const [type,target] of cases)for(const mode of ['grid','table'])sources[type+'-'+target+'-'+mode+'.md']='```taelgar-index\ntype: '+type+'\ntarget: '+target+'\nmode: '+mode+'\n```';
+  const engine=website(sources);
+  for(const [type,target,label] of cases)for(const mode of ['grid','table']) {
+    const $=load(engine.render(type+'-'+target+'-'+mode,'1720-01-01','custom').html,{},false);
+    assert.equal($('.taelgar-index > h2').length,1);
+    assert.equal($('.taelgar-index').children().first().prop('tagName'),'H2');
+    assert.equal($('.taelgar-index > h2').text(),label);
+  }
+  const popup=load(engine.renderIndex('Places/Basin.md','rivers','1720-01-01','custom'),{},false);
+  assert.equal(popup('h2').length,0,'lazy popup content does not duplicate the dialog title');
 });
 
 test('card metadata and invalid options are escaped without hiding the rest of the article',()=>{
@@ -283,7 +306,7 @@ test('residents tables show Person, Info, dated last-known location, and Home wh
   assert.match(cells.eq(2).find('a').attr('href'),/date=1720-01-01.*campaigns=dufr.*pov=1/);
   assert.match(cells.eq(3).find('a').attr('href'),/date=1720-01-01.*campaigns=dufr.*pov=1/);
   assert.equal($('img,.taelgar-index-grid').length,0);
-  const popup=engine.render('Places/Realm.md','1720-01-01','custom');assert.match(popup.html,/taelgar-index-grid/);assert.doesNotMatch(popup.html,/taelgar-index-table/);
+  const popup=engine.renderIndex('Places/Realm.md','residents','1720-01-01','custom');assert.match(popup,/taelgar-index-grid/);assert.doesNotMatch(popup,/taelgar-index-table/);
   const changed=engine.render('Table','1741-01-01','custom',false,undefined,['dufr'],undefined,true);
   assert.equal(load(changed.html)('tbody tr').first().find('td').eq(2).text(),'Inn, Town (January 1st, 1741)');
   assert.equal(load(changed.html)('tbody tr').first().find('td').last().text(),'Inn');
@@ -311,10 +334,12 @@ test('website member tables use the requested templates with contextual links, v
   for(const link of $('tbody a').toArray())assert.match($(link).attr('href'),/date=1720-01-01.*campaigns=dufr.*pov=1/);
   assert.equal($('img,.taelgar-index-grid').length,0);assert.doesNotMatch(result.html,/People\/(Hidden|Future|Campaign Secret|POV Secret)/);
   const popup=engine.render('Groups/Guild.md','1720-01-01','custom',false,undefined,['dufr'],undefined,true);
-  assert.match(popup.html,/Members \(2\)/);assert.doesNotMatch(popup.html,/taelgar-index-table/);
-  assert.match(load(popup.html)('.taelgar-index-card').first().text(),/Alice Example \(she\/her AL-iss\)/);
-  assert.match(load(popup.html)('.taelgar-index-card').first().text(),/Current Location: the Other Realm \(January 1st, 1720\)/);
-  assert.doesNotMatch(load(popup.html)('.taelgar-index-card').first().text(),/Home:/);
+  assert.equal(load(popup.html)('.taelgar-index-popup summary').text(),'Members');
+  assert.doesNotMatch(popup.html,/taelgar-index-table|taelgar-index-count/);
+  const popupContent=engine.renderIndex('Groups/Guild.md','members','1720-01-01','custom',false,['dufr'],true);
+  assert.match(load(popupContent)('.taelgar-index-card').first().text(),/Alice Example \(she\/her AL-iss\)/);
+  assert.match(load(popupContent)('.taelgar-index-card').first().text(),/Current Location: the Other Realm \(January 1st, 1720\)/);
+  assert.doesNotMatch(load(popupContent)('.taelgar-index-card').first().text(),/Home:/);
   assert.match(load(render('1721-01-01').html)('tbody tr').first().find('td').last().text(),/January 1st, 1721/);
   for(const path of ['Places/Other Realm.md','Ancestries/Townfolk.md','Creatures/Humans.md'])engine.store.resolve(path).note.metadata.excludePublish='all';
   const hidden=render();assert.doesNotMatch(hidden.html,/Other Realm|other-realm|Townfolk|townfolk|human|Humans/);
@@ -348,7 +373,7 @@ test('settlement tables use Place, Region, Type Of and Population, shared displa
   assert.match($('tbody tr').first().find('td').eq(1).find('a').attr('href'),/date=1720-01-01.*campaigns=dufr.*pov=1/);
   const later=load(engine.render('Settlements','1750-01-01','custom').html,{},false);
   assert.doesNotMatch(later('tbody').text(),/Town/,'a settlement in a different region leaves the query at that date');
-  const popup=load(engine.render('Places/Realm.md','1720-01-01','custom').html,{},false);
+  const popup=load(engine.renderIndex('Places/Realm.md','settlements','1720-01-01','custom'),{},false);
   assert.match(popup('.taelgar-index-card').filter((_,el)=>popup(el).find('a[href*="places/z-first"]').length).text(),/Z-first \(ZED\)/);
   engine.store.resolve('Places/Alpha.md').note.metadata.excludePublish='all';
   const hidden=engine.render('Settlements','1720-01-01','custom');
@@ -368,12 +393,87 @@ test('grid images use lead metadata, omit missing/unsafe images, and include res
   assert.match($('.taelgar-index-card').first().text(),/Current Location: the Other Realm \(January 1st, 1720\)/);
   assert.match($('.taelgar-index-card').first().text(),/Home: Inn/);assert.doesNotMatch(result.html,/Visitor/);
   assert.equal($('img').attr('src'),'/assets/portrait-small.webp');assert.match($('img').attr('srcset'),/270w/);assert.equal($('img').attr('loading'),'lazy');
-  const popup=load(engine.render('Places/Realm.md','1720-01-01','custom').html,{},false);
-  assert.equal(popup('.taelgar-index-popup img').attr('src'),'/assets/portrait-small.webp');
-  assert.match(popup('.taelgar-index-popup .taelgar-index-card').first().text(),/Alice Example \(she\/her AL-iss\)/);
+  const popup=load(engine.renderIndex('Places/Realm.md','residents','1720-01-01','custom'),{},false);
+  assert.equal(popup('img').attr('src'),'/assets/portrait-small.webp');
+  assert.match(popup('.taelgar-index-card').first().text(),/Alice Example \(she\/her AL-iss\)/);
   assert.ok(collectImageUsages(engine.store).has(portrait.id),'frontmatter-only lead images are prepared for publication');
   assert.equal(indexImageTarget([['alice.png']]),'alice.png');assert.equal(indexImageTarget('![[alice.png|Portrait]]'),'alice.png');
   for(const unsafe of ['javascript:alert(1)','data:image/png;base64,abc','https://example.test/alice.png','//example.test/alice.png',{},['one.png','two.png']])assert.equal(indexImageTarget(unsafe),undefined);
   assert.equal(indexImageEntry(engine.store,'./missing/alice.png','People/Bob.md'),undefined,'explicit relative paths cannot silently select a different image');
   assert.equal(indexImageEntry(engine.store,'People/Alice.md','Grid.md'),undefined,'notes cannot become image URLs');
+});
+
+
+test('header existence probes skip row formatting and keep dated membership semantics',()=>{
+  const {runtime}=fixture();
+  const snapshot={...runtime,coreMeta:new Proxy(runtime.coreMeta,{get(){throw new Error('Formatting should wait for activation');}})};
+  assert.equal(indexHasResults(snapshot,{type:'residents',target:'Realm'},{date:'1720-01-01',visible}),true);
+  assert.equal(indexHasResults(snapshot,{type:'residents',target:'Realm'},{date:'1750-01-01',visible}),false);
+  assert.throws(()=>queryIndex(snapshot,{type:'residents',target:'Realm'},{date:'1720-01-01',visible}),/Formatting should wait/);
+});
+
+test('lazy index API filters each reader context, accepts only enabled types, and never caches responses',async()=>{
+  const engine=website();
+  const url='https://test.invalid/api/index?page=Places/Realm.md&type=residents&context=custom&date=1720-01-01&campaigns=dufr&pov=1';
+  const response=await handleRequest(new Request(url),engine),html=await response.text();
+  assert.equal(response.status,200);assert.equal(response.headers.get('Cache-Control'),'no-store');
+  assert.match(html,/Alice Example/);assert.doesNotMatch(html,/Hidden|Campaign Secret|POV Secret|Future|Dead|Visitor/);
+  assert.match(html,/campaigns=dufr/);assert.match(html,/pov=1/);
+  assert.equal((await handleRequest(new Request(url.replace('type=residents','type=members')),engine)).status,404);
+  assert.equal((await handleRequest(new Request('https://test.invalid/api/index'),engine)).status,400);
+  assert.equal((await handleRequest(new Request(url,{method:'POST'}),engine)).status,405);
+  assert.equal(await (await handleRequest(new Request(url,{method:'HEAD'}),engine)).text(),'');
+  engine.campaignSites.forHost=host=>host==='party.test' ? {host:'party',contextId:'custom',date:'1720-01-01',campaigns:['dufr'],enforcePoV:true} : undefined;
+  const locked=await handleRequest(new Request(url.replace('test.invalid','party.test').replace('1720-01-01','1750-01-01').replace('campaigns=dufr','campaigns=none').replace('pov=1','pov=0')),engine);
+  assert.equal(locked.status,200);const lockedHTML=await locked.text();
+  assert.match(lockedHTML,/Alice Example/);assert.doesNotMatch(lockedHTML,/Campaign Secret|POV Secret/);
+  assert.match(lockedHTML,/date=1720-01-01/);
+  engine.store.resolve('Places/Realm.md').note.metadata.excludePublish='all';
+  assert.equal((await handleRequest(new Request(url),engine)).status,404);
+});
+
+
+test('rivers follow waterway metadata and watershed secondary locations, with recursive and dated scope',()=>{
+  const {runtime}=fixture(featureIndexNotes),options={type:'rivers',target:'Basin'},context={date:'1720-01-01',visible:page=>page.metadata.excludePublish!=='all'};
+  assert.deepEqual(headerIndexes(['rivers','places','rivers']),['rivers','places']);
+  for(const type of ['rivers','places'])assert.equal(parseIndex('type: '+type).recursive,true);
+  const rivers=queryIndex(runtime,options,context);
+  assert.deepEqual(paths(rivers),['Places/Brook.md','Places/River.md']);
+  assert.equal(rivers.items[1].placeType,'river');assert.equal(rivers.items[1].pronunciation,'RIV-er');
+  assert.deepEqual(paths(queryIndex(runtime,{...options,recursive:false},context)),['Places/River.md']);
+  assert.equal(indexHasResults(runtime,options,context),true);
+  assert.deepEqual(paths(queryIndex(runtime,{...options,target:'Town'},context)),[]);
+  assert.ok(paths(queryIndex(runtime,options,{...context,date:'1760-01-01'})).includes('Places/Future River.md'));
+  assert.throws(()=>queryIndex(runtime,{type:'rivers',target:'Guild'},context),/place/);
+});
+
+test('places include only contained place notes, including town quarters and their buildings',()=>{
+  const {runtime}=fixture(featureIndexNotes),context={date:'1720-01-01',visible:page=>page.metadata.excludePublish!=='all'};
+  const places=queryIndex(runtime,{type:'places',target:'Old Town'},context);
+  assert.deepEqual(paths(places),['Places/Quarter.md','Places/Inn.md','Places/Shop.md','Places/Temple.md']);
+  assert.deepEqual(paths(queryIndex(runtime,{type:'places',target:'Town',recursive:false},context)),['Places/Quarter.md','Places/Inn.md','Places/Temple.md']);
+  assert.ok(!paths(places).some(path=>path.startsWith('People/') || path.startsWith('Groups/')));
+  assert.equal(indexHasResults(runtime,{type:'places',target:'Inn'},context),false);
+});
+
+test('rivers and places render compact tables, lazy website buttons, and context-filtered API grids',async()=>{
+  const engine=website({...indexSources(featureIndexNotes),
+    'River Table.md':'```taelgar-index\ntype: rivers\ntarget: Basin\nmode: table\n```',
+    'Places Table.md':'```taelgar-index\ntype: places\ntarget: Town\nmode: table\n```',
+  });
+  for(const [type,page,target,firstHeading,expected,excluded] of [
+    ['rivers','River Table','Basin','River','Main River','Hidden River'],
+    ['places','Places Table','Town','Place','Shop','Hidden Building'],
+  ]) {
+    const table=load(engine.render(page,'1720-01-01','custom').html,{},false);
+    assert.deepEqual(table('th').map((_,cell)=>table(cell).text()).get(),[firstHeading,'Type Of']);
+    assert.match(table('tbody').text(),new RegExp(expected));assert.doesNotMatch(table('tbody').text(),new RegExp(excluded+'|Future'));
+    const header=load(engine.render('Places/'+target+'.md','1720-01-01','custom').html,{},false);
+    assert.equal(header('.taelgar-index-popup summary').text(),type==='rivers'?'Rivers':'Places');
+    assert.equal(header('.taelgar-index-card').length,0);
+    const response=await handleRequest(new Request('https://test.invalid'+header('.taelgar-index-popup').attr('data-index-url')),engine);
+    assert.equal(response.status,200);const grid=await response.text();
+    assert.match(grid,new RegExp(expected));assert.doesNotMatch(grid,new RegExp(excluded+'|Future'));
+    assert.match(grid,/taelgar-index-card/);
+  }
 });

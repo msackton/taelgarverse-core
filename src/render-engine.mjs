@@ -15,7 +15,7 @@ import {leadingBioBlock,leadingHeaderMarker} from './bio-block.mjs';
 import {HeaderDataError} from './header-core/errors.mjs';
 import {compileInteractionIndex,campaignInteractions} from './campaign-interactions.mjs';
 import {interactionSummary,interactionView} from './interaction-view.mjs';
-import {addHeaderIndexes,HEADER_INDEX_SLOT} from './website-indexes.mjs';
+import {addHeaderIndexes,renderHeaderIndex,HEADER_INDEX_SLOT} from './website-indexes.mjs';
 
 export class RenderEngine {
   constructor({settings,store,headers,renderHeader,renderBio,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles,loadTranscript}) {
@@ -97,6 +97,11 @@ export class RenderEngine {
       ...(metadata.layout === 'wide' ? {layout:'wide'} : {}),
       ...rendered, interactions, backlinks:backlinkIndex && (backlinkIndex.version>=2 || context.campaigns.length<=1)
         ? linkedFrom(backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
+  }
+
+  renderIndex(page,type,date,contextId,dm,selectedCampaigns,pov) {
+    const {entry,context}=this.resolvePage(page,date,contextId,dm,selectedCampaigns,pov);
+    return renderHeaderIndex(type,{store:this.store,entry,context,headers:this.headers,warnings:[]});
   }
 
   async renderAsync(page,date,contextId,dm,selectedCampaigns,loadNote,pov) {

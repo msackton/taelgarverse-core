@@ -19,8 +19,11 @@
 .taelgar-index-link { font-weight:600; }
 .taelgar-index-card img.taelgar-index-image { display:block; width:100%; height:180px; object-fit:contain; margin:0 0 .75rem; border-radius:.3rem; background:var(--surface,var(--background-secondary,transparent)); }
 .taelgar-index-table-scroll { overflow-x:auto; }
-.taelgar-index-table-scroll > table.taelgar-index-table { display:table; width:100%; margin:0; border-collapse:collapse; text-align:left; font:inherit; }
-.taelgar-index-table th,.taelgar-index-table td { padding:.65rem .8rem; vertical-align:top; border-bottom:1px solid var(--line,var(--background-modifier-border,#89968c)); }
+.taelgar-index-table-scroll > table.taelgar-index-table { display:table; width:100%; margin:0; border:0; border-spacing:0; border-collapse:collapse; background:transparent; box-shadow:none; text-align:left; font:inherit; line-height:1.35; }
+.taelgar-index table.taelgar-index-table :is(th,td) { padding:.12em .5em; vertical-align:top; border:0; background:transparent; }
+.taelgar-index table.taelgar-index-table th { padding-top:.25em; padding-bottom:.25em; border-bottom:2px solid var(--line,var(--background-modifier-border,#89968c)); font-weight:600; }
+.taelgar-index table.taelgar-index-table tr { background:transparent; }
+.taelgar-index-table .taelgar-index-link { font-weight:400; }
 .taelgar-index-pronunciation { color:var(--muted,var(--text-muted,#617267)); }
 .taelgar-index-error,.taelgar-index-warning { color:var(--text-error,#a44738); }
 .taelgar-index[hidden],.taelgar-index-close[hidden] { display:none; }

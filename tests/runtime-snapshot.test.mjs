@@ -11,7 +11,7 @@ import {ContentStore,parseNote,availableInContext,compileAvailability} from '../
 import {Navigation} from '../src/navigation.mjs';
 import {validatePublicationUploads,prunePublication} from '../scripts/content-retention.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
-import {indexSources} from './fixtures/indexes.mjs';
+import {indexSources,featureIndexNotes} from './fixtures/indexes.mjs';
 
 let directory,report,objects,settings;
 class Bucket {
@@ -56,7 +56,7 @@ before(async()=>{
     'Adder Session.md':'---\ntags: [session-note]\ncampaign: adma\nDR: 1740-01-01\n---\nSession.',
   };
   Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/backlinks.json',import.meta.url),'utf8')));
-  Object.assign(notes,indexSources(),{
+  Object.assign(notes,indexSources(featureIndexNotes),{
     'Index Guide.md':'# Index Guide\n\n```taelgar-index\ntype: residents\ntarget: Town\n```\n\n```taelgar-index\ntype: members\ntarget: Guild\nshow: obsidian\n```',
     'Index Embed.md':'# Index Embed\n\n![[Index Guide]]',
     'Index Table.md':'```taelgar-index\ntype: residents\ntarget: Realm\nmode: table\n```',
@@ -97,12 +97,18 @@ test('compiled and legacy snapshots produce identical dynamic HTML, APIs, embeds
 
 test('compiled and legacy Workers calculate visible indexes from metadata and preserve inline blocks through publication',async()=>{
   for(const legacy of [false,true]) {
+    const coldBucket=new Bucket(objects,{legacy});
+    const cold=await request(createWorker(),coldBucket,'/api/index?page=Places/Realm.md&type=residents&date=1720-01-01&campaigns=dufr&pov=1');
+    assert.equal(cold.status,200);
+    assert.ok(!coldBucket.calls.some(key=>/\/(?:runtime\/)?notes\//.test(key)),'popup API uses metadata without note-body reads');
     const bucket=new Bucket(objects,{legacy}),worker=createWorker();
     const response=await request(worker,bucket,'/api/page?page=Places/Realm.md&date=1720-01-01&campaigns=dufr&pov=1');
     assert.equal(response.status,200);const result=await response.json();
-    assert.match(result.html,/Residents \(2\)/);assert.match(result.html,/Settlements \(2\)/);
-    assert.match(result.html,/taelgar-index-image/);
-    assert.match(result.html,/Alice Example<\/a> \(she\/her AL-iss\)/);
+    assert.match(result.html,/data-index-lazy/);assert.doesNotMatch(result.html,/taelgar-index-card|taelgar-index-image/);
+    const content=await request(worker,bucket,'/api/index?page=Places/Realm.md&type=residents&date=1720-01-01&campaigns=dufr&pov=1');
+    assert.equal(content.status,200);const grid=await content.text();
+    assert.match(grid,/taelgar-index-image/);assert.match(grid,/Alice Example<\/a> \(she\/her AL-iss\)/);
+    assert.doesNotMatch(grid,/Hidden|Campaign Secret|POV Secret|Future|Dead|Visitor/);
     assert.doesNotMatch(result.html,/People\/(?:Hidden|Campaign Secret|POV Secret)|Dead|Future|Visitor/);
     if(!legacy)assert.equal(bucket.calls.filter(key=>key.includes('/runtime/notes/')).length,1,'metadata indexes do not fetch candidate bodies');
     const embedded=await request(worker,bucket,'/api/page?page=Index Embed&date=1720-01-01&campaigns=dufr&pov=1');
@@ -296,5 +302,21 @@ test('retention validates every compiled dependency before cleanup',async()=>{
     assert.ok(key,folder);bucket.objects.delete(key);
     await assert.rejects(prunePublication(storage,search,pointer,{dryRun:true}),/missing/);
     bucket.objects.set(key,value);
+  }
+});
+
+
+test('compiled and legacy Workers render Rivers and Places from metadata without note-body reads',async()=>{
+  for(const legacy of [false,true])for(const [type,page,expected,excluded] of [
+    ['rivers','Basin','Main River','Hidden River'],['places','Town','Shop','Hidden Building'],
+  ]) {
+    const bucket=new Bucket(objects,{legacy}),worker=createWorker();
+    const response=await request(worker,bucket,'/api/index?page=Places/'+page+'.md&type='+type+'&context=custom&date=1720-01-01');
+    assert.equal(response.status,200);const html=await response.text();
+    assert.match(html,new RegExp(expected));assert.doesNotMatch(html,new RegExp(excluded+'|Future'));
+    assert.ok(!bucket.calls.some(key=>/\/(?:runtime\/)?notes\//.test(key)));
+    const header=await request(worker,bucket,'/api/page?page=Places/'+page+'.md&context=custom&date=1720-01-01');
+    assert.equal(header.status,200);const result=await header.json();
+    assert.match(result.html,new RegExp('data-index-type="'+type+'"'));assert.doesNotMatch(result.html,/taelgar-index-card/);
   }
 });

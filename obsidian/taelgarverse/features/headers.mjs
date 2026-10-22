@@ -2,8 +2,8 @@ import {Component,MarkdownRenderChild,MarkdownRenderer} from 'obsidian';
 import {createHeaderSnapshot,renderBio} from '../../../src/header-core/index.mjs';
 import {Contexts} from '../../../src/contexts.mjs';
 import {escapeHtml} from '../../../src/common.mjs';
-import {headerIndexes,parseIndex,queryIndex} from '../../../src/indexes.mjs';
-import {indexView,indexPopup,indexError} from '../../../src/index-view.mjs';
+import {headerIndexes,parseIndex,queryIndex,indexHasResults,indexLabels} from '../../../src/indexes.mjs';
+import {indexView,indexPopup,indexPopupShell,indexError} from '../../../src/index-view.mjs';
 import {indexImageTarget} from '../../../src/index-images.mjs';
 import {IMAGE_TYPES} from '../../../src/content-store.mjs';
 import {mountIndexPopups} from '../../../src/browser/index-popups.mjs';
@@ -35,15 +35,39 @@ export function obsidianBio(snapshot,file,metadata,globals=globalThis) {
     metadata,date:bioDate(metadata,globals,snapshot.fallback),headerType:'static'});
 }
 
+// Metadata changes replace the runtime snapshot, dropping its cached queries.
+// This author-only cache never serves website requests or crosses date/source views.
+const indexSnapshots=new WeakMap();
+const MAX_INDEX_QUERIES=32;
+function indexState(snapshot) {
+  let state=indexSnapshots.get(snapshot.runtime);
+  if(!state) {
+    state={pages:new Map(snapshot.runtime.pages.map(page=>[page.path,page])),queries:new Map()};
+    indexSnapshots.set(snapshot.runtime,state);
+  }
+  return state;
+}
+const indexKey=(options,sourcePath,date)=>JSON.stringify([sourcePath,options.type,options.target,options.recursive ?? options.type!=='members',date]);
+const indexContext=(app,state,sourcePath,date)=>({date,sourcePath,resolve:(target,source)=>{
+  const file=app.metadataCache.getFirstLinkpathDest(target,source);
+  return file && state.pages.get(file.path);
+}});
+export function obsidianIndexExists(app,snapshot,options,sourcePath,date) {
+  const state=indexState(snapshot),cached=state.queries.get(indexKey(options,sourcePath,date));
+  return cached ? cached.items.length>0 : indexHasResults(snapshot.runtime,options,indexContext(app,state,sourcePath,date));
+}
 export function obsidianIndex(app,snapshot,options,sourcePath,date) {
-  const pages=new Map(snapshot.runtime.pages.map(page=>[page.path,page]));
-  return queryIndex(snapshot.runtime,options,{date,sourcePath,resolve:(target,source)=>{
-    const file=app.metadataCache.getFirstLinkpathDest(target,source);
-    return file && pages.get(file.path);
-  }});
+  const state=indexState(snapshot),key=indexKey(options,sourcePath,date);
+  let result=state.queries.get(key);
+  if(result)state.queries.delete(key);
+  else result=queryIndex(snapshot.runtime,options,indexContext(app,state,sourcePath,date));
+  state.queries.set(key,result);
+  if(state.queries.size>MAX_INDEX_QUERIES)state.queries.delete(state.queries.keys().next().value);
+  // Image URLs and other host additions belong to this render, not the cache.
+  return structuredClone(result);
 }
 
-function indexMarkup(feature,snapshot,options,sourcePath,date,popup=false) {
+function indexMarkup(feature,snapshot,options,sourcePath,date,{popup=false,heading=false}={}) {
   const result=obsidianIndex(feature.app,snapshot,options,sourcePath,date);
   if(popup || options.mode!=='table')for(const item of result.items) {
     const target=indexImageTarget(item.imageTarget);
@@ -51,24 +75,27 @@ function indexMarkup(feature,snapshot,options,sourcePath,date,popup=false) {
     if(file && IMAGE_TYPES.has('.'+file.path.split('.').at(-1).toLowerCase()))item.image=feature.app.vault.getResourcePath(file);
   }
   const link=item=>item.path ? '<a class="internal-link taelgar-index-link" data-href="'+escapeHtml(item.path)+'" href="'+escapeHtml(item.path)+'">'+escapeHtml(item.name)+'</a>' : escapeHtml(item.name);
-  return popup ? indexPopup(result,link) : indexView(result,link,options.mode);
+  return popup ? indexPopup(result,link) : indexView(result,link,options.mode,{heading});
 }
 
-function mountIndexes(root,app,sourcePath) {
-  const disposePopup=mountIndexPopups(root),disposers=[];
-  for(const link of root.querySelectorAll('.taelgar-index-link')) {
+function mountIndexes(root,app,sourcePath,options={}) {
+  const disposePopup=mountIndexPopups(root,options),disposers=[];
+  // Delegation also covers links inserted by a lazy load after mounting.
+  for(const container of [root,...root.querySelectorAll('.taelgar-index-panel')]) {
     const open=event=>{
-      if(event.button!==0)return;
+      const link=event.target.closest?.('.taelgar-index-link');
+      if(event.button!==0 || !link || !container.contains(link))return;
       event.preventDefault();event.stopPropagation();
       app.workspace.openLinkText(link.dataset.href,sourcePath,!!(event.ctrlKey || event.metaKey || event.shiftKey));
     };
-    link.addEventListener('click',open);disposers.push(()=>link.removeEventListener('click',open));
+    container.addEventListener('click',open);disposers.push(()=>container.removeEventListener('click',open));
   }
   return ()=>{disposePopup();for(const dispose of disposers)dispose();};
 }
 
 function headerIndexMarkup(feature,snapshot,metadata,sourcePath,date) {
-  try{return headerIndexes(metadata.indexes).map(type=>indexMarkup(feature,snapshot,{type},sourcePath,date,true)).join('');}
+  try{return headerIndexes(metadata.indexes).filter(type=>obsidianIndexExists(feature.app,snapshot,{type},sourcePath,date))
+    .map(type=>indexPopupShell({type,label:indexLabels[type],target:metadata.name || sourcePath.split('/').at(-1).replace(/\.md$/,'')})).join('');}
   catch(error){return indexError(error);}
 }
 
@@ -109,8 +136,16 @@ class BioChild extends MarkdownRenderChild {
       if(metadata.indexes !== undefined) {
         const buttons=element.ownerDocument.createElement('div');buttons.className='taelgar-index-buttons';
         buttons.innerHTML=headerIndexMarkup(this.feature,snapshot,metadata,this.context.sourcePath,bioDate(metadata,globalThis,snapshot.fallback));
-        output.append(buttons);
-        disposeIndexes=mountIndexes(buttons,app,this.context.sourcePath);
+        if(buttons.innerHTML) {
+          output.append(buttons);
+          disposeIndexes=mountIndexes(buttons,app,this.context.sourcePath,{load:async details=>{
+            const current=await this.feature.getSnapshot();
+            const currentFile=app.vault.getAbstractFileByPath(this.context.sourcePath);
+            if(!currentFile)throw new Error('Index target unavailable');
+            const currentMetadata=app.metadataCache.getFileCache(currentFile)?.frontmatter || {};
+            return indexMarkup(this.feature,current,{type:details.dataset.indexType},this.context.sourcePath,bioDate(currentMetadata,globalThis,current.fallback));
+          }});
+        }
       }
       this.disposeIndexes?.();this.disposeIndexes=disposeIndexes;
       if(this.rendered)this.removeChild(this.rendered);
@@ -139,7 +174,7 @@ class IndexChild extends BioChild {
       if(this.disposed || sequence!==this.sequence)return;
       const metadata=this.feature.app.metadataCache.getFileCache(this.feature.app.vault.getAbstractFileByPath(this.context.sourcePath))?.frontmatter || {};
       const date=bioDate(metadata,globalThis,snapshot.fallback);this.date=JSON.stringify(date);
-      const html=indexMarkup(this.feature,snapshot,options,this.context.sourcePath,date);
+      const html=indexMarkup(this.feature,snapshot,options,this.context.sourcePath,date,{heading:true});
       this.disposeIndexes?.();element.hidden=false;element.innerHTML=html;
       this.disposeIndexes=mountIndexes(element,this.feature.app,this.context.sourcePath);
     }catch(error){

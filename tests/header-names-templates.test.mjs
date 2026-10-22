@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {headerFixture} from './helpers/header-fixture.mjs';
+import {createHeaderContext} from '../src/header-core/index.mjs';
 
 for(const [metadata,type] of [
   [{tags:['person']},'person'],[{tags:'place/town'},'place'],[{tags:['object/book']},'object'],
@@ -107,4 +108,22 @@ test('separate first-item formatting, chain filters and parent-organization dept
     'The River Town, in the [[Old County]], the [[Kingdom|Green Kingdom]]');
   assert.equal(t.formatDisplayString('<partof:1n>',h.file('Guild')),'the Guild Federation');
   assert.equal(t.formatDisplayString('<partof:n>',h.file('Guild')),'the Guild Federation, the High Council');
+});
+
+
+test('indexed aliases preserve vault order, native precedence, filters and legacy fallback',()=>{
+  const extraNotes={
+    'Alias One.md':{tags:['place'],aliases:['Shared Alias','SHARED ALIAS']},
+    'Alias Two.md':{tags:['person'],aliases:'shared alias'},
+  };
+  for(const resolveLink of [undefined,target=>target.toLowerCase()==='shared alias'?'Alias Two.md':undefined]) {
+    const {runtime,services}=headerFixture({extraNotes,resolveLink});
+    const scan=createHeaderContext({...runtime,aliasCandidates:undefined},{date:'1720-01-01'}).names;
+    for(const target of ['shared alias','SHARED ALIAS','Alias One.md','Port','human','Missing'])
+      for(const filter of [undefined,metadata=>metadata.tags?.includes('person'),metadata=>metadata.tags?.includes('place')])
+        assert.deepEqual(services.NameManager.getFileForTarget(target,filter),scan.getFileForTarget(target,filter),target);
+    assert.deepEqual(runtime.aliasCandidates('SHARED ALIAS').map(page=>page.path),['Alias One.md','Alias Two.md']);
+  }
+  const malformed=headerFixture({extraNotes:{'Malformed.md':{aliases:[42]}}}).services.NameManager;
+  assert.throws(()=>malformed.getFileForTarget('Missing'),TypeError);
 });

@@ -53,6 +53,23 @@ export function hydrateHeaderSnapshot(input,rawPages,{resolveLink}={}) {
   const pages=deepFreeze(rawPages.map(({path,metadata})=>({path,name:path.split('/').at(-1).replace(/\.md$/,''),metadata})));
   const byPath=new Map(pages.map(page=>[page.path,page])),byTarget=new Map(input.targets);
   const byAffiliation=new Map(input.affiliations.map(([key,indices])=>[key,indices.map(index=>pages[index])]));
+  // Preserve alias order and filtered-name fallback while avoiding a vault scan
+  // for every unresolved target. Legacy malformed arrays retain the full scan.
+  const byAlias=new Map();let canIndexAliases=true;
+  for(const page of pages) {
+    const aliases=typeof page.metadata.aliases==='string' ? [page.metadata.aliases] : page.metadata.aliases;
+    if(!Array.isArray(aliases))continue;
+    const keys=new Set();
+    for(const alias of aliases) {
+      if(typeof alias!=='string'){canIndexAliases=false;continue;}
+      keys.add(alias.toLowerCase());
+    }
+    for(const key of keys) {
+      const candidates=byAlias.get(key) ?? [];
+      candidates.push(page);byAlias.set(key,candidates);
+    }
+  }
+  for(const candidates of byAlias.values())Object.freeze(candidates);
   const {canIndexAffiliations}=input;
   for(const candidates of byAffiliation.values())Object.freeze(candidates);
   const empty=Object.freeze([]);
@@ -64,6 +81,7 @@ export function hydrateHeaderSnapshot(input,rawPages,{resolveLink}={}) {
       const candidates=byTarget.get(target.toLowerCase());
       return candidates?.length===1?pages[candidates[0]]:undefined;
     },
+    aliasCandidates:target=>canIndexAliases?(byAlias.get(target.toLowerCase())??empty):pages,
     affiliationCandidates:target=>canIndexAffiliations?(byAffiliation.get(String(target))??empty):pages,
   });
 }

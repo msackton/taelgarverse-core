@@ -168,27 +168,43 @@ frontmatter:
 indexes: [residents, settlements]
 ```
 
-For an organization use `indexes: [members]`. Omit the property or use `[]` for
+For a watershed use `indexes: [rivers]`; for a town use `indexes: [places]`.
+For an organization use `indexes: [members]`. Types can be combined in one array.
+Omit the property or use `[]` for
 no buttons. Repeated entries produce one button; unknown names and mappings
 such as `indexes: {members: true}` show an author-visible error.
 The button row sits below the complete generated header, outside its information
 callout. An ordinary Markdown title or saved header does not receive buttons;
-use the new `taelgar-header` block. Each button opens a grid of linked cards,
-with the visible result count. Without browser dialog support, the button
-expands the grid in place.
+use the new `taelgar-header` block. Header buttons show only their label. A
+first-match existence check hides empty buttons for the selected date and
+visibility context; it does not format or sort the full index. Opening a button
+calculates its rows, resolves images, and builds its card grid. Obsidian reuses
+its snapshot-bound query cache; the website fetches context-filtered HTML from
+`/api/index` on first activation. Closing and reopening reuses the loaded popup
+until its header is refreshed. Failed loads can be retried by reopening. Date
+or metadata changes refresh Obsidian headers and discard stale popup bodies.
+Grids show their result count except for Members, which omits it.
+Inline indexes continue to calculate immediately and show empty-result messages.
+Without browser dialog support, the button expands the grid in place. Without
+JavaScript, website buttons include a link to the index content.
 
 | Index | Results at the selected in-world date |
 | --- | --- |
 | `residents` | Living people whose active home is in the target place or a contained location, following `homeLocation(target, metadata, false, date)`. Traveling residents remain included; transients whose home is elsewhere are excluded, even when their current, secondary or last-known location is here. |
 | `settlements` | Places with `typeOf: settlement` within the target place, including nested regions and destroyed settlements, but excluding places not yet created. Matches the current location, or last-known location when current is unknown, and also secondary locations. |
 | `members` | People with an active affiliation or leadership relationship to the target organization, following `isAffiliated(target, file, date)`. Direct membership is the default; past memberships are excluded. |
+| `rivers` | Place notes with `typeOf: waterway` in the target place or watershed. Includes rivers, streams, brooks and other waterway subtypes. Membership follows primary/current, last-known and secondary `whereabouts`, including secondary watershed membership and nested tributary locations. |
+| `places` | All place notes within the target place, typically a town's buildings, landmarks and quarters. Includes places nested within quarters or other contained locations, and excludes the target itself, people and organizations. |
 
 Location containment follows the dated `whereabouts` chain, including the legacy
 place `partOf` fallback. Members compare resolved organization identities, so
 aliases and full paths work. Place containment follows both current and
 secondary locations on each ancestor. Settlements matches `inLocation(target,
 metadata, true, true, date)`. Settlement results sort by their immediate dated home region,
-then displayed name; people sort by displayed name. Paths break ties.
+then displayed name; people sort by displayed name. Rivers and Places sort by
+displayed type, then name. Paths break ties. Rivers and Places exclude locations
+not yet created, but retain destroyed locations, matching Settlements. Watershed
+membership is read from `whereabouts`, not inferred from prose or folders.
 Members use the affiliation's inclusive start/end dates directly. An omitted
 end date defaults to the person's death date when known; explicit affiliation
 dates retain the helper's behavior, without an additional living-person filter.
@@ -217,15 +233,29 @@ show: both
 
 | Block option | Values and default |
 | --- | --- |
-| `type` | Required: `residents`, `settlements`, or `members`. |
+| `type` | Required: `residents`, `settlements`, `members`, `rivers`, or `places`. |
 | `target` | Note name, alias, or path; defaults to the note containing the block. Quote wikilinks, for example `target: "[[Cleenseau]]"`. Explicit `./` and `../` paths are relative to the containing note. |
 | `show` | `obsidian`, `website`, or `both` (default). The other renderer omits the entire block. Source mode still shows the editable definition. |
 | `mode` | `grid` (default) or `table`. Header popups always use the grid. |
-| `recursive` | Boolean. Defaults to `true` for Residents and Settlements, and `false` for Members. `false` matches only the immediate location or organization; recursive Members also includes organizations connected through `partOf`. |
+| `recursive` | Boolean. Defaults to `true` for Residents, Settlements, Rivers and Places, and `false` for Members. `false` matches only the immediate location or organization; recursive Members also includes organizations connected through `partOf`. |
 
-Residents and Settlements require a place target; Members requires a group target.
+Residents, Settlements, Rivers and Places require a place target; Members
+requires a group target. Rivers can also list waterways in a barony or other
+place; Places is not restricted to towns.
 Invalid definitions show a local error while leaving the article readable.
 Inline blocks in transcluded notes use that note as their default target.
+Every inline grid or table starts with an H2 heading matching the index label
+(Residents, Settlements, Members, Rivers or Places).
+
+Rivers tables have **River** and **Type Of** columns. Places tables have **Place**
+and **Type Of** columns. Both include available name pronunciation and use the
+same type formatting as headers. Their grids use available lead images. For
+example, use `type: rivers` on a watershed or `type: places` on a town, with
+`mode: table` for the compact two-column view. Both support explicit `target`,
+`show` and `recursive` options like the existing indexes.
+
+Tables use compact rows, regular-weight links, and a single rule below the
+column headings, without a separate result-count line.
 
 With `mode: table`, Residents have four columns, using the existing people query's
 header templates:
@@ -281,7 +311,9 @@ show: both
 
 Obsidian queries current vault metadata and follows the same date-selection
 order as generated bios. Open indexes and header buttons refresh after metadata
-changes, renames, deletions, or calendar/override date changes. Obsidian's own
+changes, renames, deletions, or calendar/override date changes. Repeated author-view
+queries reuse results for the same metadata snapshot, date and target; refreshing
+metadata discards those results. Obsidian's own
 note resolver and links are used; publication exclusions do not restrict the
 local vault view. The shared metadata and campaign registry files listed below
 are required when rendering indexes, as for bios.

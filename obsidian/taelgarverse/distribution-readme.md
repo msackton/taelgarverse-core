@@ -14,7 +14,9 @@ version. Plugin files and BRAT preferences should stay outside vault Git trackin
 
 ## Generated indexes
 
-Version 0.4.0 adds Residents, Settlements, and Members grids from current vault
+Inline grids and tables start with an H2 heading matching the index label.
+
+Residents, Settlements, Members, Rivers and Places grids use current vault
 metadata and the selected in-world date. Enable header popup buttons with
 `indexes: [residents, settlements]` on a place or `indexes: [members]` on an
 organization. Buttons appear only with a `taelgar-header` block, at the bottom
@@ -53,6 +55,12 @@ current, last-known and secondary locations using the existing location rules.
 Table rows have no image column; popups always use image grids.
 Grids and buttons refresh when vault metadata or calendar dates change. Notes
 remain editable and are never rewritten.
+
+Rivers lists waterway notes in a place or watershed, including secondary watershed
+membership. Places lists contained place notes, including buildings in town
+quarters. Enable them with `indexes: [rivers]` or `indexes: [places]`, or use
+the same type in an inline `taelgar-index` block. Their compact tables show
+River/Place and Type Of; recursive containment is enabled by default.
 
 ## Generated headers
 

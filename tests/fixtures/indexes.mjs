@@ -20,8 +20,25 @@ export const indexNotes = {
   'People/POV Secret.md':{tags:['person'],whereabouts:'Town',affiliations:['Guild'],POV:'1740s'},
 };
 
-export function indexSources() {
-  return Object.fromEntries(Object.entries(indexNotes).map(([path,metadata])=>[path,'---\n'+
+export const featureIndexNotes={
+  'Places/Basin.md':{tags:['place'],typeOf:'watershed',aliases:['Drainage Basin'],indexes:['rivers']},
+  'Places/River.md':{tags:['place'],typeOf:'waterway',typeOfAlias:'river',name:'Main River',pronunciation:'RIV-er',image:'portraits/alice.png',whereabouts:[
+    {type:'home',location:'Realm'},{type:'secondary',location:'Drainage Basin'}]},
+  'Places/Brook.md':{tags:['place'],typeOf:'waterway',typeOfAlias:'brook',whereabouts:'River'},
+  'Places/Lake.md':{tags:['place'],typeOf:'waterbody',typeOfAlias:'lake',whereabouts:'Basin'},
+  'Places/Hidden River.md':{tags:['place'],typeOf:'waterway',excludePublish:'all',whereabouts:'Basin'},
+  'Places/Future River.md':{tags:['place'],typeOf:'waterway',created:1760,whereabouts:'Basin'},
+  'Places/Town.md':{...indexNotes['Places/Town.md'],indexes:['places']},
+  'Places/Quarter.md':{tags:['place'],typeOf:'district',whereabouts:'Old Town'},
+  'Places/Shop.md':{tags:['place'],typeOf:'shop',whereabouts:'Quarter'},
+  'Places/Temple.md':{tags:['place'],typeOf:'building',typeOfAlias:'temple',whereabouts:'Town'},
+  'Places/Future Building.md':{tags:['place'],typeOf:'building',created:1760,whereabouts:'Town'},
+  'Places/Hidden Building.md':{tags:['place'],typeOf:'building',excludePublish:'all',whereabouts:'Town'},
+  'Groups/Town Guild.md':{tags:['group'],whereabouts:'Town'},
+};
+
+export function indexSources(extraNotes={}) {
+  return Object.fromEntries(Object.entries({...indexNotes,...extraNotes}).map(([path,metadata])=>[path,'---\n'+
     Object.entries(metadata).map(([key,value])=>key+': '+JSON.stringify(value)).join('\n')+'\n---\n'+
     (metadata.indexes ? '```taelgar-header\n```' : '# '+path.split('/').at(-1).slice(0,-3))+'\n\nAuthored prose.']));
 }

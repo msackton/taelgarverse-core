@@ -8,9 +8,9 @@ import MarkdownIt from 'markdown-it';
 import {ROOT} from '../src/config.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {imageDOM} from './helpers/image-dom.mjs';
-import {indexNotes} from './fixtures/indexes.mjs';
+import {indexNotes,featureIndexNotes} from './fixtures/indexes.mjs';
 import {mountIndexPopups} from '../src/browser/index-popups.mjs';
-import {indexPopup} from '../src/index-view.mjs';
+import {indexPopup,indexPopupShell} from '../src/index-view.mjs';
 
 const require=createRequire(import.meta.url);
 const compiled=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/features/headers.mjs'],write:false,
@@ -40,7 +40,7 @@ function host() {
     for(const process of postprocessors)process(element,{sourcePath:'Places/Realm.md',addChild:child=>child.load()});
     if(deferred)await deferred;
   }};
-  const module={exports:{}},globals={module,exports:module.exports,structuredClone,console,TextEncoder,TextDecoder,setTimeout,clearTimeout,
+  const module={exports:{}},globals={module,exports:module.exports,structuredClone,console,TextEncoder,TextDecoder,AbortController,setTimeout,clearTimeout,
     setInterval:callback=>{intervals.set(++next,callback);return next;},clearInterval:id=>intervals.delete(id),
     require:name=>name==='obsidian'?{Component,MarkdownRenderChild,MarkdownRenderer}:require(name)};
   vm.runInNewContext(compiled.outputFiles[0].text,globals);
@@ -88,6 +88,26 @@ test('Obsidian inline indexes render current metadata, respect show, and open na
   assert.equal(h.intervals.size,0);assert.equal(h.cache.count,0);assert.equal(h.vault.count,0);
 });
 
+test('Obsidian inline grids and tables have H2 labels, including empty results',async()=>{
+  const h=host();
+  try {
+    for(const [path,metadata] of Object.entries(featureIndexNotes)) {
+      h.metadata.set(path,metadata);h.files.push({path,basename:path.split('/').at(-1).replace(/\.md$/,'')});
+    }
+    for(const [type,source,label] of [['residents','Places/Realm.md','Residents'],['settlements','Places/Realm.md','Settlements'],['members','Groups/Guild.md','Members'],['rivers','Places/Basin.md','Rivers'],['places','Places/Town.md','Places'],['places','Places/Inn.md','Places']])for(const mode of ['grid','table']) {
+      const {element}=await h.block('type: '+type+'\nmode: '+mode,source);
+      const section=element.querySelector('.taelgar-index');
+      assert.equal(section.firstElementChild.tagName,'H2');
+      assert.equal(section.querySelectorAll('h2').length,1);
+      assert.equal(section.querySelector('h2').textContent,label);
+    }
+    const bio=await h.block('','Places/Realm.md','taelgar-header');
+    h.click(bio.element.querySelector('summary'));await pause(10);
+    const dialog=h.document.querySelector('dialog[open]');
+    assert.equal(dialog.querySelectorAll('h2').length,1,'the popup keeps its single dialog title');
+  } finally {h.feature.unload();}
+});
+
 test('new header buttons follow the callout, stay outside it, and release open dialogs',async()=>{
   const h=host();
   try {
@@ -101,13 +121,24 @@ test('new header buttons follow the callout, stay outside it, and release open d
     assert.equal(buttons.parentElement.lastElementChild,buttons);
     const saved=await h.savedHeader();assert.equal(saved.element.querySelectorAll('.taelgar-index-buttons').length,0);
     const direct=await h.savedHeader(true);assert.equal(direct.element.querySelectorAll('.taelgar-index-buttons').length,0,'an ordinary H1 is left alone');
-    const summary=buttons.querySelector('summary');h.click(summary);
+    assert.equal(buttons.querySelectorAll('.taelgar-index-card,img').length,0,'headers do not build popup rows');
+    const summary=buttons.querySelector('summary');h.click(summary);await pause(10);
     const dialog=h.document.querySelector('dialog[open]');assert.ok(dialog);assert.match(dialog.textContent,/Alice Example/);
+    h.click(dialog.querySelector('.taelgar-index-link'));assert.equal(h.opened.length,1);
+    assert.equal(h.opened[0][1],'Places/Realm.md');
     assert.equal(h.document.documentElement.classList.contains('taelgar-index-open'),true);
     h.click(dialog.querySelector('.taelgar-index-close'));assert.equal(h.document.querySelector('dialog'),null);
     assert.equal(h.document.activeElement,summary);
     assert.equal(h.document.documentElement.classList.contains('taelgar-index-open'),false);
     h.click(summary);bio.child.unload();assert.equal(h.document.querySelector('dialog'),null);
+    h.metadata.set('Groups/Empty.md',{tags:['group'],indexes:['members']});
+    h.files.push({path:'Groups/Empty.md',basename:'Empty'});
+    h.cache.trigger('changed');await pause(160);
+    const empty=await h.block('','Groups/Empty.md','taelgar-header');
+    assert.equal(empty.element.querySelector('.taelgar-index-popup'),null);
+    assert.equal(empty.element.querySelector('.taelgar-index-buttons'),null);
+    const inline=await h.block('type: members','Groups/Empty.md');
+    assert.match(inline.element.textContent,/No members found/);
   } finally {h.feature.unload();}
 });
 
@@ -137,7 +168,7 @@ test('unloading during asynchronous bio rendering cannot mount stale index contr
 });
 
 test('shared popups support native details fallback, backdrop dismissal and disposal',()=>{
-  const h=imageDOM(indexPopup({label:'Residents',target:'Town',items:[],warnings:[]},()=>''));
+  const h=imageDOM(indexPopup({label:'Residents',target:'Town',items:[{name:'Alice'}],warnings:[]},item=>item.name));
   const dispose=mountIndexPopups(h.document),summary=h.document.querySelector('summary');h.click(summary);
   const dialog=h.document.querySelector('dialog');assert.equal(dialog.open,true);
   h.event(dialog,'pointerdown',{clientX:-10,clientY:-10});h.event(dialog,'click',{clientX:-10,clientY:-10});
@@ -168,9 +199,12 @@ test('Obsidian grids resolve local images and people tables keep native links, l
     assert.deepEqual(h.opened[1],['Places/Inn.md','Places/Realm.md',false]);
     assert.doesNotMatch(table.element.textContent,/Visitor/);
     const header=await h.block('','Places/Realm.md','taelgar-header');
-    assert.equal(header.element.querySelectorAll('.taelgar-index-popup img').length,1);
-    assert.equal(header.element.querySelectorAll('.taelgar-index-popup table').length,0);
-    assert.match(header.element.querySelector('.taelgar-index-popup .taelgar-index-card').textContent,/Alice Example \(she\/her AL-iss\)/);
+    assert.equal(header.element.querySelectorAll('.taelgar-index-card,img').length,0);
+    h.click(header.element.querySelector('summary'));await pause(10);
+    const popup=h.document.querySelector('dialog');
+    assert.equal(popup.querySelectorAll('img').length,1);
+    assert.equal(popup.querySelectorAll('table').length,0);
+    assert.match(popup.querySelector('.taelgar-index-card').textContent,/Alice Example \(she\/her AL-iss\)/);
   } finally {h.feature.unload();}
 });
 
@@ -204,5 +238,67 @@ test('Obsidian member tables format pronouns, info and dated last-known location
     assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Alice Example \(xe\/xem AL-iss\)/);
     assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Current Location: Inn, Town \(January 1st, 1710\)/);
     assert.doesNotMatch(grid.element.querySelector('.taelgar-index-card').textContent,/Home:/);
+  } finally {h.feature.unload();}
+});
+
+
+test('reused Obsidian queries isolate render additions, dates, targets and metadata refreshes',async()=>{
+  const h=host();
+  try {
+    const snapshot=await h.feature.getSnapshot();
+    const run=(date='1720-01-01',source='Places/Realm.md')=>h.obsidianIndex(h.app,snapshot,{type:'residents'},source,date);
+    const first=run(),expected=JSON.stringify(first);
+    first.items[0].name='Changed by one render';first.items[0].image='app://stale';
+    first.items[0].person[0]='Changed nested part';first.warnings.push('Only this render');
+    assert.equal(JSON.stringify(run()),expected);
+    assert.equal(run('1750-01-01').items.length,0,'date changes cannot reuse the earlier residence');
+    assert.deepEqual(Array.from(run('1720-01-01','Places/Other Realm.md').items,item=>item.path),['People/Visitor.md']);
+    h.metadata.get('People/Alice.md').whereabouts='Other Realm';
+    h.cache.trigger('changed');await pause(160);
+    const updated=await h.feature.getSnapshot();
+    const changed=h.obsidianIndex(h.app,updated,{type:'residents'},'Places/Realm.md','1720-01-01');
+    assert.ok(!changed.items.some(item=>item.path==='People/Alice.md'));
+  } finally {h.feature.unload();}
+});
+
+
+test('lazy popup loads coalesce, retry after failure, and ignore completion after disposal',async()=>{
+  const h=imageDOM(indexPopupShell({type:'members',label:'Members',target:'Guild'}));
+  let calls=0,resolve;
+  const load=()=>{calls++;return new Promise(done=>{resolve=done;});};
+  const dispose=mountIndexPopups(h.document,{load}),summary=h.document.querySelector('summary');
+  assert.equal(calls,0);h.click(summary);h.click(summary);await pause(0);assert.equal(calls,1);
+  dispose();resolve('<p>Stale rows</p>');await pause(0);
+  assert.doesNotMatch(h.document.body.textContent,/Stale rows/);assert.equal(h.document.querySelector('dialog'),null);
+  const retry=mountIndexPopups(h.document,{load:async()=>{if(++calls===2)throw new Error('Offline');return '<p>Loaded rows</p>';}});
+  h.click(summary);await pause(0);assert.match(h.document.body.textContent,/Close and reopen to retry/);
+  h.click(h.document.querySelector('dialog .taelgar-index-close'));h.click(summary);await pause(0);
+  assert.match(h.document.body.textContent,/Loaded rows/);assert.equal(calls,3);retry();
+  h.window.HTMLElement.prototype.showModal=undefined;
+  const fallback=mountIndexPopups(h.document,{load:async()=>'<p>Fallback rows</p>'});
+  assert.equal(h.click(summary).defaultPrevented,false);await pause(0);
+  assert.match(h.document.body.textContent,/Fallback rows/);fallback();
+});
+
+
+test('Rivers and Places use native links, compact tables and lazy image-card popups in Obsidian',async()=>{
+  const h=host();
+  try {
+    for(const [path,metadata] of Object.entries(featureIndexNotes)) {
+      h.metadata.set(path,{...structuredClone(metadata),pageTargetDate:'1720-01-01'});
+      if(!h.files.some(file=>file.path===path))h.files.push({path,basename:path.split('/').at(-1).slice(0,-3)});
+    }
+    for(const [type,target,heading,expected] of [['rivers','Basin','River','Main River'],['places','Town','Place','Shop']]) {
+      const inline=await h.block('type: '+type+'\nmode: table','Places/'+target+'.md');
+      assert.deepEqual([...inline.element.querySelectorAll('th')].map(cell=>cell.textContent),[heading,'Type Of']);
+      assert.match(inline.element.textContent,new RegExp(expected));assert.doesNotMatch(inline.element.textContent,/Future/);
+      const header=await h.block('','Places/'+target+'.md','taelgar-header');
+      assert.equal(header.element.querySelectorAll('.taelgar-index-card,img').length,0);
+      h.click(header.element.querySelector('summary'));await pause(10);
+      const popup=h.document.querySelector('dialog[open]');assert.ok(popup);assert.match(popup.textContent,new RegExp(expected));
+      if(type==='rivers')assert.equal(popup.querySelector('img').getAttribute('src'),'app://local/portraits/alice.png');
+      h.click(popup.querySelector('.taelgar-index-link'));assert.equal(h.opened.at(-1)[1],'Places/'+target+'.md');
+      h.click(popup.querySelector('.taelgar-index-close'));
+    }
   } finally {h.feature.unload();}
 });

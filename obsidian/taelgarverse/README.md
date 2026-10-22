@@ -114,13 +114,15 @@ frame and retains its normal campaign-history section.
 
 ## Generated indexes
 
-Residents, Settlements, and Members grids are calculated from vault metadata. Put
+Residents, Settlements, Members, Rivers and Places grids are calculated from vault metadata. Put
 `indexes: [residents, settlements]` in a place's frontmatter or
 `indexes: [members]` on an organization to add popup buttons at the bottom of
 its `taelgar-header` block, below and outside the information callout. Ordinary
 Markdown titles and saved headers do not receive buttons. Use a `taelgar-index` fence
-containing `type: residents`, `type: settlements`, or `type: members` for an
-inline grid. Optional `target` selects another note, `show` selects `obsidian`,
+containing `type: residents`, `type: settlements`, `type: members`,
+`type: rivers`, or `type: places` for an
+inline grid. Inline grids and tables start with an H2 heading matching the index
+label. Optional `target` selects another note, `show` selects `obsidian`,
 `website`, or `both`, and `recursive` controls location/organization containment.
 Grid cards show available local images from each note's `image` frontmatter.
 People cards include pronouns and name pronunciation when available, using the
@@ -137,6 +139,11 @@ affiliation-date rules. Settlement tables show
 Place, Region, Type Of, and Population, sorted by their dated home region.
 Settlements includes ruins and matches current, last-known and secondary
 locations using the existing `inLocation(..., true, true, date)` rules.
+Rivers follows `typeOf: waterway` and includes secondary watershed membership.
+Places lists contained place notes, such as a town's quarters, buildings and shops.
+Use `indexes: [rivers]` or `indexes: [places]` for header buttons. Their tables
+have River/Place and Type Of columns, sorted by type then name. Both follow dated
+nested location chains by default; set `recursive: false` for direct matches.
 `mode: grid` is the default; popups always use grids.
 See [generated indexes](../../docs/vault.md#generated-indexes) for defaults,
 date semantics, website visibility, and complete examples. Grids refresh from
