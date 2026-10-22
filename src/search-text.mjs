@@ -5,7 +5,7 @@ import {load} from 'cheerio';
 // only when requested; their prose is retained, but their controls are removed.
 export function proseSections(html) {
   const $=load(html,{},false);
-  $('script,style,template,svg,button,.dm-note-ref,.dm-note-header,.dm-block-label,.mermaid-diagram').remove();
+  $('script,style,template,svg,button,.dm-note-ref,.dm-note-header,.dm-block-label,.mermaid-diagram,.taelgar-index,.taelgar-index-buttons,.taelgar-index-error').remove();
   $('.admonition.warning').filter((_,el)=>$(el).find('.admonition-title').text()==='Dynamic content unavailable').remove();
   $('[hidden],[aria-hidden="true"]').remove();
   const sections=[];let heading='',text='';

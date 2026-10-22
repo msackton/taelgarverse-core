@@ -141,16 +141,16 @@ html[dir] .md-typeset li:not(:where(.breadcrumbs *, .grid.cards *, .gallery *, .
 .md-typeset blockquote, .md-typeset .admonition:not(.image):not(.gallery) { color: var(--text); background: var(--surface); border-color: var(--accent); box-shadow: none; font-size: inherit; }
 .md-typeset .admonition-title { background: var(--soft); font: 600 14px/1.6 system-ui,sans-serif; }
 /* Give callout icons and wrapped titles explicit spacing. */
-html .md-typeset :is(.admonition,details):not(.image):not(.gallery):not(.quote):not(.interaction-reference-more) {
+html .md-typeset :is(.admonition,details):not(.image):not(.gallery):not(.quote):not(.interaction-reference-more):not(.taelgar-index-popup) {
   padding: 0 18px; color: var(--text); background: var(--surface); border-color: var(--accent); box-shadow: none; font-size: inherit;
 }
-html .md-typeset :is(.admonition,details):not(.image):not(.gallery):not(.quote):not(.interaction-reference-more) > :is(.admonition-title,summary) {
+html .md-typeset :is(.admonition,details):not(.image):not(.gallery):not(.quote):not(.interaction-reference-more):not(.taelgar-index-popup) > :is(.admonition-title,summary) {
   margin: 0 -18px 16px; padding: 12px 18px 12px 48px;
   color: var(--text); background: var(--soft); font: 500 15px/1.6 system-ui,sans-serif;
 }
-html .md-typeset :is(.admonition,details):not(.image):not(.gallery):not(.quote):not(.interaction-reference-more) > :is(.admonition-title,summary)::before { left: 18px; top: 14px; background-color: var(--link); }
-html .md-typeset details:not(.image):not(.gallery):not(.quote):not(.interaction-reference-more) > summary { padding-inline-end: 44px; }
-html .md-typeset details:not(.image):not(.gallery):not(.quote):not(.interaction-reference-more) > summary::after { right: 16px; top: 14px; color: var(--link); }
+html .md-typeset :is(.admonition,details):not(.image):not(.gallery):not(.quote):not(.interaction-reference-more):not(.taelgar-index-popup) > :is(.admonition-title,summary)::before { left: 18px; top: 14px; background-color: var(--link); }
+html .md-typeset details:not(.image):not(.gallery):not(.quote):not(.interaction-reference-more):not(.taelgar-index-popup) > summary { padding-inline-end: 44px; }
+html .md-typeset details:not(.image):not(.gallery):not(.quote):not(.interaction-reference-more):not(.taelgar-index-popup) > summary::after { right: 16px; top: 14px; color: var(--link); }
 html .md-typeset details:not([open]) > summary { margin-bottom: 0; }
 /* Literary quotes use the article's typography, without an alert-style title bar. */
 html .md-typeset blockquote,

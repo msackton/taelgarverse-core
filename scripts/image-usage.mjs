@@ -2,6 +2,7 @@ import {authoredBody,availableFrom,availableInContext,parseNote,publicationExclu
 import {filterComments} from '../src/comments.mjs';
 import {createMarkdown,renderMarkdown} from '../src/markdown.mjs';
 import {collectHtmlImageUsages} from '../src/images.mjs';
+import {indexImageEntry} from '../src/index-images.mjs';
 
 const dateString = key=>String(Math.floor(key/10000)).padStart(4,'0')+'-'+String(Math.floor(key/100)%100).padStart(2,'0')+'-'+String(key%100).padStart(2,'0');
 
@@ -15,11 +16,20 @@ export function collectImageUsages(store,{homeSource=null,campaignHomes={},maxSt
   for (const [host,source] of Object.entries(campaignHomes)) entries.push({id:'_website/'+host+'.md',target:'index.md',note:typeof source==='string' ? parseNote(source) : source,website:true});
   for (const entry of entries) {
     if (publicationExclusions(entry.note.metadata).includes('all')) continue;
+    const lead=indexImageEntry(store,entry.note.metadata.image,entry.id);
     const source = authoredBody(entry.note);
-    if (!/\.(?:png|jpe?g|webp|gif|heic)\b|<img\b/i.test(source)) continue;
+    const bodyImages=/\.(?:png|jpe?g|webp|gif|heic)\b|<img\b/i.test(source);
+    if (!lead && !bodyImages) continue;
     const conditions = [];
     try { filterComments(source,{date:'0001-01-01',source:entry.id,conditions}); }
     catch (error) { if (error.status===422) continue;throw error; }
+    if(lead) {
+      const found=usages.get(lead.id) || [];
+      const bounds=[{width:440,height:180}];
+      if(!found.some(item=>JSON.stringify(item)===JSON.stringify(bounds)))found.push(bounds);
+      usages.set(lead.id,found);
+    }
+    if (!bodyImages) continue;
     const codes = [...new Set(conditions.map(rule=>rule.campaign).filter(code=>code && code!=='none'))].sort();
     // Prepare images for readers who opt out of the site POV default as well.
     const dates = [...new Set([10101,availableFrom(entry),...conditions.map(rule=>rule.date)].filter(Boolean))].sort((a,b)=>a-b);

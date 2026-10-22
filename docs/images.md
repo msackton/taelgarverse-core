@@ -69,7 +69,10 @@ prepared note and the homepage using the normal Markdown/comment rules. This
 captures numeric widths, HTML images, role-based sizes, table thumbnails, comment
 popups and alternative reference-style image definitions. Saved generated headers
 are omitted as in the other publication compilers; the current generated headers
-do not emit images. Literal code, administrative comments, unsafe notes, and
+do not emit images directly. The planner also resolves note `image` frontmatter
+as lead-image references for generated index cards, using a 440×180 display bound.
+These references use the existing derivative recipes and asset catalog; there
+is no new snapshot format. Literal code, administrative comments, unsafe notes, and
 pages excluded from all publication views contribute no uses. Embedded note bodies
 are inspected through their source notes. Materialized queries are ordinary
 exported content and participate automatically.

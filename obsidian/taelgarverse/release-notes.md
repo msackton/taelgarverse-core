@@ -1,12 +1,11 @@
-Taelgarverse 0.4.0
+Taelgarverse 0.5.0
 
-- Add Campaign interactions at the bottom of notes with registered knownTo campaigns, in Reading View and Live Preview. Place an empty taelgar-interactions code block wherever you want the panel instead, or turn off automatic panels in settings.
-- Build encounter history from the authoritative session recap's NPC beats and Short text. When a session has no recap, use explicit links in its official session note as session references.
-- Show titles and dates beside interaction dots, with automatic grouping and zoom. Session references on the same exact day share one counted dot; zoom reveals the individual notes. Select a dot for a compact popup with its date, details, session link, and available polished beat transcript.
-- Switch between known campaigns with a picker that includes All. Notes without recorded interactions keep a compact campaign header and Known to party status.
-- Group related campaign links into Items, Stories, Sources, and References, with ten links per category before expansion. Exclude untagged, meta, and background material.
-- Refresh histories when notes, metadata, or the calendar date change. Panels use native Obsidian links and leave note text unchanged.
+- Add Residents, Settlements, Members, Rivers, and Places indexes calculated from vault metadata and the selected in-world date. Rivers includes secondary watershed membership; Places includes nested quarters, buildings, and shops.
+- Enable header popup buttons with an `indexes` frontmatter array. Buttons appear below the information callout in a `taelgar-header` block, stay hidden when empty, and calculate their contents when clicked.
+- Add inline `taelgar-index` blocks with image grids or compact tables. Each inline index starts with an H2 heading. Use `target`, `show`, and `recursive` to choose its note, renderer, and containment scope.
+- Use the existing people and location formatting for pronouns, pronunciation, ancestry, current location, and home. Residents follow active homes, Settlements includes ruins, and Members follows dated affiliations.
+- Speed up repeated renders with shared metadata lookups and a bounded query cache that refreshes when metadata or the date changes. Member indexes omit result counts.
 
-Campaign interactions use the vault's _scripts/session_note_campaigns.json registry and authoritative recaps under _sessions. Existing notes need no edits to receive automatic panels when their knownTo field contains a registered campaign.
+Indexes require no Dataview or CustomJS scripts and use native Obsidian links. Existing notes are unchanged; opt in with frontmatter or an inline block. Header popup buttons require the new `taelgar-header` block.
 
 Desktop only. The minimum app version remains Obsidian 1.8.0.

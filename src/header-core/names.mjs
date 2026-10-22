@@ -69,7 +69,7 @@ export class NameManager {
         if (direct) return !filter || filter(direct.metadata) ? asFile(direct, false) : undefined;
 
         // Preserve host resolution first, then aliases in stable vault order.
-        for (const page of this.lookup.pages) {
+        for (const page of this.lookup.aliasCandidates?.(target) ?? this.lookup.pages) {
             const aliases = page.metadata.aliases;
             const matches = typeof aliases === 'string' ? aliases.toLowerCase() === target.toLowerCase()
                 : Array.isArray(aliases) && aliases.some(alias => alias.toLowerCase() === target.toLowerCase());

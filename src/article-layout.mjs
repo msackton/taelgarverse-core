@@ -1,6 +1,6 @@
 import {load} from 'cheerio';
 
-const expanded = '.leaflet-map,.taelgar-image--hero,.taelgar-image-gallery,.admonition.gallery,details.gallery,.taelgar-image--figure.taelgar-image--size-large,.mermaid-diagram';
+const expanded = '.leaflet-map,.taelgar-image--hero,.taelgar-image-gallery,.admonition.gallery,details.gallery,.taelgar-image--figure.taelgar-image--size-large,.mermaid-diagram,.taelgar-index';
 const floated = '.taelgar-image--aside,.image.inline,img[align],.taelgar-session-zoom__image--left,.taelgar-session-zoom__image--right';
 
 // A Markdown image is usually inside a paragraph (and sometimes a link). Only

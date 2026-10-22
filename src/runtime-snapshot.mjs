@@ -128,7 +128,7 @@ export class RuntimeSnapshot {
     // loading route data first.
     let pathname='';
     try{if(['GET','HEAD'].includes(request.method))pathname=decodeURIComponent(url.pathname);}catch{}
-    if(pathname==='/api/page' || pathname==='/api/diagram-links' || pathname.startsWith('/page/') || pathname.startsWith('/campaign-transcripts/') || pathname==='/' && !url.searchParams.has('q'))return this.renderer();
+    if(pathname==='/api/page' || pathname==='/api/index' || pathname==='/api/diagram-links' || pathname.startsWith('/page/') || pathname.startsWith('/campaign-transcripts/') || pathname==='/' && !url.searchParams.has('q'))return this.renderer();
     let store={bySlug:{size:this.index.pages},warnings:this.index.warnings,assets:new Map(),settings:this.index.settings};
     const engine={settings:this.index.settings,contexts:this.contexts,campaignSites:this.campaignSites};
     if(pathname.startsWith('/assets/')){
