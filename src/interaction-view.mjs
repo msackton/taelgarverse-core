@@ -12,7 +12,10 @@ export function interactionSummary(groups) {
 }
 export function interactionView(groups) {
   if (!groups.length) return '';
-  return '<section id="campaign-interactions" class="campaign-interactions" aria-label="Campaign interactions"><h2>Campaign interactions</h2>'+groups.map(group=>{
+  const knowledgeOnly=groups.every(group=>group.known && !group.events.length);
+  return '<section id="campaign-interactions" class="campaign-interactions'+(knowledgeOnly ? ' campaign-interactions--knowledge-only' : '')+'" aria-label="Campaign interactions">'+
+    (knowledgeOnly ? '' : '<h2>Campaign interactions</h2>')+groups.map(group=>{
+    if(group.known && !group.events.length)return '<p class="interaction-knowledge-footnote">Known to <span class="interaction-knowledge-campaign">'+escapeHtml(group.label)+'</span>.</p>';
     const data=JSON.stringify(group).replace(/</g,'\\u003c').replace(/\u2028/g,'\\u2028').replace(/\u2029/g,'\\u2029');
     return '<section class="interaction-campaign" data-interaction-campaign><h3>'+escapeHtml(group.label)+'</h3>'+
       (group.known ? '<p class="interaction-knowledge">Known to party</p>' : '')+

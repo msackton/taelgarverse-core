@@ -35,6 +35,11 @@ resolve to the same campaign. A single campaign opens directly. Multiple
 campaigns get a **Campaign** selector, with the choice retained while the plugin
 is running. Source mode stays unchanged.
 
+When the selected campaign has no visible recap beats or campaign references,
+the panel becomes a small **Known to Cleenseau** footnote. For multiple
+campaigns, the picker sits inside the footnote; choosing a campaign with records
+restores the full timeline. This applies to automatic footers and explicit blocks.
+
 To choose the panel's position, add an empty block:
 
 ````markdown

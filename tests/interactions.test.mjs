@@ -165,6 +165,26 @@ test('an explicit Obsidian placement fence does not duplicate the website histor
   assert.doesNotMatch(result.html,/language-taelgar-interactions/);
 });
 
+test('campaigns known only through metadata use footnotes while campaigns with records retain their timeline',()=>{
+  const {store}=sample(),groups=campaignInteractions(null,store,store.resolve('Person'),context(),registry);
+  assert.equal(groups[0].events.length,0);
+  const {document}=parseHTML('<html><body>'+interactionSummary(groups)+interactionView(groups)+'</body></html>');
+  assert.equal(document.querySelector('#campaign-interactions .interaction-knowledge-footnote').textContent,'Known to Cleenseau.');
+  assert.ok(document.querySelector('.campaign-interactions--knowledge-only'));
+  assert.equal(document.querySelector('h2,h3,.interaction-controls,.interaction-plot,.interaction-detail,script'),null);
+  assert.ok(document.querySelector(document.querySelector('.campaign-interaction-summary a').getAttribute('href')),'the header link still reaches the footnote');
+  const actual=sample(),recorded=campaignInteractions(actual.index,actual.store,actual.store.resolve('Person'),context(),registry);
+  const empty={code:'other',label:'Other <img src=x>',known:true,events:[]};
+  const mixed=parseHTML('<html><body>'+interactionView([...recorded,empty])+'</body></html>').document;
+  assert.equal(mixed.querySelectorAll('[data-interaction-campaign]').length,1);
+  assert.match(mixed.querySelector('.interaction-knowledge-footnote').textContent,/Other <img src=x>/);
+  assert.equal(mixed.querySelector('img,.campaign-interactions--knowledge-only'),null);
+  assert.ok(mixed.querySelector('h2'));
+  const emptyOnly=parseHTML('<html><body>'+interactionView([...groups,empty])+'</body></html>').document;
+  assert.equal(emptyOnly.querySelectorAll('.interaction-knowledge-footnote').length,2);
+  assert.equal(emptyOnly.querySelector('h2,h3,script'),null);
+});
+
 test('dot grouping retains 27 entries, respects spans/undated records, and uses the no-leap-day DR calendar',()=>{
   const events=Array.from({length:27},(_,i)=>({id:String(i),title:'Interaction '+i,start:'1720-01-'+String(1+Math.floor(i/3)).padStart(2,'0'),end:'1720-01-'+String(1+Math.floor(i/3)).padStart(2,'0'),precision:'day',session:'s'+Math.floor(i/5),sessionLabel:'Session '+Math.floor(i/5)}));
   for(const mode of ['auto','session','day','week','event'])assert.equal(groupInteractions(events,mode).flatMap(group=>group.events).length,27);

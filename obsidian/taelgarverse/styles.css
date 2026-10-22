@@ -11,6 +11,8 @@
 .taelgar-interactions { --text:var(--text-normal); --muted:var(--text-muted); --line:var(--background-modifier-border); --soft:var(--background-secondary); --bg:var(--background-primary); --link:var(--interactive-accent); margin-top:1.5em; }
 .taelgar-interactions [hidden] { display:none !important; }
 .taelgar-interactions .campaign-interactions { margin-top:0; }
+.taelgar-interactions.taelgar-interactions--knowledge-only { margin-top:.75em; }
+.taelgar-interactions .interaction-knowledge-footnote select { font:inherit; color:inherit; height:auto; padding:0 .25em; vertical-align:baseline; }
 .taelgar-interaction-campaign { display:flex; align-items:center; flex-wrap:wrap; gap:.5em; margin-bottom:.75em; }
 .taelgar-interactions .interaction-sources a { cursor:pointer; }
 

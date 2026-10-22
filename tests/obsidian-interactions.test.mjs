@@ -114,6 +114,51 @@ test('native backlink offsets preserve CRLF frontmatter and saved-header boundar
   }finally{h.feature.unload();}
 });
 
+test('knownTo without campaign records renders a small footnote in blocks, Reading View and Live Preview',async()=>{
+  const p='People/Known Only.md',h=host({automatic:true,notes:{[p]:'---\nknownTo: Clee\n---\n# Known Only'}});
+  const footnote=element=>{
+    assert.equal(element.querySelector('.interaction-knowledge-footnote').textContent,'Known to Cleenseau.');
+    assert.equal(element.querySelector('h2,h3,.interaction-controls,.interaction-plot,.interaction-detail,script,select'),null);
+    assert.ok(element.classList.contains('taelgar-interactions--knowledge-only'));
+    assert.doesNotMatch(element.textContent,/No recap/);
+  };
+  try {
+    const {element,child}=h.block('',p);await child.ready;footnote(element);child.unload();
+    h.view.file=h.app.vault.getAbstractFileByPath(p);await h.feature.syncReading();await h.settle();
+    footnote(h.document.querySelector('.markdown-preview-sizer .taelgar-interactions'));
+    const widget=h.extensions[0][0].create(h.editor('Body',p)).ranges[0].value.widget;
+    const preview=widget.toDOM({dom:h.document.createElement('div'),requestMeasure(){}});await h.settle();footnote(preview);widget.destroy(preview);
+    assert.equal(h.texts.get(p),'---\nknownTo: Clee\n---\n# Known Only');
+  }finally{h.feature.unload();}
+});
+
+test('the campaign picker stays inline for knowledge-only campaigns and restores records when switching campaigns',async()=>{
+  const p='_sessions/other/other-001/cleaned/other-001-session-recap.md';
+  const h=host({notes:{[p]:recap('Other','No interaction with this person.').replace('- NPCs: Person','- NPCs: Someone Else')}});
+  const choose=async code=>{
+    const select=element.querySelector('select[aria-label="Campaign"]');
+    select.querySelector('option[value="'+code+'"]').selected=true;
+    select.dispatchEvent(new h.window.Event('change'));await h.settle();
+  };
+  const {element,child}=h.block();
+  try {
+    await child.ready;assert.match(element.textContent,/Cleenseau party/);
+    await choose('other');
+    assert.ok(element.querySelector('.interaction-knowledge-footnote select[aria-label="Campaign"]'));
+    assert.match(element.querySelector('.interaction-knowledge-footnote').textContent,/^Known to /);
+    assert.ok(element.classList.contains('taelgar-interactions--knowledge-only'));
+    assert.equal(element.querySelector('h2,h3,.interaction-plot,.taelgar-interaction-campaign'),null);
+    h.cache.trigger('changed');await pause(190);await h.settle();
+    assert.equal(element.querySelector('select[aria-label="Campaign"]').value,'other');
+    await choose('clee');
+    assert.match(element.textContent,/Cleenseau party/);
+    assert.ok(element.querySelector('.interaction-dot'));
+    assert.equal(element.classList.contains('taelgar-interactions--knowledge-only'),false);
+    assert.equal(element.querySelector('.interaction-knowledge-footnote'),null);
+    child.unload();
+  }finally{h.feature.unload();}
+});
+
 test('automatic Reading View footers stay at the end, appear on non-person knownTo pages, suppress explicit blocks, and disappear when notes close',async()=>{
   const h=host({automatic:true});
   try {
@@ -122,6 +167,7 @@ test('automatic Reading View footers stay at the end, appear on non-person known
     const tail=h.document.createElement('p');tail.textContent='Rendered later';root.append(tail);await h.settle();assert.ok(root.lastElementChild.classList.contains('taelgar-interactions'));
     await h.feature.syncReading();assert.equal(root.querySelectorAll('.taelgar-interactions').length,1);
     h.view.file=h.app.vault.getAbstractFileByPath('Places/Inn.md');await h.feature.syncReading();await h.settle();assert.match(root.textContent,/Handout/);assert.equal(root.querySelector('select[aria-label="Campaign"]'),null);
+    assert.ok(root.querySelector('.interaction-dot'),'a campaign reference still gets a timeline');assert.equal(root.querySelector('.taelgar-interactions--knowledge-only'),null);
     h.texts.set('Places/Inn.md',h.texts.get('Places/Inn.md')+'\n\n```taelgar-interactions\n```');await h.feature.syncReading();assert.equal(root.querySelectorAll('.taelgar-interactions').length,0);
     h.view.file=h.app.vault.getAbstractFileByPath('People/Person.md');await h.feature.syncReading();await h.settle();
     h.feature.setAutomatic(false);await pause(180);await h.feature.syncReading();assert.equal(root.querySelectorAll('.taelgar-interactions').length,0);

@@ -13,6 +13,11 @@ Existing `campaignInfo` wording remains in the normal generated header; it does
 not create additional dots. A recap can record interactions for a campaign not
 listed in `knownTo`. Modern and Custom with no campaigns omit these histories.
 
+A campaign with `knownTo` but no visible recap beats or campaign references uses
+a small **Known to Cleenseau** footnote, without an empty timeline or headings.
+When all selected campaigns have only this knowledge flag, the whole history
+section collapses to footnotes. Campaigns with records keep their dot timelines.
+
 Short histories show individual dots; automatic grouping switches to sessions
 above six entries. Readers can group by session, day, seven-day period, or
 individual entry. Selecting a counted dot zooms into its entries; **Zoom out**
@@ -140,7 +145,9 @@ An empty `taelgar-interactions` block places a panel explicitly. Otherwise,
 Reading View and Live Preview automatically show a footer on any page with
 registered `knownTo` campaigns, including non-person pages. Multiple known
 campaigns use a single campaign selector. This local author view includes DM
-text and ignores website publication exclusions; selected campaign and current
+text and ignores website publication exclusions. Knowledge-only campaigns use
+the compact footnote, with the selector inline when needed; selecting a campaign
+with records restores the timeline. Selected campaign and current
 date conditions remain effective. See the [plugin guide](../obsidian/taelgarverse/README.md#campaign-interactions)
 for syntax, date selection, settings, and lifecycle behavior.
 

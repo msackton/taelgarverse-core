@@ -37,19 +37,27 @@ class InteractionsChild extends MarkdownRenderChild {
       this.selected=campaigns.find(campaign=>campaign.code===(this.selected || this.feature.selections.get(this.path)))?.code || campaigns[0].code;
       this.date=interactionsDate(metadata,globalThis,snapshot.fallback);
       const {group,links}=localInteractions(snapshot,this.path,campaigns.find(campaign=>campaign.code===this.selected),this.date,this.feature.app);
+      const knowledgeOnly=!group.events.length;
+      element.classList.toggle('taelgar-interactions--knowledge-only',knowledgeOnly);
       const output=element.ownerDocument.createElement('div');
-      if(campaigns.length>1) {
-        const label=element.ownerDocument.createElement('label');label.className='taelgar-interaction-campaign';label.textContent='Campaign ';
-        const select=element.ownerDocument.createElement('select');select.setAttribute('aria-label','Campaign');
-        for(const campaign of campaigns){const option=element.ownerDocument.createElement('option');option.value=campaign.code;option.textContent=campaign.name;option.selected=campaign.code===this.selected;select.append(option);}
-        select.addEventListener('change',()=>{this.selected=select.value;this.feature.selections.set(this.path,this.selected);void this.render();});label.append(select);output.append(label);
-      }
       const timeline=element.ownerDocument.createElement('div');timeline.innerHTML=interactionView([group]);
       timeline.querySelector('#campaign-interactions')?.removeAttribute('id');
+      if(campaigns.length>1) {
+        const select=element.ownerDocument.createElement('select');select.setAttribute('aria-label','Campaign');
+        for(const campaign of campaigns){const option=element.ownerDocument.createElement('option');option.value=campaign.code;option.textContent=campaign.name;option.selected=campaign.code===this.selected;select.append(option);}
+        select.addEventListener('change',()=>{this.selected=select.value;this.feature.selections.set(this.path,this.selected);void this.render();});
+        if(knowledgeOnly)timeline.querySelector('.interaction-knowledge-campaign').replaceWith(select);
+        else {
+          const label=element.ownerDocument.createElement('label');label.className='taelgar-interaction-campaign';label.textContent='Campaign ';
+          label.append(select);output.append(label);
+        }
+      }
       output.append(timeline);this.links=links;element.replaceChildren(output);
-      mountInteractions(timeline.querySelector('[data-interaction-campaign]'));this.measure();
+      const campaign=timeline.querySelector('[data-interaction-campaign]');
+      if(campaign)mountInteractions(campaign);this.measure();
     } catch(error) {
       if(this.disposed || sequence!==this.sequence)return;
+      element.classList.remove('taelgar-interactions--knowledge-only');
       element.textContent='Campaign interactions unavailable: '+error.message;this.measure();
     }
   }
@@ -65,7 +73,6 @@ class FooterWidget extends WidgetType {
   toDOM(view){const element=view.dom.ownerDocument.createElement('div');this.feature.addChild(new InteractionsChild(this.feature,element,this.path,{measure:()=>view.requestMeasure()}));return element;}
   destroy(element){this.feature.removePanel(element);}
   ignoreEvent(){return true;}
-  get estimatedHeight(){return 400;}
 }
 
 export function interactionFooterExtension(feature) {
