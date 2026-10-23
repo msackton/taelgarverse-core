@@ -35,6 +35,10 @@ test('index authoring validates arrays and YAML, supplies defaults, and deduplic
   assert.deepEqual(parseIndex('type: residents'),{type:'residents',target:undefined,show:'both',recursive:true,mode:'grid'});
   assert.equal(parseIndex('type: members\nmode: table').mode,'table');
   assert.equal(parseIndex('type: members').recursive,false);
+  assert.equal(parseIndex('type: places\nplaceType: built').placeType,'built');
+  assert.equal(parseIndex('type: places\nplaceType: natural').placeType,'natural');
+  for(const value of ['all','[]','null','true','""'])assert.throws(()=>parseIndex('type: places\nplaceType: '+value),/placeType/);
+  for(const type of ['rivers','settlements','members','residents'])assert.throws(()=>parseIndex('type: '+type+'\nplaceType: built'),/only supported for places/);
   for(const source of ['', '[]','type: unknown','type: constructor','type: residents\nshow: all','type: residents\nrecursive: yes','type: members\ntarget: []','type: members\ncolumns: 3','type: members\nmode: list'])assert.throws(()=>parseIndex(source));
 });
 
@@ -440,18 +444,37 @@ test('lazy index API filters each reader context, accepts only enabled types, an
 });
 
 
-test('rivers follow waterway metadata and watershed secondary locations, with recursive and dated scope',()=>{
+test('rivers include lakes and waterways with watershed secondary locations, recursive and dated scope',()=>{
   const {runtime}=fixture(featureIndexNotes),options={type:'rivers',target:'Basin'},context={date:'1720-01-01',visible:page=>page.metadata.excludePublish!=='all'};
   assert.deepEqual(headerIndexes(['rivers','places','rivers']),['rivers','places']);
   for(const type of ['rivers','places'])assert.equal(parseIndex('type: '+type).recursive,true);
   const rivers=queryIndex(runtime,options,context);
-  assert.deepEqual(paths(rivers),['Places/Brook.md','Places/River.md']);
-  assert.equal(rivers.items[1].placeType,'river');assert.equal(rivers.items[1].pronunciation,'RIV-er');
-  assert.deepEqual(paths(queryIndex(runtime,{...options,recursive:false},context)),['Places/River.md']);
+  assert.deepEqual(paths(rivers),['Places/Brook.md','Places/Lake.md','Places/River.md']);
+  assert.equal(rivers.items[2].placeType,'river');assert.equal(rivers.items[2].pronunciation,'RIV-er');
+  assert.deepEqual(paths(queryIndex(runtime,{...options,recursive:false},context)),['Places/Lake.md','Places/River.md']);
   assert.equal(indexHasResults(runtime,options,context),true);
   assert.deepEqual(paths(queryIndex(runtime,{...options,target:'Town'},context)),[]);
   assert.ok(paths(queryIndex(runtime,options,{...context,date:'1760-01-01'})).includes('Places/Future River.md'));
   assert.throws(()=>queryIndex(runtime,{type:'rivers',target:'Guild'},context),/place/);
+});
+
+test('lakes honor location aliases, secondary membership, creation dates and visibility without including seas',()=>{
+  const extra={...featureIndexNotes,
+    'Places/Secondary Lake.md':{tags:['place'],typeOf:'lake',whereabouts:[{type:'home',location:'Town'},{type:'secondary',location:'Drainage Basin'}]},
+    'Places/Nested Lake.md':{tags:['place'],typeOf:'lake',whereabouts:'Lake'},
+    'Places/Ruined Lake.md':{tags:['place'],typeOf:'lake',destroyed:1710,whereabouts:'Basin'},
+    'Places/Future Lake.md':{tags:['place'],typeOf:'lake',created:1760,whereabouts:'Basin'},
+    'Places/Hidden Lake.md':{tags:['place'],typeOf:'lake',excludePublish:'all',whereabouts:'Basin'},
+    'Places/Sea.md':{tags:['place'],typeOf:'marine feature',typeOfAlias:'sea',whereabouts:'Basin'},
+    'Places/Lake Named Sea.md':{tags:['place'],typeOf:'marine feature',typeOfAlias:'lake',whereabouts:'Basin'},
+  };
+  const {runtime}=fixture(extra),options={type:'rivers',target:'Drainage Basin'},context={date:'1720-01-01',visible:page=>page.metadata.excludePublish!=='all'};
+  const result=paths(queryIndex(runtime,options,context));
+  for(const name of ['Lake','Secondary Lake','Nested Lake','Ruined Lake'])assert.ok(result.includes('Places/'+name+'.md'),name);
+  for(const name of ['Future Lake','Hidden Lake','Sea','Lake Named Sea'])assert.ok(!result.includes('Places/'+name+'.md'),name);
+  assert.ok(!paths(queryIndex(runtime,{...options,recursive:false},context)).includes('Places/Nested Lake.md'));
+  assert.ok(paths(queryIndex(runtime,options,{...context,date:'1760-01-01'})).includes('Places/Future Lake.md'));
+  assert.equal(indexHasResults(runtime,{type:'rivers',target:'Lake'},context),true,'a lake alone can enable the header button');
 });
 
 test('places include only contained place notes, including town quarters and their buildings',()=>{
@@ -461,6 +484,48 @@ test('places include only contained place notes, including town quarters and the
   assert.deepEqual(paths(queryIndex(runtime,{type:'places',target:'Town',recursive:false},context)),['Places/Quarter.md','Places/Inn.md','Places/Temple.md']);
   assert.ok(!paths(places).some(path=>path.startsWith('People/') || path.startsWith('Groups/')));
   assert.equal(indexHasResults(runtime,{type:'places',target:'Inn'},context),false);
+});
+
+test('Places built and natural filters use canonical types and traverse ancestors of either category',()=>{
+  const {runtime}=fixture({...featureIndexNotes,
+    'Places/Wood.md':{tags:['place'],typeOf:'forest',whereabouts:'Town'},
+    'Places/Hill.md':{tags:['place'],typeOf:'topographical feature',whereabouts:'Quarter'},
+    'Places/Pond.md':{tags:['place'],typeOf:'lake',whereabouts:'Town'},
+    'Places/Shrine.md':{tags:['place'],typeOf:'holy site',whereabouts:'Wood'},
+    'Places/Bridge.md':{tags:['place'],typeOf:'infrastructure',destroyed:1710,whereabouts:'Town'},
+    'Places/Market.md':{tags:['place'],typeOf:'building',typeOfAlias:'forest',whereabouts:'Town'},
+    'Places/Unknown.md':{tags:['place'],whereabouts:'Town'},
+    'Places/Portal.md':{tags:['place'],typeOf:'planar link',whereabouts:'Town'},
+    'Places/Hidden Forest.md':{tags:['place'],typeOf:'forest',excludePublish:'all',whereabouts:'Town'},
+    'Places/Future Forest.md':{tags:['place'],typeOf:'forest',created:1760,whereabouts:'Town'},
+  });
+  const options={type:'places',target:'Town'},context={date:'1720-01-01',visible:page=>page.metadata.excludePublish!=='all'};
+  const all=paths(queryIndex(runtime,options,context)),built=paths(queryIndex(runtime,{...options,placeType:'built'},context)),natural=paths(queryIndex(runtime,{...options,placeType:'natural'},context));
+  assert.deepEqual(new Set(built),new Set(['Quarter','Inn','Shop','Temple','Shrine','Bridge','Market'].map(name=>'Places/'+name+'.md')));
+  assert.deepEqual(new Set(natural),new Set(['Wood','Hill','Pond'].map(name=>'Places/'+name+'.md')));
+  assert.ok(all.includes('Places/Unknown.md'));assert.ok(all.includes('Places/Portal.md'),'unfiltered queries keep unclassified and extraplanar places');
+  assert.ok(!paths(queryIndex(runtime,{...options,placeType:'built',recursive:false},context)).includes('Places/Shrine.md'));
+  assert.ok(!paths(queryIndex(runtime,{...options,placeType:'natural',recursive:false},context)).includes('Places/Hill.md'));
+  assert.ok(paths(queryIndex(runtime,{...options,placeType:'natural'},{...context,date:'1760-01-01'})).includes('Places/Future Forest.md'));
+  assert.equal(indexHasResults(runtime,{type:'places',target:'Wood',placeType:'built'},context),true);
+  assert.equal(indexHasResults(runtime,{type:'places',target:'Wood',placeType:'natural'},context),false);
+  assert.throws(()=>queryIndex(runtime,{...options,placeType:'all'},context),/placeType/);
+  assert.throws(()=>queryIndex(runtime,{type:'rivers',target:'Town',placeType:'built'},context),/only supported/);
+});
+
+test('website Places filters apply independently in grids and tables with contextual links',()=>{
+  const engine=website({...indexSources(featureIndexNotes),
+    'Places/Wood.md':'---\ntags: [place]\ntypeOf: forest\nwhereabouts: Quarter\n---',
+    'Places/Hidden Wood.md':'---\ntags: [place]\ntypeOf: forest\nwhereabouts: Town\nexcludePublish: all\n---',
+    'Places/Future Wood.md':'---\ntags: [place]\ntypeOf: forest\nwhereabouts: Town\ncreated: 1760\n---',
+    'Built.md':'```taelgar-index\ntype: places\ntarget: Town\nplaceType: built\nmode: table\n```',
+    'Natural.md':'```taelgar-index\ntype: places\ntarget: Town\nplaceType: natural\n```',
+  });
+  const built=load(engine.render('Built','1720-01-01','custom',false,undefined,['dufr'],undefined,true).html,{},false);
+  assert.match(built('tbody').text(),/Shop/);assert.doesNotMatch(built('tbody').text(),/Wood/);
+  const natural=load(engine.render('Natural','1720-01-01','custom',false,undefined,['dufr'],undefined,true).html,{},false);
+  assert.equal(natural('.taelgar-index-card').length,1);assert.equal(natural('.taelgar-index-link').text(),'Wood');
+  assert.match(natural('.taelgar-index-link').attr('href'),/date=1720-01-01.*campaigns=dufr.*pov=1/);
 });
 
 test('rivers and places render compact tables, lazy website buttons, and context-filtered API grids',async()=>{
@@ -475,12 +540,14 @@ test('rivers and places render compact tables, lazy website buttons, and context
     const table=load(engine.render(page,'1720-01-01','custom').html,{},false);
     assert.deepEqual(table('th').map((_,cell)=>table(cell).text()).get(),[firstHeading,'Type Of']);
     assert.match(table('tbody').text(),new RegExp(expected));assert.doesNotMatch(table('tbody').text(),new RegExp(excluded+'|Future'));
+    if(type==='rivers')assert.match(table('tbody').text(),/Lake/);
     const header=load(engine.render('Places/'+target+'.md','1720-01-01','custom').html,{},false);
     assert.equal(header('.taelgar-index-popup summary').text(),type==='rivers'?'Rivers':'Places');
     assert.equal(header('.taelgar-index-card').length,0);
     const response=await handleRequest(new Request('https://test.invalid'+header('.taelgar-index-popup').attr('data-index-url')),engine);
     assert.equal(response.status,200);const grid=await response.text();
     assert.match(grid,new RegExp(expected));assert.doesNotMatch(grid,new RegExp(excluded+'|Future'));
+    if(type==='rivers')assert.match(grid,/Lake/);
     assert.match(grid,/taelgar-index-card/);
   }
 });

@@ -196,8 +196,8 @@ JavaScript, website buttons include a link to the index content.
 | `residents` | Living people whose active home is in the target place or a contained location, following `homeLocation(target, metadata, false, date)`. Traveling residents remain included; transients whose home is elsewhere are excluded, even when their current, secondary or last-known location is here. |
 | `settlements` | Places with `typeOf: settlement` within the target place, including nested regions and destroyed settlements, but excluding places not yet created. Matches the current location, or last-known location when current is unknown, and also secondary locations. |
 | `members` | People with an active affiliation or leadership relationship to the target organization, following `isAffiliated(target, file, date)`. Direct membership is the default; past memberships are excluded. |
-| `rivers` | Place notes with `typeOf: waterway` in the target place or watershed. Includes rivers, streams, brooks and other waterway subtypes. Membership follows primary/current, last-known and secondary `whereabouts`, including secondary watershed membership and nested tributary locations. |
-| `places` | All place notes within the target place, typically a town's buildings, landmarks and quarters. Includes places nested within quarters or other contained locations, and excludes the target itself, people and organizations. |
+| `rivers` | Place notes with `typeOf: waterway` or `typeOf: lake` in the target place or watershed. Always includes lakes alongside rivers, streams, brooks and other waterway subtypes; marine features are excluded. Membership follows primary/current, last-known and secondary `whereabouts`, including secondary watershed membership and nested tributary locations. |
+| `places` | All place notes within the target place, typically a town's buildings, landmarks and quarters. Optional `placeType: built` or `placeType: natural` filters the results. Includes places nested within quarters or other contained locations, and excludes the target itself, people and organizations. |
 
 Location containment follows the dated `whereabouts` chain, including the legacy
 place `partOf` fallback. Members compare resolved organization identities, so
@@ -247,11 +247,41 @@ show: both
 | `target` | Note name, alias, or path; defaults to the note containing the block. Quote wikilinks, for example `target: "[[Cleenseau]]"`. Explicit `./` and `../` paths are relative to the containing note. |
 | `show` | `obsidian`, `website`, or `both` (default). The other renderer omits the entire block. Source mode still shows the editable definition. |
 | `mode` | `grid` (default) or `table`. Header popups always use the grid. |
+| `placeType` | Places only: `built` or `natural`. Omit to include all place types. Classification uses the note's `typeOf`, not its name or `typeOfAlias`. |
 | `recursive` | Boolean. Defaults to `true` for Residents, Settlements, Rivers and Places, and `false` for Members. `false` matches only the immediate location or organization; recursive Members also includes organizations connected through `partOf`. |
 
 Residents, Settlements, Rivers and Places require a place target; Members
-requires a group target. Rivers can also list waterways in a barony or other
+requires a group target. Rivers can also list waterways and lakes in a barony or other
 place; Places is not restricted to towns.
+
+Places filters follow the vault's broad Place Categories:
+
+| Filter | Included `typeOf` values |
+| --- | --- |
+| `built` | `settlement`, `neighborhood`, `realm`, `inn`, `building`, `holy site`, `road`, `infrastructure`, `battlefield` |
+| `natural` | `region`, `watershed`, `forest`, `wetlands`, `desert`, `grassland`, `waterway`, `lake`, `marine feature`, `topographical feature`, `subterranean feature`, `island` |
+
+The documented legacy spelling `topographic feature` also matches `natural`.
+These are metadata groups: realms belong to the community group, and waterways
+remain natural for this filter even when their display alias is canal.
+Extraplanar types and missing or unrecognized types appear in unfiltered Places
+but neither filtered category. Filtering selects results, not ancestors: a built
+shrine inside a forest still appears in recursive built results, and natural
+features inside a neighborhood still appear in recursive natural results.
+Date, visibility and `recursive` rules apply as usual. The option does not change
+note metadata. Header `indexes: [places]` buttons continue to show all types.
+
+For example, place this on a town to list its buildings and other built places;
+use `placeType: natural` for its natural features:
+
+````markdown
+```taelgar-index
+type: places
+placeType: built
+mode: table
+```
+````
+
 Invalid definitions show a local error while leaving the article readable.
 Inline blocks in transcluded notes use that note as their default target.
 Every inline grid or table starts with an H2 heading matching the index label

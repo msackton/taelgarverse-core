@@ -4,6 +4,20 @@ import {getPageType} from './header-core/metadata.mjs';
 
 export const indexLabels = Object.freeze({residents:'Residents',settlements:'Settlements',members:'Members',rivers:'Rivers',places:'Places'});
 
+// Broad groups follow the vault's Place Categories, using typeOf rather than
+// display aliases. Unclassified and extraplanar types stay in unfiltered Places.
+const placeTypes = {
+  built:new Set(['settlement','neighborhood','realm','inn','building','holy site','road','infrastructure','battlefield']),
+  natural:new Set(['region','watershed','forest','wetlands','desert','grassland','waterway','lake','marine feature',
+    'topographical feature','topographic feature','subterranean feature','island']),
+};
+
+function validatePlaceType(type,placeType) {
+  if (placeType === undefined) return;
+  if (type !== 'places') throw new Error('placeType is only supported for places indexes.');
+  if (placeType !== 'built' && placeType !== 'natural') throw new Error('placeType must be built or natural.');
+}
+
 export function headerIndexes(value) {
   if (value === undefined || value === null) return [];
   if (!Array.isArray(value) || value.some(type=>typeof type !== 'string' || !Object.hasOwn(indexLabels,type))) {
@@ -22,13 +36,15 @@ export function headerIndexesForMetadata(metadata = {}) {
 export function parseIndex(source) {
   const value = parse(source,{maxAliasCount:20});
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Use YAML with a type: residents, settlements, members, rivers, or places.');
-  for (const key of Object.keys(value)) if (!['type','target','show','recursive','mode'].includes(key)) throw new Error('Unknown index option: '+key);
+  for (const key of Object.keys(value)) if (!['type','target','show','recursive','mode','placeType'].includes(key)) throw new Error('Unknown index option: '+key);
   if (typeof value.type !== 'string' || !Object.hasOwn(indexLabels,value.type)) throw new Error('type must be residents, settlements, members, rivers, or places.');
   if (value.target !== undefined && (typeof value.target !== 'string' || !value.target.trim())) throw new Error('target must be a note name or path.');
   if (value.show !== undefined && !['obsidian','website','both'].includes(value.show)) throw new Error('show must be obsidian, website, or both.');
   if (value.recursive !== undefined && typeof value.recursive !== 'boolean') throw new Error('recursive must be true or false.');
   if (value.mode !== undefined && !['grid','table'].includes(value.mode)) throw new Error('mode must be grid or table.');
-  return {type:value.type,target:value.target?.trim(),show:value.show ?? 'both',recursive:value.recursive ?? value.type !== 'members',mode:value.mode ?? 'grid'};
+  validatePlaceType(value.type,value.placeType);
+  return {type:value.type,target:value.target?.trim(),show:value.show ?? 'both',recursive:value.recursive ?? value.type !== 'members',mode:value.mode ?? 'grid',
+    ...(value.placeType !== undefined ? {placeType:value.placeType} : {})};
 }
 
 const plain = value => typeof value === 'string' || typeof value === 'number' ? String(value) : '';
@@ -48,7 +64,7 @@ function indexCandidates(snapshot) {
       else if(type==='place') {
         index.places.push(page);
         if(page.metadata.typeOf==='settlement')index.settlements.push(page);
-        else if(page.metadata.typeOf==='waterway')index.rivers.push(page);
+        else if(page.metadata.typeOf==='waterway' || page.metadata.typeOf==='lake')index.rivers.push(page);
       }
     }
     candidateIndexes.set(snapshot,index);
@@ -66,6 +82,7 @@ export function indexHasResults(snapshot,options,context) {return runIndexQuery(
 function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>true}={},firstOnly=false) {
   const {type,recursive=type !== 'members'} = options;
   if (!Object.hasOwn(indexLabels,type)) throw new Error('Unknown index type.');
+  validatePlaceType(type,options.placeType);
   const {dates,names,locations,affiliations,templates} = createHeaderContext(snapshot,{date});
   const at = dates.normalizeDate(date);
   const candidates=indexCandidates(snapshot),{byPath,people}=candidates;
@@ -154,6 +171,7 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
   for (const page of placeIndex ? candidates[type] : people) {
     if (!visible(page) || page.path === target.path) continue;
     const metadata=page.metadata;
+    if (options.placeType && !placeTypes[options.placeType].has(metadata.typeOf)) continue;
     try {
       if (type !== 'members') {
         const life=dates.getPageDates(metadata,at);

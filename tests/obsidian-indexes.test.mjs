@@ -373,6 +373,31 @@ test('lazy popup loads coalesce, retry after failure, and ignore completion afte
 });
 
 
+test('Places filters keep independent Obsidian cached grids, tables and existence checks',async()=>{
+  const h=host();
+  try {
+    const extra={...featureIndexNotes,
+      'Places/Wood.md':{tags:['place'],typeOf:'forest',whereabouts:'Quarter'},
+      'Places/Shrine.md':{tags:['place'],typeOf:'holy site',whereabouts:'Wood'},
+    };
+    for(const [path,metadata] of Object.entries(extra)) {
+      h.metadata.set(path,{...structuredClone(metadata),pageTargetDate:'1720-01-01'});
+      if(!h.files.some(file=>file.path===path))h.files.push({path,basename:path.split('/').at(-1).slice(0,-3)});
+    }
+    const all=await h.block('type: places','Places/Town.md');assert.match(all.element.textContent,/Wood/);assert.match(all.element.textContent,/Shrine/);
+    const built=await h.block('type: places\nplaceType: built\nmode: table','Places/Town.md');
+    assert.match(built.element.textContent,/Shop/);assert.match(built.element.textContent,/Shrine/);assert.doesNotMatch(built.element.textContent,/Wood/);
+    const natural=await h.block('type: places\nplaceType: natural','Places/Town.md');
+    assert.equal(natural.element.querySelectorAll('.taelgar-index-card').length,1);assert.match(natural.element.textContent,/Wood/);assert.doesNotMatch(natural.element.textContent,/Shop|Shrine/);
+    h.click(natural.element.querySelector('.taelgar-index-link'));assert.deepEqual(h.opened.at(-1),['Places/Wood.md','Places/Town.md',false]);
+    const snapshot=await h.obsidianHeaders(h.app),context='Places/Wood.md',date='1720-01-01';
+    h.obsidianIndex(h.app,snapshot,{type:'places',placeType:'built'},context,date);
+    assert.equal(h.obsidianIndexExists(h.app,snapshot,{type:'places',placeType:'built'},context,date),true);
+    assert.equal(h.obsidianIndexExists(h.app,snapshot,{type:'places',placeType:'natural'},context,date),false);
+    const invalid=await h.block('type: rivers\nplaceType: built','Places/Basin.md');assert.match(invalid.element.textContent,/only supported for places/);
+  } finally {h.feature.unload();}
+});
+
 test('Rivers and Places use native links, compact tables and lazy image-card popups in Obsidian',async()=>{
   const h=host();
   try {
@@ -384,10 +409,12 @@ test('Rivers and Places use native links, compact tables and lazy image-card pop
       const inline=await h.block('type: '+type+'\nmode: table','Places/'+target+'.md');
       assert.deepEqual([...inline.element.querySelectorAll('th')].map(cell=>cell.textContent),[heading,'Type Of']);
       assert.match(inline.element.textContent,new RegExp(expected));assert.doesNotMatch(inline.element.textContent,/Future/);
+      if(type==='rivers')assert.match(inline.element.textContent,/Lake/);
       const header=await h.block('','Places/'+target+'.md','taelgar-header');
       assert.equal(header.element.querySelectorAll('.taelgar-index-card,img').length,0);
       h.click(header.element.querySelector('summary'));await pause(10);
       const popup=h.document.querySelector('dialog[open]');assert.ok(popup);assert.match(popup.textContent,new RegExp(expected));
+      if(type==='rivers')assert.match(popup.textContent,/Lake/);
       if(type==='rivers')assert.equal(popup.querySelector('img').getAttribute('src'),'app://local/portraits/alice.png');
       h.click(popup.querySelector('.taelgar-index-link'));assert.equal(h.opened.at(-1)[1],'Places/'+target+'.md');
       h.click(popup.querySelector('.taelgar-index-close'));

@@ -149,8 +149,13 @@ and affiliation-date rules. Settlement tables show
 Place, Region, Type Of, and Population, sorted by their dated home region.
 Settlements includes ruins and matches current, last-known and secondary
 locations using the existing `inLocation(..., true, true, date)` rules.
-Rivers follows `typeOf: waterway` and includes secondary watershed membership.
+Rivers follows `typeOf: waterway` or `typeOf: lake` and includes secondary watershed membership.
 Places lists contained place notes, such as a town's quarters, buildings and shops.
+Inline Places blocks accept `placeType: built` or `placeType: natural`; omit the
+option for all types. Built covers communities, structures and infrastructure;
+natural covers geographic regions, biomes, water features and landforms, using
+`typeOf`. Extraplanar and unclassified types remain in unfiltered results only.
+The filter applies to results while containment still follows all ancestor types.
 Use `indexes: [rivers]` or `indexes: [places]` for header buttons. Their tables
 have River/Place and Type Of columns, sorted by type then name. Both follow dated
 nested location chains by default; set `recursive: false` for direct matches.

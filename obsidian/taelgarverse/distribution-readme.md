@@ -63,9 +63,13 @@ Table rows have no image column; popups always use image grids.
 Grids and buttons refresh when vault metadata or calendar dates change. Notes
 remain editable and are never rewritten.
 
-Rivers lists waterway notes in a place or watershed, including secondary watershed
+Rivers lists waterway and lake notes in a place or watershed, including secondary watershed
 membership. Places lists contained place notes, including buildings in town
-quarters. Enable them with `indexes: [rivers]` or `indexes: [places]`, or use
+quarters. Inline Places blocks accept `placeType: built` or `placeType: natural`;
+omit it for all types. These select communities/structures/infrastructure or
+geographic regions/biomes/water features/landforms by `typeOf`. Extraplanar and
+unclassified types remain in unfiltered results only. Enable the default header
+buttons with `indexes: [rivers]` or `indexes: [places]`, or use
 the same type in an inline `taelgar-index` block. Their compact tables show
 River/Place and Type Of; recursive containment is enabled by default.
 
@@ -215,8 +219,13 @@ and affiliation-date rules. Settlement tables show
 Place, Region, Type Of, and Population, sorted by their dated home region.
 Settlements includes ruins and matches current, last-known and secondary
 locations using the existing `inLocation(..., true, true, date)` rules.
-Rivers follows `typeOf: waterway` and includes secondary watershed membership.
+Rivers follows `typeOf: waterway` or `typeOf: lake` and includes secondary watershed membership.
 Places lists contained place notes, such as a town's quarters, buildings and shops.
+Inline Places blocks accept `placeType: built` or `placeType: natural`; omit the
+option for all types. Built covers communities, structures and infrastructure;
+natural covers geographic regions, biomes, water features and landforms, using
+`typeOf`. Extraplanar and unclassified types remain in unfiltered results only.
+The filter applies to results while containment still follows all ancestor types.
 Use `indexes: [rivers]` or `indexes: [places]` for header buttons. Their tables
 have River/Place and Type Of columns, sorted by type then name. Both follow dated
 nested location chains by default; set `recursive: false` for direct matches.
