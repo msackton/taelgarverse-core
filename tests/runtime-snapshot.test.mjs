@@ -12,6 +12,7 @@ import {Navigation} from '../src/navigation.mjs';
 import {validatePublicationUploads,prunePublication} from '../scripts/content-retention.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {indexSources,featureIndexNotes} from './fixtures/indexes.mjs';
+import {cintraSource,cintraSentence} from './fixtures/index-descriptions.mjs';
 
 let directory,report,objects,settings;
 class Bucket {
@@ -62,7 +63,13 @@ before(async()=>{
     'Index Table.md':'```taelgar-index\ntype: residents\ntarget: Realm\nmode: table\n```',
     'Settlement Table.md':'```taelgar-index\ntype: settlements\ntarget: Realm\nmode: table\n```',
     'Member Table.md':'```taelgar-index\ntype: members\ntarget: Guild\nmode: table\n```',
+    'People/Cintra.md':cintraSource,
+    'Groups/Shakun Mystai.md':'---\ntags: [group]\n---\n```taelgar-header\n```',
+    'Cintra Grid.md':'```taelgar-index\ntype: members\ntarget: Shakun Mystai\n```',
+    'Cintra Embed.md':'![[Cintra Grid]]',
   });
+  notes['People/Alice.md']=notes['People/Alice.md'].replace('Authored prose.',
+    '%%^Campaign:none%%Private member description.%%^End%%\n\n%%^Campaign:dufr%%Frontier member description.%%^End%%\n\n%%^Date:1720-01-01b%%Earlier member description.%%^End%%\n\nPublic member description. Second sentence.');
   for(const [file,source] of Object.entries(notes)){
     fs.mkdirSync(path.dirname(path.join(directory,file)),{recursive:true});
     fs.writeFileSync(path.join(directory,file),source);
@@ -129,6 +136,44 @@ test('compiled and legacy Workers calculate visible indexes from metadata and pr
     assert.match(people.html,/Person<\/th>.*Info<\/th>.*Current Location<\/th>/s);
     assert.match(people.html,/she\/her AL-iss/);assert.match(people.html,/January 1st, 1720/);
     assert.doesNotMatch(people.html,/People\/(?:Hidden|Campaign Secret|POV Secret)|Dead|Future/);
+  }
+});
+
+test('published Members grids load prose lazily in compiled and legacy Workers, including inline indexes and embeds',async()=>{
+  const compiled=recompiledBucket({noteShardBytes:1}),legacy=new Bucket(objects,{legacy:true});
+  const worker=createWorker(),old=createWorker();
+  const popup='/api/index?page=Groups/Shakun%20Mystai.md&type=members&date=1748-06-01';
+  const header=await request(worker,compiled,'/api/page?page=Groups/Shakun%20Mystai.md&date=1748-06-01');
+  assert.equal(header.status,200);assert.match((await header.json()).html,/data-index-type="members"/);
+  assert.equal(compiled.calls.filter(key=>key.includes('/runtime/notes/')).length,1,'opening the header does not read member bodies');
+  for(const url of [popup,'/api/page?page=Cintra%20Grid&date=1748-06-01','/api/page?page=Cintra%20Embed&date=1748-06-01']) {
+    const a=await request(worker,compiled,url),b=await request(old,legacy,url);
+    assert.equal(a.status,200,url);assert.equal(b.status,200,url);
+    const left=await a.text(),right=await b.text();
+    assert.equal(left,right,url);assert.ok(left.includes(cintraSentence),url);
+    assert.doesNotMatch(left,/Cintra, the Supreme Oracle|Private preparation|\[!image/);
+  }
+  const reads=compiled.calls.filter(key=>key.includes('/runtime/notes/'));
+  assert.equal(reads.length,4,'only the group, member, inline index and embedding page are loaded');
+  assert.equal(reads.length,new Set(reads).size,'member bodies share the immutable shard cache');
+});
+
+test('concurrent published Members requests keep description date, campaign and DM filtering request-local',async()=>{
+  for(const legacy of [false,true]) {
+    const bucket=legacy ? new Bucket(objects,{legacy:true}) : recompiledBucket({noteShardBytes:1}),worker=createWorker();
+    const cases=[
+      ['1720-01-01','adma',0,'Public member description.'],
+      ['1720-01-01','dufr',0,'Frontier member description.'],
+      ['1719-12-31','adma',0,'Earlier member description.'],
+      ['1720-01-01','adma',1,'Private member description.'],
+    ];
+    await Promise.all(cases.map(async([date,campaigns,dm,expected])=>{
+      const response=await request(worker,bucket,'/api/index?'+new URLSearchParams({page:'Groups/Guild.md',type:'members',date,campaigns,dm}));
+      assert.equal(response.status,200);const html=await response.text();
+      assert.ok(html.includes(expected));
+      for(const other of cases.map(row=>row[3]).filter(sentence=>sentence!==expected))assert.ok(!html.includes(other));
+      assert.doesNotMatch(html,/Second sentence/);
+    }));
   }
 });
 

@@ -12,6 +12,13 @@ export function headerIndexes(value) {
   return [...new Set(value)];
 }
 
+// Groups get a Members header index by default. Any explicit indexes value,
+// including an empty array, takes precedence over the inferred default.
+export function headerIndexesForMetadata(metadata = {}) {
+  if (metadata.indexes !== undefined) return headerIndexes(metadata.indexes);
+  return getPageType(metadata) === 'group' ? ['members'] : [];
+}
+
 export function parseIndex(source) {
   const value = parse(source,{maxAliasCount:20});
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Use YAML with a type: residents, settlements, members, rivers, or places.');
@@ -179,7 +186,7 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
         ['person','<name> (<pronouns> <pronunciation>)'],
         ['info','<ancestry> <maintype>'],
         ['lastKnown',type === 'residents' ? '<lastknown:2> (<lastknowndate>)' : '<lastknown:2Fr> (<lastknowndate>)'],
-        ...(type === 'residents' ? [['home','<home:1>']] : []),
+        ...(type === 'residents' || type === 'members' ? [['home','<home:1>']] : []),
       ].map(([field,format])=>[field,formattedParts(templates.formatDisplayString(format,{name:page.name,frontmatter:metadata},at),page.path)])) : {};
       items.push({path:page.path,name:displayName(page),description,details,
         pronunciation:plain(metadata.pronunciation),imageTarget:metadata.image,...settlement,...place,...person});

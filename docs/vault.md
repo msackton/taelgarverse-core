@@ -171,9 +171,10 @@ indexes: [residents, settlements]
 ```
 
 For a watershed use `indexes: [rivers]`; for a town use `indexes: [places]`.
-For an organization use `indexes: [members]`. Types can be combined in one array.
-Omit the property or use `[]` for
-no buttons. Repeated entries produce one button; unknown names and mappings
+For an organization (`tags: [group]`), Members is enabled automatically when
+`indexes` is omitted. Set `indexes: []` to suppress it, or provide another
+valid array to choose the header indexes explicitly. Types can be combined in
+one array. Repeated entries produce one button; unknown names and mappings
 such as `indexes: {members: true}` show an author-visible error.
 The button row sits below the complete generated header, outside its information
 callout. An ordinary Markdown title or saved header does not receive buttons;
@@ -210,8 +211,15 @@ membership is read from `whereabouts`, not inferred from prose or folders.
 Members use the affiliation's inclusive start/end dates directly. An omitted
 end date defaults to the person's death date when known; explicit affiliation
 dates retain the helper's behavior, without an additional living-person filter.
-People cards show Person, Info, and Current Location using the same templates as
-tables. Residents cards also show Home, while member cards also show roles.
+People cards show Person and Info using the same templates as tables. Residents
+cards also show Current Location and Home. Member cards show the member note's
+first authored sentence and roles instead of location fields.
+Descriptions come from the first ordinary prose paragraph after filtering
+comments for the selected date, campaigns and DM mode. Headings, callouts and
+other blockquotes, code, lists, tables, and image-only paragraphs are skipped.
+Wikilink aliases and Markdown link labels become plain text. The website loads
+visible members' bodies when rendering a grid, including header popups and
+inline indexes; existing published snapshots support this without republication.
 Names include available pronouns and pronunciation. The displayed current or
 last-known location can differ from the home used to select Residents.
 Settlement cards show population when numeric.
@@ -278,13 +286,14 @@ the legacy helper's `includeDead` parameter is explicitly `false` for Residents.
 Resolvable names link to their pages, and website-hidden destinations show
 **Unknown**. Table rows have no image column.
 
-Member tables have three columns, using the existing query's header templates:
+Member tables have four columns, using the existing query's header templates:
 
 | Column | Template |
 | --- | --- |
 | Person | `<name> (<pronouns> <pronunciation>)` |
 | Info | `<ancestry> <maintype>` |
 | Current Location | `<lastknown:2Fr> (<lastknowndate>)` |
+| Home | `<home:1>` |
 
 Pronouns use explicit `pronouns` or the header's gender fallback; empty optional
 values and parentheses are removed by the formatter. Info honors ancestry and

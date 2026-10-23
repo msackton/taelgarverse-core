@@ -45,6 +45,9 @@ export function createWorker(coreRelease = {},{cache}={}) {
           const result=await engine.renderHomeAsync(context,entry=>store.getNote(entry),siteHost);
           renderedPage=!!result;return result;
         },
+        renderIndex(page,type,date,context,dm,campaigns,pov) {
+          return engine.renderIndexAsync(page,type,date,context,dm,campaigns,entry=>store.getNote(entry),pov);
+        },
         assets(entry,request) {
           return serveAsset(request,entry,async range=>{
             const object=await env.CONTENT.get(entry.objectKey,{range});

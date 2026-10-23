@@ -1,4 +1,4 @@
-.taelgar-index-buttons { display:flex; flex-wrap:wrap; gap:.5rem; margin:.5rem 0 1rem; }
+.taelgar-index-buttons { display:flex; flex-wrap:wrap; gap:.5rem; margin:.5rem 0 0; }
 .taelgar-index-popup,.taelgar-index-buttons .taelgar-index-popup { margin:0; padding:0; border:0; background:transparent; box-shadow:none; font-size:inherit; }
 .taelgar-index-popup > summary,.taelgar-index-buttons .taelgar-index-popup > summary { cursor:pointer; list-style:none; margin:0; border:1px solid var(--line,var(--background-modifier-border,#89968c)); border-radius:.4rem; padding:.35rem .75rem; font:inherit; color:inherit; background:transparent; }
 .taelgar-index-buttons .taelgar-index-popup > summary::before,.taelgar-index-buttons .taelgar-index-popup > summary::after { display:none; }

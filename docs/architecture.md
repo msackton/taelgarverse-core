@@ -89,7 +89,7 @@ flowchart LR
 | `src/header-core/` | Maintained dates, names, whereabouts, affiliations, templates, encounters and header output. `createHeaderSnapshot` freezes shared inputs; `createHeaderContext` creates request-local services; `renderBio` renders the complete header directly; `renderHeader` supports saved headers. |
 | `src/bio-block.mjs`, `obsidian/taelgarverse/features/headers.mjs` | Leading header-block recognition, pure publication normalization, and the Obsidian adapter. The host selects the date and resolves links; the shared core renders the title and a static native callout. |
 | `obsidian/taelgarverse/features/interactions.mjs`, `obsidian/taelgarverse/features/interaction-data.mjs` | Native vault metadata/link adapter, cached recap index, explicit interaction blocks, automatic Reading View footer and host-owned CodeMirror Live Preview widget. Known-to pages get a campaign picker; no note writes or website requests. |
-| `src/indexes.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/website-indexes.mjs`, `src/browser/index-popups.mjs` | Shared Residents, Settlements, Members, Rivers and Places queries, image cards/table/popup markup, lead-image resolution, website visibility adapter and popup lifecycle. The Obsidian headers feature supplies native resolution, refresh and links. See [generated indexes](vault.md#generated-indexes). |
+| `src/indexes.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/index-description.mjs`, `src/website-indexes.mjs`, `src/browser/index-popups.mjs` | Shared Residents, Settlements, Members, Rivers and Places queries, cards/table/popup markup, lead-image resolution, prose descriptions, website visibility adapter and popup lifecycle. The Obsidian headers feature supplies native resolution, refresh and links. See [generated indexes](vault.md#generated-indexes). |
 | `src/worker.mjs`, `src/worker-handler.mjs`, `src/snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
 | `src/headers.mjs`, `src/header-runtime.mjs`, `src/worker-headers.mjs` | Preserved legacy VM/generated reference implementations for characterization tests. Production rendering does not import them. |
 | `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs`, `scripts/header-core-revision.mjs` | Legacy reference/icon maintenance and a separate source fingerprint for the maintained core in publication diagnostics. |
@@ -228,8 +228,11 @@ Header buttons run only a first-match existence probe. Popup bodies are built on
 activation; the shared popup controller coalesces loads, retries failures, and
 ignores completion after disposal. Website grids use the read-only `/api/index`
 route with the source page's visibility and hostname-locked reader context.
-Compiled Workers initialize rendering metadata for that route without loading
-note bodies; the local Node adapter prepares lead-image derivatives on demand.
+Compiled Workers initialize rendering metadata for that route. Members grids
+then load only the visible members' note bodies through the existing shard
+loader, sharing a request-local cache with embeds. Tables and the other index
+types use metadata only; header buttons do not load candidate bodies. The local
+Node adapter already has note bodies and prepares lead-image derivatives on demand.
 
 The Obsidian bio adapter supplies the host's link resolver to the shared header
 runtime, then reads the destination's frozen snapshot metadata. This preserves
@@ -247,10 +250,14 @@ visitor changes context.
 Generated `taelgar-index` fences and frontmatter `indexes` arrays query the
 existing frozen header metadata at render time. They reuse dated whereabouts
 and affiliation services with host-provided resolution and visibility, requiring
-no extra snapshot format or note-body reads. The website filters candidates
+no extra snapshot format. Only Members grid descriptions require note-body reads,
+so existing published snapshots work without republication. The website filters candidates
 before counts and links, including formatted person info, location and home destinations.
 People and member tables reuse header templates and resolve their text/wikilink output into
-escaped text and host links. Grid images use
+escaped text and host links. Member descriptions apply the reader's comment
+visibility before selecting the first ordinary Markdown paragraph, skipping
+callouts and other non-prose blocks. The shared extractor returns escaped plain
+text in the view; it does not render or expand embedded notes. Grid images use
 the existing `image` metadata field; publication includes those references in
 the responsive-image usage plan. Search/backlink compilation omits these generated rows;
 inline indexes retain the containing note as their source inside transclusions.

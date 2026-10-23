@@ -4,7 +4,7 @@ import {load} from 'cheerio';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {headerFixture as legacyFixture} from './helpers/legacy-header-fixture.mjs';
 import {indexNotes,indexSources,featureIndexNotes} from './fixtures/indexes.mjs';
-import {headerIndexes,parseIndex,queryIndex,indexHasResults} from '../src/indexes.mjs';
+import {headerIndexes,headerIndexesForMetadata,parseIndex,queryIndex,indexHasResults} from '../src/indexes.mjs';
 import {indexGrid,indexPopupShell} from '../src/index-view.mjs';
 import {handleRequest} from '../src/application.mjs';
 import {ContentStore,parseNote} from '../src/content-store.mjs';
@@ -26,6 +26,11 @@ const paths=result=>result.items.map(item=>item.path);
 test('index authoring validates arrays and YAML, supplies defaults, and deduplicates buttons',()=>{
   assert.deepEqual(headerIndexes(['members','members']),['members']);
   assert.deepEqual(headerIndexes(undefined),[]);assert.deepEqual(headerIndexes([]),[]);
+  assert.deepEqual(headerIndexesForMetadata({tags:['group']}),['members']);
+  assert.deepEqual(headerIndexesForMetadata({tags:['group/clan']}),['members']);
+  assert.deepEqual(headerIndexesForMetadata({tags:['group'],indexes:[]}),[]);
+  assert.deepEqual(headerIndexesForMetadata({tags:['group'],indexes:['places']}),['places']);
+  assert.deepEqual(headerIndexesForMetadata({tags:['person']}),[]);
   for(const invalid of [{members:true},'members',['unknown'],['constructor'],[null]])assert.throws(()=>headerIndexes(invalid),/array/);
   assert.deepEqual(parseIndex('type: residents'),{type:'residents',target:undefined,show:'both',recursive:true,mode:'grid'});
   assert.equal(parseIndex('type: members\nmode: table').mode,'table');
@@ -326,11 +331,12 @@ test('website member tables use the requested templates with contextual links, v
   });
   const render=(date='1720-01-01')=>engine.render('Members',date,'custom',false,undefined,['dufr'],undefined,true);
   const result=render(),$=load(result.html,{},false);
-  assert.deepEqual($('th').map((_,el)=>$(el).text()).get(),['Person','Info','Current Location']);
+  assert.deepEqual($('th').map((_,el)=>$(el).text()).get(),['Person','Info','Current Location','Home']);
   const cells=$('tbody tr').first().find('td');
   assert.equal(cells.eq(0).text(),'Alice Example (she/her AL-iss)');
   assert.equal(cells.eq(1).text(),'Townfolk human');assert.equal(cells.eq(1).find('a').length,2);
   assert.equal(cells.eq(2).text(),'the Other Realm (January 1st, 1720)');
+  assert.equal(cells.eq(3).text(),'Inn');
   for(const link of $('tbody a').toArray())assert.match($(link).attr('href'),/date=1720-01-01.*campaigns=dufr.*pov=1/);
   assert.equal($('img,.taelgar-index-grid').length,0);assert.doesNotMatch(result.html,/People\/(Hidden|Future|Campaign Secret|POV Secret)/);
   const popup=engine.render('Groups/Guild.md','1720-01-01','custom',false,undefined,['dufr'],undefined,true);
@@ -338,9 +344,10 @@ test('website member tables use the requested templates with contextual links, v
   assert.doesNotMatch(popup.html,/taelgar-index-table|taelgar-index-count/);
   const popupContent=engine.renderIndex('Groups/Guild.md','members','1720-01-01','custom',false,['dufr'],true);
   assert.match(load(popupContent)('.taelgar-index-card').first().text(),/Alice Example \(she\/her AL-iss\)/);
-  assert.match(load(popupContent)('.taelgar-index-card').first().text(),/Current Location: the Other Realm \(January 1st, 1720\)/);
+  assert.match(load(popupContent)('.taelgar-index-card').first().text(),/Authored prose\./);
+  assert.doesNotMatch(load(popupContent)('.taelgar-index-card').first().text(),/Current Location:/);
   assert.doesNotMatch(load(popupContent)('.taelgar-index-card').first().text(),/Home:/);
-  assert.match(load(render('1721-01-01').html)('tbody tr').first().find('td').last().text(),/January 1st, 1721/);
+  assert.match(load(render('1721-01-01').html)('tbody tr').first().find('td').eq(2).text(),/January 1st, 1721/);
   for(const path of ['Places/Other Realm.md','Ancestries/Townfolk.md','Creatures/Humans.md'])engine.store.resolve(path).note.metadata.excludePublish='all';
   const hidden=render();assert.doesNotMatch(hidden.html,/Other Realm|other-realm|Townfolk|townfolk|human|Humans/);
   assert.match(hidden.html,/Unknown Unknown/);assert.match(hidden.html,/Unknown \(January 1st, 1720\)/);
@@ -355,7 +362,7 @@ test('member template text is escaped, and unknown locations retain their observ
   const result=engine.render('Members','1720-01-01','custom'),$=load(result.html,{},false);
   assert.equal($('tbody img,tbody script,tbody b,tbody svg').length,0);
   assert.match($('tbody tr').first().find('td').first().text(),/<img onerror=x> \(<script> & sound\)/);
-  assert.equal($('tbody tr').first().find('td').last().text(),'Unknown (January 1st, 1720)');
+  assert.equal($('tbody tr').first().find('td').eq(2).text(),'Unknown (January 1st, 1720)');
 });
 
 test('settlement tables use Place, Region, Type Of and Population, shared display rules, and dated region sorting',()=>{

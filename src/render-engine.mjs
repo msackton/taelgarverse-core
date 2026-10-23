@@ -16,6 +16,7 @@ import {HeaderDataError} from './header-core/errors.mjs';
 import {compileInteractionIndex,campaignInteractions} from './campaign-interactions.mjs';
 import {interactionSummary,interactionView} from './interaction-view.mjs';
 import {addHeaderIndexes,renderHeaderIndex,HEADER_INDEX_SLOT} from './website-indexes.mjs';
+import {headerIndexesForMetadata} from './indexes.mjs';
 
 export class RenderEngine {
   constructor({settings,store,headers,renderHeader,renderBio,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles,loadTranscript}) {
@@ -58,6 +59,9 @@ export class RenderEngine {
     const note = loadedNote || entry.note;
     let body = note.body;
     const bio = Object.hasOwn(note,'bio') ? note.bio : leadingBioBlock(body);
+    // Explicit declarations also need a slot when invalid: the index adapter
+    // renders their error locally without interrupting the generated header.
+    const hasHeaderIndexSlot = bio && (metadata.indexes!==undefined || headerIndexesForMetadata(metadata).length>0);
     if (bio?.error) throw new RenderError(422, bio.error);
     // Prepared Markdown places this marker at the start of the body. A leading
     // marker is explicit; examples inside code or prose are left alone.
@@ -73,7 +77,7 @@ export class RenderEngine {
         }
         // The new header owns its controls. Place their slot after the complete
         // generated header, outside its information box and before authored prose.
-        if (bio && metadata.indexes != null) generated=generated.trimEnd()+'\n\n'+HEADER_INDEX_SLOT;
+        if (hasHeaderIndexSlot) generated=generated.trimEnd()+'\n\n'+HEADER_INDEX_SLOT;
         body = bio || headerMarker ? generated.trimEnd() + '\n\n' + body.slice(bio?.end ?? headerMarker[0].length).replace(/^(?:[ \t]*\r?\n)*/, '') : generated;
       } catch (error) {
         if(error instanceof HeaderDataError)throw new RenderError(422,`Header generation failed: circular ${error.kind} chain.`);
@@ -91,7 +95,7 @@ export class RenderEngine {
       rendered.html=/<\/h1>/i.test(rendered.html) ? rendered.html.replace(/<\/h1>/i,match=>match+summary) : summary+rendered.html;
       rendered.html+=interactionView(interactions);
     }
-    if (bio && metadata.indexes != null) rendered.html = addHeaderIndexes(rendered.html,{store:this.store,entry,context,headers:this.headers,warnings:rendered.warnings});
+    if (hasHeaderIndexSlot) rendered.html = addHeaderIndexes(rendered.html,{store:this.store,entry,context,headers:this.headers,warnings:rendered.warnings});
     if (hide.includes('toc')) rendered.toc = '';
     return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,hide,
       ...(metadata.layout === 'wide' ? {layout:'wide'} : {}),
@@ -99,15 +103,19 @@ export class RenderEngine {
         ? linkedFrom(backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
   }
 
-  renderIndex(page,type,date,contextId,dm,selectedCampaigns,pov) {
+  renderIndex(page,type,date,contextId,dm,selectedCampaigns,pov,noteLoading) {
     const {entry,context}=this.resolvePage(page,date,contextId,dm,selectedCampaigns,pov);
-    return renderHeaderIndex(type,{store:this.store,entry,context,headers:this.headers,warnings:[]});
+    return renderHeaderIndex(type,{store:this.store,entry,context,headers:this.headers,warnings:[],noteLoading});
+  }
+
+  async renderIndexAsync(page,type,date,contextId,dm,selectedCampaigns,loadNote,pov) {
+    return this.loadNotes(loading=>this.renderIndex(page,type,date,contextId,dm,selectedCampaigns,pov,loading),loadNote);
   }
 
   async renderAsync(page,date,contextId,dm,selectedCampaigns,loadNote,pov) {
     const {entry} = this.resolvePage(page,date,contextId,dm,selectedCampaigns,pov);
     const [note,backlinks] = await Promise.all([loadNote(entry),this.loadBacklinks ? this.loadBacklinks(entry) : this.backlinkIndex]);
-    return this.loadEmbeds(loading=>this.render(page,date,contextId,dm,note,selectedCampaigns,loading,pov,backlinks),loadNote,new Map([[entry.id,note]]));
+    return this.loadNotes(loading=>this.render(page,date,contextId,dm,note,selectedCampaigns,loading,pov,backlinks),loadNote,new Map([[entry.id,note]]));
   }
 
   async renderTranscript(id,date,contextId,dm=false,selectedCampaigns,pov,fromPerson) {
@@ -135,7 +143,9 @@ export class RenderEngine {
       html:'<h1>'+escapeHtml(event.title)+' — Transcript</h1><p>'+escapeHtml(period+' · '+event.sessionLabel+' · '+event.sourceTitle)+'</p><p>'+links+'</p>'+rendered.html};
   }
 
-  async loadEmbeds(render,loadNote,notes=new Map()) {
+  // Embeds and Members descriptions discover visible note dependencies during
+  // rendering. Keep loaded bodies request-local and share pending shard reads.
+  async loadNotes(render,loadNote,notes=new Map()) {
     const loading = {notes,pending:new Map()};
     for (;;) {
       loading.pending.clear();
@@ -153,7 +163,7 @@ export class RenderEngine {
   }
 
   async renderHomeAsync(context,loadNote,siteHost) {
-    return this.loadEmbeds(loading=>this.renderHome(context,loading,siteHost),loadNote);
+    return this.loadNotes(loading=>this.renderHome(context,loading,siteHost),loadNote);
   }
 
   renderBody(body, entry, context, embedLoading) {
@@ -165,7 +175,7 @@ export class RenderEngine {
       throw error;
     }
     const warnings = [];
-    const noteEmbeds = [], env = {store:this.store,entry,date,context,headers:this.headers,warnings,dmNotes,notesMarkdown:this.notesMarkdown,noteEmbeds};
+    const noteEmbeds = [], env = {store:this.store,entry,date,context,headers:this.headers,warnings,dmNotes,notesMarkdown:this.notesMarkdown,noteEmbeds,noteLoading:embedLoading};
     const rendered = renderMarkdown(this.markdown,body,env);
     if (noteEmbeds.length) rendered.html = expandNoteEmbeds(rendered.html,noteEmbeds,{...env,markdown:this.markdown},embedLoading);
     rendered.html = responsiveImages(rendered.html,this.store,{wide:entry.note?.metadata.layout === 'wide'});

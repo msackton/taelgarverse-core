@@ -18,8 +18,9 @@ Inline grids and tables start with an H2 heading matching the index label.
 
 Residents, Settlements, Members, Rivers and Places grids use current vault
 metadata and the selected in-world date. Enable header popup buttons with
-`indexes: [residents, settlements]` on a place or `indexes: [members]` on an
-organization. Buttons appear only with a `taelgar-header` block, at the bottom
+`indexes: [residents, settlements]` on a place. Organizations tagged `group`
+get Members automatically when `indexes` is omitted; `indexes: []` suppresses
+it and an explicit list overrides the default. Buttons appear only with a `taelgar-header` block, at the bottom
 of the generated header and outside the information callout.
 
 For an inline grid:
@@ -41,13 +42,14 @@ Residents and Settlements include contained locations by default; Members
 matches the direct organization. Override this with `recursive: true` or `false`.
 Cards show available lead images from note `image` frontmatter. People cards
 include pronouns and pronunciation when available; settlement cards also show
-pronunciation. People cards show Info and Current Location using the same
-templates as tables, plus Home on Residents. Set `mode: table`
+pronunciation. Residents cards show Info, Current Location and Home. Members
+cards show Info, the first authored prose sentence, and roles. Descriptions skip
+callouts, headings, code, lists, tables and image-only paragraphs. Set `mode: table`
 inline to show Person (name, pronouns, pronunciation), Info (ancestry and main
-type), Current Location (last-known chain and date), and Home for Residents.
+type), Current Location (last-known chain and date), and Home for Residents and Members.
 Member tables show Person (name, pronouns, pronunciation),
-Info (ancestry and main type), and Current Location (last-known location chain
-and date), following the existing `isAffiliated` and header-template rules.
+Info (ancestry and main type), Current Location (last-known location chain
+and date), and Home, following the existing `isAffiliated` and header-template rules.
 Settlement tables show Place, Region,
 Type Of, and Population, sorted by dated home region, with the same type and
 population formatting as headers. Settlements includes ruins and matches
@@ -181,9 +183,10 @@ frame and retains its normal campaign-history section.
 ## Generated indexes
 
 Residents, Settlements, Members, Rivers and Places grids are calculated from vault metadata. Put
-`indexes: [residents, settlements]` in a place's frontmatter or
-`indexes: [members]` on an organization to add popup buttons at the bottom of
-its `taelgar-header` block, below and outside the information callout. Ordinary
+`indexes: [residents, settlements]` in a place's frontmatter to add popup buttons at the bottom of
+its `taelgar-header` block, below and outside the information callout. Organizations tagged
+`group` get Members automatically when `indexes` is omitted; set `indexes: []` to suppress it or
+provide an explicit list to choose header indexes. Ordinary
 Markdown titles and saved headers do not receive buttons. Use a `taelgar-index` fence
 containing `type: residents`, `type: settlements`, `type: members`,
 `type: rivers`, or `type: places` for an
@@ -196,12 +199,14 @@ same name formatting as tables. Settlement cards also include pronunciation.
 Use `mode: table` inline for Person (name, pronouns, pronunciation), Info (ancestry
 and main type), Current Location (last-known chain and date), and Home on Residents.
 Residents includes living people whose active home is in the place, including
-traveling residents. Transients whose home is elsewhere are excluded. Cards show
-the same Info and Current Location fields as tables, plus Home for Residents.
+traveling residents. Transients whose home is elsewhere are excluded. Residents
+cards show Current Location and Home; Members cards show the member note's first
+authored sentence and roles instead of location fields. Descriptions skip callouts,
+headings, code, lists, tables and image-only paragraphs before selecting prose.
 Member tables show Person (name, pronouns,
-pronunciation), Info (ancestry and main type), and Current Location (last-known
-location chain and date), using the existing query's header templates and
-affiliation-date rules. Settlement tables show
+pronunciation), Info (ancestry and main type), Current Location (last-known
+location chain and date), and Home, using the existing query's header templates
+and affiliation-date rules. Settlement tables show
 Place, Region, Type Of, and Population, sorted by their dated home region.
 Settlements includes ruins and matches current, last-known and secondary
 locations using the existing `inLocation(..., true, true, date)` rules.

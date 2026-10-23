@@ -6,24 +6,25 @@ const indexName=(item,link)=>item.person ? formattedParts(item.person,link) : li
 
 // Shared markup; hosts supply website URLs or native Obsidian links.
 export function indexGrid(result,link,options={}) {
+  const members=result.type==='members';
   const cards=result.items.map(item=>'<li class="taelgar-index-card">'+
     (item.image ? '<img class="taelgar-index-image" src="'+escapeHtml(item.image)+'" alt="'+escapeHtml(item.name)+'" width="440" height="180" loading="lazy" decoding="async">' : '')+
     indexName(item,link)+
     (item.info ? '<p>'+ (formattedParts(item.info,link) || '—')+'</p>' : item.description ? '<p>'+escapeHtml(item.description)+'</p>' : '')+
-    (item.lastKnown ? '<p class="taelgar-index-detail">Current Location: '+(formattedParts(item.lastKnown,link) || 'Unknown')+'</p>' : '')+
-    (item.home ? '<p class="taelgar-index-detail">Home: '+(formattedParts(item.home,link) || 'Unknown')+'</p>' : '')+
+    (members ? item.firstSentence ? '<p class="taelgar-index-detail">'+escapeHtml(item.firstSentence)+'</p>' : '' : item.lastKnown ? '<p class="taelgar-index-detail">Current Location: '+(formattedParts(item.lastKnown,link) || 'Unknown')+'</p>' : '')+
+    (!members && item.home ? '<p class="taelgar-index-detail">Home: '+(formattedParts(item.home,link) || 'Unknown')+'</p>' : '')+
     (item.details ? '<p class="taelgar-index-detail">'+escapeHtml(item.details)+'</p>' : '')+'</li>').join('');
   return indexSection(result,cards ? '<ul class="taelgar-index-grid">'+cards+'</ul>' : '',true,options);
 }
 
 export function indexTable(result,link,options={}) {
-  const settlements=result.type==='settlements',members=result.type==='members',features=result.type==='rivers' || result.type==='places';
-  const headings=settlements ? ['Place','Region','Type Of','Population'] : features ? [result.type==='rivers' ? 'River' : 'Place','Type Of'] : ['Person','Info','Current Location',...(members ? [] : ['Home'])];
+  const settlements=result.type==='settlements',features=result.type==='rivers' || result.type==='places';
+  const headings=settlements ? ['Place','Region','Type Of','Population'] : features ? [result.type==='rivers' ? 'River' : 'Place','Type Of'] : ['Person','Info','Current Location','Home'];
   const formatted=parts=>formattedParts(parts,link);
   const rows=result.items.map(item=>{
     const name=indexName(item,link);
     const cells=settlements ? [name,item.region ? link(item.region) : 'Unknown',escapeHtml(item.settlementType || '—'),escapeHtml(item.population || '—')] : features ? [name,escapeHtml(item.placeType || '—')] :
-      [name,formatted(item.info) || '—',formatted(item.lastKnown) || 'Unknown',...(members ? [] : [formatted(item.home) || 'Unknown'])];
+      [name,formatted(item.info) || '—',formatted(item.lastKnown) || 'Unknown',formatted(item.home) || 'Unknown'];
     return '<tr>'+cells.map(cell=>'<td>'+cell+'</td>').join('')+'</tr>';
   }).join('');
   return indexSection(result,rows ? '<div class="taelgar-index-table-scroll"><table class="taelgar-index-table"><thead><tr>'+headings.map(heading=>'<th scope="col">'+heading+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div>' : '',false,options);

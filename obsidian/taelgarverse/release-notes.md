@@ -1,10 +1,11 @@
-Taelgarverse 0.5.1
+Taelgarverse 0.5.2
 
-- Show one campaign encounter dot per full session, using the recap Cast's explicit “met” entries. Mention-only NPCs do not create encounter dots; older session-reference dots remain for sessions without a recap.
-- Open session popups directly with the session title, DR dates, tagline, and full-session link. Ignore beats entirely and remove beat details, transcript links, grouping, and zoom.
-- Remove the extra gap between the name and pronunciation in generated Obsidian headers.
-- Add the [taelgar-index code block guide](https://github.com/msackton/taelgarverse-obsidian/blob/main/docs/taelgar-index.md), covering index types, options, grids, tables, and examples.
+- Add a Members index by default to generated headers for notes tagged `group`. An explicit `indexes` list overrides the default, including `indexes: []` to suppress it.
+- Add Home alongside Current Location in Members tables.
+- Show the first authored prose sentence from each member's note on Members cards in place of location details. Skip callouts, headings, code, lists, tables, and image-only paragraphs.
+- Fix Members cards when Obsidian supplies a Fantasy Calendar or normalized Taelgar date.
+- Keep the spacing below generated headers consistent when index buttons are present.
 
-Reload Taelgarverse after updating. Website session encounters require content republication; deploying the website code alone does not rebuild the interaction records.
+Reload Taelgarverse after updating.
 
 Desktop only. The minimum app version remains Obsidian 1.8.0.

@@ -2,10 +2,11 @@ import {Component,MarkdownRenderChild,MarkdownRenderer} from 'obsidian';
 import {createHeaderSnapshot,renderBio} from '../../../src/header-core/index.mjs';
 import {Contexts} from '../../../src/contexts.mjs';
 import {escapeHtml} from '../../../src/common.mjs';
-import {headerIndexes,parseIndex,queryIndex,indexHasResults,indexLabels} from '../../../src/indexes.mjs';
+import {headerIndexesForMetadata,parseIndex,queryIndex,indexHasResults,indexLabels} from '../../../src/indexes.mjs';
 import {indexView,indexPopup,indexPopupShell,indexError} from '../../../src/index-view.mjs';
 import {indexImageTarget} from '../../../src/index-images.mjs';
-import {IMAGE_TYPES} from '../../../src/content-store.mjs';
+import {IMAGE_TYPES,parseNote} from '../../../src/content-store.mjs';
+import {firstDescriptionSentence} from '../../../src/index-description.mjs';
 import {mountIndexPopups} from '../../../src/browser/index-popups.mjs';
 
 export function bioDate(metadata, globals, fallback) {
@@ -67,8 +68,12 @@ export function obsidianIndex(app,snapshot,options,sourcePath,date) {
   return structuredClone(result);
 }
 
-function indexMarkup(feature,snapshot,options,sourcePath,date,{popup=false,heading=false}={}) {
+async function indexMarkup(feature,snapshot,options,sourcePath,date,{popup=false,heading=false}={}) {
   const result=obsidianIndex(feature.app,snapshot,options,sourcePath,date);
+  if(options.type==='members' && (popup || options.mode!=='table'))await Promise.all(result.items.map(async item=>{
+    const file=feature.app.vault.getAbstractFileByPath(item.path);
+    if(file)item.firstSentence=firstDescriptionSentence(parseNote(await feature.app.vault.cachedRead(file)),{date,source:item.path});
+  }));
   if(popup || options.mode!=='table')for(const item of result.items) {
     const target=indexImageTarget(item.imageTarget);
     const file=target && feature.app.metadataCache.getFirstLinkpathDest(target,item.path);
@@ -94,7 +99,7 @@ function mountIndexes(root,app,sourcePath,options={}) {
 }
 
 function headerIndexMarkup(feature,snapshot,metadata,sourcePath,date) {
-  try{return headerIndexes(metadata.indexes).filter(type=>obsidianIndexExists(feature.app,snapshot,{type},sourcePath,date))
+  try{return headerIndexesForMetadata(metadata).filter(type=>obsidianIndexExists(feature.app,snapshot,{type},sourcePath,date))
     .map(type=>indexPopupShell({type,label:indexLabels[type],target:metadata.name || sourcePath.split('/').at(-1).replace(/\.md$/,'')})).join('');}
   catch(error){return indexError(error);}
 }
@@ -133,9 +138,10 @@ class BioChild extends MarkdownRenderChild {
       await MarkdownRenderer.render(app,markdown,output,this.context.sourcePath,rendering);
       if(this.disposed || sequence!==this.sequence){this.removeChild(rendering);return;}
       let disposeIndexes;
-      if(metadata.indexes !== undefined) {
+      const indexButtons=headerIndexMarkup(this.feature,snapshot,metadata,this.context.sourcePath,bioDate(metadata,globalThis,snapshot.fallback));
+      if(indexButtons) {
         const buttons=element.ownerDocument.createElement('div');buttons.className='taelgar-index-buttons';
-        buttons.innerHTML=headerIndexMarkup(this.feature,snapshot,metadata,this.context.sourcePath,bioDate(metadata,globalThis,snapshot.fallback));
+        buttons.innerHTML=indexButtons;
         if(buttons.innerHTML) {
           output.append(buttons);
           disposeIndexes=mountIndexes(buttons,app,this.context.sourcePath,{load:async details=>{
@@ -174,7 +180,8 @@ class IndexChild extends BioChild {
       if(this.disposed || sequence!==this.sequence)return;
       const metadata=this.feature.app.metadataCache.getFileCache(this.feature.app.vault.getAbstractFileByPath(this.context.sourcePath))?.frontmatter || {};
       const date=bioDate(metadata,globalThis,snapshot.fallback);this.date=JSON.stringify(date);
-      const html=indexMarkup(this.feature,snapshot,options,this.context.sourcePath,date,{heading:true});
+      const html=await indexMarkup(this.feature,snapshot,options,this.context.sourcePath,date,{heading:true});
+      if(this.disposed || sequence!==this.sequence)return;
       this.disposeIndexes?.();element.hidden=false;element.innerHTML=html;
       this.disposeIndexes=mountIndexes(element,this.feature.app,this.context.sourcePath);
     }catch(error){

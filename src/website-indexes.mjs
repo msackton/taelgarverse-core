@@ -2,10 +2,11 @@ import path from 'node:path';
 import {load} from 'cheerio';
 import {availableInContext} from './content-store.mjs';
 import {escapeHtml,pageUrl,RenderError} from './common.mjs';
-import {headerIndexes,parseIndex,queryIndex,indexHasResults,indexLabels} from './indexes.mjs';
+import {headerIndexesForMetadata,parseIndex,queryIndex,indexHasResults,indexLabels} from './indexes.mjs';
 import {indexView,indexPopupShell,indexError} from './index-view.mjs';
 import {indexImageEntry} from './index-images.mjs';
 import {imageUrl,responsiveImages} from './images.mjs';
+import {firstDescriptionSentence} from './index-description.mjs';
 
 export const HEADER_INDEX_SLOT='<div class="taelgar-header-index-slot"></div>';
 
@@ -29,6 +30,15 @@ function websiteIndex(options,env,heading=false) {
   const {store,context,headers}=env,{entries,query}=indexEnvironment(env);
   const result=queryIndex(headers,options,query);
   env.warnings.push(...result.warnings);
+  if(options.type==='members' && options.mode!=='table')for(const item of result.items) {
+    const entry=entries.get(item.path);
+    const note=env.noteLoading?.notes.get(entry.id) || entry.note;
+    if(typeof note.body!=='string') {
+      env.noteLoading?.pending.set(entry.id,entry);
+      continue;
+    }
+    item.firstSentence=firstDescriptionSentence(note,{date:context.date,campaigns:context.campaigns,dm:context.dm,source:entry.id});
+  }
   if(options.mode!=='table')for(const item of result.items) {
     const asset=indexImageEntry(store,item.imageTarget,item.path);
     if(asset)item.image=imageUrl(asset);
@@ -53,7 +63,7 @@ export function addHeaderIndexes(html,env) {
   let output;
   try {
     const {query}=indexEnvironment(env);
-    output=headerIndexes(env.entry.note.metadata.indexes).filter(type=>indexHasResults(env.headers,{type},query)).map(type=>{
+    output=headerIndexesForMetadata(env.entry.note.metadata).filter(type=>indexHasResults(env.headers,{type},query)).map(type=>{
       const url=new URL(pageUrl(env.entry.slug,env.context.date,env.context),'https://index.invalid');
       url.searchParams.set('page',env.entry.slug);url.searchParams.set('type',type);
       return indexPopupShell({type,label:indexLabels[type],target:env.entry.title,url:'/api/index?'+url.searchParams});
@@ -64,8 +74,8 @@ export function addHeaderIndexes(html,env) {
   return $.html();
 }
 
-// The endpoint only renders index types explicitly enabled on this source page.
+// The endpoint only renders index types enabled on this source page.
 export function renderHeaderIndex(type,env) {
-  if(!Object.hasOwn(indexLabels,type) || !headerIndexes(env.entry.note.metadata.indexes).includes(type))throw new RenderError(404,'Index is not available');
+  if(!Object.hasOwn(indexLabels,type) || !headerIndexesForMetadata(env.entry.note.metadata).includes(type))throw new RenderError(404,'Index is not available');
   return websiteIndex({type},env);
 }

@@ -115,7 +115,7 @@ test('all 21 vault cases package to one format and render one complete header in
         const $=load(actual.html);
         assert.equal($('h1').length,1,example.path);
         assert.equal($('code.language-taelgar-header').length,0,example.path);
-        assert.equal($('h2').text(),'Biography');
+        assert.equal($('h2').last().text(),'Biography');
         assert.match(actual.html,/Authored callout/);
       }
     }

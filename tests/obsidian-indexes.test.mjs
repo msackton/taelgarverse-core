@@ -8,9 +8,10 @@ import MarkdownIt from 'markdown-it';
 import {ROOT} from '../src/config.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {imageDOM} from './helpers/image-dom.mjs';
-import {indexNotes,featureIndexNotes} from './fixtures/indexes.mjs';
+import {indexNotes,featureIndexNotes,indexSources} from './fixtures/indexes.mjs';
 import {mountIndexPopups} from '../src/browser/index-popups.mjs';
 import {indexPopup,indexPopupShell} from '../src/index-view.mjs';
+import {cintraSource,cintraSentence} from './fixtures/index-descriptions.mjs';
 
 const require=createRequire(import.meta.url);
 const compiled=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/features/headers.mjs'],write:false,
@@ -47,16 +48,18 @@ function host() {
   const {input}=headerFixture(),metadata=new Map(Object.entries(structuredClone(indexNotes)).map(([path,metadata])=>[path,{...metadata,pageTargetDate:'1720-01-01'}]));
   const files=[...metadata.keys()].map(path=>({path,basename:path.split('/').at(-1).slice(0,-3)}));
   const images=[{path:'portraits/alice.png',basename:'alice'}];
-  const cache=events(),vault=events();
+  const cache=events(),vault=events(),bodies=new Map();
   const app={metadataCache:{...cache,getFileCache:file=>file && {frontmatter:metadata.get(file.path)},
     getFirstLinkpathDest:(target,source)=>[...files,...images].find(file=>file.path===target || file.path===target+'.md' || file.basename===target || metadata.get(file.path)?.aliases?.includes(target))},
     vault:{...vault,configDir:'.obsidian',getRoot:()=>({path:''}),getMarkdownFiles:()=>files,getAbstractFileByPath:path=>files.find(file=>file.path===path),
-      adapter:{read:async path=>JSON.stringify(path.endsWith('metadata.json')?input.coreMeta:input.registry)},getResourcePath:file=>'app://local/'+file.path},
+      adapter:{read:async path=>JSON.stringify(path.endsWith('metadata.json')?input.coreMeta:input.registry)},
+      cachedRead:async file=>bodies.get(file.path) ?? indexSources(Object.fromEntries(metadata))[file.path].replace('Authored prose.',file.path==='People/Alice.md' ? "Alice's first authored sentence. A second sentence." : 'Authored prose.'),
+      getResourcePath:file=>'app://local/'+file.path},
     workspace:{openLinkText:(...args)=>opened.push(args)}};
   const plugin={app,registerMarkdownCodeBlockProcessor:(type,processor)=>processors.set(type,processor),registerMarkdownPostProcessor:processor=>postprocessors.push(processor)};
   const feature=new module.exports.HeadersFeature(plugin);feature.load();
   const context=sourcePath=>({sourcePath,addChild(child){child.load();this.child=child;}});
-  return {...dom,...module.exports,app,feature,metadata,files,opened,intervals,cache,vault,globals,
+  return {...dom,...module.exports,app,feature,metadata,files,bodies,opened,intervals,cache,vault,globals,
     async block(source,sourcePath='Places/Realm.md',type='taelgar-index') {
       const element=document.createElement('div');document.body.append(element);
       const ctx=context(sourcePath);processors.get(type)(source,element,ctx);await ctx.child.loading;
@@ -220,14 +223,14 @@ test('Obsidian settlement tables use home regions, type aliases and formatted po
   } finally {h.feature.unload();}
 });
 
-test('Obsidian member tables format pronouns, info and dated last-known locations with native links',async()=>{
+test('Obsidian member tables format pronouns, info, dated locations and homes; grids show the first authored sentence',async()=>{
   const h=host();
   try {
     const alice=h.metadata.get('People/Alice.md');
     alice.pronouns='xe/xem';
     alice.whereabouts=[{type:'away',location:'Inn',start:'1708-01-01',end:'1710-01-01'}];
     const table=await h.block('type: members\ntarget: Guild\nmode: table');
-    assert.deepEqual([...table.element.querySelectorAll('th')].map(cell=>cell.textContent),['Person','Info','Current Location']);
+    assert.deepEqual([...table.element.querySelectorAll('th')].map(cell=>cell.textContent),['Person','Info','Current Location','Home']);
     const cells=table.element.querySelector('tbody tr').querySelectorAll('td');
     assert.equal(cells[0].textContent,'Alice Example (xe/xem AL-iss)');assert.equal(cells[1].textContent,'Townfolk human');
     assert.equal(cells[2].textContent,'Inn, Town (January 1st, 1710)');
@@ -236,11 +239,53 @@ test('Obsidian member tables format pronouns, info and dated last-known location
     assert.equal(table.element.querySelectorAll('img').length,0);
     const grid=await h.block('type: members\ntarget: Guild\nmode: grid');
     assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Alice Example \(xe\/xem AL-iss\)/);
-    assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Current Location: Inn, Town \(January 1st, 1710\)/);
+    assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Alice's first authored sentence\./);
+    assert.doesNotMatch(grid.element.querySelector('.taelgar-index-card').textContent,/A second sentence/);
+    assert.doesNotMatch(grid.element.querySelector('.taelgar-index-card').textContent,/Current Location:/);
     assert.doesNotMatch(grid.element.querySelector('.taelgar-index-card').textContent,/Home:/);
   } finally {h.feature.unload();}
 });
 
+
+test('Obsidian auto-Members popups skip Cintra image callouts and explicit empty indexes override the default',async()=>{
+  const h=host();
+  try {
+    h.metadata.set('People/Cintra.md',{tags:['person'],affiliations:['Shakun Mystai']});
+    h.metadata.set('Groups/Shakun Mystai.md',{tags:['group']});
+    for(const path of ['People/Cintra.md','Groups/Shakun Mystai.md'])h.files.push({path,basename:path.split('/').at(-1).slice(0,-3)});
+    h.bodies.set('People/Cintra.md',cintraSource);
+    const bio=await h.block('','Groups/Shakun Mystai.md','taelgar-header');
+    assert.equal(bio.element.querySelector('summary').textContent,'Members');
+    h.click(bio.element.querySelector('summary'));await pause(10);
+    assert.ok(h.document.querySelector('dialog').textContent.includes(cintraSentence));
+    assert.doesNotMatch(h.document.querySelector('dialog').textContent,/Cintra, the Supreme Oracle|Private preparation/);
+    h.metadata.get('Groups/Shakun Mystai.md').indexes=[];
+    const empty=await h.block('','Groups/Shakun Mystai.md','taelgar-header');
+    assert.equal(empty.element.querySelector('.taelgar-index-buttons'),null);
+    h.metadata.get('Groups/Shakun Mystai.md').indexes={members:true};
+    const invalid=await h.block('','Groups/Shakun Mystai.md','taelgar-header');
+    assert.ok(invalid.element.querySelector('.taelgar-generated-bio'));
+    assert.match(invalid.element.querySelector('.taelgar-index-error').textContent,/indexes must be an array/);
+  } finally {h.feature.unload();}
+});
+
+test('Obsidian table indexes avoid description reads and closing a view cancels a pending grid mount',async()=>{
+  const h=host();
+  try {
+    h.app.vault.cachedRead=async()=>{throw new Error('Tables must not read descriptions');};
+    const table=await h.block('type: members\ntarget: Guild\nmode: table');
+    assert.ok(table.element.querySelector('table'));
+    let started,release;
+    const reading=new Promise(resolve=>{started=resolve;});
+    const source=new Promise(resolve=>{release=resolve;});
+    h.app.vault.cachedRead=()=>{started();return source;};
+    const pending=h.block('type: members\ntarget: Guild');
+    await reading;h.feature.unload();release(cintraSource);
+    const grid=await pending;
+    assert.equal(grid.element.innerHTML,'');
+    assert.equal(h.document.querySelector('.taelgar-index-grid'),null);
+  } finally {h.feature.unload();}
+});
 
 test('reused Obsidian queries isolate render additions, dates, targets and metadata refreshes',async()=>{
   const h=host();
