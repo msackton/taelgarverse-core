@@ -1,8 +1,8 @@
-Taelgarverse 0.5.4
+Taelgarverse 0.5.5
 
-- Include lakes alongside waterways in Rivers indexes, including watershed and secondary-location membership.
-- Add `placeType: built` and `placeType: natural` to inline Places indexes. Omit the option to keep all place types; header Places popups continue to show all types.
-- Leave one line of space after generated header callouts without index buttons. Headers with buttons use the button row's spacing.
-- Update the `taelgar-index` specification with current options, Members table columns and descriptions, and automatic Members header buttons.
+- Add `heading: false` to `taelgar-index` blocks to hide the generated section title in grids and tables. Existing blocks continue to show their titles by default.
+- Keep table column headings, result counts, empty-result messages, and header popup titles unchanged. The option works in both Obsidian and the website.
 
-Reload Taelgarverse after updating. Desktop only; the minimum app version remains Obsidian 1.8.0.
+Reload Taelgarverse after updating. Use the YAML boolean `heading: false` without quotes.
+
+Desktop only. The minimum app version remains Obsidian 1.8.0.
