@@ -60,6 +60,12 @@ Type Of, and Population, sorted by dated home region, with the same type and
 population formatting as headers. Settlements includes ruins and matches
 current, last-known and secondary locations using the existing location rules.
 Table rows have no image column; popups always use image grids.
+Members blocks accept `includeHistorical: null` (default), `true`, or `false`. The
+default shows an **Include historical members** checkbox, initially off unless every
+eligible member is dead. `true` includes deceased members without a checkbox;
+`false` excludes them without one, even when everyone is dead. Deceased members
+must have a current relationship or have held one at death; people who left
+before dying remain excluded. Header popups use the checkbox default too.
 Grids and buttons refresh when vault metadata or calendar dates change. Notes
 remain editable and are never rewritten.
 
@@ -219,6 +225,12 @@ and affiliation-date rules. Settlement tables show
 Place, Region, Type Of, and Population, sorted by their dated home region.
 Settlements includes ruins and matches current, last-known and secondary
 locations using the existing `inLocation(..., true, true, date)` rules.
+Members use `includeHistorical: null` by default to show an **Include historical members**
+checkbox, initially checked only when every eligible member is dead. `true`
+includes deceased members without a checkbox; `false` excludes them without
+one, even for an entirely deceased group. Membership at death qualifies, but
+leaving an organization before dying does not. Checkbox state affects only that
+displayed index and never edits the note.
 Rivers follows `typeOf: waterway` or `typeOf: lake` and includes secondary watershed membership.
 Places lists contained place notes, such as a town's quarters, buildings and shops.
 Inline Places blocks accept `placeType: built` or `placeType: natural`; omit the

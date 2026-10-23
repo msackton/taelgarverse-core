@@ -89,7 +89,7 @@ flowchart LR
 | `src/header-core/` | Maintained dates, names, whereabouts, affiliations, templates, encounters and header output. `createHeaderSnapshot` freezes shared inputs; `createHeaderContext` creates request-local services; `renderBio` renders the complete header directly; `renderHeader` supports saved headers. |
 | `src/bio-block.mjs`, `obsidian/taelgarverse/features/headers.mjs` | Leading header-block recognition, pure publication normalization, and the Obsidian adapter. The host selects the date and resolves links; the shared core renders the title and a static native callout. |
 | `obsidian/taelgarverse/features/interactions.mjs`, `obsidian/taelgarverse/features/interaction-data.mjs` | Native vault metadata/link adapter, cached recap index, explicit interaction blocks, automatic Reading View footer and host-owned CodeMirror Live Preview widget. Known-to pages get a campaign picker; no note writes or website requests. |
-| `src/indexes.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/index-description.mjs`, `src/website-indexes.mjs`, `src/browser/index-popups.mjs` | Shared Residents, Settlements, Members, Rivers and Places queries, cards/table/popup markup, lead-image resolution, prose descriptions, website visibility adapter and popup lifecycle. The Obsidian headers feature supplies native resolution, refresh and links. See [generated indexes](vault.md#generated-indexes). |
+| `src/indexes.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/index-description.mjs`, `src/website-indexes.mjs`, `src/browser/index-popups.mjs`, `src/browser/index-members.mjs` | Shared Residents, Settlements, Members, Rivers and Places queries, cards/table/popup markup, lead-image resolution, prose descriptions, website visibility adapter, popup lifecycle and local deceased-member controls. The Obsidian headers feature supplies native resolution, refresh and links. See [generated indexes](vault.md#generated-indexes). |
 | `src/worker.mjs`, `src/worker-handler.mjs`, `src/snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
 | `src/headers.mjs`, `src/header-runtime.mjs`, `src/worker-headers.mjs` | Preserved legacy VM/generated reference implementations for characterization tests. Production rendering does not import them. |
 | `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs`, `scripts/header-core-revision.mjs` | Legacy reference/icon maintenance and a separate source fingerprint for the maintained core in publication diagnostics. |
@@ -222,17 +222,26 @@ updates and known pre-existing defects are described in the
 Generated indexes cache only immutable candidate/path lookups on the metadata
 snapshot; dated relationships and website visibility remain query-local. The
 Obsidian adapter additionally retains up to 32 author-view queries per snapshot,
-keyed by date, source, target, type, and containment. Renders receive independent
+keyed by date, source, target, type, containment, place type and `includeHistorical`. Renders receive independent
 result copies, and metadata changes replace the snapshot and its cached queries.
 Header buttons run only a first-match existence probe. Popup bodies are built on
 activation; the shared popup controller coalesces loads, retries failures, and
 ignores completion after disposal. Website grids use the read-only `/api/index`
 route with the source page's visibility and hostname-locked reader context.
 Compiled Workers initialize rendering metadata for that route. Members grids
-then load only the visible members' note bodies through the existing shard
+then load only the eligible members' note bodies through the existing shard
 loader, sharing a request-local cache with embeds. Tables and the other index
 types use metadata only; header buttons do not load candidate bodies. The local
 Node adapter already has note bodies and prepares lead-image derivatives on demand.
+
+Members queries mark deceased people using the selected date and retain
+relationships held at death as well as current ones. An explicit `includeHistorical`
+boolean fixes the results. With `null` or omission, results include both living
+and deceased candidates plus the resolved initial checkbox state; deceased rows
+start hidden unless all eligible members are dead. The view and delegated
+controller filter these existing rows locally, including panels moved into a
+dialog. Checkbox state never mutates a cached query or another displayed index.
+Website visibility is applied before calculating the all-dead default.
 
 The Obsidian bio adapter supplies the host's link resolver to the shared header
 runtime, then reads the destination's frozen snapshot metadata. This preserves

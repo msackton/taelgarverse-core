@@ -2,6 +2,7 @@ import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
+import {load} from 'cheerio';
 import {ROOT,loadSettings} from '../src/config.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {compileRuntime} from '../scripts/compile-runtime.mjs';
@@ -67,6 +68,12 @@ before(async()=>{
     'Groups/Shakun Mystai.md':'---\ntags: [group]\n---\n```taelgar-header\n```',
     'Cintra Grid.md':'```taelgar-index\ntype: members\ntarget: Shakun Mystai\n```',
     'Cintra Embed.md':'![[Cintra Grid]]',
+    'Groups/Old Guild.md':'---\ntags: [group]\n---\n```taelgar-header\n```',
+    'People/Old Member.md':'---\ntags: [person]\ndied: 1710-01-01\naffiliations: [Old Guild]\n---\nAn old member of the guild. Another sentence.',
+    'People/Old Hidden.md':'---\ntags: [person]\nexcludePublish: all\naffiliations: [Old Guild]\n---\nPrivate living member.',
+    'Dead Included.md':'```taelgar-index\ntype: members\ntarget: Guild\nincludeHistorical: true\n```',
+    'Dead Excluded.md':'```taelgar-index\ntype: members\ntarget: Guild\nincludeHistorical: false\n```',
+    'Old Excluded.md':'```taelgar-index\ntype: members\ntarget: Old Guild\nincludeHistorical: false\n```',
   });
   notes['People/Alice.md']=notes['People/Alice.md'].replace('Authored prose.',
     '%%^Campaign:none%%Private member description.%%^End%%\n\n%%^Campaign:dufr%%Frontier member description.%%^End%%\n\n%%^Date:1720-01-01b%%Earlier member description.%%^End%%\n\nPublic member description. Second sentence.');
@@ -135,7 +142,8 @@ test('compiled and legacy Workers calculate visible indexes from metadata and pr
     assert.equal(members.status,200);const people=await members.json();
     assert.match(people.html,/Person<\/th>.*Info<\/th>.*Current Location<\/th>/s);
     assert.match(people.html,/she\/her AL-iss/);assert.match(people.html,/January 1st, 1720/);
-    assert.doesNotMatch(people.html,/People\/(?:Hidden|Campaign Secret|POV Secret)|Dead|Future/);
+    assert.doesNotMatch(people.html,/People\/(?:Hidden|Campaign Secret|POV Secret)|Future/);
+    assert.match(people.html,/<tr data-index-member="" data-index-deceased="" hidden="">/);
   }
 });
 
@@ -174,6 +182,31 @@ test('concurrent published Members requests keep description date, campaign and 
       for(const other of cases.map(row=>row[3]).filter(sentence=>sentence!==expected))assert.ok(!html.includes(other));
       assert.doesNotMatch(html,/Second sentence/);
     }));
+  }
+});
+
+test('compiled and legacy Members indexes retain deceased controls, fixed YAML modes and all-dead defaults after publication',async()=>{
+  for(const legacy of [false,true]) {
+    const worker=createWorker(),bucket=new Bucket(objects,{legacy});
+    const mixed=await request(worker,bucket,'/api/index?page=Groups/Guild.md&type=members&date=1720-01-01&pov=1');
+    assert.equal(mixed.status,200);const $=load(await mixed.text());
+    assert.equal($('[data-index-include-historical]').is('[checked]'),false);
+    assert.equal($('[data-index-deceased][hidden]').length,1);
+    const old=await request(worker,bucket,'/api/index?page=Groups/Old%20Guild.md&type=members&date=1720-01-01');
+    assert.equal(old.status,200);const dead=load(await old.text());
+    assert.equal(dead('[data-index-include-historical]').is('[checked]'),true);
+    assert.equal(dead('[data-index-deceased]:not([hidden])').length,1);
+    assert.match(dead('.taelgar-index-card').text(),/An old member of the guild\./);
+    assert.doesNotMatch(dead.root().text(),/Private living|Old Hidden/);
+    for(const [page,included] of [['Dead Included',true],['Dead Excluded',false],['Old Excluded',false]]) {
+      const response=await request(worker,bucket,'/api/page?'+new URLSearchParams({page,date:'1720-01-01',pov:1}));
+      assert.equal(response.status,200);const result=load((await response.json()).html);
+      assert.equal(result('[data-index-include-historical]').length,0);
+      assert.equal(result('[data-index-deceased]').length,included ? 1 : 0);
+      if(page==='Old Excluded')assert.match(result.root().text(),/No members found/);
+    }
+    const header=await request(worker,bucket,'/api/page?page=Groups/Old%20Guild.md&date=1720-01-01');
+    assert.equal(header.status,200);assert.match((await header.json()).html,/data-index-type="members"/);
   }
 });
 

@@ -282,7 +282,7 @@ test('Obsidian member tables format pronouns, info, dated locations and homes; g
     assert.equal(cells[0].textContent,'Alice Example (xe/xem AL-iss)');assert.equal(cells[1].textContent,'Townfolk human');
     assert.equal(cells[2].textContent,'Inn, Town (January 1st, 1710)');
     h.click(cells[2].querySelector('a'));assert.deepEqual(h.opened[0],['Places/Inn.md','Places/Realm.md',false]);
-    assert.equal(table.element.querySelectorAll('tbody tr').length,6,'local results follow affiliation dates, including future-born and publication-hidden members');
+    assert.equal(table.element.querySelectorAll('tbody tr:not([hidden])').length,6,'local results follow affiliation dates, including future-born and publication-hidden members');
     assert.equal(table.element.querySelectorAll('img').length,0);
     const grid=await h.block('type: members\ntarget: Guild\nmode: grid');
     assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Alice Example \(xe\/xem AL-iss\)/);
@@ -293,6 +293,47 @@ test('Obsidian member tables format pronouns, info, dated locations and homes; g
   } finally {h.feature.unload();}
 });
 
+
+test('Obsidian Members grids and tables honor includeHistorical modes without sharing checkbox or cached query state',async()=>{
+  const h=host();
+  try {
+    for(const mode of ['grid','table']) {
+      const source='type: members\ntarget: Guild\nmode: '+mode;
+      const automatic=await h.block(source+'\nincludeHistorical: null');
+      const checkbox=automatic.element.querySelector('input[data-index-include-historical]');
+      const deceased=automatic.element.querySelector('[data-index-deceased]');
+      assert.equal(checkbox.hasAttribute('checked'),false);assert.equal(deceased.hidden,true);
+      checkbox.checked=true;h.event(checkbox,'change');assert.equal(deceased.hidden,false);
+      const included=await h.block(source+'\nincludeHistorical: true');
+      assert.equal(included.element.querySelector('input[data-index-include-historical]'),null);
+      assert.equal(included.element.querySelector('[data-index-deceased]').hidden,false);
+      const excluded=await h.block(source+'\nincludeHistorical: false');
+      assert.equal(excluded.element.querySelector('input[data-index-include-historical]'),null);
+      assert.equal(excluded.element.querySelector('[data-index-deceased]'),null);
+      const again=await h.block(source);
+      assert.equal(again.element.querySelector('[data-index-deceased]').hidden,true,'another render retains its default');
+    }
+  } finally {h.feature.unload();}
+});
+
+test('Obsidian entirely deceased groups have a checked default popup and explicit false still renders empty',async()=>{
+  const h=host();
+  try {
+    h.metadata.set('Groups/Old.md',{tags:['group']});
+    h.metadata.set('People/Old Member.md',{tags:['person'],died:'1710-01-01',affiliations:['Old']});
+    for(const path of ['Groups/Old.md','People/Old Member.md'])h.files.push({path,basename:path.split('/').at(-1).slice(0,-3)});
+    const header=await h.block('','Groups/Old.md','taelgar-header');
+    h.click(header.element.querySelector('summary'));await pause(10);
+    const dialog=h.document.querySelector('dialog'),checkbox=dialog.querySelector('input[data-index-include-historical]');
+    assert.equal(checkbox.hasAttribute('checked'),true);
+    assert.equal(dialog.querySelector('[data-index-deceased]').hidden,false);
+    checkbox.checked=false;h.event(checkbox,'change');
+    assert.equal(dialog.querySelector('.taelgar-index-empty').hidden,false);
+    const excluded=await h.block('type: members\nincludeHistorical: false','Groups/Old.md');
+    assert.equal(excluded.element.querySelector('[data-index-member]'),null);
+    assert.match(excluded.element.textContent,/No members found/);
+  } finally {h.feature.unload();}
+});
 
 test('Obsidian auto-Members popups skip Cintra image callouts and explicit empty indexes override the default',async()=>{
   const h=host();

@@ -151,6 +151,13 @@ and affiliation-date rules. Settlement tables show
 Place, Region, Type Of, and Population, sorted by their dated home region.
 Settlements includes ruins and matches current, last-known and secondary
 locations using the existing `inLocation(..., true, true, date)` rules.
+Members blocks accept `includeHistorical: null` (default), `true`, or `false`. The
+default shows an **Include historical members** checkbox, initially off unless every
+eligible member is dead. `true` includes deceased members without a checkbox;
+`false` excludes them without one, including for an entirely deceased group.
+Deceased people qualify through relationships held at death or still current;
+people who left before dying remain excluded. Header popups use the checkbox
+default too. Changing it affects only that displayed index and does not edit notes.
 Rivers follows `typeOf: waterway` or `typeOf: lake` and includes secondary watershed membership.
 Places lists contained place notes, such as a town's quarters, buildings and shops.
 Inline Places blocks accept `placeType: built` or `placeType: natural`; omit the

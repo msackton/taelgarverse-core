@@ -21,7 +21,7 @@ const fixture=extraNotes=>headerFixture({baseNotes:indexNotes,extraNotes,campaig
 const visible=page=>!['People/Hidden.md','People/Campaign Secret.md','People/POV Secret.md'].includes(page.path);
 const query=(type,target,options={},extraNotes={})=>queryIndex(fixture(extraNotes).runtime,{type,target,...options},
   {date:'1720-01-01',visible});
-const paths=result=>result.items.map(item=>item.path);
+const paths=result=>result.items.filter(item=>!item.deceased || result.includeHistorical).map(item=>item.path);
 
 test('index authoring validates arrays and YAML, supplies defaults, and deduplicates buttons',()=>{
   assert.deepEqual(headerIndexes(['members','members']),['members']);
@@ -39,6 +39,10 @@ test('index authoring validates arrays and YAML, supplies defaults, and deduplic
   assert.equal(parseIndex('type: places\nplaceType: natural').placeType,'natural');
   for(const value of ['all','[]','null','true','""'])assert.throws(()=>parseIndex('type: places\nplaceType: '+value),/placeType/);
   for(const type of ['rivers','settlements','members','residents'])assert.throws(()=>parseIndex('type: '+type+'\nplaceType: built'),/only supported for places/);
+  assert.equal(parseIndex('type: members').includeHistorical,null);
+  for(const value of ['true','false','null'])assert.equal(parseIndex('type: members\nincludeHistorical: '+value).includeHistorical,JSON.parse(value));
+  assert.throws(()=>parseIndex('type: members\nincludeDead: true'),/Unknown index option: includeDead/);
+  for(const source of ['type: members\nincludeHistorical: "true"','type: members\nincludeHistorical: 1','type: residents\nincludeHistorical: true'])assert.throws(()=>parseIndex(source),/includeHistorical/);
   for(const source of ['', '[]','type: unknown','type: constructor','type: residents\nshow: all','type: residents\nrecursive: yes','type: members\ntarget: []','type: members\ncolumns: 3','type: members\nmode: list'])assert.throws(()=>parseIndex(source));
 });
 
@@ -106,6 +110,49 @@ test('members use active affiliations and leadership, deduplicate people, and op
   assert.match(result.items[1].details,/Master/);
 });
 
+test('Members include deceased affiliates and leaders at death, excluding those who had left or had not joined',()=>{
+  const extras={
+    'People/Deceased Member.md':{tags:['person'],died:'1710-01-01',affiliations:['Guild']},
+    'People/Deceased Leader.md':{tags:['person'],died:'1710-01-01',leaderOf:[{place:'Guild',start:1700,title:'Captain'}]},
+    'People/Former Member.md':{tags:['person'],died:'1710-01-01',affiliations:[{org:'Guild',end:'1709-12-31'}]},
+    'People/Later Member.md':{tags:['person'],died:'1730-01-01',affiliations:[{org:'Guild',start:'1721-01-01'}]},
+    'People/Chapter Dead.md':{tags:['person'],died:'1710-01-01',affiliations:['Chapter']},
+  };
+  const automatic=query('members','Guild',{},extras);
+  assert.equal(automatic.includeHistorical,false);assert.equal(automatic.showHistoricalToggle,true);
+  assert.ok(!paths(automatic).includes('People/Deceased Member.md'));
+  const included=query('members','Guild',{includeHistorical:true},extras);
+  for(const path of ['People/Deceased Member.md','People/Deceased Leader.md'])assert.ok(paths(included).includes(path));
+  for(const path of ['People/Former Member.md','People/Later Member.md','People/Chapter Dead.md'])assert.ok(!paths(included).includes(path));
+  assert.equal(included.showHistoricalToggle,false);
+  assert.equal(included.items.find(item=>item.path==='People/Deceased Leader.md').details,'Captain');
+  assert.ok(paths(query('members','Guild',{includeHistorical:true,recursive:true},extras)).includes('People/Chapter Dead.md'));
+  const excluded=query('members','Guild',{includeHistorical:false},extras);
+  assert.ok(excluded.items.every(item=>!item.deceased));assert.equal(excluded.showHistoricalToggle,false);
+  const {runtime}=fixture(extras);
+  for(const [date,dead] of [['1710-01-01',false],['1710-01-02',true]]) {
+    const result=queryIndex(runtime,{type:'members',target:'Guild'},{date,visible});
+    assert.equal(result.items.find(item=>item.path==='People/Deceased Member.md').deceased,dead);
+  }
+});
+
+test('Members defaults to including an entirely deceased organization, but explicit false wins',()=>{
+  const extras={
+    'Groups/Old Guild.md':{tags:['group']},
+    'People/Old Member.md':{tags:['person'],died:'1710-01-01',affiliations:['Old Guild']},
+    'People/Hidden.md':{tags:['person'],affiliations:['Old Guild'],excludePublish:'all'},
+  };
+  const automatic=query('members','Old Guild',{},extras);
+  assert.equal(automatic.includeHistorical,true);assert.equal(automatic.showHistoricalToggle,true);
+  assert.deepEqual(paths(automatic),['People/Old Member.md']);
+  const excluded=query('members','Old Guild',{includeHistorical:false},extras);
+  assert.equal(excluded.includeHistorical,false);assert.deepEqual(excluded.items,[]);
+  const context={date:'1720-01-01',visible},snapshot=fixture(extras).runtime;
+  assert.equal(indexHasResults(snapshot,{type:'members',target:'Old Guild'},context),true);
+  assert.equal(indexHasResults(snapshot,{type:'members',target:'Old Guild',includeHistorical:false},context),false);
+  assert.equal(query('members','Old Guild',{}, {'Groups/Old Guild.md':{tags:['group']}}).includeHistorical,false,'an empty group does not count as all deceased');
+});
+
 const unlinked=text=>text.replace(/\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,(_,target,alias)=>alias ?? target);
 const partText=parts=>parts.map(part=>typeof part==='string' ? part : part.name).join('');
 
@@ -165,7 +212,7 @@ test('residents containment can reach the target through a secondary branch afte
   assert.ok(paths(result).includes('People/Reachable.md'));assert.deepEqual(result.warnings,[]);
 });
 
-test('members match legacy isAffiliated dates, including explicit overrides to the default death end date',()=>{
+test('living members retain legacy affiliation dates while the default filter excludes deceased people',()=>{
   const extraNotes={
     'People/Explicit End.md':{tags:['person'],died:1710,affiliations:[{org:'Guild',start:1700,end:1730}]},
     'People/Former.md':{tags:['person'],affiliations:[{org:'Guild',start:1700,end:1710}]},
@@ -174,8 +221,12 @@ test('members match legacy isAffiliated dates, including explicit overrides to t
   };
   const legacy=legacyFixture({baseNotes:indexNotes,extraNotes,campaignRegistry});
   for(const date of ['1710-12-31','1711-01-01','1720-01-01','1720-01-02','1740-01-01']) {
-    const expected=Object.entries({...indexNotes,...extraNotes}).filter(([path,metadata])=>metadata.tags.includes('person') && visible({path}) &&
-      legacy.services.util.isAffiliated('Guild',{frontmatter:metadata},date)).map(([path])=>path).sort();
+    const at=legacy.services.DateManager.normalizeDate(date);
+    const expected=Object.entries({...indexNotes,...extraNotes}).filter(([path,metadata])=>{
+      const death=legacy.services.DateManager.getPageDates(metadata,at).endDate;
+      return metadata.tags.includes('person') && visible({path}) && (!death || death.sort>=at.sort) &&
+        legacy.services.util.isAffiliated('Guild',{frontmatter:metadata},date);
+    }).map(([path])=>path).sort();
     const result=queryIndex(fixture(extraNotes).runtime,{type:'members',target:'Guild'},{date,visible});
     assert.deepEqual(paths(result).sort(),expected,date);
   }
@@ -260,7 +311,7 @@ test('inline blocks select host, support other targets and embeds, and never ent
   });
   const render=page=>engine.render(page,'1720-01-01','custom',false,undefined,['dufr'],undefined,true);
   const result=render('Guide'),$=load(result.html,{},false);
-  assert.equal($('.taelgar-index').length,2);assert.equal($('.taelgar-index-card').length,4);
+  assert.equal($('.taelgar-index').length,2);assert.equal($('.taelgar-index-card:not([hidden])').length,4);
   assert.doesNotMatch(searchText(result.html),/Alice|Bob|Guild|Residents/);
   assert.match(render('Embedded').html,/Alice Example/);
   assert.match(render('Bad').html,/Index unavailable: recursive/);

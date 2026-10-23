@@ -1,9 +1,13 @@
+import {mountMemberFilters} from './index-members.mjs';
+
 // Hosts own loading and cleanup. Lazy bodies are populated only after activation.
 export function mountIndexPopups(root,{load}={}) {
-  const disposers=[];
+  const disposers=[mountMemberFilters(root)];
   for(const details of root.querySelectorAll?.('.taelgar-index-popup') || []) {
     const doc=details.ownerDocument,summary=details.querySelector('summary'),panel=details.querySelector('.taelgar-index-panel');
     const close=panel.querySelector('.taelgar-index-close'),content=panel.querySelector('.taelgar-index-content');
+    // Obsidian moves this panel outside the mounted note into a modal dialog.
+    disposers.push(mountMemberFilters(panel));
     const dialog=doc.createElement('dialog'),modal=typeof dialog.showModal==='function';
     let disposed=false,pending,loaded=!details.hasAttribute('data-index-lazy'),controller,startedOutside=false;
     const ensureLoaded=()=>{

@@ -3,18 +3,20 @@ import {escapeHtml} from './common.mjs';
 const formattedParts=(parts,link)=>parts.map(part=>typeof part==='string' ? escapeHtml(part) : link(part)).join('');
 const indexName=(item,link)=>item.person ? formattedParts(item.person,link) : link(item)+
   (item.pronunciation ? ' <span class="taelgar-index-pronunciation">('+escapeHtml(item.pronunciation)+')</span>' : '');
+const memberAttributes=(result,item)=>result.type==='members' ? ' data-index-member'+
+  (item.deceased ? ' data-index-deceased'+(!result.includeHistorical ? ' hidden' : '') : '') : '';
 
 // Shared markup; hosts supply website URLs or native Obsidian links.
 export function indexGrid(result,link,options={}) {
   const members=result.type==='members';
-  const cards=result.items.map(item=>'<li class="taelgar-index-card">'+
+  const cards=result.items.map(item=>'<li class="taelgar-index-card"'+memberAttributes(result,item)+'>'+
     (item.image ? '<img class="taelgar-index-image" src="'+escapeHtml(item.image)+'" alt="'+escapeHtml(item.name)+'" width="440" height="180" loading="lazy" decoding="async">' : '')+
     indexName(item,link)+
     (item.info ? '<p>'+ (formattedParts(item.info,link) || '—')+'</p>' : item.description ? '<p>'+escapeHtml(item.description)+'</p>' : '')+
     (members ? item.firstSentence ? '<p class="taelgar-index-detail">'+escapeHtml(item.firstSentence)+'</p>' : '' : item.lastKnown ? '<p class="taelgar-index-detail">Current Location: '+(formattedParts(item.lastKnown,link) || 'Unknown')+'</p>' : '')+
     (!members && item.home ? '<p class="taelgar-index-detail">Home: '+(formattedParts(item.home,link) || 'Unknown')+'</p>' : '')+
     (item.details ? '<p class="taelgar-index-detail">'+escapeHtml(item.details)+'</p>' : '')+'</li>').join('');
-  return indexSection(result,cards ? '<ul class="taelgar-index-grid">'+cards+'</ul>' : '',true,options);
+  return indexSection(result,cards ? '<ul class="taelgar-index-grid"'+(members ? ' data-index-results' : '')+'>'+cards+'</ul>' : '',true,options);
 }
 
 export function indexTable(result,link,options={}) {
@@ -25,9 +27,9 @@ export function indexTable(result,link,options={}) {
     const name=indexName(item,link);
     const cells=settlements ? [name,item.region ? link(item.region) : 'Unknown',escapeHtml(item.settlementType || '—'),escapeHtml(item.population || '—')] : features ? [name,escapeHtml(item.placeType || '—')] :
       [name,formatted(item.info) || '—',formatted(item.lastKnown) || 'Unknown',formatted(item.home) || 'Unknown'];
-    return '<tr>'+cells.map(cell=>'<td>'+cell+'</td>').join('')+'</tr>';
+    return '<tr'+memberAttributes(result,item)+'>'+cells.map(cell=>'<td>'+cell+'</td>').join('')+'</tr>';
   }).join('');
-  return indexSection(result,rows ? '<div class="taelgar-index-table-scroll"><table class="taelgar-index-table"><thead><tr>'+headings.map(heading=>'<th scope="col">'+heading+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div>' : '',false,options);
+  return indexSection(result,rows ? '<div class="taelgar-index-table-scroll"'+(result.type==='members' ? ' data-index-results' : '')+'><table class="taelgar-index-table"><thead><tr>'+headings.map(heading=>'<th scope="col">'+heading+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div>' : '',false,options);
 }
 
 export function indexView(result,link,mode='grid',options={}) {
@@ -36,10 +38,13 @@ export function indexView(result,link,mode='grid',options={}) {
 
 function indexSection(result,content,showCount=true,{heading=false}={}) {
   const noun=result.items.length===1 ? result.label.toLowerCase().slice(0,-1) : result.label.toLowerCase();
+  const toggle=result.type==='members' && result.showHistoricalToggle;
+  const empty='<p class="taelgar-index-empty"'+(result.items.some(item=>!item.deceased || result.includeHistorical) ? ' hidden' : '')+'>No '+result.label.toLowerCase()+' found for this date.</p>';
   return '<section class="taelgar-index" aria-label="'+escapeHtml(result.label+' — '+result.target)+'">'+
     (heading ? '<h2>'+escapeHtml(result.label)+'</h2>' : '')+
+    (toggle ? '<label class="taelgar-index-historical-control"><input type="checkbox" data-index-include-historical'+(result.includeHistorical ? ' checked' : '')+'> Include historical members</label>' : '')+
     (showCount && result.type!=='members' ? '<p class="taelgar-index-count">'+result.items.length+' '+noun+'</p>' : '')+
-    (content || '<p>No '+result.label.toLowerCase()+' found for this date.</p>')+
+    (content || (!toggle ? empty : ''))+(toggle ? empty : '')+
     result.warnings.map(message=>'<p class="taelgar-index-warning">'+escapeHtml(message)+'</p>').join('')+'</section>';
 }
 

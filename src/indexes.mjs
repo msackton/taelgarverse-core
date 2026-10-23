@@ -36,15 +36,18 @@ export function headerIndexesForMetadata(metadata = {}) {
 export function parseIndex(source) {
   const value = parse(source,{maxAliasCount:20});
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Use YAML with a type: residents, settlements, members, rivers, or places.');
-  for (const key of Object.keys(value)) if (!['type','target','show','recursive','mode','placeType'].includes(key)) throw new Error('Unknown index option: '+key);
+  for (const key of Object.keys(value)) if (!['type','target','show','recursive','mode','placeType','includeHistorical'].includes(key)) throw new Error('Unknown index option: '+key);
   if (typeof value.type !== 'string' || !Object.hasOwn(indexLabels,value.type)) throw new Error('type must be residents, settlements, members, rivers, or places.');
   if (value.target !== undefined && (typeof value.target !== 'string' || !value.target.trim())) throw new Error('target must be a note name or path.');
   if (value.show !== undefined && !['obsidian','website','both'].includes(value.show)) throw new Error('show must be obsidian, website, or both.');
   if (value.recursive !== undefined && typeof value.recursive !== 'boolean') throw new Error('recursive must be true or false.');
   if (value.mode !== undefined && !['grid','table'].includes(value.mode)) throw new Error('mode must be grid or table.');
   validatePlaceType(value.type,value.placeType);
+  if(value.includeHistorical!==undefined && value.type!=='members')throw new Error('includeHistorical is only supported for Members indexes.');
+  if(value.includeHistorical!==undefined && value.includeHistorical!==null && typeof value.includeHistorical!=='boolean')throw new Error('includeHistorical must be true, false, or null.');
   return {type:value.type,target:value.target?.trim(),show:value.show ?? 'both',recursive:value.recursive ?? value.type !== 'members',mode:value.mode ?? 'grid',
-    ...(value.placeType !== undefined ? {placeType:value.placeType} : {})};
+    ...(value.placeType !== undefined ? {placeType:value.placeType} : {}),
+    ...(value.type==='members' ? {includeHistorical:value.includeHistorical ?? null} : {})};
 }
 
 const plain = value => typeof value === 'string' || typeof value === 'number' ? String(value) : '';
@@ -173,13 +176,18 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
     const metadata=page.metadata;
     if (options.placeType && !placeTypes[options.placeType].has(metadata.typeOf)) continue;
     try {
+      let deceased=false;
       if (type !== 'members') {
         const life=dates.getPageDates(metadata,at);
         if (!life.isCreated || (type === 'residents' && !life.isAlive)) continue;
       }
       let roles=[];
       if (type === 'members') {
-        roles=affiliations.getAffiliations(metadata,at).filter(item=>item.startDate.sort<=at.sort && at.sort<=item.endDate.sort && inOrganization(item.org,page.path));
+        const life=dates.getPageDates(metadata,at);
+        deceased=!!life.endDate && life.endDate.sort<at.sort;
+        if(deceased && options.includeHistorical===false)continue;
+        const active=(item,date)=>item.startDate.sort<=date.sort && date.sort<=item.endDate.sort;
+        roles=affiliations.getAffiliations(metadata,at).filter(item=>(active(item,at) || deceased && active(item,life.endDate)) && inOrganization(item.org,page.path));
         if (!roles.length) continue;
       } else {
         const whereabouts=whereaboutsFor(metadata);
@@ -207,7 +215,8 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
         ...(type === 'residents' || type === 'members' ? [['home','<home:1>']] : []),
       ].map(([field,format])=>[field,formattedParts(templates.formatDisplayString(format,{name:page.name,frontmatter:metadata},at),page.path)])) : {};
       items.push({path:page.path,name:displayName(page),description,details,
-        pronunciation:plain(metadata.pronunciation),imageTarget:metadata.image,...settlement,...place,...person});
+        pronunciation:plain(metadata.pronunciation),imageTarget:metadata.image,...settlement,...place,...person,
+        ...(type==='members' ? {deceased} : {})});
     } catch (error) {
       if (!(error instanceof HeaderDataError)) throw error;
       warnings.add('Some pages were omitted because their relationship metadata contains a cycle.');
@@ -217,5 +226,6 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
   items.sort((a,b)=>(type === 'settlements' ? compareNames(a.region?.name || 'Unknown',b.region?.name || 'Unknown') :
     type==='rivers' || type==='places' ? compareNames(a.placeType || 'Unknown',b.placeType || 'Unknown') : 0) ||
     compareNames(a.name,b.name) || comparePaths(a.path,b.path));
-  return {type,label:indexLabels[type],target:displayName(target),items,warnings:[...warnings]};
+  return {type,label:indexLabels[type],target:displayName(target),items,warnings:[...warnings],
+    ...(type==='members' ? {includeHistorical:options.includeHistorical ?? (items.length>0 && items.every(item=>item.deceased)),showHistoricalToggle:options.includeHistorical==null} : {})};
 }
