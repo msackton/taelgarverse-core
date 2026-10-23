@@ -265,7 +265,10 @@ Header buttons belong only to the new `taelgar-header` renderer, after its compl
 output and outside the information callout. No general heading postprocessor adds
 buttons to ordinary titles or saved headers.
 Obsidian shares the bio snapshot, invalidates it on vault metadata changes, and
-owns popup listeners/dialogs through its Markdown child lifecycle.
+owns popup listeners/dialogs through its Markdown child lifecycle. The plugin-local
+`headerIndexPopups` setting defaults to true; disabling it suppresses header
+buttons and disposes open dialogs immediately without changing inline indexes,
+note metadata, or the website renderer.
 
 The Worker reads the R2 publication pointer on content requests. Successful
 article and homepage HTML can then be served from Cloudflare's Cache API before

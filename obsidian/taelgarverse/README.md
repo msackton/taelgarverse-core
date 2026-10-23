@@ -116,6 +116,11 @@ frame and retains its normal campaign-history section.
 
 ## Generated indexes
 
+Turn off **Show header index popups** in Taelgarverse settings to hide these
+buttons in Obsidian only. The setting defaults to on and applies immediately,
+closing any open header popup. Inline `taelgar-index` blocks and website popups
+are unaffected; no note metadata is changed.
+
 Residents, Settlements, Members, Rivers and Places grids are calculated from vault metadata. Put
 `indexes: [residents, settlements]` in a place's frontmatter to add popup buttons at the bottom of
 its `taelgar-header` block, below and outside the information callout. Organizations tagged

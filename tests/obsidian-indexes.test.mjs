@@ -23,7 +23,7 @@ function events(){const callbacks=new Map();return {
   get count(){return [...callbacks.values()].reduce((sum,list)=>sum+list.size,0);},
 };}
 
-function host() {
+function host(settings={}) {
   const dom=imageDOM(),{document}=dom;
   class Component {
     constructor(){this.children=new Set();this.disposers=[];}
@@ -56,7 +56,7 @@ function host() {
       cachedRead:async file=>bodies.get(file.path) ?? indexSources(Object.fromEntries(metadata))[file.path].replace('Authored prose.',file.path==='People/Alice.md' ? "Alice's first authored sentence. A second sentence." : 'Authored prose.'),
       getResourcePath:file=>'app://local/'+file.path},
     workspace:{openLinkText:(...args)=>opened.push(args)}};
-  const plugin={app,registerMarkdownCodeBlockProcessor:(type,processor)=>processors.set(type,processor),registerMarkdownPostProcessor:processor=>postprocessors.push(processor)};
+  const plugin={app,settings,registerMarkdownCodeBlockProcessor:(type,processor)=>processors.set(type,processor),registerMarkdownPostProcessor:processor=>postprocessors.push(processor)};
   const feature=new module.exports.HeadersFeature(plugin);feature.load();
   const context=sourcePath=>({sourcePath,addChild(child){child.load();this.child=child;}});
   return {...dom,...module.exports,app,feature,metadata,files,bodies,opened,intervals,cache,vault,globals,
@@ -142,6 +142,53 @@ test('new header buttons follow the callout, stay outside it, and release open d
     assert.equal(empty.element.querySelector('.taelgar-index-buttons'),null);
     const inline=await h.block('type: members','Groups/Empty.md');
     assert.match(inline.element.textContent,/No members found/);
+  } finally {h.feature.unload();}
+});
+
+test('disabled header popups preserve headers, inline indexes, and frontmatter',async()=>{
+  const h=host({headerIndexPopups:false});
+  try {
+    const before=JSON.stringify([...h.metadata]);
+    for(const path of ['Places/Realm.md','Groups/Guild.md']) {
+      const bio=await h.block('',path,'taelgar-header');
+      assert.ok(bio.element.querySelector('h1'));
+      assert.ok(bio.element.querySelector('blockquote'));
+      assert.equal(bio.element.querySelector('.taelgar-index-buttons'),null);
+    }
+    const table=await h.block('type: members\ntarget: Guild\nmode: table\nshow: obsidian');
+    assert.ok(table.element.querySelector('table'));
+    assert.match(table.element.textContent,/Alice Example/);
+    const grid=await h.block('type: residents');
+    assert.ok(grid.element.querySelector('.taelgar-index-grid'));
+    assert.equal(JSON.stringify([...h.metadata]),before);
+  } finally {h.feature.unload();}
+});
+
+test('header popup toggle closes dialogs immediately and refreshes existing and pending headers',async()=>{
+  const h=host();
+  try {
+    const bio=await h.block('','Places/Realm.md','taelgar-header');
+    const table=await h.block('type: residents\nmode: table');
+    const originalTable=table.element.querySelector('table');
+    h.click(bio.element.querySelector('summary'));await pause(10);
+    assert.ok(h.document.querySelector('dialog[open]'));
+    h.defer();
+    const disabling=h.feature.setHeaderIndexPopups(false);
+    assert.equal(h.document.querySelector('dialog'),null);
+    assert.equal(h.document.documentElement.classList.contains('taelgar-index-open'),false);
+    h.release();await disabling;
+    assert.equal(bio.element.querySelector('.taelgar-index-buttons'),null);
+    assert.equal(table.element.querySelector('table'),originalTable);
+    await h.feature.setHeaderIndexPopups(true);
+    assert.ok(bio.element.querySelector('summary'));
+    h.click(bio.element.querySelector('summary'));await pause(10);
+    assert.match(h.document.querySelector('dialog').textContent,/Alice Example/);
+    h.defer();const pending=h.block('','Places/Realm.md','taelgar-header');await pause(10);
+    const disabled=h.feature.setHeaderIndexPopups(false);
+    h.release();await disabled;
+    const later=await pending;
+    assert.equal(later.element.querySelector('.taelgar-index-buttons'),null);
+    assert.equal(h.document.querySelector('dialog'),null);
   } finally {h.feature.unload();}
 });
 

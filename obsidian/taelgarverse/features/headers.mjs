@@ -138,7 +138,7 @@ class BioChild extends MarkdownRenderChild {
       await MarkdownRenderer.render(app,markdown,output,this.context.sourcePath,rendering);
       if(this.disposed || sequence!==this.sequence){this.removeChild(rendering);return;}
       let disposeIndexes;
-      const indexButtons=headerIndexMarkup(this.feature,snapshot,metadata,this.context.sourcePath,bioDate(metadata,globalThis,snapshot.fallback));
+      const indexButtons=this.feature.headerIndexPopups ? headerIndexMarkup(this.feature,snapshot,metadata,this.context.sourcePath,bioDate(metadata,globalThis,snapshot.fallback)) : '';
       if(indexButtons) {
         const buttons=element.ownerDocument.createElement('div');buttons.className='taelgar-index-buttons';
         buttons.innerHTML=indexButtons;
@@ -192,7 +192,14 @@ class IndexChild extends BioChild {
 }
 
 export class HeadersFeature extends Component {
-  constructor(plugin) {super();this.plugin=plugin;this.app=plugin.app;this.bios=new Set();this.disposed=false;}
+  constructor(plugin) {super();this.plugin=plugin;this.app=plugin.app;this.bios=new Set();this.disposed=false;this.headerIndexPopups=plugin.settings?.headerIndexPopups!==false;}
+  async setHeaderIndexPopups(value) {
+    this.headerIndexPopups=value!==false;
+    await Promise.all([...this.bios].filter(child=>!(child instanceof IndexChild)).map(child=>{
+      child.disposeIndexes?.();child.disposeIndexes=null;
+      return child.render();
+    }));
+  }
   onload() {
     this.plugin.registerMarkdownCodeBlockProcessor('taelgar-index',(source,element,context)=>{
       context.addChild(new IndexChild(this,source,element,context));

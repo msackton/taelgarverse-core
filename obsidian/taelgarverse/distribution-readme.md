@@ -14,6 +14,11 @@ version. Plugin files and BRAT preferences should stay outside vault Git trackin
 
 ## Generated indexes
 
+Turn off **Show header index popups** in Taelgarverse settings to hide these
+buttons in Obsidian only. The setting defaults to on and applies immediately,
+closing any open header popup. Inline `taelgar-index` blocks and website popups
+are unaffected; no note metadata is changed.
+
 Inline grids and tables start with an H2 heading matching the index label.
 
 Residents, Settlements, Members, Rivers and Places grids use current vault
