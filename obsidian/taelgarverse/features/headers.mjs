@@ -180,7 +180,7 @@ class IndexChild extends BioChild {
       if(this.disposed || sequence!==this.sequence)return;
       const metadata=this.feature.app.metadataCache.getFileCache(this.feature.app.vault.getAbstractFileByPath(this.context.sourcePath))?.frontmatter || {};
       const date=bioDate(metadata,globalThis,snapshot.fallback);this.date=JSON.stringify(date);
-      const html=await indexMarkup(this.feature,snapshot,options,this.context.sourcePath,date,{heading:true});
+      const html=await indexMarkup(this.feature,snapshot,options,this.context.sourcePath,date,{heading:options.heading});
       if(this.disposed || sequence!==this.sequence)return;
       this.disposeIndexes?.();element.hidden=false;element.innerHTML=html;
       this.disposeIndexes=mountIndexes(element,this.feature.app,this.context.sourcePath);

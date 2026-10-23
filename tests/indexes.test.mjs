@@ -32,13 +32,16 @@ test('index authoring validates arrays and YAML, supplies defaults, and deduplic
   assert.deepEqual(headerIndexesForMetadata({tags:['group'],indexes:['places']}),['places']);
   assert.deepEqual(headerIndexesForMetadata({tags:['person']}),[]);
   for(const invalid of [{members:true},'members',['unknown'],['constructor'],[null]])assert.throws(()=>headerIndexes(invalid),/array/);
-  assert.deepEqual(parseIndex('type: residents'),{type:'residents',target:undefined,show:'both',recursive:true,mode:'grid'});
+  assert.deepEqual(parseIndex('type: residents'),{type:'residents',target:undefined,show:'both',recursive:true,mode:'grid',heading:true});
   assert.equal(parseIndex('type: members\nmode: table').mode,'table');
   assert.equal(parseIndex('type: members').recursive,false);
   assert.equal(parseIndex('type: places\nplaceType: built').placeType,'built');
   assert.equal(parseIndex('type: places\nplaceType: natural').placeType,'natural');
   for(const value of ['all','[]','null','true','""'])assert.throws(()=>parseIndex('type: places\nplaceType: '+value),/placeType/);
   for(const type of ['rivers','settlements','members','residents'])assert.throws(()=>parseIndex('type: '+type+'\nplaceType: built'),/only supported for places/);
+  assert.equal(parseIndex('type: settlements\nheading: false').heading,false);
+  assert.equal(parseIndex('type: settlements\nheading: true').heading,true);
+  for(const value of ['null','0','yes','"false"','[]'])assert.throws(()=>parseIndex('type: settlements\nheading: '+value),/heading must be true or false/);
   for(const source of ['', '[]','type: unknown','type: constructor','type: residents\nshow: all','type: residents\nrecursive: yes','type: members\ntarget: []','type: members\ncolumns: 3','type: members\nmode: list'])assert.throws(()=>parseIndex(source));
 });
 
@@ -283,6 +286,21 @@ test('all inline index types have one H2 label in grids and tables, including em
   }
   const popup=load(engine.renderIndex('Places/Basin.md','rivers','1720-01-01','custom'),{},false);
   assert.equal(popup('h2').length,0,'lazy popup content does not duplicate the dialog title');
+});
+
+test('inline heading can be disabled without removing table columns, counts or empty messages',()=>{
+  for(const mode of ['grid','table'])for(const target of ['Realm','Inn']) {
+    const sources={};
+    for(const heading of [true,false])sources[String(heading)+'.md']='```taelgar-index\ntype: settlements\ntarget: '+target+'\nmode: '+mode+'\nheading: '+heading+'\n```';
+    const engine=website(sources);
+    const shown=load(engine.render('true','1720-01-01','custom').html,{},false);
+    const hidden=load(engine.render('false','1720-01-01','custom').html,{},false);
+    assert.equal(shown('.taelgar-index > h2').length,1);
+    assert.equal(hidden('.taelgar-index > h2').length,0);
+    shown('.taelgar-index > h2').remove();
+    assert.equal(hidden('.taelgar-index').html(),shown('.taelgar-index').html());
+    assert.equal(hidden('.taelgar-index').attr('aria-label'),shown('.taelgar-index').attr('aria-label'));
+  }
 });
 
 test('card metadata and invalid options are escaped without hiding the rest of the article',()=>{

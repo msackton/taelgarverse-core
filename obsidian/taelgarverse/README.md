@@ -132,7 +132,8 @@ Markdown titles and saved headers do not receive buttons. Use a `taelgar-index` 
 containing `type: residents`, `type: settlements`, `type: members`,
 `type: rivers`, or `type: places` for an
 inline grid. Inline grids and tables start with an H2 heading matching the index
-label. Optional `target` selects another note, `show` selects `obsidian`,
+label by default; set `heading: false` to omit that title in Obsidian and the
+website. This does not hide table column headings, grid counts, or popup titles. Optional `target` selects another note, `show` selects `obsidian`,
 `website`, or `both`, and `recursive` controls location/organization containment.
 Grid cards show available local images from each note's `image` frontmatter.
 People cards include pronouns and name pronunciation when available, using the

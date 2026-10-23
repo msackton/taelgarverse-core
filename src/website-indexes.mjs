@@ -53,7 +53,7 @@ export function renderIndexBlock(source,env) {
   if (!env.headers) return '';
   try {
     const options=parseIndex(source);
-    return options.show === 'obsidian' ? '' : websiteIndex(options,env,true);
+    return options.show === 'obsidian' ? '' : websiteIndex(options,env,options.heading);
   } catch (error) {env.warnings.push(error.message);return indexError(error);}
 }
 

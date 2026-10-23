@@ -250,6 +250,7 @@ show: both
 | `show` | `obsidian`, `website`, or `both` (default). The other renderer omits the entire block. Source mode still shows the editable definition. |
 | `mode` | `grid` (default) or `table`. Header popups always use the grid. |
 | `placeType` | Places only: `built` or `natural`. Omit to include all place types. Classification uses the note's `typeOf`, not its name or `typeOfAlias`. |
+| `heading` | Boolean, defaults to `true`. Set `false` to omit the inline index's H2 title. Table column headings, grid counts, and popup titles are unaffected. |
 | `recursive` | Boolean. Defaults to `true` for Residents, Settlements, Rivers and Places, and `false` for Members. `false` matches only the immediate location or organization; recursive Members also includes organizations connected through `partOf`. |
 
 Residents, Settlements, Rivers and Places require a place target; Members
@@ -286,8 +287,19 @@ mode: table
 
 Invalid definitions show a local error while leaving the article readable.
 Inline blocks in transcluded notes use that note as their default target.
-Every inline grid or table starts with an H2 heading matching the index label
-(Residents, Settlements, Members, Rivers or Places).
+By default, every inline grid or table starts with an H2 heading matching the index label
+(Residents, Settlements, Members, Rivers or Places). Set `heading: false` when an
+authored heading already supplies that context, for example:
+
+````markdown
+```taelgar-index
+type: settlements
+mode: table
+heading: false
+```
+````
+
+This option works in both Obsidian and the website, including empty indexes.
 
 Rivers tables have **River** and **Type Of** columns. Places tables have **Place**
 and **Type Of** columns. Both include available name pronunciation and use the

@@ -111,6 +111,25 @@ test('Obsidian inline grids and tables have H2 labels, including empty results',
   } finally {h.feature.unload();}
 });
 
+test('Obsidian heading false preserves grid/table contents and empty messages',async()=>{
+  const h=host();
+  try {
+    for(const mode of ['grid','table'])for(const target of ['Places/Realm.md','Places/Inn.md']) {
+      const source='type: settlements\nmode: '+mode;
+      const shown=await h.block(source+'\nheading: true',target);
+      const hidden=await h.block(source+'\nheading: false',target);
+      const a=shown.element.querySelector('.taelgar-index'),b=hidden.element.querySelector('.taelgar-index');
+      assert.equal(a.querySelectorAll('h2').length,1);
+      assert.equal(b.querySelectorAll('h2').length,0);
+      a.querySelector('h2').remove();
+      assert.equal(b.innerHTML,a.innerHTML);
+      assert.equal(b.getAttribute('aria-label'),a.getAttribute('aria-label'));
+    }
+    const invalid=await h.block('type: settlements\nheading: "false"');
+    assert.match(invalid.element.textContent,/heading must be true or false/);
+  } finally {h.feature.unload();}
+});
+
 test('new header buttons follow the callout, stay outside it, and release open dialogs',async()=>{
   const h=host();
   try {

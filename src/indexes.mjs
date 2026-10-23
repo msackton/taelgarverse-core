@@ -36,14 +36,15 @@ export function headerIndexesForMetadata(metadata = {}) {
 export function parseIndex(source) {
   const value = parse(source,{maxAliasCount:20});
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Use YAML with a type: residents, settlements, members, rivers, or places.');
-  for (const key of Object.keys(value)) if (!['type','target','show','recursive','mode','placeType'].includes(key)) throw new Error('Unknown index option: '+key);
+  for (const key of Object.keys(value)) if (!['type','target','show','recursive','mode','placeType','heading'].includes(key)) throw new Error('Unknown index option: '+key);
   if (typeof value.type !== 'string' || !Object.hasOwn(indexLabels,value.type)) throw new Error('type must be residents, settlements, members, rivers, or places.');
   if (value.target !== undefined && (typeof value.target !== 'string' || !value.target.trim())) throw new Error('target must be a note name or path.');
   if (value.show !== undefined && !['obsidian','website','both'].includes(value.show)) throw new Error('show must be obsidian, website, or both.');
   if (value.recursive !== undefined && typeof value.recursive !== 'boolean') throw new Error('recursive must be true or false.');
   if (value.mode !== undefined && !['grid','table'].includes(value.mode)) throw new Error('mode must be grid or table.');
+  if (value.heading !== undefined && typeof value.heading !== 'boolean') throw new Error('heading must be true or false.');
   validatePlaceType(value.type,value.placeType);
-  return {type:value.type,target:value.target?.trim(),show:value.show ?? 'both',recursive:value.recursive ?? value.type !== 'members',mode:value.mode ?? 'grid',
+  return {type:value.type,target:value.target?.trim(),show:value.show ?? 'both',recursive:value.recursive ?? value.type !== 'members',mode:value.mode ?? 'grid',heading:value.heading ?? true,
     ...(value.placeType !== undefined ? {placeType:value.placeType} : {})};
 }
 
