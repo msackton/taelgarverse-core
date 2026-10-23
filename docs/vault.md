@@ -138,6 +138,8 @@ saved H1 above the block when migrating a vault note. Rendering does not modify
 the note.
 In Obsidian, pronunciation sits directly beneath the name without the normal
 heading-to-paragraph gap; this spacing applies only to generated bios with pronunciation.
+Generated bios leave one line of space after the callout when there are no index
+buttons. When buttons are present, their row supplies the spacing.
 Existing saved headers and prepared HTML header markers remain supported;
 an older materializer's marker or separately saved H1 before the new block is
 consumed as one header on the website.
