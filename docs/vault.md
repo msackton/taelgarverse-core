@@ -82,7 +82,7 @@ published or visible in that view. Older snapshots containing the original
 three-link navigation paragraph work without displaying duplicate entry links.
 
 The publisher reads these two files directly from the original vault, even when
-it prepares the other notes through Obsidian. They do not become searchable
+it prepares the other notes in Node. They do not become searchable
 articles. Additional `_website/<name>.md` files opt in with `campaigns`
 frontmatter; other website files stay excluded.
 Set `subdomain: cleenseau` in a file such as `cleenseau-index.md` to keep
@@ -719,14 +719,37 @@ Other images may be made smaller during publication. See
 
 ## Dataview and other generated content
 
-During publication, Obsidian converts supported Dataview queries into ordinary
-article content. Those results stay as they were when published; changing the
-website's campaign or date does not rerun the query.
+The taelgar.org publisher copies the vault into a working directory and
+materializes supported plain Dataview queries in Node by default. Obsidian can
+be closed. `--materializer obsidian` selects the new Taelgarverse materializer's
+website DQL mode in the open source vault. Both choices leave native blocks
+intact for the same conversion and dynamic rendering stages.
+The Node backend fetches a pinned GitHub Dataview release into core's local
+cache and uses built-in settings; it does not depend on the vault's Dataview
+installation. `--dataview-directory` explicitly selects another verified bundle
+and its optional saved settings. See [dependency caching](publishing-pipelines.md#taelgarorg).
+Those query results are static until republication; changing the website's
+campaign or date does not rerun DQL. Queries on pages marked
+`excludePublish: all` are not evaluated, but the full non-hidden vault supplies
+the query index, including Worldbuilding and underscore folders.
 
-DataviewJS blocks are removed, along with headings left empty by their removal.
-Remaining unsupported queries and inline query expressions show
-warnings or unavailable-content messages. The website does not execute these
-scripts. HTML in the normal article body is supported.
+A separate Node conversion pass then normalizes known saved headers into
+`taelgar-header` and recognizes complete supported DataviewJS index patterns,
+rewriting them to `taelgar-index`. A recognized campaign-interactions view becomes
+`taelgar-interactions`. No JavaScript is executed. Native indexes use the reader's
+current context. The original vault notes remain unchanged.
+
+Unrecognized closed DataviewJS blocks and headings made empty by their removal
+retain the existing omission policy. Every unmatched block is listed in the
+conversion report. Remaining unsupported DQL and inline expressions show
+warnings or unavailable-content messages. The website does not execute scripts.
+HTML in the normal article body remains supported.
+
+The old static site keeps its original Obsidian materializer by default. An
+explicit override selects Taelgarverse's materializer, which renders
+native headers/indexes/interactions to static Markdown, changes `taelgar-map`
+fences to `leaflet`, and retains legacy Dataview, DataviewJS, supported inline
+expressions and CustomJS header behavior. See [publishing pipelines](publishing-pipelines.md).
 
 ## Search
 

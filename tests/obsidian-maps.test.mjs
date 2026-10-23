@@ -43,6 +43,7 @@ function host(){
     async loadData(){return this.savedData || {};}
     async saveData(data){this.savedData=data;}
     addSettingTab(){}
+    addCommand(){}
     registerEditorExtension(){}
     registerMarkdownPostProcessor(){}
     registerMarkdownCodeBlockProcessor(language,processor){(this.processors ??= new Map()).set(language,processor);if(['taelgar-map','leaflet'].includes(language)){this.language=language;this.processor=processor;}}

@@ -3,6 +3,12 @@
 Taelgarverse tools for desktop Obsidian: generated note headers and indexes, interactive maps,
 distance measurement, freehand tracing, enclosed-area measurement, and an optional image viewer.
 
+The plugin also evaluates plain Dataview queries for Taelgarverse website
+publication. Keep Dataview enabled when publishing notes that still contain
+queries. Node handles note cleanup, result insertion and assets; the plugin
+does not modify vault notes or execute DataviewJS for publication. Reload
+Taelgarverse after updating before running the publisher.
+
 ## Install with BRAT
 
 1. Install **BRAT** from Obsidian's Community plugins and enable it (BRAT 1.1.0 or newer).
@@ -285,3 +291,15 @@ This repository distributes releases. Source, shared website code, tests, and
 release instructions live in [taelgarverse-core](https://github.com/msackton/taelgarverse-core/tree/main/obsidian/taelgarverse).
 Each release includes its source commit in `release.json`. Licensed under
 GPL-3.0; bundled libraries retain their license notices.
+
+## Static website export
+
+The plugin includes an opt-in static-site materializer. Native headers, indexes
+and interactions export as Markdown, and taelgar-map fences become leaflet.
+Existing Dataview/CustomJS export behavior remains available. Source notes are
+unchanged. The legacy site retains its original materializer by default; its
+`TAELGAR_MATERIALIZER` override can select core's `scripts/materialize-static.mjs`.
+The taelgar.org publisher defaults to plain DQL in Node, without a running
+Obsidian app. Its explicit `--materializer obsidian` option uses this plugin's
+website DQL mode, leaving native blocks dynamic through the shared Node
+conversion/publishing pipeline. See the core publishing-pipelines guide.

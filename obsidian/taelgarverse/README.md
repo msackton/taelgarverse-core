@@ -282,6 +282,33 @@ repository contains documentation and release artifacts. The internal
 `scripts/release-obsidian.mjs` program is the workflow's uploader, rather than an
 everyday laptop command.
 
+## Old static-site materializer
+
+Taelgarverse includes an opt-in materializer for the old github.io static site.
+Use `npm run materialize:static -- --vault PATH --out OUTPUT --date YYYY-MM-DD --no-strict`
+from core, with Obsidian's CLI enabled and Dataview/CustomJS ready. The existing
+vault CLI continues to select the original standalone plugin. To switch the
+legacy site's wrapper explicitly, set `TAELGAR_MATERIALIZER` to core's
+`scripts/materialize-static.mjs` for a `materialize`, `build` or `deploy` run.
+No source-note migration is required.
+
+Native `taelgar-header`, `taelgar-index`, and `taelgar-interactions` blocks
+produce static Markdown. Index grids use an ordinary table fallback. A
+`taelgar-map` fence becomes `leaflet` with its configuration retained. Existing
+DQL, supported DataviewJS, inline expressions, and legacy header generation keep
+their existing behavior and strict/partial reporting. Export writes to a separate
+output directory; the source vault is never rewritten. A manual audit command is
+available in Obsidian without changing notes.
+
+The taelgar.org publisher defaults to DQL in Node. `--materializer obsidian`
+selects this feature's `materializer.exportDataview(request)` website mode,
+which evaluates only DQL through the installed Dataview plugin. It does not
+flatten native blocks or execute legacy JavaScript. Node then converts known
+patterns and processes images/search as usual. The plugin-root `exportDataview`
+request API remains a compatibility alias. Reload the updated plugin before
+using this option; no fallback to the original materializer occurs.
+See [publishing pipelines](../../docs/publishing-pipelines.md).
+
 ## Measure maps
 
 Choose **Measure distance**, then add points or use **Trace path** to follow a

@@ -15,8 +15,8 @@ The site is [taelgarverse.msackton.workers.dev](https://taelgarverse.msackton.wo
   GitHub runs tests, then deploys to Cloudflare only if they pass (after the
   one-time GitHub deployment setup below).
 - **Taelgarverse Obsidian plugin:** publish a separate BRAT release for headers,
-  campaign interactions, Maps, and optional Images; the materializer follows the existing vault
-  workflow. See [plugin development and releases](../obsidian/taelgarverse/README.md).
+  campaign interactions, Maps, optional Images, and the website's plain Dataview
+  exporter. See [plugin development and releases](../obsidian/taelgarverse/README.md).
 
 Start with [publishing](#publish-your-latest-notes) for a normal update.
 The references below explain [publishing options](#publishing-options),
@@ -30,7 +30,7 @@ After `npm ci`, use one of these commands from core:
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Reads the live vault without Obsidian. Restarts on vault/source changes; refresh the browser. Some Dataview content can be incomplete. |
-| `npm run dev -- --full` | Exports through running Obsidian, processes images/maps/search, loads local R2/D1, and starts the local Worker. No live publication. Rerun after editing notes. |
+| `npm run dev -- --full` | Copies a working vault, materializes plain Dataview queries in Node, converts recognized legacy blocks, processes images/maps/search, loads local R2/D1, and starts the local Worker. No live publication. Rerun after editing notes. |
 | `npm run dev -- --plugin` | Builds and installs Taelgarverse in the configured vault. Tries to reload it in running Obsidian; otherwise asks for a restart. |
 | `npm test` | Runs the automated suite without running Obsidian. |
 
@@ -41,12 +41,14 @@ the original vault even if `source_dir` points to an earlier export.
 Full preview permits uncommitted notes and reports unsupported materialization
 queries; it never contacts production R2/D1. Its cached data stays in core.
 
-Content preparation converts old saved headers, legacy header placeholders, and
-new header blocks into a leading empty `taelgar-header` fence. This Node step
-runs after the Dataview export in a normal publication. It does not remove the
-Obsidian prerequisite for remaining body queries. Deploy header-block website
-support before publishing with this preparation code. The updated renderer
-continues to read existing R2 snapshots, so deployment needs no R2 rewrite.
+Content preparation copies the vault to a temporary working directory, evaluates
+supported DQL in Node, then runs a separate compatibility conversion. Known saved
+headers become `taelgar-header`; supported complete DataviewJS index patterns
+become `taelgar-index`. Unmatched closed JavaScript blocks retain the existing
+omission policy and appear in a conversion report. Images, backlinks, search and
+runtime compilation follow those two stages. Original notes and media stay
+unchanged, and Obsidian can be closed. The original vault supplies header
+metadata and session inputs. See [publishing pipelines](publishing-pipelines.md).
 
 Both previews compile [person campaign interactions](campaign-interactions.md)
 from recap Cast `met` membership in the original vault's `_sessions` directory,
@@ -165,16 +167,23 @@ If this is your first time publishing from this computer, follow
 1. Make sure your local `taelgar` folder has the content you want to publish.
    Save your edits and commit them in Git. The publishing script uses the files
    on this computer; it does not download changes from GitHub.
-2. Open that vault in Obsidian. Wait for Dataview to finish loading, and make sure
-   the **Taelgar Dataview Materializer** plugin is enabled. If you updated the
-   plugin, restart Obsidian first.
+2. If notes contain plain Dataview queries, the default Node backend downloads
+   pinned Dataview 0.5.68 from GitHub on first use and verifies/reuses the local
+   `.cache/dataview/0.5.68` cache afterward. First use needs internet; a valid
+   cache works offline. `node scripts/cache-dataview.mjs` warms the cache without
+   building or publishing. No Dataview installation in the vault is needed.
+   `--dataview-directory PATH` explicitly selects a separate bundle/settings copy.
+   For an Obsidian-based alternative,
+   open this vault with Dataview and the current Taelgarverse plugin enabled,
+   enable Obsidian's CLI, and add `--materializer obsidian` to the command below.
+   See [backend selection and external bundle downloads](publishing-pipelines.md#taelgarorg).
 3. Open a terminal in the `taelgarverse-core` folder and run:
 
    ```sh
    npm run publish -- --no-strict
    ```
 
-4. Leave Obsidian open and avoid editing, syncing, or updating either repository
+4. Avoid editing, syncing, or updating either repository
    until the command finishes. Check the final message:
    `Content published (<revision>)` confirms activation; “already in R2; skipping” means the saved
    version/settings were already online. `ERROR: PUBLISH COMMAND FAILED` means
@@ -192,6 +201,19 @@ The updated core connects the search UI to that published D1 index.
 `--no-strict` means “continue if a Dataview query cannot be converted.” Read the
 warnings: those queries may appear as unavailable content on the website. Leave
 out `--no-strict` if you want any query problem to stop publication.
+
+Node skips queries on pages marked `excludePublish: all` and in excluded folders.
+It indexes the full copied vault for query inputs, including underscore and
+Worldbuilding folders. It executes DQL only. Query errors appear in
+`.cache/publish/materialization-report.json`; recognized conversions and
+unmatched JavaScript appear in `.cache/publish/conversion-report.json` after a
+successful run. Failed runs retain the working vault and diagnostics in the
+printed temporary directory. A corrupt cache, failed first download, or invalid
+explicit bundle stops Node preparation when query evaluation is needed, even
+with `--no-strict`. The Obsidian backend evaluates the same selected DQL through the
+new Taelgarverse materializer, then uses the same Node compatibility conversion.
+It preserves native blocks for dynamic website rendering. Neither backend runs
+arbitrary DataviewJS, and neither automatically falls back to the other.
 
 ### Update the homepage or menu
 
@@ -303,6 +325,9 @@ Add these after `npm run publish --`. You can combine them unless noted.
 
 | Option | What it does |
 | --- | --- |
+| `--materializer node` | Default: evaluate DQL in Node with a pinned GitHub release downloaded once and verified in the local cache. No vault plugin installation needed. |
+| `--materializer obsidian` | Evaluate DQL through the new Taelgarverse materializer in the open source vault, then use the same Node conversion/publishing pipeline. Requires Dataview and Obsidian's CLI. |
+| `--dataview-directory PATH` | Node only: bypass automatic caching and use this Dataview 0.5.68 bundle plus optional `data.json` settings. See [acquisition instructions](publishing-pipelines.md#acquiring-dataview-outside-the-vault). |
 | `--no-strict` | Continues when a Dataview query cannot be converted, and reports the problem. Without this option, query problems stop the export. |
 | `--force` | Publishes again even when the saved Git version and settings appear unchanged. |
 | `--assets-only` | Exports/packages content and uploads missing images/media only. Does not activate notes, stage search, or run retention cleanup. Uses production storage unless combined with `--local`; cannot be combined with `--build-only`. |
@@ -322,9 +347,10 @@ For example, check uncommitted edits without changing the live website:
 
 ```sh
 npm run publish -- --build-only --allow-dirty --no-strict
+npm run publish -- --materializer obsidian --build-only --allow-dirty --no-strict
 ```
 
-For the complete local materialization and publication dry run, use `npm run dev -- --full`. It starts the local Worker after preparing its local R2/D1 data. Press Ctrl+C to stop it.
+For the complete local materialization and publication dry run, use `npm run dev -- --full`, optionally with `--materializer obsidian`. It starts the local Worker after preparing its local R2/D1 data. Press Ctrl+C to stop it.
 
 ### Incremental assets and interrupted uploads
 
@@ -344,7 +370,7 @@ activation; cleanup may still be deleting obsolete R2 objects or compacting D1.
 The final completion message follows cleanup and removal of temporary export
 files. These are phase counts, not an estimated overall completion percentage.
 
-Earlier phases also report elapsed seconds: Obsidian export, R2 recipe loading,
+Earlier phases also report elapsed seconds: working-copy creation, Node DQL evaluation, compatibility conversion, R2 recipe loading,
 vault scanning, image-size discovery, responsive images, map tiles, packaging,
 backlinks, and search/runtime compilation. Completion logs include each phase's
 duration and the overall publish duration. Successful runs save milliseconds in
@@ -408,7 +434,7 @@ the local emulator's manifest; `--build-only` and standalone preparation remain
 offline. Generation algorithm changes must bump the relevant recipe version as
 described in [architecture](architecture.md#change-and-release-rules); `--force`
 alone does not invalidate image/map recipes. This cache support does not add a
-GitHub asset workflow or remove the current publisher's Obsidian export step.
+GitHub asset workflow; DQL uses a pinned local Dataview bundle in Node.
 
 Transfers use four concurrent uploads with request pacing. Transient network,
 429, and 5xx errors retry the individual R2 request up to four times, with backoff
@@ -487,7 +513,9 @@ Leave `source_dir` out for normal use. For an already exported copy, set it to
 the export folder and keep `vault_dir` pointing at the original vault for scripts
 and metadata, including the homepage and menu. Setting `source_dir` to `null` also
 means “use the vault.” The full
-publisher always exports from `vault_dir` and prepares its own content folder.
+publisher always prepares publication copies in memory from `vault_dir`, with
+query request/results staged temporarily in core. It does not copy the vault or
+media into a second export folder.
 
 Leave `nav_source` and `home_source` out for normal use. Both files must exist in
 the vault's `_website` folder. If you had a local `nav_source` pointing to the old
@@ -564,7 +592,7 @@ fields in either JSON file.
 | `CLOUDFLARE_ACCOUNT_ID` | Selects the Cloudflare account. |
 | `CLOUDFLARE_API_TOKEN` | Supplies a token instead of the browser login; see [token setup](#optional-use-an-api-token-instead-of-signing-in). |
 | `TAELGARVERSE_CONFIG` | Chooses an alternative to `config.local.json`. Shared settings from `config.json` still apply unless changed in the selected file. |
-| `OBSIDIAN_COMMAND` | Sets the Obsidian command-line program's path. `--obsidian-command` takes priority. |
+| `OBSIDIAN_COMMAND` | Sets the Obsidian command-line path for plugin installation/reload and old static export; unused by the new website publisher. |
 | `HOST` / `PORT` | Changes the address or port for `npm start` and `npm run dev`. Defaults: `127.0.0.1` and `8765`. |
 | `REPEATS` | Sets how many times `node scripts/benchmark.mjs` measures each sample page. Default: `10`. |
 
@@ -574,7 +602,8 @@ fields in either JSON file.
 | --- | --- |
 | Login expired or permission denied | Run `npx wrangler login` again and check that you chose the right account. |
 | “Taelgar has uncommitted changes” | Commit the notes you want to publish. New files that Git has not saved yet also count. |
-| Materializer plugin needs updating | Update the plugin, restart Obsidian, and try again. |
+| Dataview download/cache failure | First use needs GitHub access; an existing verified cache works offline. Remove a corrupt `.cache/dataview/0.5.68` directory and retry, or supply a verified copy with `--dataview-directory`. A different version needs a reviewed adapter update. |
+| Command line interface is not enabled during old static export or plugin reload | Enable **Settings → General → Advanced → Command line interface** in Obsidian. The new website publication path does not use it. |
 | Dataview query failed | Read the reported note/query. Fix it, or use `--no-strict` if you accept that part being unavailable online. |
 | Export, image processing, or upload failed | Read the error, fix the cause, and rerun the command. These failures leave the previous content online. |
 | Cloudflare authentication/permission failure (401/403) | Run `npx wrangler login`, or check your API token's R2 and D1 permissions. Rerun the same publish command; completed assets will be reused. |

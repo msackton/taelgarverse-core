@@ -10,6 +10,7 @@ independent release paths.
 | Document | Owns |
 | --- | --- |
 | [Deploy](deploy.md) | Human instructions for publishing content, credentials, local previews, and recovery. |
+| [Publishing pipelines](publishing-pipelines.md) | Static-site materializer selection, Node/default and Obsidian website DQL backends, bundle acquisition, and compatibility rewrite rules. |
 | [Architecture](architecture.md) | Component boundaries, code map, and maintenance rules for agents. |
 | [Vault usage](vault.md) | Which vault files and fields are consumed, rendering semantics, and limitations. |
 | [Cloudflare](cloudflare.md) | Current hosted topology, bindings, storage layout, and operational behavior. |
@@ -26,8 +27,16 @@ implementation scope. Syntax and behavior belong in [vault usage](vault.md#gener
 
 ```mermaid
 flowchart LR
-    V[taelgar vault] --> O[Obsidian materializer]
-    O --> P[Content publisher]
+    V[taelgar vault] --> F[Copy working vault]
+    F --> Q[Plain Dataview in Node]
+    F -->|explicit Obsidian backend| WQ[Taelgarverse website DQL mode]
+    WQ --> X[Convert recognized legacy blocks]
+    Q --> X[Convert recognized legacy blocks]
+    X --> P[Node content preparation]
+    V --> L[Original Obsidian materializer by default]
+    L --> M[Old static-site Markdown and leaflet]
+    V -->|explicit override| O[Taelgarverse materializer in Obsidian]
+    O --> M[Old static-site Markdown and leaflet]
     V --> S[Homepage and menu Markdown]
     S --> P
     P --> R[R2 snapshots and assets]
@@ -41,7 +50,7 @@ flowchart LR
 ```
 
 - **`taelgar`** owns Markdown, media, homepage text, menu structure, campaign identity, display metadata, trusted
-  legacy CustomJS rules, and the Obsidian materializer. Publishing exports copies;
+  legacy CustomJS rules, and the old static workflow's CLI bridge. Publishing prepares copies;
   it does not rewrite source notes.
 - **`taelgarverse-core`** owns rendering, routing, navigation behavior, browser assets, the
   publisher, the Taelgarverse Obsidian plugin source, and the maintained shared
@@ -54,12 +63,17 @@ flowchart LR
 
 | Code | Responsibility |
 | --- | --- |
-| `scripts/publish-content.mjs` | Git checkpoint, Obsidian export, image optimization, upload, then activation. |
+| `scripts/publish-content.mjs`, `scripts/materialize-website.mjs` | Git checkpoint, working vault copy, explicit DQL backend selection (Node default, optional Obsidian), compatibility conversion, image optimization, upload, then activation. No automatic engine fallback. |
+| `scripts/materialize-website-dataview.mjs`, `src/dataview-node/`, `scripts/website-working-vault.mjs` | Copy source inputs and original file timestamps, build the full vault index, and evaluate DQL in Node using a pinned Dataview bundle. No desktop process. |
+| `src/dataview-node/bundle.mjs`, `scripts/cache-dataview.mjs` | Exact GitHub release pin, checksum verification, atomic local dependency-cache downloads, offline reuse and explicit bundle validation. The Node default never reads the vault's Dataview installation/settings. |
+| `scripts/convert-website.mjs`, `src/website-compatibility.mjs` | Separate conversion stage: normalize known headers and parse complete recognized DataviewJS table patterns into native blocks; report unmatched code before applying existing cleanup policy. |
+| `obsidian/taelgarverse/features/materializer.mjs`, `obsidian/taelgarverse/materializer/`, `scripts/materialize-static.mjs` | Old static-site export: native blocks become Markdown, taelgar-map becomes leaflet, and legacy DQL/DataviewJS/CustomJS behavior is preserved. See [publishing pipelines](publishing-pipelines.md). |
+| `scripts/export-dataview.mjs`, `src/dataview-export.mjs`, `obsidian/taelgarverse/features/exporter.mjs` | Versioned website DQL request service exposed through the new materializer. Only the explicitly selected Obsidian backend calls it; static/website requests share the materializer lock. The plugin-root API remains a compatibility alias. |
 | `scripts/publication-progress.mjs` | Phase status, elapsed time, optional local timing records, and ten-second progress reminders around publishing operations; timers stop on success or failure. |
 | `scripts/upload-content.mjs`, `scripts/cloudflare-client.mjs` | Separate incremental asset and snapshot transfers, bounded retries, request pacing, and shared refreshable Cloudflare credentials. Used by full and manual publication. |
 | `scripts/dev.mjs`, `scripts/test.mjs`, `.github/workflows/tests.yml` | Public development/test entry points, live-vault watching, full local publication preview, plugin installation, and GitHub test/package gates. |
 | `.github/workflows/website.yml` | Reuse CI tests, then deploy Worker/static assets on `main`. Serialize production pipelines; deployment credentials are available only in the deployment step. See the one-time cutover in [Deploy](deploy.md#one-time-github-website-deployment-setup). |
-| `scripts/prepare-cloudflare.mjs` | Normalize note headers, then package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. |
+| `scripts/prepare-cloudflare.mjs`, `src/publication-markdown.mjs`, `src/markdown-fences.mjs` | Orchestrate DQL first, compatibility conversion and remaining JavaScript cleanup second, then package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. |
 | `scripts/compile-runtime.mjs`, `src/runtime-format.mjs` | Compile versioned lookups, availability, campaign contexts, navigation views, parsed notes and separate route manifests during publication. No HTML prerendering. |
 | `scripts/derivative-cache.mjs` | R2 recipe catalog for responsive images/map pyramids, output inventory validation, and publication of reusable records after successful asset uploads. Local/offline consumers retain filesystem generation. |
 | `scripts/build-images.mjs` | Responsive-image recipes, bounded parallel generation, cache-reuse counts, and deterministic asset registration. See [image delivery](images.md#publication-and-caching). |
@@ -98,6 +112,7 @@ flowchart LR
 | `public/quiet-library.css`, `public/site-ui.js`, `public/appearance.js` | Quiet Library layout, responsive dialogs and scroll controls, and browser-local System/Light/Dark appearance. |
 | `src/release-footer.mjs`, `public/release.js`, `scripts/build-core-release.mjs` | Version footer, copy behavior, and core provenance captured by Wrangler's custom build. |
 | `experiments/ai-search/` | Isolated D1 full-text baseline and optional AI Search pilot: allowlisted exports, usage limits, explicit independent syncs, local viewer, fallback, and repeatable comparisons; no production imports. |
+| `experiments/dataview/` | [Local DQL comparison harness](../experiments/dataview/README.md): Node/plugin comparisons using the same maintained Node Dataview adapter as publication. Captured-index replay isolates engine compatibility from filesystem metadata differences; timeline corpus excluded. |
 
 ## Configuration
 
@@ -246,6 +261,34 @@ including when a type filter would otherwise prevent the depth limit advancing.
 Body Dataview/JavaScript is not executed by either renderer. Supported
 Dataview queries are materialized during publication and do not rerun when a
 visitor changes context.
+
+The new website publisher copies source files into a request-owned working vault,
+materializes supported plain DQL in Node by default or through the explicitly
+selected Taelgarverse Obsidian materializer's DQL mode, then runs compatibility conversion
+before any image discovery, backlinks, search or runtime compilation. The
+conversion recognizes complete supported JavaScript syntax without executing it.
+Native blocks remain dynamic at render time. Unrecognized DataviewJS follows the
+existing omission policy and is reported. Original notes are never rewritten.
+The Node backend downloads an exact pinned GitHub Dataview release on first DQL
+use and verifies/reuses its core-local cache offline. It uses built-in settings
+without reading the vault's Dataview installation. `--dataview-directory` is an
+explicit bundle/settings override that bypasses downloading. Neither cache
+availability nor its machine path changes the default fingerprint; the release
+pin and settings policy do. Obsidian need not be installed or running.
+The Obsidian backend requires the source vault open and the updated plugin loaded.
+Both leave native blocks and legacy JavaScript intact until Node conversion.
+Backend selection, the default pin, and explicitly selected/installed bundles
+participate in the fingerprint.
+Direct `prepareContent` calls use the same ordering and can supply a materialization
+callback; without one, DQL remains unavailable at render time.
+
+The old static site retains its original vault CLI and standalone Obsidian
+materializer by default. The wrapper's `TAELGAR_MATERIALIZER` override can select
+core's `scripts/materialize-static.mjs` explicitly. That Taelgarverse feature
+preserves the legacy CustomJS/DQL/DataviewJS path while adding native-block
+Markdown renderers and a taelgar-map-to-leaflet conversion. Both static choices
+feed the same legacy exporter and MkDocs/GitHub Pages publication path.
+See [publishing pipelines](publishing-pipelines.md) for commands and boundaries.
 
 Generated `taelgar-index` fences and frontmatter `indexes` arrays query the
 existing frozen header metadata at render time. They reuse dated whereabouts

@@ -4,7 +4,7 @@ import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {ROOT,loadSettings,isInside} from '../src/config.mjs';
 import {Store} from '../src/store.mjs';
-import {normalizeHeader} from '../src/bio-block.mjs';
+import {convertWebsiteStore,saveWorkingNotes} from './convert-website.mjs';
 import {buildBacklinkIndex} from '../src/backlinks.mjs';
 import {headerCoreRevision} from './header-core-revision.mjs';
 import {compileInteractionIndex} from '../src/campaign-interactions.mjs';
@@ -36,7 +36,7 @@ async function hashFile(file) {
   return hash.digest('hex');
 }
 
-export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare'),sourceVersion=repositoryVersion(settings.vault_dir),imageOptions={},imageProgress,derivativeCache=new DerivativeCache(),{runtime=true,log=()=>{}}={}) {
+export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare'),sourceVersion=repositoryVersion(settings.vault_dir),imageOptions={},imageProgress,derivativeCache=new DerivativeCache(),{runtime=true,log=()=>{},materialize,writePreparedNotes=false}={}) {
   output=path.resolve(output);
   if (!isInside(ROOT,output) || output===ROOT) throw new Error('Content staging directory must be inside this project');
   const started=performance.now(),timings={};
@@ -44,18 +44,15 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const shards=new Map(),uploads=[];
   const {store,homeSource,registry,campaignHomes}=await timed('Reading vault content',()=>{
     const store=new Store(settings);
-    // Use one header format before hashing, backlinks, search or media discovery.
-    // This also accepts raw vault notes when no Dataview export is needed.
-    for (const entry of store.entries) if (entry.note) {
-      try { entry.note=normalizeHeader(entry.note); }
-      catch (error) { throw new Error(entry.id + ': ' + error.message, {cause:error}); }
-    }
     const homeSource=settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null;
     const registry=JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'_scripts/session_note_campaigns.json'),'utf8'));
     const campaignHomes=readCampaignHomes(settings);
     new CampaignSites(campaignHomes,new Contexts(store,registry,settings));
     return {store,homeSource,registry,campaignHomes};
   });
+  const materialization=materialize ? await timed('Materializing Dataview queries',()=>materialize(store)) : undefined;
+  const conversion=await timed('Converting website compatibility patterns',()=>convertWebsiteStore(store,{log}));
+  if(writePreparedNotes)await saveWorkingNotes(store);
   const usages=await timed('Discovering image sizes',()=>collectImageUsages(store,{homeSource,campaignHomes}));
   const images=await timed('Preparing responsive images',()=>prepareImages(store,path.join(ROOT,'.cache/images'),{...imageOptions,usages},undefined,imageProgress,derivativeCache));
   await timed('Preparing map tiles',()=>prepareMaps(store,path.join(ROOT,'.cache/maps'),derivativeCache));
@@ -139,7 +136,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const report={revision,indexFile,manifestFile,configFile,bucket:config.r2_buckets.find(b=>b.binding==='CONTENT').bucket_name,
     notes:entries.filter(e=>e.note).length,assets:entries.filter(e=>!e.note).length,objects:unique.length,
     assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision:headerCoreRevision(),search,searchFile,searchStats:searchManifest.stats,images,
-    derivativeManifestFile,derivativeCacheHits:{...derivativeCache.hits},timings,totalMs:Math.round(performance.now()-started),
+    derivativeManifestFile,derivativeCacheHits:{...derivativeCache.hits},materialization,conversion,timings,totalMs:Math.round(performance.now()-started),
     interactions:{people:Object.keys(interactions.byTarget).length,warnings:[...bundles.warnings,...interactionWarnings]}};
   writeJSON(path.join(output,'latest.json'),report);
   return report;

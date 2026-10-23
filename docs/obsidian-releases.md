@@ -10,7 +10,8 @@ Source is in `msackton/taelgarverse-core`; releases are in the public
 `msackton/taelgarverse-obsidian` repository. Website deployments, vault content
 publication, and plugin releases are separate operations. These instructions
 apply to the unified **Taelgarverse** plugin, with Maps and optional Images, rather than the
-separate Dataview materializer or Name Explorer.
+legacy standalone Dataview materializer or Name Explorer. The website's DQL
+exporter is now part of the unified plugin.
 
 ## Request and version policy
 

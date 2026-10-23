@@ -3,6 +3,9 @@ import {MapsFeature} from './features/maps.mjs';
 import {ImagesFeature} from './features/images.mjs';
 import {HeadersFeature} from './features/headers.mjs';
 import {InteractionsFeature} from './features/interactions.mjs';
+import {ExporterFeature} from './features/exporter.mjs';
+import {MaterializerFeature} from './features/materializer.mjs';
+import {DATAVIEW_EXPORT_VERSION} from '../../src/dataview-export.mjs';
 
 class TaelgarverseSettings extends PluginSettingTab {
   constructor(plugin){super(plugin.app,plugin);this.plugin=plugin;}
@@ -39,6 +42,9 @@ class TaelgarverseSettings extends PluginSettingTab {
 }
 
 export default class Taelgarverse extends Plugin {
+  get dataviewExportVersion(){return DATAVIEW_EXPORT_VERSION;}
+  exportDataview(request){return this.materializer.exportDataview(request);}
+
   async onload(){
     this.settings={legacyLeafletBlocks:false,imageViewer:false,automaticInteractions:true,headerIndexPopups:true,...await this.loadData()};
     this.addSettingTab(new TaelgarverseSettings(this));
@@ -47,5 +53,7 @@ export default class Taelgarverse extends Plugin {
     this.images=this.addChild(new ImagesFeature(this));
     this.headers=this.addChild(new HeadersFeature(this));
     this.interactions=this.addChild(new InteractionsFeature(this));
+    this.exporter=this.addChild(new ExporterFeature(this));
+    this.materializer=this.addChild(new MaterializerFeature(this));
   }
 }

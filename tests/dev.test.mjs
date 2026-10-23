@@ -14,7 +14,7 @@ test('full preview always materializes into local storage and explicitly disable
   let exported=false,served=false;
   await dev(parseDevOptions(['--full','--vault','/fixture','--port','8888']),{settings:{vault_dir:'/fixture'},build:async()=>{},
     cloudflareConfig:{r2_buckets:[{binding:'CONTENT'}],d1_databases:[{binding:'SEARCH_DB'}]},
-    publish:async options=>{assert.equal(options.local,true);assert.equal(options.allowDirty,true);assert.equal(options.noStrict,true);assert.equal(options.vault,'/fixture');exported=true;},
+    publish:async options=>{assert.equal(options.local,true);assert.equal(options.materializer,'node');assert.equal(options.allowDirty,true);assert.equal(options.noStrict,true);assert.equal(options.vault,'/fixture');exported=true;},
     worker:async args=>{assert.ok(exported);assert.ok(args.includes('--local'));assert.ok(!args.includes('--remote'));assert.equal(args[args.indexOf('--port')+1],'8888');served=true;}});
   assert.ok(exported && served);
   await assert.rejects(dev(parseDevOptions(['--full']),{settings:{vault_dir:'/fixture'},build:async()=>{},
@@ -34,4 +34,11 @@ test('preview rejects remote options and watches note/runtime changes without re
   assert.throws(()=>parseDevOptions(['--port','0']),/Port/);
   for(const file of ['People/Person.md','assets/map.png','_scripts/customJS/outputs.js','.obsidian/metadata.json','.nopublish','Campaigns/Cleenseau Campaign/Chats/.nopublish'])assert.equal(shouldRefreshVault(file),true,file);
   for(const file of ['.git/index','.obsidian/plugins/taelgarverse/main.js','.secrets-v2/store','_scripts/research-cache.json'])assert.equal(shouldRefreshVault(file),false,file);
+});
+
+test('full preview forwards the explicitly selected materializer and rejects unavailable combinations',async()=>{
+  const options=parseDevOptions(['--full','--materializer','obsidian','--obsidian-command','fixture-cli']);
+  await dev(options,{settings:{vault_dir:'/fixture'},build:async()=>{},cloudflareConfig:{},
+    publish:async selected=>{assert.equal(selected.materializer,'obsidian');assert.equal(selected.obsidianCommand,'fixture-cli');assert.equal(selected.local,true);},worker:async()=>{}});
+  for(const args of [['--materializer','obsidian'],['--full','--materializer','unknown'],['--full','--materializer','obsidian','--dataview-directory','/bundle']])assert.throws(()=>parseDevOptions(args));
 });

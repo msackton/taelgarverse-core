@@ -138,16 +138,16 @@ test('publisher CLI failures show a prominent error and exit unsuccessfully', as
   });
 });
 
-test('publisher requires a complete export using the current publication policy',()=>{
-  const output=path.resolve('.cache/export-fixture');
-  const report={status:'ok',outputComplete:true,dynamicWebsite:true,outputPath:output,publicationPolicy:'context-v1'};
-  assert.doesNotThrow(()=>validateMaterializationReport(report,output));
-  for (const changes of [{status:'failed'},{outputComplete:false},{dynamicWebsite:false},{outputPath:undefined},{outputPath:output+'-other'}]) {
-    assert.throws(()=>validateMaterializationReport({...report,...changes},output),/complete dynamic website export/);
+test('publisher requires a complete, versioned result for the exact Dataview request',()=>{
+  const request={id:'fixture',queries:[{id:'q0'},{id:'q1'}]};
+  const results=[{id:'q0',status:'ok',markdown:'- Result'},{id:'q1',status:'error',message:'Bad query'}];
+  const report={schemaVersion:1,id:request.id,status:'ok',outputComplete:true,results};
+  assert.doesNotThrow(()=>validateMaterializationReport(report,request));
+  for(const changes of [{status:'failed'},{outputComplete:false},{schemaVersion:0},{id:'stale'}]) {
+    assert.throws(()=>validateMaterializationReport({...report,...changes},request),/complete Dataview export/);
   }
-  for (const publicationPolicy of [undefined,'static']) {
-    assert.throws(()=>validateMaterializationReport({...report,publicationPolicy},output),/reload its Obsidian plugin/);
-  }
+  assert.throws(()=>validateMaterializationReport({...report,results:results.slice(0,1)},request),/missing/);
+  assert.throws(()=>validateMaterializationReport({...report,results:[results[0],results[0]]},request),/duplicate/);
 });
 
 test('build fingerprints tolerate Windows line endings and machine paths, but notice image and publication settings', async t => {
@@ -162,7 +162,12 @@ test('build fingerprints tolerate Windows line endings and machine paths, but no
   await fs.writeFile(other, '- People\n');
   const settings = {nav_source: navigation, default_date: '1750-01-01', campaigns: ['dufr']};
   const options = parseOptions([]);
+  assert.equal(options.materializer,'node');
   const value = buildFingerprint(settings, options);
+  assert.notEqual(value,buildFingerprint(settings,{...options,materializer:'obsidian'}));
+  assert.equal(parseOptions(['--materializer','obsidian']).materializer,'obsidian');
+  assert.throws(()=>parseOptions(['--materializer','unknown']),/node or obsidian/);
+  assert.throws(()=>parseOptions(['--materializer','obsidian','--dataview-directory','/bundle']),/only to --materializer node/);
   assert.equal(value, buildFingerprint({...settings, nav_source: other}, options));
   assert.equal(value, buildFingerprint({...settings, ignore_file: 'missing-legacy-ignore.txt', campaigns: ['adma']}, options));
   assert.notEqual(value, buildFingerprint(settings, {...options, maxSize: 4096}));
@@ -177,6 +182,21 @@ test('build fingerprints tolerate Windows line endings and machine paths, but no
   assert.notEqual(withHome,buildFingerprint({...settings,home_source:home},options));
   await fs.writeFile(navigation,'- Updated navigation\n');
   assert.notEqual(value,buildFingerprint(settings,options));
+});
+
+test('default Node fingerprint ignores vault Dataview files while explicit and Obsidian selections track them',async t=>{
+  const directory=await fs.mkdtemp(path.join(os.tmpdir(),'taelgar-dataview-fingerprint-'));
+  t.after(async()=>{assert.equal(path.dirname(path.resolve(directory)),path.resolve(os.tmpdir()));assert.ok(path.basename(directory).startsWith('taelgar-dataview-fingerprint-'));await fs.rm(directory,{recursive:true,force:true});});
+  const bundle=path.join(directory,'.obsidian/plugins/dataview');await fs.mkdir(bundle,{recursive:true});
+  const settings={vault_dir:directory,default_date:'1750-01-01'},options=parseOptions([]);
+  const initial=buildFingerprint(settings,options);
+  await fs.writeFile(path.join(bundle,'main.js'),'installed code');await fs.writeFile(path.join(bundle,'data.json'),'{}');
+  assert.equal(buildFingerprint(settings,options),initial);
+  const explicit={...options,dataviewDirectory:bundle},obsidian={...options,materializer:'obsidian'};
+  const explicitBefore=buildFingerprint(settings,explicit),obsidianBefore=buildFingerprint(settings,obsidian);
+  await fs.writeFile(path.join(bundle,'data.json'),'{"tableIdColumnName":"Custom"}');
+  assert.equal(buildFingerprint(settings,options),initial);
+  assert.notEqual(buildFingerprint(settings,explicit),explicitBefore);assert.notEqual(buildFingerprint(settings,obsidian),obsidianBefore);
 });
 
 test('R2 storage distinguishes missing object, legacy pointer, invalid data, and authentication failure', async t => {

@@ -3,8 +3,11 @@
 A pure Node.js API that renders Taelgarverse pages from original vault Markdown
 for a requested in-world DR date. The API, YAML parser, filters, header adapter,
 Markdown renderer, tests, and benchmark all run in Node. Rendering needs no Python,
-MkDocs build, or running Obsidian application. The content publisher uses Obsidian
-to materialize vault queries before uploading content.
+MkDocs build, or running Obsidian application. The content publisher also runs
+without Obsidian: it copies a working vault, evaluates DQL in Node, and converts
+recognized legacy patterns before packaging content. An explicit
+`--materializer obsidian` option uses Taelgarverse's website DQL mode instead;
+Node remains the default and no automatic fallback occurs.
 
 The live [Cloudflare site](https://taelgarverse.msackton.workers.dev/) runs the same
 application in a Worker with R2-backed content. Merges to this repository's `main`
@@ -20,23 +23,36 @@ and the Obsidian plugin have separate publication workflows.
 | Website code deployment | GitHub's **Test and deploy website**, after tests pass on `main` |
 | Obsidian release | GitHub's **Release Taelgarverse for Obsidian** workflow, or a tag named `obsidian/<version>` |
 | Update live vault content | `npm run publish -- --no-strict` |
+| Update live content with Obsidian DQL | `npm run publish -- --materializer obsidian --no-strict` |
+| Opt-in Taelgarverse Markdown export for the old static website | `npm run materialize:static -- --vault PATH --out OUTPUT` |
 
 Both previews use http://127.0.0.1:8765/. Full preview and content publication
-need running Obsidian with Dataview and the materializer. The plugin release
+use a pinned GitHub Dataview release, downloaded on first DQL use and verified
+in `.cache/dataview/0.5.68` for offline reuse. No vault Dataview installation is
+needed. `node scripts/cache-dataview.mjs` prepares this dependency in advance.
+Use `--materializer obsidian` with full preview or publication to select the
+open vault's Dataview engine explicitly. Both backends use the same website
+conversion stage. [Explicit bundle/settings overrides](docs/publishing-pipelines.md#acquiring-dataview-outside-the-vault)
+remain available through `--dataview-directory`.
+The old static-site exporter still uses Obsidian and CustomJS. The plugin release
 workflow needs its one-time GitHub credential setup; see the plugin guide below.
+The legacy site's wrapper keeps the original materializer by default; see
+[pipeline selection](docs/publishing-pipelines.md#old-static-website) for the
+explicit `TAELGAR_MATERIALIZER` switch.
 Website deployment also needs [one-time GitHub/Cloudflare setup](docs/deploy.md#one-time-github-website-deployment-setup),
 including removal of the independent Cloudflare Git deployment trigger.
 The core documentation is:
 
 - [Deploy](docs/deploy.md): publish vault content, configure authorization, and recover from failures.
 - [Architecture](docs/architecture.md): components, release boundaries, and documentation maintenance rules.
+- [Publishing pipelines](docs/publishing-pipelines.md): static export, Node website preparation, and compatibility conversion.
 - [Vault usage](docs/vault.md): input files, metadata, contexts, and rendering behavior.
 - [Cloudflare](docs/cloudflare.md): hosted resources, bindings, and snapshot storage.
 - [Taelgarverse for Obsidian](obsidian/taelgarverse/README.md): headers, campaign interactions, Maps, optional Images, local development, and BRAT releases.
 
 ## Run locally
 
-For the cross-platform Obsidian export, web image optimization, and R2 publication
+For Node query preparation, web image optimization, and R2 publication
 pipeline, use `npm run publish -- --no-strict`. Unchanged Taelgar commits
 skip the build. See [content publishing](docs/deploy.md) for prerequisites,
 the R2 commit checkpoint, image settings, and offline testing.
@@ -84,13 +100,11 @@ for navigation, dates, alternative files, and Cloudflare settings.
 
 Runtime scripts are trusted server code; Markdown body queries are not executed.
 
-For prepared Markdown, run the vault materializer with `--dynamic-website`, set
-`source_dir` to its output directory (for example, `../taelgar-dynamic`), and keep
-`vault_dir` pointing at `../taelgar`. That mode materializes Dataview queries,
-removes DataviewJS blocks and sections left empty by them, and replaces generated
-note headers with `<!-- taelgar:header -->`. A leading marker is replaced with a
-header for the requested date and campaign. The original-vault configuration
-above continues to work.
+Use `npm run dev -- --full` for a prepared local snapshot. Its separate Node
+stages materialize DQL, convert known saved headers and DataviewJS patterns into
+native blocks, then process images/search. Original vault content stays intact.
+Internal tools can still select an existing prepared directory with `source_dir`
+while keeping `vault_dir` pointed at the original metadata/session inputs.
 
 CSS and icons are bundled in public/. They do not require Python or a sibling
 utilities repository at runtime. Sources/licenses are in public/vendor/NOTICE.md.
