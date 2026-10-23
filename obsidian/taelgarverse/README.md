@@ -16,7 +16,7 @@ and a location note share a name.
 In Live Preview, the bio has no code-block edit button or hover frame/background;
 its information callout keeps the normal callout styling. The fence remains
 editable in Source mode.
-Headers without index buttons leave one line of space after the callout;
+Headers without index buttons use the note's normal spacing after the callout;
 headers with buttons use the button row's spacing.
 
 Dates follow an existing CustomJS override when set, then the note's

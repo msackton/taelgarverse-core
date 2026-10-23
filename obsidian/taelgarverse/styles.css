@@ -21,10 +21,9 @@
 .taelgar-bio--pronunciation h1 + p,
 .taelgar-bio--pronunciation .el-h1 + .el-p > p { margin-block-start:0; }
 
-/* Normalize the callout margin; button rows keep their own spacing. */
+/* Normalize the callout margin; the note flow and button rows supply spacing. */
 .taelgar-generated-bio > :last-child,
 .taelgar-generated-bio > :last-child > :is(.callout,blockquote) { margin-block-end:0; }
-.taelgar-generated-bio:not(:has(> .taelgar-index-buttons .taelgar-index-popup)) { padding-block-end:1lh; }
 
 /* Keep the generated bio's own callout, without Live Preview's code-block frame. */
 .markdown-source-view.mod-cm6 .cm-embed-block.cm-lang-taelgar-header,
