@@ -13,7 +13,7 @@ export async function materializeWebsiteDataview(store,{directory,dataviewDirect
       if(block.language!=='dataview')continue;
       if(!block.closed){issues.push({file:entry.id,line:block.startLine,kind:'error',message:'Unclosed Dataview fence.'});continue;}
       if(/\bfile\.lists\b/i.test(block.body) && /\bthis\.file\.name\b/i.test(block.body)) {
-        issues.push({file:entry.id,line:block.startLine,kind:'unsupported',message:'Current-page timeline scan remains unsupported.'});continue;
+        issues.push({file:entry.id,line:block.startLine,kind:'unsupported',message:'Current-page timeline scan remains unsupported in the Node backend.'});continue;
       }
       queries.push({entry,block});
     }

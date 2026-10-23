@@ -134,9 +134,13 @@ Both choices run these stages:
 
 1. **Copy.** Create a request-owned working vault in core's `.cache/publish`.
    Copy ordinary source files and retain original Markdown creation/modification
-   timestamps for Dataview. Dot directories and symlinks are excluded.
-2. **Dataview.** Build an index from all copied Markdown, including underscore
-   and Worldbuilding directories when using Node, or use the live Obsidian
+   timestamps for Dataview. Skip dot directories, symlinks, folders beginning
+   with `_`, and any folder containing `.nopublish`, including all descendants.
+   Prune excluded folders before creating their destination or visiting children.
+   A marker at the vault root produces an empty working copy. Explicit homepage,
+   menu and session inputs still come from the original vault.
+2. **Dataview.** Build an index from the remaining copied Markdown when using
+   Node, or use the live Obsidian
    Dataview index. Evaluate plain DQL selected from website notes, skipping
    `excludePublish: all`. Do not execute DataviewJS. Strict
    errors apply no partial replacements; `--no-strict` reports failures and
@@ -148,6 +152,11 @@ Both choices run these stages:
    compile backlinks/search/runtime data, and package the revision as before.
 5. **Publication.** Only a normal, explicitly authorized publish run uploads and
    activates content. Build-only performs no R2/D1 reads or writes.
+
+Node query inputs therefore exclude underscore and marked folders. Obsidian's
+live index can still include them, so queries that depend on those notes can
+differ between backends. The standalone comparison harness deliberately retains
+its full-vault diagnostic index; it does not set publication copy policy.
 
 The default Node backend runs without a running Obsidian process. DQL uses the
 reviewed Dataview 0.5.68 bundle, pinned by version and SHA-256. Its plugin lifecycle,
@@ -239,10 +248,16 @@ flattens native headers/indexes/interactions and maps for GitHub Pages. Website
 mode returns only DQL results: native blocks, saved headers and DataviewJS remain
 intact until Node's separate compatibility conversion. Consequently both website
 backends retain dynamic native headers/indexes and the same reported unmatched-JS
-and timeline limitations. Selecting Obsidian does not enable arbitrary DataviewJS
-execution on taelgar.org.
+omission policy. Node retains its current-page chronology-scan limitation;
+the Obsidian backend passes every selected closed DQL block to the installed
+Dataview engine, including `file.lists` and `this.file.name` chronology queries.
+Dataview errors and per-query timeouts use the normal strict/`--no-strict`
+handling. Selecting Obsidian does not enable arbitrary DataviewJS execution on
+taelgar.org.
 
-The local full-vault comparison produced 2,907 notes per backend, with 2,901
+Before copy-time folder exclusions and removal of the Obsidian chronology
+pre-filter, the local full-vault comparison produced
+2,907 notes per backend, with 2,901
 byte-identical. Five timeline/list pages differed (including Mirror Visions),
 and Conclave War's unsorted list differed only in row order. Timeline queries
 are outside the Node parity guarantee: some are explicitly skipped, while other
@@ -293,7 +308,8 @@ The static export path does not run these rewrites on existing DataviewJS.
 The initial live corpus converts 39 of 155 DataviewJS blocks. The remaining 116
 are listed before the existing omission policy removes them from new-site
 publication. No arbitrary JavaScript fallback is introduced. Timeline redesign
-is separate; existing unsupported global chronology scans remain reported.
+is separate; Node's unsupported current-page chronology scans remain reported,
+while Obsidian evaluates those DQL blocks normally.
 
 Use the [Dataview comparison harness](../experiments/dataview/README.md) to extend
 the Node adapter against actual plugin results. Add conversion rules only with

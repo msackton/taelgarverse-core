@@ -100,12 +100,27 @@ test('strict errors stop preparation and partial mode preserves failed queries w
   assert.match(f.store.entries[0].note.body,/- Valid result/);assert.match(f.store.entries[0].note.body,/```dataview\nINVALID/);
 });
 
-test('unsupported scans and unclosed fences keep their legacy strict/non-strict behavior',async t=>{
-  const original='```dataview\nLIST events.text FLATTEN file.lists AS events WHERE contains(events.text, this.file.name)\n```\n\n```dataview\nUnclosed.\n';
+test('Obsidian evaluates current-page chronology scans through Dataview without applying Node limitations',async t=>{
+  const query='LIST WITHOUT ID events.text\nFROM [[Arcus]] AND -"_sessions" AND -"Worldbuilding"\nFLATTEN file.lists AS events\n'+
+    'WHERE contains(events.text, this.file.name) AND contains(events.text, "DR")\nSORT events.DR\n';
+  const original='%%^Campaign:dufr%%\n## Chronology\n```dataview\n'+query+'```\n%%^End%%\n';
+  const file='People/Chardonians/Arcus.md',f=await fixture(t,{[file]:original});
+  const result=await materializeWebsite(f.store,{...f.options,materializer:'obsidian'},
+    {run:f.run,createRuntime:()=>assert.fail('Obsidian mode must not load Node Dataview')});
+  assert.deepEqual(f.calls,[{query,source:file}]);
+  assert.equal(result.backend,'obsidian');assert.equal(result.counts.queries,1);assert.equal(result.counts.materialized,1);
+  assert.equal(result.counts.unsupported,0);assert.equal(result.counts.errors,0);assert.deepEqual(result.issues,[]);
+  assert.equal(f.store.entries[0].note.source,original.replace('```dataview\n'+query+'```\n','- Materialized [[Target]]\n'));
+  assert.equal(await fs.readFile(path.join(f.vault,file),'utf8'),original);
+});
+
+test('unclosed fences keep their strict/non-strict behavior without reaching Obsidian',async t=>{
+  const original='```dataview\nUnclosed.\n';
   const f=await fixture(t,{'Note.md':original});
-  await assert.rejects(exportDataview(f.store,f.options,{run:()=>assert.fail('unsupported queries never reach Obsidian')}),/materialization failed/);
-  const result=await exportDataview(f.store,{...f.options,noStrict:true});
-  assert.equal(result.counts.errors,1);assert.equal(result.counts.unsupported,1);assert.equal(f.store.entries[0].note.source,original);
+  const run=()=>assert.fail('unclosed queries never reach Obsidian');
+  await assert.rejects(exportDataview(f.store,f.options,{run}),/materialization failed/);
+  const result=await exportDataview(f.store,{...f.options,noStrict:true},{run});
+  assert.equal(result.counts.errors,1);assert.equal(result.counts.unsupported,0);assert.equal(f.store.entries[0].note.source,original);
 });
 
 test('website Obsidian requests select only the new materializer endpoint and fail instead of falling back',async()=>{

@@ -40,6 +40,10 @@ shared defaults. `--plugin` can be combined with `--full`. Quick preview uses
 the original vault even if `source_dir` points to an earlier export.
 Full preview permits uncommitted notes and reports unsupported materialization
 queries; it never contacts production R2/D1. Its cached data stays in core.
+Local activation is followed by retention cleanup before the preview server
+starts. If cleanup fails, the command exits without starting the server even
+though the prepared revision is active in local storage. Rerun the same preview
+command after fixing the error; no production publication is needed.
 
 Content preparation copies the vault to a temporary working directory, evaluates
 supported DQL in Node, then runs a separate compatibility conversion. Known saved
@@ -49,6 +53,8 @@ omission policy and appear in a conversion report. Images, backlinks, search and
 runtime compilation follow those two stages. Original notes and media stay
 unchanged, and Obsidian can be closed. The original vault supplies header
 metadata and session inputs. See [publishing pipelines](publishing-pipelines.md).
+The copy skips underscore folders and folders containing `.nopublish`, including
+their entire subtrees, before reading or copying their contents.
 
 Both previews compile [person campaign interactions](campaign-interactions.md)
 from recap Cast `met` membership in the original vault's `_sessions` directory,
@@ -203,8 +209,8 @@ warnings: those queries may appear as unavailable content on the website. Leave
 out `--no-strict` if you want any query problem to stop publication.
 
 Node skips queries on pages marked `excludePublish: all` and in excluded folders.
-It indexes the full copied vault for query inputs, including underscore and
-Worldbuilding folders. It executes DQL only. Query errors appear in
+It indexes the copied Markdown for query inputs; underscore folders and folders
+marked `.nopublish` are absent from that copy and index. It executes DQL only. Query errors appear in
 `.cache/publish/materialization-report.json`; recognized conversions and
 unmatched JavaScript appear in `.cache/publish/conversion-report.json` after a
 successful run. Failed runs retain the working vault and diagnostics in the
@@ -212,6 +218,11 @@ printed temporary directory. A corrupt cache, failed first download, or invalid
 explicit bundle stops Node preparation when query evaluation is needed, even
 with `--no-strict`. The Obsidian backend evaluates the same selected DQL through the
 new Taelgarverse materializer, then uses the same Node compatibility conversion.
+Its live index may include excluded source folders, so queries depending on
+those notes can differ from Node results.
+The current-page chronology-scan restriction belongs only to Node. Obsidian
+passes selected closed DQL blocks, including chronology queries, to Dataview;
+query errors and timeouts still follow the strict/`--no-strict` policy.
 It preserves native blocks for dynamic website rendering. Neither backend runs
 arbitrary DataviewJS, and neither automatically falls back to the other.
 

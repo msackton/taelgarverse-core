@@ -45,10 +45,8 @@ export async function exportDataview(store,{directory,vaultPath,obsidianCommand,
     for(const block of scanFencedCodeBlocks(entry.note.body)) {
       if(block.language!=='dataview')continue;
       if(!block.closed){issue(entry,block,'Unclosed '+block.language+' fence.');continue;}
-      // Preserve the legacy materializer's unsupported-query boundary.
-      if(/\bfile\.lists\b/i.test(block.body) && /\bthis\.file\.name\b/i.test(block.body)) {
-        issue(entry,block,'Unsupported query: scans all file lists for the current page name.','unsupported');continue;
-      }
+      // The desktop Dataview engine owns query support. Node adapter limitations
+      // belong only to materialize-website-dataview.mjs.
       const id='q'+queries.length;
       queries.push({id,sourcePath:entry.id,query:block.body});blocks.set(id,{entry,block});
     }

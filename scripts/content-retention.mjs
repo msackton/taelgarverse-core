@@ -45,7 +45,16 @@ export async function createRetentionStorage(config,{local=false,persistTo=path.
   const bucket=bindings[0].bucket_name;
   if(local){
     const {Miniflare,convertV4MiniflareOptions}=await import('miniflare');
-    const options=convertV4MiniflareOptions({modules:true,script:'export default {fetch(){return new Response("Retention storage",{status:404})}}',
+    // Serialize inventory inside workerd. getR2Bucket().list() returns native
+    // R2Object proxies: reading thousands of key/size properties synchronously
+    // blocks Node's event loop and can reset the next emulator connection.
+    const script=`export default {async fetch(request,env){
+      const url=new URL(request.url);
+      if(request.method!=="GET" || url.pathname!=="/list")return new Response("Retention storage",{status:404});
+      const page=await env.CONTENT.list({prefix:url.searchParams.get("prefix") || "",cursor:url.searchParams.get("cursor") || undefined,limit:1000});
+      return Response.json({objects:page.objects.map(({key,size})=>({key,size})),truncated:page.truncated,cursor:page.truncated?page.cursor:undefined});
+    }}`;
+    const options=convertV4MiniflareOptions({modules:true,script,
       compatibilityDate:'2026-10-19',host:'127.0.0.1',port:0,cf:false,r2Buckets:{CONTENT:bucket},resourcePersistencePath:path.join(persistTo,'v3')});
     const mf=new Miniflare({...options,telemetry:{enabled:false}});
     try{
@@ -54,7 +63,16 @@ export async function createRetentionStorage(config,{local=false,persistTo=path.
         putFile:async(key,file)=>{await r2.put(key,await fs.readFile(file));},
         putPointer:async pointer=>{validatePointer(pointer);await r2.put(POINTER_KEY,JSON.stringify(pointer)+'\n',{httpMetadata:{contentType:'application/json'}});},
         putDerivativeManifest:async manifest=>{await r2.put(DERIVATIVE_MANIFEST_KEY,JSON.stringify({schemaVersion:1,records:manifestRecords(manifest)}),{httpMetadata:{contentType:'application/json'}});},
-        async list(prefix){const objects=[];let cursor;do{const page=await r2.list({prefix,cursor,limit:1000});objects.push(...page.objects);cursor=page.truncated?page.cursor:undefined;}while(cursor);return objects;},
+        async list(prefix){
+          const objects=[];let cursor;
+          do{
+            const query=new URLSearchParams({prefix,...(cursor?{cursor}:{})});
+            const response=await mf.dispatchFetch('http://retention.local/list?'+query);
+            if(!response.ok){await response.body?.cancel();throw new Error('Local R2 listing failed (HTTP '+response.status+')');}
+            const page=await response.json();objects.push(...page.objects);cursor=page.truncated?page.cursor:undefined;
+          }while(cursor);
+          return objects;
+        },
         delete:keys=>r2.delete(keys),close:()=>mf.dispose()};
     }catch(error){await mf.dispose();throw error;}
   }

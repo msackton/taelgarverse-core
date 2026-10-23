@@ -53,6 +53,11 @@ documents, and contained media are not packaged for publication. A child folder
 cannot override an excluded parent. Removing the marker opts the folder back in
 on the next preview refresh or content publication.
 
+The website working copy also skips underscore folders and `.nopublish` folders
+at every depth, including their media and descendants. They are not copied or
+indexed by Node Dataview. Explicit homepage, menu, and session inputs still read
+their configured files in the original vault.
+
 The publisher reads markers from the original vault even when preparing a
 materialized export that omits dotfiles. Marker additions and removals invalidate
 the unchanged-publication check. A marker does not remove files from an already
@@ -730,8 +735,14 @@ installation. `--dataview-directory` explicitly selects another verified bundle
 and its optional saved settings. See [dependency caching](publishing-pipelines.md#taelgarorg).
 Those query results are static until republication; changing the website's
 campaign or date does not rerun DQL. Queries on pages marked
-`excludePublish: all` are not evaluated, but the full non-hidden vault supplies
-the query index, including Worldbuilding and underscore folders.
+`excludePublish: all` are not evaluated. Node indexes the remaining working copy,
+excluding underscore folders and any subtree marked `.nopublish`. The optional
+Obsidian backend uses its live vault index, which can include those folders;
+queries depending on excluded notes can therefore differ between backends.
+Current-page chronology scans remain unsupported in Node. The Obsidian backend
+evaluates selected closed DQL blocks normally through Dataview, including those
+scans, and reports Dataview errors or per-query timeouts under the same
+strict/`--no-strict` policy as other queries.
 
 A separate Node conversion pass then normalizes known saved headers into
 `taelgar-header` and recognizes complete supported DataviewJS index patterns,

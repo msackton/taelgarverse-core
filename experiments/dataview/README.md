@@ -23,6 +23,10 @@ queries. Timeline detection currently recognizes the vault's `file.lists` querie
 using `events.text` or `events.DR`; inspect `request.json` for every exclusion.
 Malformed closed queries stay in the corpus so errors can be compared too.
 
+This full-vault index is a diagnostic choice. Website publication prunes
+underscore folders and `.nopublish` subtrees before copying and indexing;
+queries depending on those notes can differ from this harness and Obsidian.
+
 For a live baseline, enable Obsidian's command line interface, open the same vault,
 and wait for Dataview to finish indexing:
 

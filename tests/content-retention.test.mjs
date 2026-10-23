@@ -80,6 +80,16 @@ test('post-activation cleanup failure retries on an unchanged publish without re
   fail=false;assert.equal((await publishContent({fingerprint},deps)).skipped,true);assert.equal(builds,1);assert.equal(prunes,2);assert.equal(current.previous.revision,rev('b'));
   deps.upload=async()=>{throw new Error('upload failed');};await assert.rejects(publishContent({fingerprint,force:true},deps),/upload failed/);assert.equal(prunes,2);
 });
+
+test('local preview activation and cleanup errors identify local storage',async()=>{
+  const messages=[],state={repository:'github.com/test/vault',commit:'a'.repeat(40),dirty:false};
+  const deps={repositoryState:async()=>state,readCheckpoint:async()=>null,log:message=>messages.push(message),
+    build:async()=>({revision:rev('a')}),upload:async()=>{},writeCheckpoint:async()=>{},recordBuild:async()=>{},
+    prune:async()=>{throw new Error('connection reset');}};
+  await assert.rejects(publishContent({local:true,fingerprint:rev('f')},deps),/active in local preview storage.*Rerun the local preview/);
+  assert.ok(messages.includes('Local preview content is active. Finishing local cleanup…'));
+  assert.ok(!messages.some(message=>message.includes('New content is live')));
+});
 test('remote R2 retention lists every cursor page, rejects incomplete listings, and keeps credentials out of errors',async()=>{
   const config={r2_buckets:[{binding:'CONTENT',bucket_name:'test-content'}]},calls=[];
   let broken=false;

@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {ROOT, isInside} from '../src/config.mjs';
-import {createRetentionStorage} from '../scripts/content-retention.mjs';
+import {activationPointer,createRetentionStorage,prunePublication} from '../scripts/content-retention.mjs';
 import {createStorage, publishContent, CHECKPOINT_KEY} from '../scripts/publish-content.mjs';
 import {DerivativeCache,DERIVATIVE_MANIFEST_KEY} from '../scripts/derivative-cache.mjs';
 
@@ -64,4 +64,42 @@ test('real local R2 upload activates a readable commit checkpoint and skips the 
   assert.equal(CHECKPOINT_KEY, 'published/current.json');
   deps.build = async () => { throw new Error('unchanged source must skip'); };
   assert.equal((await publishContent({fingerprint}, deps)).skipped, true);
+});
+
+test('large local R2 inventories are plain paginated data and retention leaves active and rollback content readable',async t=>{
+  const cache=path.join(ROOT,'.cache');await fs.mkdir(cache,{recursive:true});
+  const directory=await fs.mkdtemp(path.join(cache,'publisher-r2-test-'));let storage;
+  t.after(async()=>{
+    await storage?.close();
+    const resolved=await fs.realpath(directory);assert.ok(isInside(await fs.realpath(cache),resolved));
+    assert.ok(path.basename(resolved).startsWith('publisher-r2-test-'));await fs.rm(resolved,{recursive:true});
+  });
+  storage=await createRetentionStorage({r2_buckets:[{binding:'CONTENT',bucket_name:'publisher-local-test'}]},
+    {local:true,persistTo:path.join(directory,'state')});
+  const file=path.join(directory,'object.json');await fs.writeFile(file,'{}');
+  const asset=number=>'assets/'+number.toString(16).padStart(64,'0');
+  for(let offset=0;offset<1205;offset+=16)await Promise.all(Array.from({length:Math.min(16,1205-offset)},(_,i)=>storage.putFile(asset(offset+i),file)));
+  const previous='a'.repeat(64),active='b'.repeat(64),pointer=activationPointer({revision:previous},{revision:active});
+  for(const [revision,number] of [[previous,0],[active,1]]){
+    await fs.writeFile(file,JSON.stringify({schemaVersion:1,revision,entries:[{objectKey:asset(number)}]}));
+    await storage.putFile(`revisions/${revision}/index.json`,file);
+  }
+  await storage.putPointer(pointer);
+  const objects=await storage.list('assets/');
+  assert.equal(objects.length,1205);assert.equal(new Set(objects.map(o=>o.key)).size,1205);
+  // Native R2Object proxies make each property access a synchronous RPC. Plain
+  // descriptors guard against reintroducing the event-loop stall/ECONNRESET.
+  for(const object of objects){
+    assert.equal(Object.getPrototypeOf(object),Object.prototype);
+    assert.equal(Object.getOwnPropertyDescriptor(object,'key').value,object.key);
+    assert.equal(Object.getOwnPropertyDescriptor(object,'size').value,2);
+  }
+  assert.deepEqual(await storage.getJSON(CHECKPOINT_KEY),pointer);
+  const index={prune:async revisions=>assert.deepEqual(revisions,[active,previous])};
+  const result=await prunePublication(storage,index,pointer);
+  assert.equal(result.deletedObjects,1203);assert.equal(result.deletedBytes,2406);
+  assert.deepEqual((await storage.list('assets/')).map(o=>o.key),[asset(0),asset(1)]);
+  assert.deepEqual(await storage.getJSON(CHECKPOINT_KEY),pointer);
+  for(const revision of [active,previous])assert.equal((await storage.getJSON(`revisions/${revision}/index.json`)).revision,revision);
+  assert.equal((await prunePublication(storage,index,pointer)).deletedObjects,0);
 });

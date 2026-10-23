@@ -51,7 +51,7 @@ test('Node stages run DQL on a copied raw vault before conversion and never rewr
   const vault=path.join(dir,'original'),working=path.join(dir,'working');await fs.mkdir(vault);
   const source='---\nheaderVersion: 1\ntags: [group]\n---\n# Saved header\n>[!info] Old\n\n'+
     '```dataview\nLIST FROM #person\n```\n\n```dataviewjs\n'+members+'\n```\n';
-  await fs.writeFile(path.join(vault,'Guild.md'),source);await fs.mkdir(path.join(vault,'_private'));await fs.writeFile(path.join(vault,'_private','Indexed.md'),'# Included in DQL indexing');
+  await fs.writeFile(path.join(vault,'Guild.md'),source);await fs.mkdir(path.join(vault,'_private'));await fs.writeFile(path.join(vault,'_private','Indexed.md'),'# Private source note');
   const copy=await copyWorkingVault(vault,working);
   assert.equal(await fs.readFile(path.join(working,'Guild.md'),'utf8'),source);
   assert.equal(copy.stats.get('Guild.md').ctime,(await fs.stat(path.join(vault,'Guild.md'))).birthtimeMs);
@@ -59,7 +59,8 @@ test('Node stages run DQL on a copied raw vault before conversion and never rewr
   const report=await materializeWebsiteDataview(store,{directory:dir,vaultPath:vault,stats:copy.stats},{createRuntime:async(directory,options)=>{
     assert.equal(options.dataviewDirectory,undefined,'default must not point to a vault installation');
     assert.equal(directory,working);assert.match(store.entries[0].note.body,/Saved header/);assert.match(store.entries[0].note.body,/dataviewjs/);
-    assert.match(await fs.readFile(path.join(directory,'_private/Indexed.md'),'utf8'),/Included/);
+    await assert.rejects(fs.access(path.join(directory,'_private')),{code:'ENOENT'});
+    assert.equal(options.stats.has('_private/Indexed.md'),false);
     return {api:{tryQueryMarkdown:async()=>'- [[Result]]'},errors:[],identity:{version:'fixture'},index:{pages:new Map()},links:{ambiguities:new Map()}};
   }});
   assert.equal(report.backend,'node');assert.equal(report.counts.materialized,1);
@@ -71,6 +72,44 @@ test('Node stages run DQL on a copied raw vault before conversion and never rewr
   await assert.rejects(saveWorkingNotes(new Store({...settings,source_dir:vault})),/separate working vault/);
 });
 
+test('working vault copy prunes underscore and marked folders at every depth, including all their media',async t=>{
+  await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
+  const dir=await fs.mkdtemp(path.join(ROOT,'.cache','website-copy-exclusions-'));
+  t.after(async()=>{assert.ok(isInside(path.join(ROOT,'.cache'),dir));await fs.rm(dir,{recursive:true});});
+  const vault=path.join(dir,'original'),working=path.join(dir,'working');await fs.mkdir(vault);
+  const sources={
+    'Public.md':'# Public',
+    '_private/Secret.md':'Private root folder',
+    'Nested/_private/Deep/Secret.md':'Private nested folder',
+    'Hidden/.nopublish':'',
+    'Hidden/Secret.md':'Marked folder',
+    'Hidden/Deep/media.png':'Private media',
+    'Nested/Hidden/.nopublish':'Exclude this subtree',
+    'Nested/Hidden/Secret.md':'Nested marked folder',
+    'Nested/Hidden/Deep/Child.md':'Marked ancestor',
+    'Nested/Hidden-extra/Public.md':'Similarly named sibling',
+    'Nested/_keep.md':'Underscore files remain ordinary files',
+    'assets/_internal/private.png':'Private asset folder',
+    'assets/Hidden/.nopublish':'',
+    'assets/Hidden/private.png':'Marked asset folder',
+    'assets/public.png':'Public media',
+    '.hidden/Secret.md':'Dot folder',
+  };
+  for(const [relative,source] of Object.entries(sources)){
+    const file=path.join(vault,relative);await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file,source);
+  }
+  const copied=await copyWorkingVault(vault,working);
+  assert.deepEqual([...copied.stats.keys()].sort(),['Nested/Hidden-extra/Public.md','Nested/_keep.md','Public.md']);
+  for(const relative of ['_private','Nested/_private','Hidden','Nested/Hidden','assets/_internal','assets/Hidden','.hidden'])
+    await assert.rejects(fs.access(path.join(working,relative)),{code:'ENOENT'});
+  for(const relative of ['Public.md','Nested/Hidden-extra/Public.md','Nested/_keep.md','assets/public.png'])
+    assert.equal(await fs.readFile(path.join(working,relative),'utf8'),sources[relative]);
+  for(const [relative,source] of Object.entries(sources))assert.equal(await fs.readFile(path.join(vault,relative),'utf8'),source);
+  await fs.writeFile(path.join(vault,'.nopublish'),'Root exclusion');
+  const excluded=await copyWorkingVault(vault,path.join(dir,'excluded'));
+  assert.deepEqual(await fs.readdir(excluded.directory),[]);assert.equal(excluded.stats.size,0);
+});
+
 test('strict Node query failures apply no partial replacements',async t=>{
   const dir=await fs.mkdtemp(path.join(ROOT,'.cache','node-dql-strict-'));
   t.after(async()=>{assert.ok(isInside(path.join(ROOT,'.cache'),dir));await fs.rm(dir,{recursive:true,force:true});});
@@ -79,6 +118,19 @@ test('strict Node query failures apply no partial replacements',async t=>{
     api:{tryQueryMarkdown:async query=>{if(query.includes('BROKEN'))throw new Error('syntax');return '- valid';}},errors:[],identity:{version:'fixture'},index:{pages:new Map()},links:{ambiguities:new Map()}
   })}),/Node Dataview materialization failed/);
   assert.equal(store.entries[0].note,note);
+});
+
+test('Node retains its current-page chronology restriction independently of Obsidian',async t=>{
+  const directory=await fs.mkdtemp(path.join(ROOT,'.cache','node-dql-chronology-'));
+  t.after(async()=>{assert.ok(isInside(path.join(ROOT,'.cache'),directory));await fs.rm(directory,{recursive:true});});
+  const source='## Chronology\n```dataview\nLIST WITHOUT ID events.text\nFROM [[Arcus]]\nFLATTEN file.lists AS events\n'+
+    'WHERE contains(events.text, this.file.name) AND contains(events.text, "DR")\nSORT events.DR\n```\n';
+  const note=parseNote(source),store={settings:{source_dir:directory},entries:[{id:'People/Chardonians/Arcus.md',note}]};
+  const dependencies={createRuntime:()=>assert.fail('unsupported Node scans must not load the engine'),run:()=>assert.fail('no automatic Obsidian fallback')};
+  await assert.rejects(materializeWebsite(store,{directory},dependencies),/Node Dataview materialization failed/);
+  const result=await materializeWebsite(store,{directory,noStrict:true},dependencies);
+  assert.equal(result.backend,'node');assert.equal(result.counts.unsupported,1);assert.equal(result.counts.materialized,0);
+  assert.match(result.issues[0].message,/Node backend/);assert.equal(store.entries[0].note.source,source);
 });
 
 test('website materializer defaults to Node and never switches engines after a failure',async t=>{

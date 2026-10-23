@@ -147,7 +147,7 @@ export async function publishContent(options, deps) {
       await withPublicationProgress('Verifying the published search index',()=>deps.verifySearch(previous),deps.log);
     }
     await deps.prune?.(previous);
-    deps.log(`Taelgar ${before.commit.slice(0, 12)} is already in R2; skipping export, images, and upload.`);
+    deps.log(`Taelgar ${before.commit.slice(0, 12)} is already in ${options.local?'local R2':'R2'}; skipping export, images, and upload.`);
     return {skipped: true, ...previous};
   }
   deps.log(`Building Taelgar ${before.commit.slice(0, 12)}${before.dirty ? ' (uncommitted changes)' : ''}.`);
@@ -185,11 +185,13 @@ export async function publishContent(options, deps) {
       result=activationPointer(deps.readPointer?await deps.readPointer():previous,result);
       await deps.writeCheckpoint(result);
     },deps.log);
-    deps.log('New content is live. Finishing publication cleanup…');
+    deps.log(options.local?'Local preview content is active. Finishing local cleanup…':'New content is live. Finishing publication cleanup…');
     if(deps.prune){
-      try{await deps.prune(result);}catch(error){throw new Error('Content is published, but retention cleanup failed. Rerun to retry cleanup: '+error.message);}
+      try{await deps.prune(result);}catch(error){throw new Error((options.local?
+        'Content is active in local preview storage, but retention cleanup failed. Rerun the local preview to retry cleanup: ':
+        'Content is published, but retention cleanup failed. Rerun to retry cleanup: ')+error.message);}
     }
-    if (before.dirty) deps.log('Published uncommitted content, marked dirty in R2; the next run will rebuild.');
+    if (before.dirty) deps.log(options.local?'Prepared uncommitted content in local storage; the next run will rebuild.':'Published uncommitted content, marked dirty in R2; the next run will rebuild.');
   }
   await deps.recordBuild(result, build);
   return result;
@@ -345,8 +347,9 @@ export async function main(options) {
     if(result.assetsOnly)console.log('Assets staged. Published notes and search are unchanged; run the normal publish command to activate them.');
     else if (!result.skipped) console.log(options.buildOnly ?
       'Prepared content and search locally; no R2/D1 reads or writes. Run node scripts/cloudflare.mjs check to verify the Worker package.' :
+      options.local?`Local preview content prepared (${result.revision.slice(0, 12)}). The local Worker will read this revision.`:
       `Content published (${result.revision.slice(0, 12)}). The Worker will read the new revision from R2.`);
-    console.log(`Publish complete (${((performance.now()-started)/1000).toFixed(1)}s).`);
+    console.log(`${options.local?'Local preparation':'Publish'} complete (${((performance.now()-started)/1000).toFixed(1)}s).`);
     return result;
   } catch (error) {
     if (working) console.error('Export files retained for inspection: ' + working);
