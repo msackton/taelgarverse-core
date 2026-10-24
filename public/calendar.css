@@ -1,0 +1,21 @@
+.taelgar-calendar{--tc-muted:var(--text-muted,#626b72);--tc-border:var(--background-modifier-border,#d5dadd);padding:24px;max-width:1200px;margin:auto;color:var(--text-normal,#282c30)}
+.taelgar-calendar *{box-sizing:border-box}.taelgar-calendar h2{margin:0 0 5px;font-size:1.5em}
+.taelgar-calendar .tc-header{display:flex;align-items:start;justify-content:space-between;gap:16px;margin-bottom:18px}.taelgar-calendar .tc-current{margin:0;color:var(--tc-muted);font-size:.9em}
+.taelgar-calendar .tc-navigation{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px}.taelgar-calendar .tc-year{width:6em}.taelgar-calendar .tc-navigation select{min-width:8em}
+.taelgar-calendar .tc-campaigns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.taelgar-calendar button.tc-campaign{display:flex;align-items:center;gap:9px;height:auto;padding:6px 10px;text-align:left;background:transparent;box-shadow:none;border:1px solid var(--tc-border);color:inherit}
+.taelgar-calendar button.tc-campaign.is-active{border-color:var(--interactive-accent,#5e8a7c)}.taelgar-calendar button.tc-campaign:disabled{opacity:.55}
+.taelgar-calendar .tc-campaign-name,.taelgar-calendar .tc-campaign-date{display:block;line-height:1.5}.taelgar-calendar .tc-campaign-name{font-size:.85em}.taelgar-calendar .tc-campaign-date{font-size:.75em;color:var(--tc-muted)}
+.taelgar-calendar .tc-campaign-dot{display:inline-block;width:11px;height:11px;border-radius:50%;background:var(--tc-dot);flex-shrink:0;box-shadow:0 0 0 1px #8884}
+.taelgar-calendar .tc-status{font-size:.9em;color:var(--tc-muted)}.taelgar-calendar .tc-status[hidden]{display:none}
+.taelgar-calendar table.tc-grid{border-collapse:collapse;table-layout:fixed;width:100%;margin:0;border:1px solid var(--tc-border)}
+.taelgar-calendar .tc-grid th{padding:8px;font-size:.8em;font-weight:500;text-align:center;background:var(--background-secondary,#f4f5f5)}
+.taelgar-calendar .tc-grid td{border:1px solid var(--tc-border);height:84px;vertical-align:top;padding:8px}
+.taelgar-calendar .tc-grid td.tc-outside{background:var(--background-secondary,#f4f5f5)}
+.taelgar-calendar .tc-day-head{display:flex;align-items:center;justify-content:space-between;gap:3px}.taelgar-calendar .tc-day-number{font-size:.85em}
+.taelgar-calendar .tc-date-dots{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:14px;margin-top:12px}
+.taelgar-calendar .tc-grid td.is-active-date{box-shadow:inset 0 0 0 2px var(--interactive-accent,#5e8a7c)}
+.taelgar-calendar .tc-moon-icon{display:inline-flex;width:24px;height:24px;flex-shrink:0;border-radius:50%}.taelgar-calendar .tc-moon-icon svg{width:100%;height:100%}.taelgar-calendar .tc-moon-icon.has-crossing{outline:1px solid var(--tc-muted)}
+.taelgar-calendar .tc-moon-shadow{fill:#303747}.taelgar-calendar .tc-moon-light{fill:#e9dfb4}.taelgar-calendar .tc-moon-outline{fill:none;stroke:#8c969f;stroke-width:.65}
+.taelgar-calendar .tc-lunar-note{font-size:.8em;color:var(--tc-muted);line-height:1.5;margin:12px 0 0}
+@media(max-width:650px){.taelgar-calendar{padding:12px}.taelgar-calendar .tc-grid td{height:66px;padding:4px}.taelgar-calendar .tc-moon-icon{width:18px;height:18px}.taelgar-calendar .tc-date-dots{gap:4px}.taelgar-calendar .tc-campaign-dot{width:9px;height:9px}}

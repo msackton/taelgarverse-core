@@ -5,12 +5,14 @@ import {HeadersFeature} from './features/headers.mjs';
 import {InteractionsFeature} from './features/interactions.mjs';
 import {ExporterFeature} from './features/exporter.mjs';
 import {MaterializerFeature} from './features/materializer.mjs';
+import {CalendarFeature} from './features/calendar.mjs';
 import {DATAVIEW_EXPORT_VERSION} from '../../src/dataview-export.mjs';
 
 class TaelgarverseSettings extends PluginSettingTab {
   constructor(plugin){super(plugin.app,plugin);this.plugin=plugin;}
   display(){
     this.containerEl.empty();
+    this.plugin.calendar?.renderSettings(this.containerEl,()=>this.display());
     new Setting(this.containerEl).setName('Show header index popups')
       .setDesc('Show Members, Residents, and other index buttons below generated headers in Obsidian. Applies immediately; inline indexes and website popups are unchanged.')
       .addToggle(toggle=>toggle.setValue(this.plugin.settings.headerIndexPopups).onChange(async value=>{
@@ -46,7 +48,7 @@ export default class Taelgarverse extends Plugin {
   exportDataview(request){return this.materializer.exportDataview(request);}
 
   async onload(){
-    this.settings={legacyLeafletBlocks:false,imageViewer:false,automaticInteractions:true,headerIndexPopups:true,...await this.loadData()};
+    this.settings={legacyLeafletBlocks:false,imageViewer:false,automaticInteractions:true,headerIndexPopups:true,calendarEnabled:false,calendarCampaign:'modern',...await this.loadData()};
     this.addSettingTab(new TaelgarverseSettings(this));
     // Features own their state and cleanup through Obsidian's Component lifecycle.
     this.addChild(new MapsFeature(this));
@@ -55,5 +57,6 @@ export default class Taelgarverse extends Plugin {
     this.interactions=this.addChild(new InteractionsFeature(this));
     this.exporter=this.addChild(new ExporterFeature(this));
     this.materializer=this.addChild(new MaterializerFeature(this));
+    this.calendar=this.addChild(new CalendarFeature(this));
   }
 }

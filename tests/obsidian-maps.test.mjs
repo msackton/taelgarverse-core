@@ -43,6 +43,8 @@ function host(){
     async loadData(){return this.savedData || {};}
     async saveData(data){this.savedData=data;}
     addSettingTab(){}
+    registerView(){}
+    addRibbonIcon(){}
     addCommand(){}
     registerEditorExtension(){}
     registerMarkdownPostProcessor(){}
@@ -56,7 +58,7 @@ function host(){
   const cm=codeMirrorHost();
   const module={exports:{}},context={module,exports:module.exports,Buffer,TextDecoder,TextEncoder,console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},
     ResizeObserver:class{observe(){}disconnect(){disconnected++;}},
-    require:name=>name==='obsidian'?{Plugin,Component,PluginSettingTab:class{},Setting:class{},Notice:class{},MarkdownRenderChild,TFile}:name==='leaflet'?L:
+    require:name=>name==='obsidian'?{Plugin,Component,ItemView:class{},PluginSettingTab:class{},Setting:class{},Notice:class{},MarkdownRenderChild,TFile}:name==='leaflet'?L:
       name==='@codemirror/view'?cm.view:name==='@codemirror/state'?cm.state:require(name)};
   vm.runInNewContext(compiled.outputFiles[0].text,context);
   const file=new TFile('assets/local map.png');let reads=0,fail=false,resolve;
@@ -85,6 +87,7 @@ test('Taelgarverse keeps Images opt-in within the existing plugin and preserves 
     const h=host(),plugin=new h.default();plugin.app=h.app;plugin.savedData={legacyLeafletBlocks:true,...(enabled===undefined?{}:{imageViewer:enabled})};
     await plugin.onload();assert.equal(plugin.settings.imageViewer,enabled===true);
     assert.equal(plugin.images.enabled,enabled===true);assert.equal(plugin.settings.legacyLeafletBlocks,true);
+    assert.equal(plugin.settings.calendarEnabled,false);assert.equal(plugin.calendar.enabled,false);
     assert.deepEqual([...plugin.processors.keys()],['taelgar-map','leaflet','taelgar-index','taelgar-header','taelgar-interactions']);plugin.unload();
   }
 });

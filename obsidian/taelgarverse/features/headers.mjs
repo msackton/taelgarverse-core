@@ -14,6 +14,7 @@ import {scanFencedCodeBlocks} from '../../../src/markdown-fences.mjs';
 export function bioDate(metadata, globals, fallback) {
   if (globals.customJS?.state?.overrideDate) return globals.customJS.state.overrideDate;
   if (metadata.pageTargetDate) return metadata.pageTargetDate;
+  if (globals.TaelgarverseCalendar) return globals.TaelgarverseCalendar.getCurrentDate();
   const fantasy = globals.FantasyCalendarAPI?.getCalendars()?.[0]?.current;
   if (fantasy) return fantasy;
   try { return globals.Calendarium?.getAPI('Taelgar')?.getCurrentDate() ?? fallback; }
@@ -134,8 +135,10 @@ class BioChild extends MarkdownRenderChild {
       const file=this.feature.app.vault.getAbstractFileByPath(this.context.sourcePath);
       if(!file)return;
       const metadata=this.feature.app.metadataCache.getFileCache(file)?.frontmatter || {};
-      const date=JSON.stringify(bioDate(metadata,globalThis,this.feature.snapshot?.fallback));
-      if(date!==this.date)this.render();
+      try {
+        const date=JSON.stringify(bioDate(metadata,globalThis,this.feature.snapshot?.fallback));
+        if(date!==this.date)this.render();
+      } catch {this.render();}
     },2000);
     return this.render();
   }

@@ -392,6 +392,73 @@ change. Index fences survive export and publication as definitions; results are
 not frozen by the materializer. Deploy website support before publishing notes
 that use them. Generated rows do not become authored search text or backlinks.
 
+## Campaign calendar prototype
+
+In the local Taelgarverse 0.7.0 development build, turn on **Settings → Taelgarverse →
+Enable campaign calendar**, choose **Active campaign**, then click the calendar icon in the left ribbon or run
+**Taelgarverse: Open campaign calendar**. This minimal
+view shows a colored dot on each campaign's current date and a moon icon on every
+day. The campaign legend jumps to that campaign's month. Browsing never changes
+the active campaign or a campaign's date. There are no event, holiday, or agenda
+layers in this build.
+
+The whole calendar is opt-in and disabled by default. Disabling it immediately
+closes its views, removes the ribbon icon, hides its command, stops its metadata
+listeners, and releases `TaelgarverseCalendar`. Query consumers return to their
+previous date fallback. Campaign and custom-date settings are retained; their
+controls appear only while the calendar is enabled.
+
+Dates come from the website's `Contexts` implementation: rank session notes by
+play date, session number, DR date, and source path; use the latest session's full
+`DR_end` or `DR`. Publication exclusions apply to this date choice. Templates,
+private/generated folders, Worldbuilding, and `.nopublish` folders are excluded
+before selecting sessions, as in the website's source store. A latest session
+without a usable date makes its campaign unavailable; the calendar does not
+silently pick an older session. Unavailable campaigns stay in the legend without
+a dot. **Latest campaign date** uses the latest dated campaign, falling back to
+DR 1750-01-01 when none exists. Update session metadata to advance a named
+campaign's date; the calendar does not edit notes.
+
+Choose **Custom** in **Active campaign** to set a date manually. The **Custom
+date** field accepts a full **YYYY-MM-DD** DR date; click **Set date** to save it.
+It starts at the selected date on first use and remembers its value when switching
+campaigns or reloading the plugin. Invalid input, including February 29, leaves
+the saved date in effect and displays an error in settings. An active Custom date
+gets its own dot alongside the registered campaigns. It supplies the same date
+API used by CustomJS, headers, indexes, and interactions. Settings contain the date
+controls; the calendar opens from the ribbon or command palette.
+
+DR has 365-day years and no leap days. Weekdays use Sunday, 1715-05-02 from
+Addermarch Session 03, corroborated by Saturday, 1749-04-18 in DuFr Session 95.
+Lunar phases use the confirmed **full moon on April 6, 1748 DR at 00:00**
+and an exact **29.5-day cycle**, shared across campaigns. Icons show illumination
+at noon; hover or inspect a moon's accessible label for its phase, illumination,
+and exact new/full/quarter crossings on that date. A ring marks a crossing day.
+
+Phase names round to eight conventional labels, so a full/new appearance can
+span nearby days. Exact crossing times are computed separately in three-hour
+ticks. A midnight crossing belongs to the new date. All times are world time;
+no Earth timezone, DST, or Gregorian leap day is used. For example, July's full
+moon is **1748-07-03 at 12:00**; September's is **1748-09-30 at 00:00**.
+
+The plugin exposes `globalThis.TaelgarverseCalendar.getCurrentDate()` (ISO date),
+`getContext()` (selected campaign, date and source), and `getCampaignDates()`
+(all campaign dates and availability). Native headers, `taelgar-index` blocks,
+and interactions use the selected date after an explicit CustomJS override and
+`pageTargetDate`. A **local, uncommitted** hook in the experimental vault's
+`_scripts/customJS/dataUtil.js` uses the same API before its legacy Fantasy
+Calendar/Calendarium fallback. Those older plugins are not needed when this API
+is available. Without the API, the previous fallback remains available.
+Settings show an existing temporary CustomJS override and offer **Clear test
+override**; selecting a campaign does not discard it.
+
+Campaign/date changes refresh native headers and indexes and trigger
+`taelgarverse:context-changed` plus Dataview's refresh event. This does not
+rewrite notes or saved headers. The calendar reads metadata only; it does not
+scan event bodies. Website calendar rendering and materializer integration
+remain future work. The shared date/lunar code and DOM renderer are separate
+from the Obsidian adapter.
+
 ## Campaigns and dates
 
 | Reader's choice | What it means |

@@ -124,6 +124,9 @@ test('bio dates honor the existing override, note date, calendars and fallback o
   try{
     assert.equal(h.bioDate({pageTargetDate:'1720-01-01'},{customJS:{state:{overrideDate:'1730-01-01'}}},'1750-01-01'),'1730-01-01');
     assert.equal(h.bioDate({pageTargetDate:'1720-01-01'},{},'1750-01-01'),'1720-01-01');
+    const campaign={getCurrentDate:()=>'1748-07-23'};
+    assert.equal(h.bioDate({},{TaelgarverseCalendar:campaign,FantasyCalendarAPI:{getCalendars:()=>[{current:calendar}]}},'1750-01-01'),'1748-07-23');
+    assert.equal(h.bioDate({pageTargetDate:'1720-01-01'},{TaelgarverseCalendar:campaign},'1750-01-01'),'1720-01-01');
     assert.equal(h.bioDate({},{FantasyCalendarAPI:{getCalendars:()=>[{current:calendar}]}},'1750-01-01'),calendar);
     assert.equal(h.bioDate({},{Calendarium:{getAPI:()=>({getCurrentDate:()=>calendar})}},'1750-01-01'),calendar);
     assert.equal(h.bioDate({},{Calendarium:{getAPI:()=>{throw Error('No calendar');}}},'1750-01-01'),'1750-01-01');

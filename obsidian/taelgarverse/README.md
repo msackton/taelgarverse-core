@@ -4,6 +4,44 @@ The unified desktop Taelgarverse plugin: generated note headers and indexes, loc
 calibrated distances, freehand tracing, enclosed areas, and an optional image viewer.
 Name Explorer and the materializer remain separate. Requires Obsidian 1.8.0+.
 
+## Campaign calendar prototype
+
+The local 0.7.0 development build adds a minimal calendar: each campaign has a
+colored dot on its current date, and every day shows the moon's illumination.
+Turn on **Settings → Taelgarverse → Enable campaign calendar**, then choose
+**Active campaign**. Open it with the calendar icon in the left ribbon or
+**Taelgarverse: Open campaign calendar**. Click a campaign in the legend to browse
+its month. Browsing changes only the view.
+
+The whole feature is disabled by default. Turning it off immediately closes its
+views, removes its ribbon icon, hides its command, stops metadata listeners, and
+releases its date API so the previous query-date fallback applies. Campaign and
+custom-date choices are retained. Date controls appear only while enabled.
+
+Current dates use the website's latest-session resolver. The selected campaign
+supplies native headers, `taelgar-index` blocks, interactions, and the local
+CustomJS date hook; Fantasy Calendar and Calendarium are not required. Explicit
+test overrides and `pageTargetDate` still take precedence. To advance a named
+campaign's date, update its session metadata. Missing dates appear as unavailable.
+
+To set a date manually, choose **Custom** as the active campaign, enter a DR date
+as **YYYY-MM-DD** in **Custom date**, and click **Set date**. Custom starts at the
+current date on first selection and remembers its date across campaign changes
+and plugin reloads. Invalid dates, including leap days, leave the saved date
+unchanged. While Custom is active, its dot appears alongside the campaign dots.
+Open the calendar from the ribbon or command palette; configure it in the regular
+plugin settings.
+
+The moon uses the confirmed full moon on **1748-04-06 at 00:00**, repeating every
+**29.5 days**, with no leap days. Icons sample noon. Hover a moon for illumination
+and exact new/full/quarter times; a ring marks a crossing day. See the
+[calendar reference](../../docs/vault.md#campaign-calendar-prototype) for selection
+rules, the uncommitted CustomJS hook, and the lunar convention.
+
+Website calendar rendering and materializer integration remain future work.
+
+## Generated headers
+
 Version 0.3.0 adds generated bio blocks. Replace a note's
 saved title and information callout with an empty `taelgar-header` code fence
 immediately after frontmatter. It renders the same header information as a
@@ -22,7 +60,8 @@ Headers without index buttons use the note's normal spacing after the callout;
 headers with buttons use the button row's spacing.
 
 Dates follow an existing CustomJS override when set, then the note's
-`pageTargetDate`, then Fantasy Calendar or the Taelgar Calendarium calendar.
+`pageTargetDate`, then the campaign selected in Taelgarverse settings. Without the
+campaign API, use Fantasy Calendar or the Taelgar Calendarium calendar.
 Without those, use the latest campaign session date, falling back to DR
 1750-01-01. Headers refresh after metadata changes and detect calendar/override
 date changes within two seconds. The vault's `.obsidian/metadata.json` (or its
