@@ -14,6 +14,7 @@ independent release paths.
 | [Architecture](architecture.md) | Component boundaries, code map, and maintenance rules for agents. |
 | [Vault usage](vault.md) | Which vault files and fields are consumed, rendering semantics, and limitations. |
 | [Cloudflare](cloudflare.md) | Current hosted topology, bindings, storage layout, and operational behavior. |
+| [Bot protection handoff](bot-protection.md) | Rollout status, pending zone controls, required access, verification, and rollback for crawler blocking. |
 | [Search publication](search.md) | Production D1 compiler, visibility rules, revision staging, readiness, and rollback contract. |
 | [Agent plugin releases](obsidian-releases.md) | Agent-driven change review, version policy, release notes, local/BRAT testing, and GitHub publication. Discovered through root `AGENTS.md`. |
 

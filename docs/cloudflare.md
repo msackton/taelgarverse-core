@@ -158,6 +158,9 @@ ruleset were rejected with HTTP 403 authentication errors by the chat's
 read-only Cloudflare token. No edge-setting change was applied. The source
 changes described here are not evidence of a production deployment.
 
+See the [bot protection handoff](bot-protection.md) for rollout status, pending
+edge settings, access requirements, and verification/rollback steps.
+
 1. The Worker reads the current publication pointer. For an article or homepage,
    it checks the response cache using the full URL and publication/build identity.
    A hit returns HTML or an ETag-based `304` without loading the snapshot.
