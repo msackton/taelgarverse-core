@@ -296,8 +296,11 @@ No source-note migration is required.
 
 Native `taelgar-header`, `taelgar-index`, and `taelgar-interactions` blocks
 produce static Markdown. Index grids use an ordinary table fallback. A
-`taelgar-map` fence becomes `leaflet` with its configuration retained. Existing
-DQL, supported DataviewJS, inline expressions, and legacy header generation keep
+`taelgar-map` fence becomes `leaflet` with its configuration retained.
+Saved and native headers follow `--header-type website` by default, preserving the
+GitHub Pages card layout and icons; `--header-type static` selects the plain
+Markdown information callout. Existing DQL, supported DataviewJS, inline
+expressions, and legacy header generation keep
 their existing behavior and strict/partial reporting. Export writes to a separate
 output directory; the source vault is never rewritten. A manual audit command is
 available in Obsidian without changing notes.

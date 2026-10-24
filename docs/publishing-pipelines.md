@@ -85,6 +85,10 @@ This creates local export files. It does not build or publish GitHub Pages,
 commit, push, or contact Cloudflare. Keep the existing downstream static-site
 build and its configuration. The CLI retains the older export flags and default
 `website` header format; `--header-type static` selects the plain static format.
+Both saved legacy headers and native `taelgar-header` blocks honor those formats:
+`website` emits the GitHub Pages card layout and icon markup, while `static`
+emits an ordinary Markdown information callout. Native headers use the shared
+core and are not regenerated a second time through CustomJS.
 Use a disposable output directory when testing.
 
 Both desktop choices need the existing Dataview and CustomJS runtime for legacy
@@ -95,7 +99,7 @@ materializer:
 
 | Input | Static export |
 | --- | --- |
-| `taelgar-header` | Complete static header Markdown from the shared core. |
+| `taelgar-header` | Complete shared-core header in the selected format: GitHub Pages cards/icons for `website` (CLI default), or a Markdown information callout for `static`. |
 | `taelgar-index` | Markdown table from the shared dated index model; grids have a table fallback. `show: obsidian` is omitted. |
 | `taelgar-interactions` | Campaign headings and ordinary Markdown event/source links. |
 | `taelgar-map` | Change only the fence language to `leaflet`; preserve configuration, quote prefixes and line endings. |

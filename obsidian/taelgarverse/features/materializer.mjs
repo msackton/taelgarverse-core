@@ -72,7 +72,8 @@ export class MaterializerFeature extends LegacyMaterializer {
           if(block.language==='taelgar-header') {
             if(block.body.trim())throw new Error('Leave the taelgar-header block empty.');
             const includeTitle=block.quoteDepth>0 || !hasPrecedingH1(original.slice(bodyStart),block.start-bodyStart);
-            markdown=renderBio(snapshot.runtime,{name:file.basename || file.name.replace(/\.md$/i,''),metadata,date,headerType:'static',includeTitle});
+            const headerType=config.headerType==='website'?'website':'static';
+            markdown=renderBio(snapshot.runtime,{name:file.basename || file.name.replace(/\.md$/i,''),metadata,date,headerType,includeTitle});
             nativeHeader=true;
           } else if(block.language==='taelgar-index') {
             const options=parseIndex(block.body);
