@@ -53,7 +53,7 @@ export function codeRanges(text) {
   return [...ranges, ...inline].sort((a,b) => a[0] - b[0]);
 }
 
-export function filterComments(text, {campaigns = [], date = null, source = '<text>', lineOffset = 0, dm = false, notes = [], conditions = []} = {}) {
+export function filterComments(text, {campaigns = [], date = null, source = '<text>', lineOffset = 0, dm = false, notes = [], conditions = [], spans = []} = {}) {
   const ranges = codeRanges(text);
   const selected = new Set(campaigns.map(c => c.trim().toLowerCase()));
   const target = date === null ? null : dateKey(date, true);
@@ -121,6 +121,7 @@ export function filterComments(text, {campaigns = [], date = null, source = '<te
         if (retained) output += dm && /^Campaign:\s*none\s*$/i.test(marker.name)
           ? '\n\n<div class="dm-only-block" markdown>\n<p class="dm-block-label">Behind the Curtain</p>\n\n' + body + '\n\n</div>\n\n'
           : body;
+        spans.push({start:position,end:closing.end,bodyStart:marker.end,bodyEnd:closingPosition,marker:marker.name});
         cursor = closing.end;
       } else {
         const closing = find('%%', position + 2);
@@ -131,6 +132,7 @@ export function filterComments(text, {campaigns = [], date = null, source = '<te
           notes.push({id, text: comment});
           output += '<span class="dm-note-anchor" data-dm-note="' + id + '"></span>';
         }
+        spans.push({start:position,end:closing+2});
         cursor = closing + 2;
       }
     }

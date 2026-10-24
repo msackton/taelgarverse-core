@@ -4,6 +4,30 @@ The unified desktop Taelgarverse plugin: generated note headers and indexes, loc
 calibrated distances, freehand tracing, enclosed areas, and an optional image viewer.
 Name Explorer and the materializer remain separate. Requires Obsidian 1.8.0+.
 
+## Relationship explorer
+
+Enable **Settings → Taelgarverse → Enable relationship explorer** and open it from the
+network ribbon icon or **Taelgarverse: Open relationship explorer**. Explore
+people/organizations, explicit prose mentions with source passages, nested places,
+and current/last-known person locations. People uses network layout; Places uses
+nested, expandable boxes for places and the people currently or last known inside
+them. No map coordinates are needed. Both follow the active campaign date and include all connection types.
+Choose a starting note; People offers depth 1, 2, 3, or All, while Places uses
+expand/collapse buttons to navigate layers. Full screen fills the Obsidian
+window; Escape returns to the tab. Select an organization and turn **Expansion**
+off to keep it from drawing in members connected only through that organization.
+
+**Include Worldbuilding** includes notes from Worldbuilding folders in either
+view; it is unchecked by default.
+
+Add an empty `taelgar-relationship` code block to draw the current note and its
+direct connections (depth 1) inline. The same setting controls the whole feature,
+including embedded diagrams, commands, and background reads.
+
+The feature is disabled by default and reads notes without changing them.
+See the [explorer guide](../../docs/relationship-explorer.md) for controls,
+containment metadata, limitations, and the offline synthetic demo.
+
 ## Campaign calendar prototype
 
 The local 0.7.0 development build adds a minimal calendar: each campaign has a

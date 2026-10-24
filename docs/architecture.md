@@ -339,6 +339,32 @@ The `dev` supervisor restarts Node after vault/source changes; full preview
 uses a prepared snapshot and must be rerun after vault edits.
 [Cloudflare](cloudflare.md) owns the hosted storage/request details.
 
+## Relationship explorer
+
+The opt-in Obsidian relationship explorer owns its workspace view, lazy prose
+reads, native link resolution, and event cleanup in
+`obsidian/taelgarverse/features/relationships.mjs`. It reuses the immutable
+header snapshot and affiliation/location services. Social relationships accumulate
+through the cutoff; the spatial view uses current/last-known whereabouts. The shared comment parser exposes source spans
+for date-aware prose evidence without changing website comment visibility.
+The author-only graph
+includes unpublished local notes; it does not serve website requests.
+
+`src/relationship-graph.mjs` owns typed nodes/edges, prose evidence, and filtering;
+`src/relationship-layout.mjs` owns deterministic network, hierarchy, and
+map/schematic placement. `src/place-tree.mjs` owns canonical, cycle-safe containment and implicit Material Plane roots;
+`src/browser/place-boxes.mjs` owns expandable boxes, contained people, paging, and responsive schematic route lines.
+`src/place-routes.mjs` extracts explicit road/river endpoints from typed map metadata;
+route edges never establish containment.
+`src/place-appearance.mjs` maps structured place types to icons and color accents.
+`src/browser/relationship-explorer.mjs` and
+`public/relationships.css` own the view, its full-window dialog lifecycle, and on-demand details. The UI
+always follows the active campaign date and uses network for People and nested containment boxes
+for Places; connection depth and per-organization traversal switches control reach. Styles are bundled only
+into the plugin.
+See the [explorer guide](relationship-explorer.md) for authoring, behavior, and
+prototype limitations. The offline preview script uses synthetic data.
+
 ## Change and release rules
 
 | Change | Required release action |
