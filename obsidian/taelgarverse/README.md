@@ -21,7 +21,8 @@ off to keep it from drawing in members connected only through that organization.
 view; it is unchecked by default.
 
 Add an empty `taelgar-relationship` code block to draw the current note and its
-direct connections (depth 1) inline. The same setting controls the whole feature,
+direct connections (depth 1) inline. Add `mode: list` inside the block for
+a compact list grouped by relationship, with source evidence. The same setting controls the whole feature,
 including embedded diagrams, commands, and background reads.
 
 The feature is disabled by default and reads notes without changing them.

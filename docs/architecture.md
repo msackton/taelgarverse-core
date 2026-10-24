@@ -364,6 +364,9 @@ for Places; connection depth and per-organization traversal switches control rea
 into the plugin.
 See the [explorer guide](relationship-explorer.md) for authoring, behavior, and
 prototype limitations. The offline preview script uses synthetic data.
+Inline `taelgar-relationship` blocks share the feature lifecycle and graph cache;
+`src/relationship-block.mjs` validates their mode, and
+`src/browser/relationship-list.mjs` owns the compact list presentation.
 
 ## Change and release rules
 

@@ -1,3 +1,5 @@
+import {parseRelationshipBlock} from '../../../src/relationship-block.mjs';
+import {mountRelationshipList} from '../../../src/browser/relationship-list.mjs';
 import {isRoutePlace,routeConnections} from '../../../src/place-routes.mjs';
 import {Component,ItemView,Setting,MarkdownRenderChild} from 'obsidian';
 import {buildRelationshipGraph,proseMentions} from '../../../src/relationship-graph.mjs';
@@ -36,8 +38,10 @@ export class RelationshipBlock extends MarkdownRenderChild {
     this.explorer?.dispose();this.explorer=null;
     if(this.disposed)return;
     if(!this.feature.enabled){this.containerEl.textContent='Enable Relationship explorer in Taelgarverse settings.';return;}
-    if(this.source.trim()){this.containerEl.textContent='Leave the taelgar-relationship block empty; it uses the current note.';return;}
-    this.explorer=mountRelationshipExplorer(this.containerEl,{
+    let options;
+    try{options=parseRelationshipBlock(this.source);}catch(error){this.containerEl.textContent=error.message;return;}
+    const mount=options.mode==='list'?mountRelationshipList:mountRelationshipExplorer;
+    this.explorer=mount(this.containerEl,{
       initialRoot:this.path,embedded:true,loadData:()=>this.feature.data(),
       openNote:(path,line)=>this.feature.openNote(path,line),
     });

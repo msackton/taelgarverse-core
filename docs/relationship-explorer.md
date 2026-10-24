@@ -28,7 +28,19 @@ note, including in transclusions, and follows the active campaign date.
 Pan, zoom, full screen, and source details remain available; the starting note
 and depth are fixed. Unconnected supported notes still appear alone.
 Worldbuilding notes are excluded as in the explorer's default view.
-Nonempty block contents are rejected rather than interpreted as configuration.
+For a compact list, use:
+
+````markdown
+```taelgar-relationship
+mode: list
+```
+````
+
+List mode groups all direct typed connections (including a person's current or
+last-known place) under their relationship headings. Note names open the linked
+notes; expandable Source sections retain passage text and source-line actions.
+Empty groups are omitted. `mode: diagram` is also accepted explicitly; unknown
+keys or modes produce an error. Both modes fix the source note and depth at 1.
 
 The **Enable relationship explorer** setting controls both the workspace view
 and these blocks. It is off by default. Turning it off closes views, removes the

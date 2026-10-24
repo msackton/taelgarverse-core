@@ -113,3 +113,21 @@ test('relationship blocks use their source note, stop when disabled, resume, and
  block.unload();assert.equal(h.feature.blocks.size,0);assert.equal(element.children.length,0);
  h.feature.unload();
 });
+
+test('registered code block renders mode: list, follows source links, and resumes list mode after toggling',async()=>{
+ const h=host(true),dom=imageDOM(),element=dom.document.createElement('div');dom.document.body.append(element);
+ let block;h.plugin.processor('mode: list',element,{sourcePath:'People/Alice.md',addChild(child){block=child;child.onload();}});
+ try{
+  assert.ok(block.explorer,'list configuration must reach the renderer');
+  await block.explorer.ready;
+  assert.ok(element.classList.contains('tg-relationship-list'));
+  assert.match(element.textContent,/People mentioned/);
+  assert.equal(element.querySelector('svg'),null);
+  dom.click(element.querySelector('[data-href="People/Bob.md"]'));
+  await Promise.resolve();assert.equal(h.opened[0][0].path,'People/Bob.md');
+  await h.feature.setEnabled(false);assert.equal(element.querySelector('a'),null);
+  await h.feature.setEnabled(true);await block.explorer.ready;
+  assert.ok(element.classList.contains('tg-relationship-list'));
+  assert.ok(element.querySelector('[data-href="People/Bob.md"]'));
+ }finally{block.unload();h.feature.unload();}
+});

@@ -98,3 +98,13 @@
 
 .taelgar-graph.tg-embedded{height:440px;min-height:300px;margin:12px 0;border:1px solid var(--background-modifier-border,#424654);border-radius:10px}
 .taelgar-graph.tg-embedded.is-fullscreen{height:100%;margin:0;border:0;border-radius:0}
+
+.tg-relationship-list{margin:1em 0}
+.tg-relationship-list .tg-relationship-list-header{display:flex;justify-content:space-between;gap:12px}
+.tg-relationship-list .tg-relationship-list-header span{font-size:.85em;color:var(--text-muted)}
+.tg-relationship-list h4{margin:1em 0 .35em}
+.tg-relationship-list ul{margin:.25em 0;padding-left:1.5em}
+.tg-relationship-list li{margin:.4em 0}
+.tg-relationship-list details{font-size:.9em;color:var(--text-muted)}
+.tg-relationship-list summary{cursor:pointer}
+.tg-relationship-list details p{white-space:pre-wrap;overflow-wrap:anywhere;margin:.5em 0}
