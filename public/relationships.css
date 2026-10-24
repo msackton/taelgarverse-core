@@ -1,0 +1,110 @@
+/* Scoped to the optional author-facing Obsidian explorer. */
+.taelgar-graph{--tg-person:#a969c6;--tg-group:#dca652;--tg-place:#4baaa2;display:flex;flex-direction:column;gap:10px;height:100%;min-height:0;padding:12px;overflow:hidden;color:var(--text-normal,#dedfe3);background:var(--background-primary,#1e2026)}
+.taelgar-graph,.taelgar-graph *{box-sizing:border-box}
+.taelgar-graph .tg-controls,.taelgar-graph .tg-modes,.taelgar-graph .tg-actions,.taelgar-graph .tg-maps{display:flex;align-items:center;gap:6px}
+.taelgar-graph .tg-controls{flex-wrap:wrap;flex-shrink:0}
+.taelgar-graph input,.taelgar-graph select,.taelgar-graph button{font:inherit;font-size:13px}
+.taelgar-graph button{white-space:nowrap}
+.taelgar-graph input[list]{flex:1;min-width:130px;width:180px;max-width:300px}
+.taelgar-graph .tg-depth{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text-muted,#aaaebc)}
+.taelgar-graph .tg-depth select{width:62px}
+.taelgar-graph .tg-actions{margin-left:auto}
+.taelgar-graph .tg-modes button[aria-pressed=true],.taelgar-graph .tg-maps button[aria-pressed=true]{color:var(--text-on-accent,#fff);background:var(--interactive-accent,#7056a3)}
+.taelgar-graph .tg-maps{flex-wrap:wrap;flex-shrink:0}
+.taelgar-graph .tg-body{position:relative;flex:1;min-height:0}
+.taelgar-graph .tg-stage{position:relative;width:100%;height:100%;border:1px solid var(--background-modifier-border,#424654);border-radius:10px;overflow:hidden;background:var(--background-secondary,#252830)}
+.taelgar-graph .tg-stage>svg{width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+.taelgar-graph .tg-zoom{position:absolute;top:10px;left:10px;display:flex;gap:5px;z-index:1}
+.taelgar-graph .tg-status{position:absolute;bottom:8px;left:10px;max-width:calc(100% - 20px);font-size:11px;margin:0;padding:4px 7px;border-radius:5px;color:var(--text-muted,#aaaebc);background:var(--background-primary,#1e2026);pointer-events:none}
+.taelgar-graph .tg-details{position:absolute;right:10px;top:10px;bottom:10px;z-index:2;width:280px;max-width:calc(100% - 20px);border:1px solid var(--background-modifier-border,#424654);border-radius:10px;padding:14px;overflow:auto;background:var(--background-primary,#1e2026);box-shadow:0 6px 24px #0004}
+.taelgar-graph .tg-details h3{margin:4px 28px 10px 0}
+.taelgar-graph .tg-details p,.taelgar-graph .tg-details blockquote{font-size:13px;overflow-wrap:anywhere}
+.taelgar-graph .tg-details button{margin:3px 3px 3px 0;white-space:normal;height:auto;text-align:left}
+.taelgar-graph .tg-details .tg-close{float:right;margin:0;padding:2px 7px;font-size:18px}
+.taelgar-graph .tg-details ul{padding:0;list-style:none}
+.taelgar-graph .tg-details li button{background:transparent;box-shadow:none;color:var(--text-accent,#b9a6f2);font-size:12px}
+.taelgar-graph .tg-details blockquote{border-left:3px solid var(--text-accent,#b9a6f2);margin:14px 0 5px;padding-left:10px}
+.tg-fullscreen-shell{position:fixed;inset:0;margin:0;padding:0;border:0;border-radius:0;width:100vw;height:100vh;max-width:none;max-height:none;overflow:hidden;background:var(--background-primary,#1e2026);z-index:10000}
+.tg-fullscreen-shell::backdrop{background:var(--background-primary,#1e2026)}
+.taelgar-graph.is-fullscreen{width:100%;height:100%;min-height:0}
+.taelgar-graph .tg-node{cursor:pointer;outline:none}
+.taelgar-graph .tg-node circle,.taelgar-graph .tg-node rect,.taelgar-graph .tg-node path{stroke:var(--background-primary,#20212a);stroke-width:2;fill:var(--tg-person)}
+.taelgar-graph .tg-group rect{fill:var(--tg-group)}
+.taelgar-graph .tg-place path{fill:var(--tg-place)}
+.taelgar-graph .tg-node text{fill:var(--text-normal,#dedfe3);font-size:13px;paint-order:stroke;stroke:var(--background-secondary,#252830);stroke-width:4px;stroke-linejoin:round}
+.taelgar-graph .tg-node.is-selected>*:first-child,.taelgar-graph .tg-node:focus>*:first-child{stroke:var(--text-normal,#fff);stroke-width:4}
+.taelgar-graph .tg-schematic>*:first-child{stroke-dasharray:3 3;stroke:var(--text-muted,#aaaebc)}
+.taelgar-graph .tg-edge{cursor:pointer;outline:none}
+.taelgar-graph .tg-edge-hit{stroke:transparent;stroke-width:14;fill:none}
+.taelgar-graph .tg-edge-line{fill:none;stroke:var(--text-muted,#8d93a8);stroke-opacity:.55;stroke-width:1.5}
+.taelgar-graph .tg-edge:hover .tg-edge-line,.taelgar-graph .tg-edge:focus .tg-edge-line{stroke:var(--text-accent,#c5b2ff);stroke-opacity:1;stroke-width:3}
+.taelgar-graph .tg-edge-dashed .tg-edge-line{stroke-dasharray:5 5}
+.taelgar-graph .tg-arrow{fill:var(--text-muted,#8d93a8)}
+.taelgar-graph .tg-zone{fill:var(--background-primary,#1e2026);stroke:var(--background-modifier-border,#424654);stroke-dasharray:7 5}
+.taelgar-graph .tg-zone-label{fill:var(--text-muted,#aaaebc);font-size:15px}
+.taelgar-graph .tg-map-image{opacity:.85}
+.taelgar-graph .tg-warnings{margin-top:14px;font-size:12px}
+.taelgar-graph [hidden]{display:none!important}
+
+
+
+.taelgar-graph .tg-enclosure{pointer-events:none}
+.taelgar-graph .tg-enclosure polygon{fill:var(--tg-enclosure-color);fill-opacity:.1;stroke:var(--tg-enclosure-color);stroke-opacity:.6;stroke-width:1.5;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.taelgar-graph .tg-enclosure.is-selected polygon{fill-opacity:.17;stroke-opacity:1;stroke-width:2.5}
+
+.taelgar-graph .tg-unexpanded>rect{stroke-dasharray:4 3;stroke:var(--text-muted,#aaaebc)}
+
+.taelgar-graph .tg-place-browser{height:100%;overflow:auto;padding:14px 14px 44px}
+.taelgar-graph .tg-place-breadcrumbs{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:12px;font-size:12px;color:var(--text-muted,#aaaebc)}
+.taelgar-graph .tg-place-breadcrumbs button{font-size:12px;padding:3px 6px;height:auto;white-space:normal}
+.taelgar-graph .tg-place-forest{display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px}
+.taelgar-graph .tg-place-box{min-width:0;flex:1 1 240px;border:1px solid var(--tg-place-accent,var(--tg-place));border-radius:9px;background:var(--background-primary,#1e2026);overflow:hidden}
+.taelgar-graph .tg-place-box.is-expanded{flex-basis:100%}
+.taelgar-graph .tg-place-header{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:10px;background:color-mix(in srgb,var(--tg-place-accent,var(--tg-place)) 12%,var(--background-primary,#1e2026))}
+.taelgar-graph .tg-place-toggle{flex:0 0 27px;width:27px;height:27px;padding:0;font-size:18px;line-height:1}
+.taelgar-graph .tg-place-name{min-width:80px;flex:1 1 110px;text-align:left;white-space:normal;overflow-wrap:anywhere;font-weight:600;background:transparent;border:0;box-shadow:none;padding:3px;height:auto}
+.taelgar-graph .tg-place-count{font-size:11px;color:var(--text-muted,#aaaebc)}
+.taelgar-graph .tg-place-children{padding:12px;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
+.taelgar-graph .tg-place-person{display:flex;gap:8px;align-items:center;white-space:normal;height:auto;min-height:32px;max-width:100%;text-align:left;overflow-wrap:anywhere;border:1px solid var(--tg-person);border-radius:18px;padding:6px 10px;background:color-mix(in srgb,var(--tg-person) 12%,var(--background-primary,#1e2026))}
+.taelgar-graph .tg-place-person::before{content:'';width:7px;height:7px;border-radius:50%;flex-shrink:0;background:var(--tg-person)}
+.taelgar-graph .tg-place-badge{font-size:10px;color:var(--text-muted,#aaaebc);white-space:nowrap}
+.taelgar-graph .tg-place-person:has(.tg-place-badge){border-style:dashed}
+.taelgar-graph .tg-place-browser .is-selected{outline:2px solid var(--text-accent,#b9a6f2);outline-offset:2px}
+.taelgar-graph .tg-place-more{flex-basis:100%;font-size:12px}
+
+.taelgar-graph .tg-worldbuilding{display:flex;align-items:center;gap:5px;font-size:12px;white-space:nowrap;color:var(--text-muted,#aaaebc)}
+.taelgar-graph .tg-worldbuilding input{margin:0}
+
+.taelgar-graph .tg-place-icon{width:19px;height:19px;flex:0 0 19px;color:var(--tg-place-accent,var(--tg-place))}
+.taelgar-graph .tg-place-type{font-size:11px;line-height:1.4;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-muted,#aaaebc)}
+
+/* Named route strips and schematic connections share the place hierarchy. */
+.taelgar-graph .tg-place-forest{position:relative}
+.taelgar-graph .tg-place-forest.has-route-connections{padding-right:84px}
+.taelgar-graph .tg-place-route{flex:1 1 100%;min-width:0;border:0;border-left:3px solid var(--tg-place-accent);margin:2px 0;padding:0 0 3px}
+.taelgar-graph .tg-place-route[data-place-kind="road"]{border-left-style:dashed}
+.taelgar-graph .tg-place-route>.tg-place-header{background:transparent;border-bottom:2px solid var(--tg-place-accent);padding:6px 8px}
+.taelgar-graph .tg-place-route[data-place-kind="road"]>.tg-place-header{border-bottom-style:dashed}
+.taelgar-graph .tg-route-endpoints{display:flex;flex-wrap:wrap;gap:4px 9px;padding:5px 8px 0;align-items:center}
+.taelgar-graph button.tg-route-endpoint{font-size:11px;padding:1px 0;background:transparent;border:0;box-shadow:none;color:var(--text-muted,#aeb5c4);white-space:normal;text-align:left}
+.taelgar-graph button.tg-route-endpoint:before{content:"↔ ";color:var(--tg-place-accent)}
+.taelgar-graph button.tg-route-endpoint:hover{color:var(--text-normal,#dedfe3);text-decoration:underline}
+.taelgar-graph .tg-route-unresolved{font-size:11px;color:var(--text-muted,#aeb5c4)}
+.taelgar-graph .tg-route-overlay{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.taelgar-graph .tg-route-connection{fill:none;stroke-width:1.8;stroke-linejoin:round;opacity:.62}
+.taelgar-graph .tg-route-connection.is-road{stroke-dasharray:6 4}
+.taelgar-graph .tg-route-connection.is-selected{stroke-width:3;opacity:1}
+.taelgar-graph .tg-route-connection.is-muted{opacity:.15}
+
+.taelgar-graph.tg-embedded{height:440px;min-height:300px;margin:12px 0;border:1px solid var(--background-modifier-border,#424654);border-radius:10px}
+.taelgar-graph.tg-embedded.is-fullscreen{height:100%;margin:0;border:0;border-radius:0}
+
+.tg-relationship-list{margin:1em 0}
+.tg-relationship-list .tg-relationship-list-header{display:flex;justify-content:space-between;gap:12px}
+.tg-relationship-list .tg-relationship-list-header span{font-size:.85em;color:var(--text-muted)}
+.tg-relationship-list h4{margin:1em 0 .35em}
+.tg-relationship-list ul{margin:.25em 0;padding-left:1.5em}
+.tg-relationship-list li{margin:.4em 0}
+.tg-relationship-list details{font-size:.9em;color:var(--text-muted)}
+.tg-relationship-list summary{cursor:pointer}
+.tg-relationship-list details p{white-space:pre-wrap;overflow-wrap:anywhere;margin:.5em 0}

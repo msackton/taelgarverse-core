@@ -17,6 +17,19 @@ The center crosshair appears only with visible keyboard focus in point mode. Eac
 including repeated note embeds, has its own measurement state. Measurements stay
 in the current browser page and are not saved to notes or published content.
 
+Choose **Sketch** to draw temporary shapes without distance or area readings.
+Sketch enters freehand mode every time you choose it; turn off **Trace path** to
+add point outlines or pan. **Clear** and **Close shape** leave Sketch ready for
+another freehand drawing. **Close shape** fills an outline, **Undo** removes the last sketch
+action, and **Done sketching** returns to navigation with drawings still visible.
+Sketches and measurements remain separate when switching tools, and **Clear**
+removes both. Each map keeps its own drawings only until it unloads; nothing is
+saved. Sketch also works when a map's measurement calibration is unavailable.
+Closed shapes receive labels **1**, **2**, **3**, and so on inside their outlines,
+including freehand shapes. Each tool numbers its own shapes in drawing order;
+measurement labels match the numbered area readings. Undo updates the labels,
+and Clear removes them and restarts numbering.
+
 For a winding river or road, turn on **Trace path** while measuring and drag
 with a mouse, pen, or one finger. The total includes the sampled bends rather
 than a straight chord between the start and end. Each stroke is one Undo action.
@@ -35,10 +48,22 @@ Point routes and freehand traces use the same calculation. Undo removes an
 explicit closing segment (or an entire trace), and Clear removes area results.
 Further points start a separate route after a closed outline.
 
+**Close shape** repairs accidental crossings, loops, touches, and retraced
+overshoots, keeping the larger enclosed region at each crossing. Sketch applies
+the same forgiving correction when an outline snaps closed. Valid concave
+outlines retain their bends. An already closed invalid outline can also be
+repaired with **Close shape**. The corrected line, fill, distance, and area use
+the same outline; Undo restores the original outline for an explicit closure,
+or removes the freehand stroke for automatic closure.
+
+Automatic closure while measuring applies only small corrections: a
+6-screen-pixel radius and loops representing at most 15% of the outline's
+perimeter. For larger misdrawn overlaps, choose **Close shape** explicitly.
+
 Area uses the polygon's original bends and the calibrated horizontal and vertical
 scales, without a projection. Concave outlines and either drawing direction are
-supported. Crossed, touching, retraced, or zero-area outlines keep their distance
-but report that area is unavailable. Multiple outlines show separate numbered
+supported. Outlines that still cross, touch, retrace, or enclose no area keep
+their distance but report that area is unavailable. Multiple outlines show separate numbered
 areas; overlapping outlines are not combined into a union or interpreted as holes.
 Maps authored with other units show square units instead of square miles.
 
@@ -180,3 +205,7 @@ into a disposable fixture. Real-vault activation is a separate step.
 Area checks cover known shapes, concavity, reversed winding, large coordinate
 origins, stretched display bounds, dense traces, invalid rings, automatic and
 explicit closure, independent outlines, Undo, and Clear.
+Sketch checks cover mode switching, separate measurement state, missing
+calibration, per-map isolation, disposal, and Clear. Closure correction checks
+cover tiny loops, touches, overshoots, zoom sensitivity, winding, and retention
+of substantial crossings.

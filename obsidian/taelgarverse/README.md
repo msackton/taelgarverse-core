@@ -4,6 +4,31 @@ The unified desktop Taelgarverse plugin: generated note headers and indexes, loc
 calibrated distances, freehand tracing, enclosed areas, and an optional image viewer.
 Name Explorer and the materializer remain separate. Requires Obsidian 1.8.0+.
 
+## Relationship explorer
+
+Enable **Settings → Taelgarverse → Enable relationship explorer** and open it from the
+network ribbon icon or **Taelgarverse: Open relationship explorer**. Explore
+people/organizations, explicit prose mentions with source passages, nested places,
+and current/last-known person locations. People uses network layout; Places uses
+nested, expandable boxes for places and the people currently or last known inside
+them. No map coordinates are needed. Both follow the active campaign date and include all connection types.
+Choose a starting note; People offers depth 1, 2, 3, or All, while Places uses
+expand/collapse buttons to navigate layers. Full screen fills the Obsidian
+window; Escape returns to the tab. Select an organization and turn **Expansion**
+off to keep it from drawing in members connected only through that organization.
+
+**Include Worldbuilding** includes notes from Worldbuilding folders in either
+view; it is unchecked by default.
+
+Add an empty `taelgar-relationship` code block to draw the current note and its
+direct connections (depth 1) inline. Add `mode: list` inside the block for
+a compact list grouped by relationship, with source evidence. The same setting controls the whole feature,
+including embedded diagrams, commands, and background reads.
+
+The feature is disabled by default and reads notes without changing them.
+See the [explorer guide](../../docs/relationship-explorer.md) for controls,
+containment metadata, limitations, and the offline synthetic demo.
+
 ## Campaign calendar prototype
 
 The local 0.7.0 development build adds a minimal calendar: each campaign has a
@@ -348,14 +373,28 @@ See [publishing pipelines](../../docs/publishing-pipelines.md).
 
 Choose **Measure distance**, then add points or use **Trace path** to follow a
 river or road. Separate strokes do not add connecting segments. **Undo** removes
-the last point or stroke; **Clear** removes measurements. **Done measuring**
+the last point or stroke; **Clear** removes measurements and sketches. **Done measuring**
 returns to navigation while retaining the result until the map unloads.
 
 Return to an outline's starting point or choose **Close shape** for its enclosed
-area. Multiple outlines have separate readings; crossed or retraced outlines
-report that area is unavailable. All measurements are temporary. The plugin
+area. **Close shape** repairs crossings, loops, and retraced overshoots by
+keeping the larger enclosed region. Automatic measurement closure corrects only
+tiny edge loops; choose **Close shape** for larger overlaps. Multiple outlines
+have separate readings; outlines with no usable interior report that area is
+unavailable. All measurements are temporary. The plugin
 reads local images, makes no network requests, and does not rewrite notes.
 See [map definitions and calibration](../../docs/maps.md).
+
+Choose **Sketch** to draw temporary shapes without measurement readings. It
+enters freehand mode every time you choose it; turn off **Trace path** for point
+outlines or panning. **Close shape** and **Clear** keep Sketch ready to draw.
+Sketch also repairs larger overlaps when an outline automatically closes.
+**Undo** restores an explicitly corrected outline or removes the last stroke;
+**Done sketching** returns to navigation.
+Switching modes keeps both sets of drawings visible; **Clear** removes both.
+Sketches are never saved to notes and also work without valid calibration.
+Closed shapes are automatically numbered inside their outlines, including
+freehand drawings. Undo updates the labels; Clear restarts numbering at 1.
 
 ## Image viewer
 

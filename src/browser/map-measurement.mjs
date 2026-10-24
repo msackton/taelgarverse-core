@@ -1,24 +1,25 @@
 import {routeDistance,formatDistance,isClosedRoute,routeArea,formatArea} from '../map-distance.mjs';
-import {measurementRoutes} from '../map-path.mjs';
+import {measurementRoutes,repairClosedRoute,shapeLabelPoint} from '../map-path.mjs';
 
 export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
-  if(!options)return;
   const caption=figure.querySelector('figcaption'),doc=canvas.ownerDocument;
   const controls=doc.createElement('span');controls.className='map-measure-controls';
   const button=(text,action)=>{
     const element=doc.createElement('button');element.type='button';element.textContent=text;
     element.addEventListener('click',action);controls.append(element);return element;
   };
-  let active=false,tracing=false,actions=[],stroke=null,pointer=null,lastScreen=null,doubleClickZoom=false,panState;
-  const toggle=button('Measure distance',()=>setActive(!active));toggle.setAttribute('aria-pressed','false');
+  const drawings={measure:[],sketch:[]};
+  let active=false,mode='measure',tracing=false,actions=drawings.measure,stroke=null,pointer=null,lastScreen=null,doubleClickZoom=false,panState;
+  const toggle=button('Measure distance',()=>chooseMode('measure'));toggle.setAttribute('aria-pressed','false');toggle.hidden=!options;
+  const sketch=button('Sketch',()=>chooseMode('sketch'));sketch.setAttribute('aria-pressed','false');
   const trace=button('Trace path',()=>setTracing(!tracing));trace.setAttribute('aria-pressed','false');
   const close=button('Close shape',()=>{
     const route=measurementRoutes(actions).at(-1);
-    if(stroke || !route || route.length<3 || isClosedRoute(route))return;
-    actions.push({kind:'point',points:[{...route[0]}]});setTracing(false);
+    if(stroke || !route || route.length<3 || (isClosedRoute(route) && routeArea(route,options || {})!==null))return;
+    actions.push({kind:'close',points:closeRoute(route,true)});setTracing(mode==='sketch');
   });
   const undo=button('Undo',()=>{if(stroke)finishStroke(false);else actions.pop();draw();});
-  const clear=button('Clear',()=>{actions=[];setTracing(false);(active?canvas:toggle).focus({preventScroll:true});});
+  const clear=button('Clear',()=>{drawings.measure.length=0;drawings.sketch.length=0;setTracing(active && mode==='sketch');(active?canvas:options?toggle:sketch).focus({preventScroll:true});});
   const summary=doc.createElement('span');summary.className='map-measure-summary';summary.setAttribute('role','status');
   summary.setAttribute('aria-atomic','true');
   const help=doc.createElement('span');help.className='map-measure-help';
@@ -27,27 +28,43 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
   const layers=L.layerGroup().addTo(map);
   function draw() {
     const routes=measurementRoutes(actions,stroke),count=routes.reduce((n,route)=>n+route.length,0);
-    const closed=routes.filter(isClosedRoute),areas=closed.map(route=>routeArea(route,options));
+    const closed=routes.filter(isClosedRoute),areas=closed.map(route=>routeArea(route,options || {}));
     layers.clearLayers();
-    for(let i=0;i<closed.length;i++)if(areas[i]!==null)L.polygon(closed[i],{className:'map-measure-area',stroke:false,fillColor:'#126c9a',fillOpacity:0.15,smoothFactor:0,interactive:false}).addTo(layers);
-    for(const route of routes)if(route.length>1)L.polyline(route,{className:'map-measure-line',color:'#126c9a',weight:3,smoothFactor:0,interactive:false}).addTo(layers);
+    for(const kind of ['measure','sketch']){
+      const visible=kind===mode?routes:measurementRoutes(drawings[kind]),color=kind==='sketch'?'#b34e17':'#126c9a';
+      let number=0;
+      for(const route of visible){
+        if(isClosedRoute(route)){
+          number++;
+          if(routeArea(route,options || {})!==null){
+            L.polygon(route,{className:'map-measure-area',stroke:false,fillColor:color,fillOpacity:0.15,smoothFactor:0,interactive:false}).addTo(layers);
+            const icon=L.divIcon({className:'map-shape-label map-shape-label-'+kind,html:String(number),iconSize:[24,24],iconAnchor:[12,12]});
+            L.marker(shapeLabelPoint(route),{icon,interactive:false,keyboard:false,title:'Shape '+number}).addTo(layers);
+          }
+        }
+        if(route.length>1)L.polyline(route,{className:'map-measure-line',color,weight:3,smoothFactor:0,interactive:false}).addTo(layers);
+      }
+    }
     // Dense trace samples define the line, not thousands of visible handles.
-    const handles=actions.flatMap(action=>action.kind==='point'?action.points:[action.points[0],action.points.at(-1)]);
+    const visiblePoints=new Set(routes.flatMap(route=>route.map(point=>point.lat+','+point.lng)));
+    const handles=actions.flatMap(action=>action.kind==='point'?action.points:action.kind==='close'?[]:[action.points[0],action.points.at(-1)])
+      .filter(point=>visiblePoints.has(point.lat+','+point.lng));
     if(stroke)handles.push(stroke[0],stroke.at(-1));
-    for(const point of handles)L.circleMarker(point,{className:'map-measure-point',radius:5,color:'#fff',weight:2,fillColor:'#126c9a',fillOpacity:1,interactive:false}).addTo(layers);
+    for(const point of handles)L.circleMarker(point,{className:'map-measure-point',radius:5,color:'#fff',weight:2,fillColor:mode==='sketch'?'#b34e17':'#126c9a',fillOpacity:1,interactive:false}).addTo(layers);
     trace.hidden=!active;undo.hidden=!active;undo.disabled=!count;
     const current=routes.at(-1);
-    close.hidden=!active || Boolean(stroke) || !current || current.length<3 || isClosedRoute(current);
-    clear.hidden=!count && !(active && tracing);
-    const length=routes.reduce((n,route)=>n+routeDistance(route,options),0);
-    summary.textContent=routes.some(route=>route.length>1) ? 'Total: '+formatDistance(length,options.unit) :
+    close.hidden=!active || Boolean(stroke) || !current || current.length<3 || (isClosedRoute(current) && routeArea(current,options || {})!==null);
+    clear.hidden=!drawings.measure.length && !drawings.sketch.length && !(active && tracing);
+    const length=routes.reduce((n,route)=>n+routeDistance(route,options || {}),0);
+    summary.textContent=mode==='sketch'?(count?'Temporary sketch.':active?(tracing?'Drag to sketch.':'Choose a starting point.'):''):
+      routes.some(route=>route.length>1) ? 'Total: '+formatDistance(length,options.unit) :
       count ? 'Start point set.'+(active?' Add another point.':'') : active ? tracing?'Drag to trace a path.':'Choose a starting point.' : '';
-    if(closed.length)summary.textContent+=' · '+areas.map((area,i)=>
+    if(mode==='measure' && closed.length)summary.textContent+=' · '+areas.map((area,i)=>
       (areas.length===1?'Area':'Area '+(i+1))+': '+(area===null?'unavailable (outline must not cross or retrace itself)':formatArea(area,options.unit))).join(' · ');
-    help.textContent=tracing?'Drag with a mouse, pen, or one finger to follow a road or river. Undo removes the last stroke. Turn off Trace path to pan or add points.':
+    help.textContent=tracing?(mode==='sketch'?'Drag with a mouse, pen, or one finger to draw.':'Drag with a mouse, pen, or one finger to follow a road or river.')+' Undo removes the last stroke. Turn off Trace path to pan or add points.':
       'Click or tap to add points. Drag to pan. Keyboard: arrow keys pan, Enter adds the center, Escape finishes.';
-    help.textContent+=' Return to the start or choose Close shape to measure the enclosed area.';
-    if(options.hexMiles)help.textContent+=' Each hex is '+options.hexMiles+' miles across.';
+    help.textContent+=mode==='sketch'?' Return to the start or choose Close shape to fill an outline. Clear removes all sketches and measurements; nothing is saved.':' Return to the start or choose Close shape to measure the enclosed area.';
+    if(mode==='measure' && options?.hexMiles)help.textContent+=' Each hex is '+options.hexMiles+' miles across.';
   }
   function setTracing(value) {
     finishStroke(false);tracing=value;
@@ -63,18 +80,31 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
   }
   function setActive(value) {
     finishStroke(false);
-    active=value;toggle.textContent=active?'Done measuring':'Measure distance';toggle.setAttribute('aria-pressed',String(active));
+    active=value;toggle.textContent=active && mode==='measure'?'Done measuring':'Measure distance';toggle.setAttribute('aria-pressed',String(active && mode==='measure'));
+    sketch.textContent=active && mode==='sketch'?'Done sketching':'Sketch';sketch.setAttribute('aria-pressed',String(active && mode==='sketch'));
     canvas.classList.toggle('map-measuring',active);help.hidden=!active;
     if(active){doubleClickZoom=map.doubleClickZoom.enabled();map.doubleClickZoom.disable();canvas.focus({preventScroll:true});}
-    else{if(doubleClickZoom)map.doubleClickZoom.enable();toggle.focus({preventScroll:true});}
+    else{if(doubleClickZoom)map.doubleClickZoom.enable();(mode==='sketch'?sketch:toggle).focus({preventScroll:true});}
     setTracing(tracing);
+  }
+  function chooseMode(value){
+    if(value===mode && active){setActive(false);return;}
+    if(active)setActive(false);
+    if(value==='sketch')tracing=true;
+    else if(mode!==value)tracing=false;
+    mode=value;actions=drawings[mode];setActive(true);
+  }
+  function closeRoute(route,forgiving=mode==='sketch'){
+    return repairClosedRoute(isClosedRoute(route)?route:[...route,{...route[0]}],map.latLngToContainerPoint?point=>map.latLngToContainerPoint(point):null,{forgiving});
   }
   function add(point) {
     if(!active || tracing || !imageBounds.contains(point))return;
     const last=actions.at(-1)?.points.at(-1);
     if(last && last.lat===point.lat && last.lng===point.lng)return;
     const route=measurementRoutes(actions).at(-1);
-    if(route?.length>=3 && !isClosedRoute(route) && nearStart(point,route))point=route[0];
+    if(route?.length>=3 && !isClosedRoute(route) && nearStart(point,route)){
+      actions.push({kind:'close',points:closeRoute(route)});draw();return;
+    }
     actions.push({kind:'point',points:[{lat:point.lat,lng:point.lng}]});draw();
   }
   function nearStart(point,route){
@@ -112,14 +142,17 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
   }
   function finishStroke(commit){
     if(!stroke)return;
-    if(commit)actions.push({kind:'stroke',points:stroke});
+    if(commit){
+      if(stroke.length>=3 && !isClosedRoute(stroke) && nearStart(stroke.at(-1),stroke))stroke=closeRoute(stroke);
+      else if(isClosedRoute(stroke))stroke=closeRoute(stroke);
+      actions.push({kind:'stroke',points:stroke});
+    }
     const oldPointer=pointer;stroke=null;pointer=null;lastScreen=null;
     if(canvas.hasPointerCapture?.(oldPointer))canvas.releasePointerCapture(oldPointer);
   }
   function endStroke(event){
     if(!stroke || event.pointerId!==pointer)return;
     sample(event,true);
-    if(stroke?.length>=3 && !isClosedRoute(stroke) && nearStart(stroke.at(-1),stroke))stroke.push({...stroke[0]});
     finishStroke(true);draw();
   }
   function cancelStroke(event){if(event.pointerId===pointer){finishStroke(false);draw();}}

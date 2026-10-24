@@ -1,11 +1,9 @@
-Taelgarverse 0.7.0
+Taelgarverse 0.8.0
 
-- Add a campaign calendar with colored dots for each campaign's current date and daily moon phases. Turn on **Settings → Taelgarverse → Enable campaign calendar**, then open it from the calendar icon in the left ribbon or **Open campaign calendar** in the command palette. The feature is off by default; turning it off closes its views and releases its date provider while preserving saved choices.
-- Choose an active campaign to use its latest session date for generated headers, indexes, and campaign interactions. Choose **Custom** to save a manual DR date in settings. Invalid dates leave the saved value unchanged, and browsing the calendar never changes query dates. Explicit CustomJS overrides and `pageTargetDate` retain precedence.
-- Align moon phases to the full moon on **April 6, 1748 DR at midnight**, with a **29.5-day cycle** and no leap days. Icons show illumination at noon; hover for illumination and exact new/full/quarter times.
-- Preserve an authored H1 immediately above `taelgar-header`, including setext titles and intervening blank lines, so Obsidian and exports show one title. Pronunciation, header details, and index controls still render.
-- Fix native headers in static website exports to use the website card layout, icons, and pronunciation styling. Explicit `--header-type static` retains the Markdown information callout. Reload the updated plugin and rerun the static export to refresh previously generated files.
+- Add an optional Relationship explorer for people, organizations, places, and current or last-known person locations. Enable it in Settings → Taelgarverse → Enable relationship explorer; it is off by default.
+- Explore direct person-note references with source passages and date-block evidence, organization enclosures, connection depth controls, and per-organization expansion.
+- Browse places through expandable nested boxes, with planes at the top level and implicit Material Plane grouping for place trees without a plane. Roads and rivers connect their recorded endpoints without requiring map coordinates.
+- **Pre-alpha inline mode:** Add empty taelgar-relationship code blocks for current-note diagrams at depth 1, or use mode: list for grouped direct links and expandable source evidence. Inline diagrams and lists are experimental and not yet ready for general use; expect rough edges and changes. The feature switch controls both the workspace explorer and inline blocks.
+- Include full-screen exploration, place-type icons, and an Include Worldbuilding filter. Notes are read without being modified.
 
-Using the calendar date from existing CustomJS queries requires the separate [vault-side date adapter](https://github.com/msackton/taelgarverse-core/blob/main/docs/vault.md#campaign-calendar-prototype). The plugin does not install that vault script. The calendar is currently available in Obsidian.
-
-Desktop only. The minimum app version remains Obsidian 1.8.0.
+Requires desktop Obsidian 1.8.0 or newer, unchanged from 0.7.1. Prose relationships use explicit links; route connections use recorded map metadata rather than inferred geography.

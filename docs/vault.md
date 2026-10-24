@@ -7,6 +7,24 @@ to update page headers and show or hide marked content.
 After editing the vault, follow [Update the website](deploy.md) to publish your
 changes. Publishing works on copies; it does not rewrite your source notes.
 
+## Relationship explorer metadata
+
+The optional Obsidian relationship explorer reads existing person/group/place
+types, affiliations, leadership, containment, whereabouts, and explicit links
+between person-note prose. It retains historical relationships up to the selected
+cutoff and uses Date blocks to date prose evidence. The spatial view instead
+shows nested place boxes with people inside their current/last-known location at
+that date. It uses primary containment, with labeled secondary containment as a
+fallback. Legacy `graphPositions` metadata is not used by these boxes. It does not affect website rendering,
+publishing, or existing map calibration. Per-organization expansion controls can
+stop traversal through a group without changing affiliations or hiding people
+reached through other links. These choices apply only to the open explorer. See the
+[explorer guide](relationship-explorer.md) for the field schema and query rules.
+
+The explorer excludes notes under `Worldbuilding` folders by default. Its
+**Include Worldbuilding** checkbox includes them in both People and Places,
+without changing website publication rules.
+
 ## Files the website uses
 
 The website includes Markdown notes and these media formats:
