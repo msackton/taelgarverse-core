@@ -4,6 +4,7 @@ import {isInside,targetPath,titleCase} from './config.mjs';
 import {ContentStore,parseNote,ASSET_TYPES} from './content-store.mjs';
 import {NO_PUBLISH_MARKER,readFolderExclusions} from './folder-exclusions.mjs';
 export * from './content-store.mjs';
+import {readIndexRegistry} from './index-registry-node.mjs';
 
 export class Store extends ContentStore {
   constructor(settings) {
@@ -42,5 +43,6 @@ export class Store extends ContentStore {
     };
     walk(settings.source_dir);
     super(entries,warnings,settings);
+    this.indexRegistry=readIndexRegistry(settings).registry;
   }
 }

@@ -40,7 +40,7 @@ export function recognizeDataviewJs(source) {
     binding.id.properties[0].computed || binding.id.properties[0].key?.name!=='util' || binding.id.properties[0].value?.name!=='util')return null;
   if(!call(table,'dv','table') || table.arguments.length!==2 || table.arguments[0].type!=='ArrayExpression')return null;
   const headings=table.arguments[0].elements.map(literal);
-  let chain=table.arguments[1],mapped=false,predicate,sourceTag;
+  let chain=table.arguments[1],mapped=false,predicate,sourceTag,columns;
   while(chain?.type==='CallExpression' && chain.callee.type==='MemberExpression') {
     if(chain.callee.computed)return null;
     const method=chain.callee.property.name;
@@ -52,7 +52,7 @@ export function recognizeDataviewJs(source) {
     const fn=chain.arguments[0],param=arrow(fn);if(!param)return null;
     if(method==='map' && !mapped) {
       if(fn.body.type!=='ArrayExpression' || fn.body.elements.length!==headings.length || !fn.body.elements.every(n=>formatting(n,param)))return null;
-      mapped=true;
+      columns=fn.body.elements.map((item,i)=>({label:headings[i],template:literal(item.arguments[0])}));mapped=true;
     } else if(method==='sort' && mapped) {
       if(!formatting(fn.body,param))return null;
     } else if(method==='where' && mapped && !predicate)predicate={node:fn.body,param};
@@ -78,11 +78,12 @@ export function recognizeDataviewJs(source) {
   const accepted=type==='members' || type==='residents' ? [['Person','Info','Current Location'],['Person','Info','Current Location','Home']]:
     type==='settlements'?[['Place','Region','Type Of','Population']]:[['Place'],['Place','Type Of']];
   if(!accepted.some(h=>JSON.stringify(h)===JSON.stringify(headings)))return null;
-  const body='type: '+type+'\nmode: table\n'+(target===undefined?'':'target: '+JSON.stringify(target)+'\n');
-  return {rule:'legacy-'+type,language:'taelgar-index',body,indexOptions:{type,target}};
+  const index=type==='members'?'current-members':type==='settlements'?'settlements-in':type==='places'?'places-in':type;
+  const body='index: '+index+'\nmode: table\n'+(target===undefined?'':'target: '+JSON.stringify(target)+'\n')+'columns: '+JSON.stringify(columns)+'\n';
+  return {rule:'legacy-'+type,language:'taelgar-index',body,indexOptions:{index,type,target}};
 }
 
-export function convertWebsiteNote(note,{sourcePath='',resolveTarget}={}) {
+export function convertWebsiteNote(note,{sourcePath='',resolveTarget,indexRegistry}={}) {
   const original=note;note=normalizeHeader(note);const changes=[],unconverted=[];
   if(note.metadata.headerVersion && !leadingBioBlock(note.body)) {
     const body=HEADER_BLOCK+'\n'+note.body.replace(/^(?:[ \t]*\r?\n)*/,'');
@@ -95,6 +96,9 @@ export function convertWebsiteNote(note,{sourcePath='',resolveTarget}={}) {
     const recognized=recognizeDataviewJs(block.body);
     if(!recognized){unconverted.push({file:sourcePath,line:block.startLine,reason:'Unrecognized DataviewJS; retained for the existing cleanup policy.'});continue;}
     if(recognized.indexOptions) {
+      if(indexRegistry && !indexRegistry.indexes?.[recognized.indexOptions.index]) {
+        unconverted.push({file:sourcePath,line:block.startLine,reason:'The named index '+recognized.indexOptions.index+' is not defined; retained for the existing cleanup policy.'});continue;
+      }
       const {type,target}=recognized.indexOptions,metadata=target?resolveTarget?.(target,sourcePath):note.metadata;
       const required=type==='members'?'group':'place';
       if(getPageType(metadata)!==required) {

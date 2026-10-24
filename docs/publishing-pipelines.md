@@ -298,13 +298,17 @@ Current rules cover:
 
 - Familiar versioned saved headers, legacy header markers, and versioned
   handouts without a saved title become a leading empty `taelgar-header`.
-- Supported current-membership tables become `taelgar-index` with `type: members`.
-- Supported location tables become Residents, Places or Settlements indexes.
+- Supported current-membership tables become `taelgar-index` with `index: current-members`.
+- Supported location tables become `residents`, `places-in`, or `settlements-in` named indexes.
   Literal targets are preserved; a current-note target stays implicit. Targets
   must resolve to a group for Members or a place for location indexes.
 - The plain campaign-interactions view call becomes `taelgar-interactions`.
 
-Converted indexes use the native model, sorting, visibility rules and columns;
+Conversions require the selected registry to define the corresponding name.
+Missing names are reported as unconverted and follow the existing cleanup policy.
+Recognized headings and formatting templates are preserved.
+
+Converted indexes use the native model, sorting and visibility rules;
 they are a deliberate website feature upgrade. They stay dynamic when readers
 change date/campaign. They do not promise byte-identical legacy table output.
 The static export path does not run these rewrites on existing DataviewJS.

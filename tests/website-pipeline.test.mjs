@@ -20,7 +20,7 @@ test('conversion recognizes complete legacy table syntax, never executes JS, and
   const original=parseNote('---\nheaderVersion: 1\ntags: [group]\n---\n# Saved\n>[!info] Old\n\n%%^Campaign:dufr%%\n> ```dataviewjs\n'+
     members.split('\n').map(l=>'> '+l).join('\n')+'\n> ```\n%%^End%%\n\nProse.\n');
   const result=convertWebsiteNote(original,{sourcePath:'Guild.md'});
-  assert.match(result.note.body,/^```taelgar-header\n```/);assert.match(result.note.body,/> ```taelgar-index\n> type: members\n> mode: table/);
+  assert.match(result.note.body,/^```taelgar-header\n```/);assert.match(result.note.body,/> ```taelgar-index\n> index: current-members\n> mode: table/);
   assert.match(result.note.body,/%%\^Campaign:dufr%%/);assert.match(result.note.body,/%%\^End%%/);assert.match(result.note.body,/Prose\./);
   assert.equal(result.changes.length,2);assert.equal(result.unconverted.length,0);
   assert.equal(convertWebsiteNote(result.note).note.source,result.note.source);
@@ -55,6 +55,7 @@ test('Node stages run DQL on a copied raw vault before conversion and never rewr
   const copy=await copyWorkingVault(vault,working);
   assert.equal(await fs.readFile(path.join(working,'Guild.md'),'utf8'),source);
   assert.equal(copy.stats.get('Guild.md').ctime,(await fs.stat(path.join(vault,'Guild.md'))).birthtimeMs);
+  await fs.mkdir(path.join(vault,'_scripts'),{recursive:true});await fs.copyFile(new URL('../examples/indexes.yaml',import.meta.url),path.join(vault,'_scripts/indexes.yaml'));
   const settings={vault_dir:vault,source_dir:working},store=new Store(settings);
   const report=await materializeWebsiteDataview(store,{directory:dir,vaultPath:vault,stats:copy.stats},{createRuntime:async(directory,options)=>{
     assert.equal(options.dataviewDirectory,undefined,'default must not point to a vault installation');

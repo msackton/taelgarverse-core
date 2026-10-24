@@ -3,6 +3,7 @@ export function mountIndexPopups(root,{load}={}) {
   const disposers=[];
   for(const details of root.querySelectorAll?.('.taelgar-index-popup') || []) {
     const doc=details.ownerDocument,summary=details.querySelector('summary'),panel=details.querySelector('.taelgar-index-panel');
+    // Obsidian panels move outside the render root when opened as dialogs.
     const close=panel.querySelector('.taelgar-index-close'),content=panel.querySelector('.taelgar-index-content');
     const dialog=doc.createElement('dialog'),modal=typeof dialog.showModal==='function';
     let disposed=false,pending,loaded=!details.hasAttribute('data-index-lazy'),controller,startedOutside=false;

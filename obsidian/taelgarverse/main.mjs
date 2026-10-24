@@ -22,6 +22,13 @@ class TaelgarverseSettings extends PluginSettingTab {
         await this.plugin.headers.setHeaderIndexPopups(value);
         await this.plugin.saveData(this.plugin.settings);
       }));
+    for(const [key,label,placeholder] of [['indexRegistry','Index registry','_scripts/indexes.yaml'],['indexOverride','Index override','_scripts/indexes.mike.yaml']]) {
+      new Setting(this.containerEl).setName(label).setDesc('Vault-relative YAML path. Leave blank for '+(key==='indexRegistry'?'the default registry.':'no override.'))
+        .addText(text=>text.setPlaceholder(placeholder).setValue(this.plugin.settings[key] || '').onChange(async value=>{
+          this.plugin.settings[key]=value.trim() || null;
+          await this.plugin.saveData(this.plugin.settings);this.plugin.headers.refresh();
+        }));
+    }
     new Setting(this.containerEl).setName('Automatic campaign interactions')
       .setDesc('Show campaign interactions at the bottom of notes with knownTo campaigns in Reading View and Live Preview. Explicit taelgar-interactions blocks always work.')
       .addToggle(toggle=>toggle.setValue(this.plugin.settings.automaticInteractions).onChange(async value=>{
@@ -50,7 +57,7 @@ export default class Taelgarverse extends Plugin {
   exportDataview(request){return this.materializer.exportDataview(request);}
 
   async onload(){
-    this.settings={legacyLeafletBlocks:false,imageViewer:false,automaticInteractions:true,headerIndexPopups:true,calendarEnabled:false,relationshipsEnabled:false,calendarCampaign:'modern',...await this.loadData()};
+    this.settings={legacyLeafletBlocks:false,imageViewer:false,automaticInteractions:true,headerIndexPopups:true,indexRegistry:null,indexOverride:null,calendarEnabled:false,relationshipsEnabled:false,calendarCampaign:'modern',...await this.loadData()};
     this.addSettingTab(new TaelgarverseSettings(this));
     // Features own their state and cleanup through Obsidian's Component lifecycle.
     this.addChild(new MapsFeature(this));
