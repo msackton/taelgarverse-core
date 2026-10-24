@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {routeDistance,formatDistance,measurementOptions,routeArea,formatArea} from '../src/map-distance.mjs';
 import {addMeasurement} from '../src/browser/map-measurement.mjs';
-import {measurementRoutes} from '../src/map-path.mjs';
+import {measurementRoutes,repairClosedRoute,shapeLabelPoint} from '../src/map-path.mjs';
 
 test('planar measurement uses calibration once for every segment, regardless of coordinate origin',()=>{
   const points=[{lat:1000,lng:-200},{lat:1003,lng:-196},{lat:1003,lng:-186}];
@@ -52,8 +52,8 @@ test('invalid explicit calibration never falls back to a plausible but incorrect
   }
 });
 
-function setup({scale=0.5,zoomEnabled=true,screenScale}={}) {
-  let focus,paths=[],markers=[],polygons=[],enabled=zoomEnabled;
+function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true}={}) {
+  let focus,paths=[],markers=[],polygons=[],labels=[],enabled=zoomEnabled;
   class Element {
     constructor(){this.children=[];this.listeners={};this.attributes={};this.hidden=false;this.disabled=false;this.classes=new Set();this.classList={toggle:(value,on)=>on?this.classes.add(value):this.classes.delete(value)};}
     append(...children){this.children.push(...children);}
@@ -74,12 +74,12 @@ function setup({scale=0.5,zoomEnabled=true,screenScale}={}) {
     mouseEventToLatLng:event=>({lng:event.clientX,lat:event.clientY}),dragging:handler(),touchZoom:handler(),boxZoom:handler(false),
     doubleClickZoom:{enabled:()=>enabled,enable:()=>{enabled=true;},disable:()=>{enabled=false;}}};
   if(screenScale)map.latLngToContainerPoint=point=>({x:point.lng*screenScale,y:point.lat*screenScale});
-  const group={addTo(){return this;},clearLayers(){paths=[];markers=[];polygons=[];}};
-  const L={layerGroup:()=>group,polygon:points=>({addTo(){polygons.push(structuredClone(points));}}),polyline:points=>({addTo(){paths.push(structuredClone(points));}}),circleMarker:point=>({addTo(){markers.push({...point});}})};
+  const group={addTo(){return this;},clearLayers(){paths=[];markers=[];polygons=[];labels=[];}};
+  const L={layerGroup:()=>group,divIcon:options=>options,marker:(point,options)=>({addTo(){labels.push({point,...options});}}),polygon:points=>({addTo(){polygons.push(structuredClone(points));}}),polyline:points=>({addTo(){paths.push(structuredClone(points));}}),circleMarker:point=>({addTo(){markers.push({...point});}})};
   const bounds={contains:point=>point.lat>=0 && point.lng>=0 && point.lat<=100 && point.lng<=100};
-  const dispose=addMeasurement(L,map,canvas,figure,{xScale:scale,yScale:scale,unit:'miles'},bounds);
-  const controls=caption.children[0], [toggle,trace,close,undo,clear,summary]=controls.children,help=figure.children[0];
-  return {canvas,map,toggle,trace,close,undo,clear,summary,help,dispose,
+  const dispose=addMeasurement(L,map,canvas,figure,calibrated?{xScale:scale,yScale:scale,unit:'miles'}:null,bounds);
+  const controls=caption.children[0], [toggle,sketch,trace,close,undo,clear,summary]=controls.children,help=figure.children[0];
+  return {canvas,map,toggle,sketch,trace,close,undo,clear,summary,help,dispose,
     click:point=>events.click({latlng:point}),
     viewChange:()=>events['movestart zoomstart'](),
     pointer:(name,x,y,extra={})=>{
@@ -87,7 +87,7 @@ function setup({scale=0.5,zoomEnabled=true,screenScale}={}) {
       canvas.listeners[name](event);return event;
     },
     key:(key,target=canvas)=>{const event={key,target,preventDefault(){this.prevented=true;}};figure.listeners.keydown(event);return event;},
-    get focus(){return focus;},get paths(){return paths;},get polygons(){return polygons;},get markers(){return markers;},get zoomEnabled(){return enabled;}};
+    get focus(){return focus;},get paths(){return paths;},get polygons(){return polygons;},get markers(){return markers;},get labels(){return labels;},get zoomEnabled(){return enabled;}};
 }
 
 test('closed outlines measure calibrated square miles, concavity and winding independently of map origin',()=>{
@@ -133,10 +133,137 @@ test('point and freehand outlines snap closed near the start using screen pixels
   m.trace.click();m.click({lat:80,lng:80});assert.equal(m.paths.length,1);assert.match(m.summary.textContent,/Area: 400 square miles/);
 });
 
-test('crossed closed outlines keep distance but show an area explanation without filling the shape',()=>{
+test('Close shape repairs a crossed outline, including an already closed invalid ring, and Undo restores it',()=>{
   const m=setup();m.toggle.click();
-  for(const point of [{lat:10,lng:10},{lat:30,lng:30},{lat:30,lng:10},{lat:10,lng:30}])m.click(point);
-  m.close.click();assert.match(m.summary.textContent,/Area: unavailable/);assert.equal(m.polygons.length,0);
+  for(const point of [{lat:10,lng:10},{lat:30,lng:30},{lat:30,lng:10},{lat:10,lng:30},{lat:10,lng:10}])m.click(point);
+  assert.match(m.summary.textContent,/Area: unavailable/);assert.equal(m.polygons.length,0);assert.equal(m.close.hidden,false);
+  const original=structuredClone(m.paths[0]);
+  m.close.click();assert.match(m.summary.textContent,/Area: 25 square miles/);assert.equal(m.polygons.length,1);assert.equal(m.labels.length,1);
+  m.undo.click();assert.deepEqual(m.paths[0],original);assert.equal(m.polygons.length,0);
+  assert.match(m.summary.textContent,/Area: unavailable/);
+});
+
+test('forgiving closure removes large edge loops and retraces at any zoom, retaining the main outline and its concavity',()=>{
+  const p=([lng,lat])=>({lng,lat});
+  const outlines=[
+    [[10,10],[90,10],[90,90],[10,90],[10,40],[30,60],[0,60],[10,70],[10,10]],
+    [[10,10],[90,10],[90,90],[10,90],[10,-20],[10,10]],
+    [[10,10],[90,10],[90,90],[10,90],[10,40],[40,40],[10,40],[10,10]],
+  ];
+  for(const outline of outlines.map(r=>r.map(p)))for(const direction of [outline,[...outline].reverse()]){
+    for(const scale of [0.1,1,10]){
+      const repaired=repairClosedRoute(direction,point=>({x:Math.round(point.lng*scale),y:Math.round(point.lat*scale)}),{forgiving:true});
+      assert.equal(routeArea(repaired),6400);assert.ok(repaired.length<direction.length);
+    }
+    assert.equal(routeArea(repairClosedRoute(direction,null,{forgiving:true})),6400);
+  }
+  const concave=[[0,0],[60,0],[60,20],[20,20],[20,60],[0,60],[0,0]].map(p);
+  assert.deepEqual(repairClosedRoute(concave,null,{forgiving:true}),concave,'valid concave outlines are not replaced with a hull');
+  const line=[[0,0],[20,0],[40,0],[0,0]].map(p);
+  assert.equal(routeArea(repairClosedRoute(line,null,{forgiving:true})),null,'no area is invented for a line');
+});
+
+test('closure trims tiny edge loops, touches and retraced overshoots in screen pixels without changing substantial crossings',()=>{
+  const p=([lng,lat])=>({lng,lat}),project=point=>({x:point.lng,y:point.lat});
+  const overshoot=[[10,10],[50,10],[50,50],[10,50],[10,8],[10,10]].map(p);
+  const edgeLoop=[[10,10],[50,10],[50,50],[10,50],[10,28],[12,30],[8,30],[10,32],[10,10]].map(p);
+  const touch=[[10,10],[50,10],[50,50],[10,50],[10,30],[12,32],[10,30],[10,10]].map(p);
+  for(const outline of [overshoot,edgeLoop,touch]){
+    const original=structuredClone(outline);
+    assert.equal(routeArea(outline),null);
+    assert.equal(routeArea(repairClosedRoute(outline,project)),1600);
+    assert.equal(routeArea(repairClosedRoute([...outline].reverse(),project)),1600);
+    assert.deepEqual(outline,original,'correction does not mutate the actions used by Undo');
+  }
+  const zoomed=point=>({x:point.lng*10,y:point.lat*10});
+  assert.equal(routeArea(repairClosedRoute(edgeLoop,zoomed)),null,'visibly large loops remain invalid');
+  assert.deepEqual(repairClosedRoute(edgeLoop,null),edgeLoop,'no map-coordinate tolerance is guessed');
+  for(const size of [4,40]){
+    const bowtie=[[0,0],[size,size],[0,size],[size,0],[0,0]].map(p);
+    assert.equal(routeArea(repairClosedRoute(bowtie,project)),null,'a crossed shape is not reduced to one lobe');
+  }
+});
+
+test('explicit and automatic point and trace closure use the repaired outline for both the line and area',()=>{
+  for(const freehand of [false,true])for(const automatic of [false,true]){
+    const m=setup({scale:1,screenScale:1});m.toggle.click();
+    const outline=[[10,10],[50,10],[50,50],[10,50],[10,28],[12,30],[8,30],[10,32],[10,automatic?8:22]];
+    if(freehand){
+      m.trace.click();m.pointer('pointerdown',...outline[0]);
+      for(const point of outline.slice(1))m.pointer('pointermove',...point);
+      m.pointer('pointerup',...outline.at(-1));
+    }else for(const [lng,lat] of outline)m.click({lng,lat});
+    if(!automatic)m.close.click();
+    assert.equal(m.polygons.length,1);assert.match(m.summary.textContent,/Area: 1,600 square miles/);
+    assert.deepEqual(m.polygons[0],m.paths[0],'line, fill, and measurements use the same geometry');
+    m.undo.click();assert.equal(m.polygons.length,0);
+  }
+});
+
+test('Sketch starts freehand, supports point outlines and Undo, preserves measurements and Clear removes all drawings',()=>{
+  const m=setup({scale:1,screenScale:1});m.toggle.click();m.click({lat:80,lng:80});m.click({lat:80,lng:90});
+  m.sketch.click();assert.equal(m.toggle.attributes['aria-pressed'],'false');assert.equal(m.sketch.attributes['aria-pressed'],'true');
+  assert.equal(m.trace.attributes['aria-pressed'],'true');assert.equal(m.map.dragging.enabled(),false);
+  m.pointer('pointerdown',10,10);m.pointer('pointermove',50,10);m.pointer('pointermove',50,50);m.pointer('pointermove',10,50);m.pointer('pointerup',10,8);
+  assert.equal(m.paths.length,2);assert.equal(m.polygons.length,1);assert.equal(m.summary.textContent,'Temporary sketch.');
+  m.key('Escape');assert.equal(m.map.dragging.enabled(),true);assert.equal(m.paths.length,2);
+  m.toggle.click();assert.equal(m.summary.textContent,'Total: 10 miles');assert.equal(m.paths.length,2);
+  m.sketch.click();m.undo.click();assert.equal(m.paths.length,1,'sketch Undo leaves the measurement intact');
+  m.trace.click();for(const point of [{lng:10,lat:10},{lng:50,lat:10},{lng:50,lat:50}])m.click(point);
+  m.close.click();assert.equal(m.polygons.length,1);assert.doesNotMatch(m.summary.textContent,/miles|Area|Total/);
+  m.sketch.click();assert.equal(m.clear.hidden,false);m.clear.click();assert.equal(m.paths.length,0);assert.equal(m.polygons.length,0);
+  m.toggle.click();assert.equal(m.summary.textContent,'Choose a starting point.');
+});
+
+test('Sketch is available without valid calibration, is isolated per map, and never survives remounting',()=>{
+  const m=setup({calibrated:false,screenScale:1});assert.equal(m.toggle.hidden,true);m.sketch.click();
+  m.pointer('pointerdown',10,10);m.pointer('pointermove',50,10);m.pointer('pointerup',50,50);m.close.click();
+  assert.equal(m.polygons.length,1);assert.equal(m.summary.textContent,'Temporary sketch.');
+  const other=setup({calibrated:false});assert.equal(other.paths.length,0);
+  m.clear.click();assert.equal(m.paths.length,0);assert.equal(m.map.dragging.enabled(),false);
+  m.dispose();assert.deepEqual(m.canvas.listeners,{});
+  const remounted=setup({calibrated:false});assert.equal(remounted.paths.length,0);assert.equal(remounted.clear.hidden,true);
+});
+
+test('closed freehand shapes receive sequential temporary labels that follow Undo, Clear and tool switching',()=>{
+  const m=setup({screenScale:1});m.sketch.click();
+  function square(x,y){
+    m.pointer('pointerdown',x,y);m.pointer('pointermove',x+25,y);m.pointer('pointermove',x+25,y+25);
+    m.pointer('pointermove',x,y+25);m.pointer('pointerup',x,y);
+  }
+  square(5,5);square(60,60);
+  assert.deepEqual(m.labels.map(label=>label.icon.html),['1','2']);
+  assert.deepEqual(m.labels.map(label=>label.point),[{lng:17.5,lat:17.5},{lng:72.5,lat:72.5}]);
+  assert.ok(m.labels.every(label=>!label.interactive && !label.keyboard),'labels do not intercept drawing or keyboard input');
+  m.toggle.click();assert.deepEqual(m.labels.map(label=>label.icon.html),['1','2']);
+  m.sketch.click();m.undo.click();assert.deepEqual(m.labels.map(label=>label.icon.html),['1']);
+  square(60,5);assert.deepEqual(m.labels.map(label=>label.icon.html),['1','2']);
+  m.pointer('pointerdown',40,40);m.pointer('pointerup',45,45);
+  assert.equal(m.labels.length,2,'open paths have no shape label');
+  m.clear.click();assert.equal(m.labels.length,0);
+  square(5,5);assert.deepEqual(m.labels.map(label=>label.icon.html),['1']);
+});
+
+test('Sketch always reenters tracing and stays ready to draw after Clear and Close shape',()=>{
+  const m=setup();m.sketch.click();m.trace.click();assert.equal(m.map.dragging.enabled(),true);
+  m.key('Escape');m.sketch.click();assert.equal(m.trace.attributes['aria-pressed'],'true');
+  assert.equal(m.map.dragging.enabled(),false);
+  m.pointer('pointerdown',10,10);m.pointer('pointermove',80,80);m.pointer('pointermove',10,80);m.pointer('pointerup',80,10);
+  m.close.click();assert.equal(m.polygons.length,1);assert.equal(m.labels.length,1);assert.equal(m.trace.attributes['aria-pressed'],'true');
+  m.pointer('pointerdown',20,20);m.pointer('pointermove',40,20);m.clear.click();
+  assert.equal(m.canvas.capture,null);assert.equal(m.labels.length,0);assert.equal(m.trace.attributes['aria-pressed'],'true');
+  assert.equal(m.map.dragging.enabled(),false);
+  m.pointer('pointerdown',10,10);m.pointer('pointermove',80,10);m.pointer('pointermove',80,80);m.pointer('pointerup',10,10);
+  assert.equal(m.polygons.length,1,'drawing works immediately after Clear');
+});
+
+test('shape labels stay inside concave outlines in either winding and at large coordinate origins',()=>{
+  const outline=[[0,0],[6,0],[6,6],[4,6],[4,2],[2,2],[2,6],[0,6],[0,0]].map(([lng,lat])=>({lng:lng+1e6,lat:lat-1e6}));
+  for(const ring of [outline,[...outline].reverse()]){
+    const label=shapeLabelPoint(ring),x=label.lng-1e6,y=label.lat+1e6;
+    assert.ok(x>0 && x<6 && y>0 && y<6);
+    assert.ok(x<2 || x>4 || y<2,'the label avoids the empty center of the U');
+  }
 });
 
 test('short open traces do not snap shut, while explicit closure still measures small outlines',()=>{

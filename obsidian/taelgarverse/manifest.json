@@ -1,7 +1,7 @@
 {
   "id": "taelgarverse",
   "name": "Taelgarverse",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "minAppVersion": "1.8.0",
   "description": "Taelgarverse tools for Obsidian: generated headers and indexes, campaign interactions, interactive maps with measurement, and an optional image viewer.",
   "author": "Taelgar",

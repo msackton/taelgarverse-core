@@ -357,14 +357,28 @@ See [publishing pipelines](../../docs/publishing-pipelines.md).
 
 Choose **Measure distance**, then add points or use **Trace path** to follow a
 river or road. Separate strokes do not add connecting segments. **Undo** removes
-the last point or stroke; **Clear** removes measurements. **Done measuring**
+the last point or stroke; **Clear** removes measurements and sketches. **Done measuring**
 returns to navigation while retaining the result until the map unloads.
 
 Return to an outline's starting point or choose **Close shape** for its enclosed
-area. Multiple outlines have separate readings; crossed or retraced outlines
-report that area is unavailable. All measurements are temporary. The plugin
+area. **Close shape** repairs crossings, loops, and retraced overshoots by
+keeping the larger enclosed region. Automatic measurement closure corrects only
+tiny edge loops; choose **Close shape** for larger overlaps. Multiple outlines
+have separate readings; outlines with no usable interior report that area is
+unavailable. All measurements are temporary. The plugin
 reads local images, makes no network requests, and does not rewrite notes.
 See [map definitions and calibration](../../docs/maps.md).
+
+Choose **Sketch** to draw temporary shapes without measurement readings. It
+enters freehand mode every time you choose it; turn off **Trace path** for point
+outlines or panning. **Close shape** and **Clear** keep Sketch ready to draw.
+Sketch also repairs larger overlaps when an outline automatically closes.
+**Undo** restores an explicitly corrected outline or removes the last stroke;
+**Done sketching** returns to navigation.
+Switching modes keeps both sets of drawings visible; **Clear** removes both.
+Sketches are never saved to notes and also work without valid calibration.
+Closed shapes are automatically numbered inside their outlines, including
+freehand drawings. Undo updates the labels; Clear restarts numbering at 1.
 
 ## Image viewer
 
