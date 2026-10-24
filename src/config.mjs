@@ -31,6 +31,11 @@ function readSettings(filename) {
     input.vault_dir = input.runtime_dir;
     delete input.runtime_dir;
   }
+  for(const key of ['index_registry','index_override']) {
+    if(!Object.hasOwn(input,key) || key==='index_override' && input[key]===null)continue;
+    const value=input[key];
+    if(typeof value!=='string' || !value.trim() || path.isAbsolute(value) || /(^|[\\/])\.\.([\\/]|$)/.test(value))throw new Error(key+' must be a vault-relative path'+(key==='index_override'?' or null':''));
+  }
   return input;
 }
 

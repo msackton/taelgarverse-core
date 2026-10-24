@@ -92,7 +92,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     interactions.transcripts[id]={shard,sha256:sha(body)};
   }
   const base={schemaVersion:1,sourceVersion:{commit:sourceVersion.commit,dirty:sourceVersion.dirty},settings:{default_date:settings.default_date,campaigns:settings.campaigns,respect_pov_dates:settings.respect_pov_dates === true},backlinks,
-    registry,interactions,
+    registry,interactions,indexRegistry:store.indexRegistry,
     coreMeta:JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'.obsidian/metadata.json'),'utf8')),
     navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,
     homeSource,

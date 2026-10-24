@@ -1,0 +1,5 @@
+version: 1
+hosts:
+  obsidian:
+    headerRules:
+      group-members: {enabled: true}

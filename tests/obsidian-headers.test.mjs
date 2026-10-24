@@ -46,7 +46,7 @@ function host(extraSources={}){
     getFirstLinkpathDest:target=>files.find(file=>file.path===target || file.path===target+'.md' || file.basename===target)},
     vault:{...vaultEvents,on:vaultEvents.on,configDir:'.obsidian',getRoot:()=>({path:''}),getMarkdownFiles:()=>files,getAbstractFileByPath:p=>files.find(file=>file.path===p),
       cachedRead:async file=>notes[file.path],
-      adapter:{read:async p=>JSON.stringify(p.endsWith('metadata.json')?coreMeta:registry)}}};
+      adapter:{exists:async p=>p.endsWith('metadata.json') || p.endsWith('session_note_campaigns.json'),read:async p=>JSON.stringify(p.endsWith('metadata.json')?coreMeta:registry)}}};
   const plugin={app,registerMarkdownCodeBlockProcessor(type,processor){
     // Obsidian interpolates the language into this unescaped CSS selector.
     const $=load('<pre><code class="language-'+type+'"></code></pre>');

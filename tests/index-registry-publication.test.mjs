@@ -1,0 +1,24 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {buildFingerprint} from '../scripts/publish-content.mjs';
+import {registryDocument} from './helpers/index-registry.mjs';
+test('publication fingerprint includes only the selected effective website registry',t=>{
+  const directory=fs.mkdtempSync(path.join(os.tmpdir(),'index-publication-'));
+  t.after(()=>{assert.equal(path.dirname(directory),os.tmpdir());assert.ok(path.basename(directory).startsWith('index-publication-'));fs.rmSync(directory,{recursive:true});});
+  fs.mkdirSync(path.join(directory,'_scripts'));
+  const file=path.join(directory,'_scripts/indexes.yaml'),write=value=>fs.writeFileSync(file,JSON.stringify(value));
+  const settings={vault_dir:directory,default_date:'1750-01-01'};
+  write(registryDocument);
+  const initial=buildFingerprint(settings,{});
+  const local=structuredClone(registryDocument);local.hosts.obsidian={indexes:{members:{label:'Private local members'}}};
+  write(local);assert.equal(buildFingerprint(settings,{}),initial);
+  fs.writeFileSync(path.join(directory,'_scripts/indexes.mike.yaml'),'indexes:\n  members: {label: Mike members}\n');
+  assert.equal(buildFingerprint(settings,{}),initial);
+  assert.notEqual(buildFingerprint({...settings,index_override:'_scripts/indexes.mike.yaml'},{}),initial);
+  local.indexes.members.label='Changed shared members';write(local);
+  assert.notEqual(buildFingerprint(settings,{}),initial);
+  fs.writeFileSync(file,'version: 99');assert.throws(()=>buildFingerprint(settings,{}),/version/);
+});

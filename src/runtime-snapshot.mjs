@@ -109,7 +109,7 @@ export class RuntimeSnapshot {
       if(this.index.version===2 && (!Array.isArray(data.noteShards) || data.noteShards.some(value=>!validRuntimeDescriptor(value)) ||
         data.entries.some(entry=>entry.note && (!Number.isSafeInteger(entry.note.prepared) || entry.note.prepared<0 || !data.noteShards[entry.note.prepared]))))throw failure();
       if(data.interactions && (data.interactions.version!==2 || !data.interactions.byTarget || typeof data.interactions.byTarget!=='object' || Array.isArray(data.interactions.byTarget)))throw failure();
-      const store=new SnapshotStore({entries:data.entries,warnings:this.index.warnings,settings:this.index.settings,revision:this.revision},this.bucket,data.lookups);
+      const store=new SnapshotStore({entries:data.entries,indexRegistry:this.index.indexRegistry,warnings:this.index.warnings,settings:this.index.settings,revision:this.revision},this.bucket,data.lookups);
       store.getNote=entry=>this.getNote(entry,data.noteShards);
       const navigation=await this.navigation(store,compiledNavigation);
       const compactBacklinks=this.index.version===2 ? this.backlinkLoader(backlinks,store) : null;

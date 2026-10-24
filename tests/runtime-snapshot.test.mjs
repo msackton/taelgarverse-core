@@ -12,6 +12,7 @@ import {Navigation} from '../src/navigation.mjs';
 import {validatePublicationUploads,prunePublication} from '../scripts/content-retention.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {indexSources,featureIndexNotes} from './fixtures/indexes.mjs';
+import {registryDocument} from './helpers/index-registry.mjs';
 import {cintraSource,cintraSentence} from './fixtures/index-descriptions.mjs';
 
 let directory,report,objects,settings;
@@ -46,6 +47,8 @@ before(async()=>{
   directory=fs.mkdtempSync(path.join(ROOT,'.cache','runtime-snapshot-'));
   fs.mkdirSync(path.join(directory,'.obsidian'));fs.mkdirSync(path.join(directory,'_scripts'));fs.mkdirSync(path.join(directory,'_website'));
   const {input}=headerFixture();
+  const registry=structuredClone(registryDocument);registry.hosts.obsidian={indexes:{members:{label:'PERSONAL_REGISTRY_SENTINEL'}}};registry.indexes.residents.cards.body=null;registry.indexes['waterways-in-watershed'].cards.body=null;
+  fs.writeFileSync(path.join(directory,'_scripts/indexes.yaml'),JSON.stringify(registry));
   fs.writeFileSync(path.join(directory,'.obsidian/metadata.json'),JSON.stringify(input.coreMeta));
   fs.writeFileSync(path.join(directory,'_scripts/session_note_campaigns.json'),JSON.stringify({campaigns:{frontier:{code:'dufr',name:'Frontier',campaignRoot:'Campaigns/Frontier'},adder:{code:'adma',name:'Adder'}}}));
   const notes={
@@ -58,14 +61,14 @@ before(async()=>{
   };
   Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/backlinks.json',import.meta.url),'utf8')));
   Object.assign(notes,indexSources(featureIndexNotes),{
-    'Index Guide.md':'# Index Guide\n\n```taelgar-index\ntype: residents\ntarget: Town\n```\n\n```taelgar-index\ntype: members\ntarget: Guild\nshow: obsidian\n```',
+    'Index Guide.md':'# Index Guide\n\n```taelgar-index\nindex: residents\ntarget: Town\n```\n\n```taelgar-index\nindex: members\ntarget: Guild\nshow: obsidian\n```',
     'Index Embed.md':'# Index Embed\n\n![[Index Guide]]',
-    'Index Table.md':'```taelgar-index\ntype: residents\ntarget: Realm\nmode: table\n```',
-    'Settlement Table.md':'```taelgar-index\ntype: settlements\ntarget: Realm\nmode: table\n```',
-    'Member Table.md':'```taelgar-index\ntype: members\ntarget: Guild\nmode: table\n```',
+    'Index Table.md':'```taelgar-index\nindex: residents\ntarget: Realm\nmode: table\n```',
+    'Settlement Table.md':'```taelgar-index\nindex: settlements-in\ntarget: Realm\nmode: table\n```',
+    'Member Table.md':'```taelgar-index\nindex: members\ntarget: Guild\nmode: table\n```',
     'People/Cintra.md':cintraSource,
     'Groups/Shakun Mystai.md':'---\ntags: [group]\n---\n```taelgar-header\n```',
-    'Cintra Grid.md':'```taelgar-index\ntype: members\ntarget: Shakun Mystai\n```',
+    'Cintra Grid.md':'```taelgar-index\nindex: members\ntarget: Shakun Mystai\n```',
     'Cintra Embed.md':'![[Cintra Grid]]',
   });
   notes['People/Alice.md']=notes['People/Alice.md'].replace('Authored prose.',
@@ -105,14 +108,14 @@ test('compiled and legacy snapshots produce identical dynamic HTML, APIs, embeds
 test('compiled and legacy Workers calculate visible indexes from metadata and preserve inline blocks through publication',async()=>{
   for(const legacy of [false,true]) {
     const coldBucket=new Bucket(objects,{legacy});
-    const cold=await request(createWorker(),coldBucket,'/api/index?page=Places/Realm.md&type=residents&date=1720-01-01&campaigns=dufr&pov=1');
+    const cold=await request(createWorker(),coldBucket,'/api/index?page=Places/Realm.md&index=residents&date=1720-01-01&campaigns=dufr&pov=1');
     assert.equal(cold.status,200);
     assert.ok(!coldBucket.calls.some(key=>/\/(?:runtime\/)?notes\//.test(key)),'popup API uses metadata without note-body reads');
     const bucket=new Bucket(objects,{legacy}),worker=createWorker();
     const response=await request(worker,bucket,'/api/page?page=Places/Realm.md&date=1720-01-01&campaigns=dufr&pov=1');
     assert.equal(response.status,200);const result=await response.json();
     assert.match(result.html,/data-index-lazy/);assert.doesNotMatch(result.html,/taelgar-index-card|taelgar-index-image/);
-    const content=await request(worker,bucket,'/api/index?page=Places/Realm.md&type=residents&date=1720-01-01&campaigns=dufr&pov=1');
+    const content=await request(worker,bucket,'/api/index?page=Places/Realm.md&index=residents&date=1720-01-01&campaigns=dufr&pov=1');
     assert.equal(content.status,200);const grid=await content.text();
     assert.match(grid,/taelgar-index-image/);assert.match(grid,/Alice Example<\/a> \(she\/her AL-iss\)/);
     assert.doesNotMatch(grid,/Hidden|Campaign Secret|POV Secret|Future|Dead|Visitor/);
@@ -124,27 +127,27 @@ test('compiled and legacy Workers calculate visible indexes from metadata and pr
     const table=await request(worker,bucket,'/api/page?page=Index Table&date=1720-01-01&campaigns=dufr&pov=1');
     assert.equal(table.status,200);const tabular=await table.json();
     assert.match(tabular.html,/Alice Example.*she\/her AL-iss/s);assert.match(tabular.html,/Townfolk human/);
-    assert.match(tabular.html,/Person<\/th>.*Info<\/th>.*Current Location<\/th>.*Home<\/th>/s);
+    assert.match(tabular.html,/Person<\/th>.*Info<\/th>.*Home<\/th>.*Current Location<\/th>/s);
     assert.doesNotMatch(tabular.html,/Visitor/);assert.match(tabular.html,/January 1st, 1720/);
     assert.doesNotMatch(tabular.html,/taelgar-index-image|People\/Hidden/);
     const settlements=await request(worker,bucket,'/api/page?page=Settlement Table&date=1720-01-01&campaigns=dufr&pov=1');
     assert.equal(settlements.status,200);const places=await settlements.json();
-    assert.match(places.html,/Place<\/th>.*Region<\/th>.*Type Of<\/th>.*Population<\/th>/s);
+    assert.match(places.html,/Name<\/th>.*Region<\/th>.*Population<\/th>/s);
     assert.match(places.html,/Ruin/);assert.match(places.html,/pop\. 1,234/);
     const members=await request(worker,bucket,'/api/page?page=Member Table&date=1720-01-01&campaigns=dufr&pov=1');
     assert.equal(members.status,200);const people=await members.json();
-    assert.match(people.html,/Person<\/th>.*Info<\/th>.*Current Location<\/th>/s);
-    assert.match(people.html,/she\/her AL-iss/);assert.match(people.html,/January 1st, 1720/);
-    assert.doesNotMatch(people.html,/People\/(?:Hidden|Campaign Secret|POV Secret)|Dead|Future/);
+    assert.match(people.html,/Person<\/th>.*Role<\/th>.*Joined<\/th>/s);
+    assert.match(people.html,/she\/her AL-iss/);assert.match(people.html,/January 1st, 1710/);
+    assert.doesNotMatch(people.html,/People\/(?:Hidden|Campaign Secret|POV Secret)|Future/);assert.match(people.html,/Dead/);
   }
 });
 
 test('published Members grids load prose lazily in compiled and legacy Workers, including inline indexes and embeds',async()=>{
   const compiled=recompiledBucket({noteShardBytes:1}),legacy=new Bucket(objects,{legacy:true});
   const worker=createWorker(),old=createWorker();
-  const popup='/api/index?page=Groups/Shakun%20Mystai.md&type=members&date=1748-06-01';
+  const popup='/api/index?page=Groups/Shakun%20Mystai.md&index=members&date=1748-06-01';
   const header=await request(worker,compiled,'/api/page?page=Groups/Shakun%20Mystai.md&date=1748-06-01');
-  assert.equal(header.status,200);assert.match((await header.json()).html,/data-index-type="members"/);
+  assert.equal(header.status,200);assert.match((await header.json()).html,/data-index="members"/);
   assert.equal(compiled.calls.filter(key=>key.includes('/runtime/notes/')).length,1,'opening the header does not read member bodies');
   for(const url of [popup,'/api/page?page=Cintra%20Grid&date=1748-06-01','/api/page?page=Cintra%20Embed&date=1748-06-01']) {
     const a=await request(worker,compiled,url),b=await request(old,legacy,url);
@@ -168,7 +171,7 @@ test('concurrent published Members requests keep description date, campaign and 
       ['1720-01-01','adma',1,'Private member description.'],
     ];
     await Promise.all(cases.map(async([date,campaigns,dm,expected])=>{
-      const response=await request(worker,bucket,'/api/index?'+new URLSearchParams({page:'Groups/Guild.md',type:'members',date,campaigns,dm}));
+      const response=await request(worker,bucket,'/api/index?'+new URLSearchParams({page:'Groups/Guild.md',index:'members',date,campaigns,dm}));
       assert.equal(response.status,200);const html=await response.text();
       assert.ok(html.includes(expected));
       for(const other of cases.map(row=>row[3]).filter(sentence=>sentence!==expected))assert.ok(!html.includes(other));
@@ -353,15 +356,24 @@ test('retention validates every compiled dependency before cleanup',async()=>{
 
 test('compiled and legacy Workers render Rivers and Places from metadata without note-body reads',async()=>{
   for(const legacy of [false,true])for(const [type,page,expected,excluded] of [
-    ['rivers','Basin','Main River','Hidden River'],['places','Town','Shop','Hidden Building'],
+    ['waterways-in-watershed','Basin','Main River','Hidden River'],['places-in','Town','Shop','Hidden Building'],
   ]) {
     const bucket=new Bucket(objects,{legacy}),worker=createWorker();
-    const response=await request(worker,bucket,'/api/index?page=Places/'+page+'.md&type='+type+'&context=custom&date=1720-01-01');
+    const response=await request(worker,bucket,'/api/index?page=Places/'+page+'.md&index='+type+'&context=custom&date=1720-01-01');
     assert.equal(response.status,200);const html=await response.text();
     assert.match(html,new RegExp(expected));assert.doesNotMatch(html,new RegExp(excluded+'|Future'));
     assert.ok(!bucket.calls.some(key=>/\/(?:runtime\/)?notes\//.test(key)));
     const header=await request(worker,bucket,'/api/page?page=Places/'+page+'.md&context=custom&date=1720-01-01');
     assert.equal(header.status,200);const result=await header.json();
-    assert.match(result.html,new RegExp('data-index-type="'+type+'"'));assert.doesNotMatch(result.html,/taelgar-index-card/);
+    assert.match(result.html,new RegExp('data-index="'+type+'"'));assert.doesNotMatch(result.html,/taelgar-index-card/);
+  }
+});
+
+test('publication includes only the effective website registry in both snapshot formats',()=>{
+  for(const filename of ['/index.json','/runtime.json']) {
+    const source=objects.get('revisions/'+report.revision+filename).toString(),index=JSON.parse(source);
+    assert.equal(index.indexRegistry.indexes.members.label,'Members');
+    assert.equal(index.indexRegistry.hosts,undefined);
+    assert.doesNotMatch(source,/PERSONAL_REGISTRY_SENTINEL|indexes\.mike\.yaml/);
   }
 });

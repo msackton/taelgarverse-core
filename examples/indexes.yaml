@@ -1,0 +1,96 @@
+# Copy to your vault as _scripts/indexes.yaml.
+version: 1
+indexes:
+  places:
+    label: Places
+    where:
+      all:
+        - {field: page.kind, eq: place}
+        - {field: life.exists, eq: true}
+    columns: [name, type, region]
+    cards: {title: name, subtitle: type, footer: region}
+  settlements:
+    extends: places
+    label: Settlements
+    where: {field: metadata.typeOf, eq: settlement}
+    columns: [name, region, population]
+    cards: {title: name, subtitle: type, body: population, footer: region}
+  places-in:
+    extends: places
+    label: Places
+    where: {relation: home, within: $target, recursive: true}
+    cards: {title: name, subtitle: type, footer: region}
+  settlements-in:
+    extends: settlements
+    label: Settlements
+    where: {relation: home, within: $target, recursive: true}
+    cards: {title: name, subtitle: type, body: population, footer: region}
+  major-cities:
+    extends: settlements
+    label: Major cities
+    where: {field: metadata.population, as: number, gt: 10000}
+    sort: [{field: metadata.population, format: number, direction: desc}]
+    cards: {title: name, body: population, footer: region}
+  residents:
+    label: Residents
+    where:
+      all:
+        - {field: page.kind, eq: person}
+        - {field: life.active, eq: true}
+        - {relation: home, within: $target, recursive: true}
+    columns: [person, info, home, lastKnown]
+    cards: {title: person, subtitle: info, body: firstSentence, footer: home}
+  dwarven-residents:
+    extends: residents
+    label: Dwarven residents
+    where: {field: metadata.species, eq: dwarf}
+    cards: {title: person, subtitle: info, footer: home}
+  members:
+    label: Members
+    where:
+      all:
+        - {field: page.kind, eq: person}
+        - {field: life.exists, eq: true}
+        - {relation: affiliation, target: $target, state: current}
+    columns: [person, role, joined, left]
+    cards: {title: person, subtitle: role, body: firstSentence}
+  family-members:
+    extends: members
+    label: Family members
+    columns:
+      - person
+      - start
+      - end
+      - {label: State, field: life.active, format: boolean, trueText: "", falseText: "💀"}
+    cards:
+      title: person
+      subtitle: {field: life.active, format: boolean, trueText: "", falseText: "💀"}
+      body: firstSentence
+  current-members:
+    extends: members
+    label: Current members
+    where: {field: life.active, eq: true}
+    cards: {title: person, subtitle: role, body: firstSentence}
+  waterways-in-watershed:
+    extends: places
+    label: Rivers and lakes
+    where:
+      all:
+        - {field: metadata.typeOf, in: [waterway, lake]}
+        - {relation: watershed, within: $target, recursive: true}
+    columns: [name, type]
+    cards: {title: name, subtitle: type, body: firstSentence}
+  planar-places:
+    extends: places
+    label: Planar places
+    where: {field: metadata.typeOf, in: [plane, extraplanar domain, planar link]}
+    cards: {title: name, subtitle: type}
+headerRules:
+  group-members:
+    enabled: false
+    when: {field: page.kind, eq: group}
+    indexes: [members]
+hosts:
+  website:
+    headerRules:
+      group-members: {enabled: true}

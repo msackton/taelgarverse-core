@@ -34,6 +34,8 @@ export function parseArgs(argv) {
     if (arg === "--vault") args.vaultPath = next();
     else if (arg === "--out" || arg === "--output") args.outputPath = next();
     else if (arg === "--date") args.overrideDate = next();
+    else if (arg === "--index-registry") args.indexRegistry = next();
+    else if (arg === "--index-override") args.indexOverride = next();
     else if (arg === "--mode") args.mode = next();
     else if (arg === "--report") args.reportPath = next();
     else if (arg === "--header-type") args.headerType = next();
@@ -82,6 +84,8 @@ Options:
   --out PATH         Output vault path. Enables write mode unless --mode is supplied.
   --mode MODE        audit, write, or check. Defaults to write when --out is set, otherwise audit.
   --date DATE        Override CustomJS target date.
+  --index-registry PATH Vault-relative YAML base (default _scripts/indexes.yaml).
+  --index-override PATH One optional vault-relative YAML profile for website rules.
   --report PATH      Report JSON path.
   --header-type TYPE website, static, or none. Default: website.
   --dynamic-website Replace generated headers with <!-- taelgar:header -->,
@@ -138,6 +142,8 @@ export function buildMaterializerRequest(args, options = {}) {
       reportPath,
       progressPath: `${reportPath}.progress.json`,
       overrideDate: args.overrideDate,
+      indexRegistry: args.indexRegistry,
+      indexOverride: args.indexOverride,
       headerType: args.dynamicWebsite ? "none" : (args.headerType ?? "website"),
       blockTimeoutMs: args.blockTimeoutMs,
     },

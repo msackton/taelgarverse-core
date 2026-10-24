@@ -5,7 +5,6 @@ import {searchInput,searchPages} from './search.mjs';
 import {searchTypes} from './search-types.mjs';
 import {searchView,searchErrorView} from './search-view.mjs';
 import {homepage} from './homepage.mjs';
-import {indexLabels} from './indexes.mjs';
 import {resolveDiagramLink} from './diagram-links.mjs';
 
 const apiSpec = {
@@ -27,8 +26,8 @@ const apiSpec = {
         {name:'dm',in:'query',schema:{type:'boolean',default:false},description:'See Behind the Curtain: 1/true shows comment notes and Campaign:none blocks; a viewing preference available to every visitor'}],
       responses:{200:{description:'Article HTML, TOC, backlinks, campaign interactions, date, campaigns and warnings'},400:{description:'Invalid input'},
         404:{description:'Missing/excluded/future page'},409:{description:'Ambiguous page'},422:{description:'Unsafe comment syntax or header error'}}}},
-    '/api/index':{get:{summary:'Load a visible header index grid on demand',parameters:[
-      {name:'page',in:'query',required:true,schema:{type:'string'}},{name:'type',in:'query',required:true,schema:{type:'string',enum:Object.keys(indexLabels)}},
+    '/api/index':{get:{summary:'Load a configured header index on demand',parameters:[
+      {name:'page',in:'query',required:true,schema:{type:'string'}},{name:'index',in:'query',required:true,schema:{type:'string'}},
       {name:'context',in:'query',schema:{type:'string'}},{name:'date',in:'query',schema:{type:'string'}},
       {name:'campaigns',in:'query',schema:{type:'string'}},{name:'dm',in:'query',schema:{type:'boolean'}}],
       responses:{200:{description:'Context-filtered index HTML'},400:{description:'Missing parameters'},404:{description:'Unavailable page or index'}}}},
@@ -96,9 +95,9 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns,
         return send(200,engine.navigation.branch(context,branch,url.searchParams.get('page')));
       }
       if (pathname === '/api/index') {
-        const page=url.searchParams.get('page'),type=url.searchParams.get('type');
-        if(!page || !type)throw new RenderError(400,'page and type are required');
-        return send(200,await renderIndex(page,type,date,contextId,dm,selectedCampaigns,pov),'text/html');
+        const page=url.searchParams.get('page'),index=url.searchParams.get('index');
+        if(!page || !index)throw new RenderError(400,'page and index are required');
+        return send(200,await renderIndex(page,index,date,contextId,dm,selectedCampaigns,pov),'text/html');
       }
       if (pathname === '/api/page') {
         const page = url.searchParams.get('page');

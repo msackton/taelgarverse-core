@@ -66,7 +66,7 @@ export function shouldRefreshVault(filename){
   const file=String(filename || '').replaceAll('\\','/'),first=file.split('/')[0];
   if(file===NO_PUBLISH_MARKER)return true;
   if(first==='.obsidian')return file==='.obsidian/metadata.json';
-  if(first==='_scripts')return file.startsWith('_scripts/customJS/') || file==='_scripts/session_note_campaigns.json';
+  if(first==='_scripts')return file.startsWith('_scripts/customJS/') || file==='_scripts/session_note_campaigns.json' || /\.ya?ml$/i.test(file);
   return !first.startsWith('.') && !['_DM_','node_modules'].includes(first) && !file.endsWith('AGENTS.md');
 }
 

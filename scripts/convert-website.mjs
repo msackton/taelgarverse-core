@@ -10,7 +10,7 @@ export async function convertWebsiteStore(store,{log=()=>{}}={}) {
   const report={schemaVersion:1,changes:[],unconverted:[],dataviewJsBlocksRemoved:0,sectionsRemoved:0};
   for(const entry of store.entries)if(entry.note) {
     try {
-      const converted=convertWebsiteNote(entry.note,{sourcePath:entry.id,resolveTarget:target=>store.lookup(target).entry?.note?.metadata}),cleaned=cleanupPublicationNote(converted.note);
+      const converted=convertWebsiteNote(entry.note,{sourcePath:entry.id,indexRegistry:store.indexRegistry,resolveTarget:target=>store.lookup(target).entry?.note?.metadata}),cleaned=cleanupPublicationNote(converted.note);
       entry.note=cleaned.note;report.changes.push(...converted.changes);report.unconverted.push(...converted.unconverted);
       report.dataviewJsBlocksRemoved+=cleaned.dataviewJsBlocksRemoved;report.sectionsRemoved+=cleaned.sectionsRemoved;
     } catch(error){throw new Error(entry.id+': '+error.message,{cause:error});}

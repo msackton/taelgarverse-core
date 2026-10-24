@@ -6,6 +6,7 @@ import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
 import {ROOT, loadSettings, isInside} from '../src/config.mjs';
+import {readIndexRegistry} from '../src/index-registry-node.mjs';
 import {prepareContent, loadCloudflareConfig} from './prepare-cloudflare.mjs';
 import {readInteractionBundles} from '../src/session-interactions.mjs';
 import {DerivativeCache} from './derivative-cache.mjs';
@@ -199,6 +200,7 @@ export async function publishContent(options, deps) {
 
 export function buildFingerprint(settings, options, config={}) {
   const hash = createHash('sha256');
+  hash.update(JSON.stringify(readIndexRegistry(settings).registry));
   hash.update(JSON.stringify({excludedFolders:readFolderExclusions(settings.vault_dir)}));
   hash.update(JSON.stringify(readInteractionBundles(settings)));
   for (const [host,source] of Object.entries(readCampaignHomes(settings))) hash.update(JSON.stringify([host,source.replace(/\r\n/g,'\n')]));
@@ -240,7 +242,7 @@ export function buildFingerprint(settings, options, config={}) {
     // invalidate the shared R2 checkpoint for an otherwise identical build.
     hash.update(filename ? readFileSync(filename, 'utf8').replace(/\r\n/g, '\n') : '<no-website-source>');
   }
-  for(const filename of ['./compile-search.mjs','./compile-runtime.mjs','./search-index.mjs','./search-database.mjs','./content-retention.mjs','./cloudflare-client.mjs','./upload-content.mjs','./publication-progress.mjs','../src/search-text.mjs','../src/search-metadata.mjs','../src/search-types.mjs','../src/runtime-format.mjs','../src/navigation.mjs','../src/contexts.mjs','../src/header-core/snapshot.mjs','../src/header-core/campaigns.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
+  for(const filename of ['./compile-search.mjs','./compile-runtime.mjs','./search-index.mjs','./search-database.mjs','./content-retention.mjs','./cloudflare-client.mjs','./upload-content.mjs','./publication-progress.mjs','../src/search-text.mjs','../src/search-metadata.mjs','../src/search-types.mjs','../src/runtime-format.mjs','../src/navigation.mjs','../src/contexts.mjs','../src/header-core/snapshot.mjs','../src/header-core/campaigns.mjs','../src/index-registry.mjs','../src/index-registry-node.mjs','../src/index-fields.mjs','../src/index-columns.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
   return hash.digest('hex');
 }
 

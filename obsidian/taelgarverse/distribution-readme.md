@@ -20,64 +20,45 @@ version. Plugin files and BRAT preferences should stay outside vault Git trackin
 
 ## Generated indexes
 
-Turn off **Show header index popups** in Taelgarverse settings to hide these
-buttons in Obsidian only. The setting defaults to on and applies immediately,
-closing any open header popup. Inline `taelgar-index` blocks and website popups
-are unaffected; no note metadata is changed.
-
-Inline grids and tables start with an H2 heading matching the index label.
-
-Residents, Settlements, Members, Rivers and Places grids use current vault
-metadata and the selected in-world date. Enable header popup buttons with
-`indexes: [residents, settlements]` on a place. Organizations tagged `group`
-get Members automatically when `indexes` is omitted; `indexes: []` suppresses
-it and an explicit list overrides the default. Buttons appear only with a `taelgar-header` block, at the bottom
-of the generated header and outside the information callout.
-
-For an inline grid:
+Copy core’s `examples/indexes.yaml` into the vault as `_scripts/indexes.yaml`.
+Named definitions control filters and presentation in tables and grids.
+The former `type:` syntax is removed.
 
 ````markdown
 ```taelgar-index
-type: residents
-mode: grid
-show: both
+index: residents
+target: "[[Sembara]]"
+mode: table
+columns: [person, info, home]
 ```
 ````
 
-`target` optionally names another note. `show` accepts `obsidian`, `website`, or
-`both` (default). Residents includes living people whose active home is in the
-place, including traveling residents; transients whose home is elsewhere are
-excluded. Settlements follows
-`typeOf: settlement`, and Members follows active affiliations and leadership.
-Residents and Settlements include contained locations by default; Members
-matches the direct organization. Override this with `recursive: true` or `false`.
-Cards show available lead images from note `image` frontmatter. People cards
-include pronouns and pronunciation when available; settlement cards also show
-pronunciation. Residents cards show Info, Current Location and Home. Members
-cards show Info, the first authored prose sentence, and roles. Descriptions skip
-callouts, headings, code, lists, tables and image-only paragraphs. Set `mode: table`
-inline to show Person (name, pronouns, pronunciation), Info (ancestry and main
-type), Current Location (last-known chain and date), and Home for Residents and Members.
-Member tables show Person (name, pronouns, pronunciation),
-Info (ancestry and main type), Current Location (last-known location chain
-and date), and Home, following the existing `isAffiliated` and header-template rules.
-Settlement tables show Place, Region,
-Type Of, and Population, sorted by dated home region, with the same type and
-population formatting as headers. Settlements includes ruins and matches
-current, last-known and secondary locations using the existing location rules.
-Table rows have no image column; popups always use image grids.
-Grids and buttons refresh when vault metadata or calendar dates change. Notes
-remain editable and are never rewritten.
+Columns can read arbitrary `metadata.<path>` values or use existing header
+templates. Grids have `cards.title`, `subtitle`, `body`, and `footer` positions;
+`cards.image` is a boolean. `image` and `firstSentence` are table presets;
+`firstSentence` also works in card positions.
 
-Rivers lists waterway and lake notes in a place or watershed, including secondary watershed
-membership. Places lists contained place notes, including buildings in town
-quarters. Inline Places blocks accept `placeType: built` or `placeType: natural`;
-omit it for all types. These select communities/structures/infrastructure or
-geographic regions/biomes/water features/landforms by `typeOf`. Extraplanar and
-unclassified types remain in unfiltered results only. Enable the default header
-buttons with `indexes: [rivers]` or `indexes: [places]`, or use
-the same type in an inline `taelgar-index` block. Their compact tables show
-River/Place and Type Of; recursive containment is enabled by default.
+`members` includes deceased people who never explicitly left. Use
+`current-members` for living active members. `region` skips immediate home,
+chooses the first realm/region above it, and falls back to Taelgar.
+
+Registry `headerRules` add automatic buttons below generated headers.
+An explicit note `indexes: [members]` replaces rules; `indexes: []` suppresses
+buttons. `header.mode` chooses grid or table for a popup.
+
+**Index registry** selects the base file (blank uses `_scripts/indexes.yaml`).
+**Index override** selects one optional vault-relative profile, such as
+`_scripts/indexes.mike.yaml`, shared across computers using Git.
+`hosts.obsidian` and `hosts.website` keep host rules separate. The website
+publisher selects its files independently. File, metadata, and date changes
+refresh open blocks. No Dataview or CustomJS is needed.
+
+**Show header index popups** is the Obsidian master switch. It applies
+immediately and closes open dialogs. Inline blocks remain available.
+
+See the [complete YAML reference](https://github.com/msackton/taelgarverse-core/blob/main/docs/index-registry-proposal.md) and
+[example registry](https://github.com/msackton/taelgarverse-core/blob/main/examples/indexes.yaml) for all options and core queries.
+
 
 ## Generated headers
 
@@ -195,50 +176,6 @@ seconds. Closing notes or unloading the plugin disposes panels, observers, and
 timers. The website consumes the empty placement fence without showing a code
 frame and retains its normal campaign-history section.
 
-## Generated indexes
-
-Residents, Settlements, Members, Rivers and Places grids are calculated from vault metadata. Put
-`indexes: [residents, settlements]` in a place's frontmatter to add popup buttons at the bottom of
-its `taelgar-header` block, below and outside the information callout. Organizations tagged
-`group` get Members automatically when `indexes` is omitted; set `indexes: []` to suppress it or
-provide an explicit list to choose header indexes. Ordinary
-Markdown titles and saved headers do not receive buttons. Use a `taelgar-index` fence
-containing `type: residents`, `type: settlements`, `type: members`,
-`type: rivers`, or `type: places` for an
-inline grid. Inline grids and tables start with an H2 heading matching the index
-label. Optional `target` selects another note, `show` selects `obsidian`,
-`website`, or `both`, and `recursive` controls location/organization containment.
-Grid cards show available local images from each note's `image` frontmatter.
-People cards include pronouns and name pronunciation when available, using the
-same name formatting as tables. Settlement cards also include pronunciation.
-Use `mode: table` inline for Person (name, pronouns, pronunciation), Info (ancestry
-and main type), Current Location (last-known chain and date), and Home on Residents.
-Residents includes living people whose active home is in the place, including
-traveling residents. Transients whose home is elsewhere are excluded. Residents
-cards show Current Location and Home; Members cards show the member note's first
-authored sentence and roles instead of location fields. Descriptions skip callouts,
-headings, code, lists, tables and image-only paragraphs before selecting prose.
-Member tables show Person (name, pronouns,
-pronunciation), Info (ancestry and main type), Current Location (last-known
-location chain and date), and Home, using the existing query's header templates
-and affiliation-date rules. Settlement tables show
-Place, Region, Type Of, and Population, sorted by their dated home region.
-Settlements includes ruins and matches current, last-known and secondary
-locations using the existing `inLocation(..., true, true, date)` rules.
-Rivers follows `typeOf: waterway` or `typeOf: lake` and includes secondary watershed membership.
-Places lists contained place notes, such as a town's quarters, buildings and shops.
-Inline Places blocks accept `placeType: built` or `placeType: natural`; omit the
-option for all types. Built covers communities, structures and infrastructure;
-natural covers geographic regions, biomes, water features and landforms, using
-`typeOf`. Extraplanar and unclassified types remain in unfiltered results only.
-The filter applies to results while containment still follows all ancestor types.
-Use `indexes: [rivers]` or `indexes: [places]` for header buttons. Their tables
-have River/Place and Type Of columns, sorted by type then name. Both follow dated
-nested location chains by default; set `recursive: false` for direct matches.
-`mode: grid` is the default; popups always use grids.
-See [generated indexes](../../docs/vault.md#generated-indexes) for defaults,
-date semantics, website visibility, and complete examples. Grids refresh from
-current metadata without Dataview or CustomJS. Source mode keeps the YAML editable.
 
 ## Maps
 

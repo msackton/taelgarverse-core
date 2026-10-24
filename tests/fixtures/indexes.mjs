@@ -1,5 +1,5 @@
 export const indexNotes = {
-  'Places/Realm.md':{tags:['place'],typeOf:'region',population:12000,indexes:['residents','settlements']},
+  'Places/Realm.md':{tags:['place'],typeOf:'region',population:12000,indexes:['residents','settlements-in']},
   'Places/Other Realm.md':{tags:['place'],typeOf:'region'},
   'Places/Town.md':{tags:['place'],typeOf:'settlement',typeOfAlias:'town',population:1234,aliases:['Old Town'],whereabouts:[
     {type:'home',location:'Realm',end:'1749-12-31'},{type:'home',location:'Other Realm',start:'1750-01-01'}]},
@@ -21,14 +21,14 @@ export const indexNotes = {
 };
 
 export const featureIndexNotes={
-  'Places/Basin.md':{tags:['place'],typeOf:'watershed',aliases:['Drainage Basin'],indexes:['rivers']},
+  'Places/Basin.md':{tags:['place'],typeOf:'watershed',aliases:['Drainage Basin'],indexes:['waterways-in-watershed']},
   'Places/River.md':{tags:['place'],typeOf:'waterway',typeOfAlias:'river',name:'Main River',pronunciation:'RIV-er',image:'portraits/alice.png',whereabouts:[
     {type:'home',location:'Realm'},{type:'secondary',location:'Drainage Basin'}]},
   'Places/Brook.md':{tags:['place'],typeOf:'waterway',typeOfAlias:'brook',whereabouts:'River'},
   'Places/Lake.md':{tags:['place'],typeOf:'lake',whereabouts:'Basin'},
   'Places/Hidden River.md':{tags:['place'],typeOf:'waterway',excludePublish:'all',whereabouts:'Basin'},
   'Places/Future River.md':{tags:['place'],typeOf:'waterway',created:1760,whereabouts:'Basin'},
-  'Places/Town.md':{...indexNotes['Places/Town.md'],indexes:['places']},
+  'Places/Town.md':{...indexNotes['Places/Town.md'],indexes:['places-in']},
   'Places/Quarter.md':{tags:['place'],typeOf:'neighborhood',typeOfAlias:'district',whereabouts:'Old Town'},
   'Places/Shop.md':{tags:['place'],typeOf:'building',typeOfAlias:'shop',whereabouts:'Quarter'},
   'Places/Temple.md':{tags:['place'],typeOf:'building',typeOfAlias:'temple',whereabouts:'Town'},

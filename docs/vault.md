@@ -176,221 +176,68 @@ the new renderer can read older R2 markers without a content migration.
 
 ## Generated indexes
 
-Enable popup buttons at the bottom of a `taelgar-header` block with an array in
-frontmatter:
+Copy [`examples/indexes.yaml`](../examples/indexes.yaml) to `_scripts/indexes.yaml`
+in the vault. The [YAML reference](index-registry-proposal.md) documents every
+key, field, preset, format, filter, relationship, and override rule.
+
+The example supplies `places`, `settlements`, `places-in`, `settlements-in`,
+`major-cities`, `residents`, `dwarven-residents`, `members`, `family-members`,
+`current-members`, `waterways-in-watershed`, and `planar-places`. These names
+belong to the file; the engine has no built-in index types.
+
+````markdown
+```taelgar-index
+index: settlements-in
+target: "[[Barony of Aveil]]"
+mode: table
+columns: [name, region, population]
+```
+````
+
+Omit `target` to use the containing note. Tables and grids share filtering and
+sorting. Invocations change presentation and target; query changes belong in
+named definitions. The former `type:` syntax is removed.
+
+### Index columns
+
+Mix global presets, arbitrary `metadata.<path>` fields, and existing header
+templates. Cards independently use `title`, `subtitle`, `body`, and `footer`.
+`cards.image` toggles grid images; add `image` to table columns for thumbnails.
+The `firstSentence` preset works in columns and card positions.
 
 ```yaml
-indexes: [residents, settlements]
-```
-
-For a watershed use `indexes: [rivers]`; for a town use `indexes: [places]`.
-For an organization (`tags: [group]`), Members is enabled automatically when
-`indexes` is omitted. Set `indexes: []` to suppress it, or provide another
-valid array to choose the header indexes explicitly. Types can be combined in
-one array. Repeated entries produce one button; unknown names and mappings
-such as `indexes: {members: true}` show an author-visible error.
-The button row sits below the complete generated header, outside its information
-callout. An ordinary Markdown title or saved header does not receive buttons;
-use the new `taelgar-header` block. Header buttons show only their label. A
-first-match existence check hides empty buttons for the selected date and
-visibility context; it does not format or sort the full index. Opening a button
-calculates its rows, resolves images, and builds its card grid. Obsidian reuses
-its snapshot-bound query cache; the website fetches context-filtered HTML from
-`/api/index` on first activation. Closing and reopening reuses the loaded popup
-until its header is refreshed. Failed loads can be retried by reopening. Date
-or metadata changes refresh Obsidian headers and discard stale popup bodies.
-Grids show their result count except for Members, which omits it.
-Inline indexes continue to calculate immediately and show empty-result messages.
-Without browser dialog support, the button expands the grid in place. Without
-JavaScript, website buttons include a link to the index content.
-
-| Index | Results at the selected in-world date |
-| --- | --- |
-| `residents` | Living people whose active home is in the target place or a contained location, following `homeLocation(target, metadata, false, date)`. Traveling residents remain included; transients whose home is elsewhere are excluded, even when their current, secondary or last-known location is here. |
-| `settlements` | Places with `typeOf: settlement` within the target place, including nested regions and destroyed settlements, but excluding places not yet created. Matches the current location, or last-known location when current is unknown, and also secondary locations. |
-| `members` | People with an active affiliation or leadership relationship to the target organization, following `isAffiliated(target, file, date)`. Direct membership is the default; past memberships are excluded. |
-| `rivers` | Place notes with `typeOf: waterway` or `typeOf: lake` in the target place or watershed. Always includes lakes alongside rivers, streams, brooks and other waterway subtypes; marine features are excluded. Membership follows primary/current, last-known and secondary `whereabouts`, including secondary watershed membership and nested tributary locations. |
-| `places` | All place notes within the target place, typically a town's buildings, landmarks and quarters. Optional `placeType: built` or `placeType: natural` filters the results. Includes places nested within quarters or other contained locations, and excludes the target itself, people and organizations. |
-
-Location containment follows the dated `whereabouts` chain, including the legacy
-place `partOf` fallback. Members compare resolved organization identities, so
-aliases and full paths work. Place containment follows both current and
-secondary locations on each ancestor. Settlements matches `inLocation(target,
-metadata, true, true, date)`. Settlement results sort by their immediate dated home region,
-then displayed name; people sort by displayed name. Rivers and Places sort by
-displayed type, then name. Paths break ties. Rivers and Places exclude locations
-not yet created, but retain destroyed locations, matching Settlements. Watershed
-membership is read from `whereabouts`, not inferred from prose or folders.
-Members use the affiliation's inclusive start/end dates directly. An omitted
-end date defaults to the person's death date when known; explicit affiliation
-dates retain the helper's behavior, without an additional living-person filter.
-People cards show Person and Info using the same templates as tables. Residents
-cards also show Current Location and Home. Member cards show the member note's
-first authored sentence and roles instead of location fields.
-Descriptions come from the first ordinary prose paragraph after filtering
-comments for the selected date, campaigns and DM mode. Headings, callouts and
-other blockquotes, code, lists, tables, and image-only paragraphs are skipped.
-Wikilink aliases and Markdown link labels become plain text. The website loads
-visible members' bodies when rendering a grid, including header popups and
-inline indexes; existing published snapshots support this without republication.
-Names include available pronouns and pronunciation. The displayed current or
-last-known location can differ from the home used to select Residents.
-Settlement cards show population when numeric.
-Grid cards show the linked note's lead image when its `image` frontmatter field
-resolves to a local image file. For example, use `image: alice.png` or
-`image: "[[portraits/alice.png]]"`. Missing, ambiguous, or unavailable images
-are omitted. Images embedded only in the body are not selected automatically.
-Settlement cards also show pronunciation when available.
-Missing values are omitted. Cyclic relationship chains omit affected candidates
-and show a warning without preventing the rest of the index from rendering.
-
-To place an index inline anywhere in a note, use:
-
-````markdown
-```taelgar-index
-type: residents
-mode: grid
-show: both
-```
-````
-
-| Block option | Values and default |
-| --- | --- |
-| `type` | Required: `residents`, `settlements`, `members`, `rivers`, or `places`. |
-| `target` | Note name, alias, or path; defaults to the note containing the block. Quote wikilinks, for example `target: "[[Cleenseau]]"`. Explicit `./` and `../` paths are relative to the containing note. |
-| `show` | `obsidian`, `website`, or `both` (default). The other renderer omits the entire block. Source mode still shows the editable definition. |
-| `mode` | `grid` (default) or `table`. Header popups always use the grid. |
-| `placeType` | Places only: `built` or `natural`. Omit to include all place types. Classification uses the note's `typeOf`, not its name or `typeOfAlias`. |
-| `heading` | Boolean, defaults to `true`. Set `false` to omit the inline index's H2 title. Table column headings, grid counts, and popup titles are unaffected. |
-| `recursive` | Boolean. Defaults to `true` for Residents, Settlements, Rivers and Places, and `false` for Members. `false` matches only the immediate location or organization; recursive Members also includes organizations connected through `partOf`. |
-
-Residents, Settlements, Rivers and Places require a place target; Members
-requires a group target. Rivers can also list waterways and lakes in a barony or other
-place; Places is not restricted to towns.
-
-Places filters follow the vault's broad Place Categories:
-
-| Filter | Included `typeOf` values |
-| --- | --- |
-| `built` | `settlement`, `neighborhood`, `realm`, `inn`, `building`, `holy site`, `road`, `infrastructure`, `battlefield` |
-| `natural` | `region`, `watershed`, `forest`, `wetlands`, `desert`, `grassland`, `waterway`, `lake`, `marine feature`, `topographical feature`, `subterranean feature`, `island` |
-
-The documented legacy spelling `topographic feature` also matches `natural`.
-These are metadata groups: realms belong to the community group, and waterways
-remain natural for this filter even when their display alias is canal.
-Extraplanar types and missing or unrecognized types appear in unfiltered Places
-but neither filtered category. Filtering selects results, not ancestors: a built
-shrine inside a forest still appears in recursive built results, and natural
-features inside a neighborhood still appear in recursive natural results.
-Date, visibility and `recursive` rules apply as usual. The option does not change
-note metadata. Header `indexes: [places]` buttons continue to show all types.
-
-For example, place this on a town to list its buildings and other built places;
-use `placeType: natural` for its natural features:
-
-````markdown
-```taelgar-index
-type: places
-placeType: built
+index: family-members
 mode: table
+columns:
+  - person
+  - {label: Occupation, field: metadata.occupation}
+  - {label: State, field: life.active, format: boolean, trueText: "", falseText: "💀"}
 ```
-````
 
-Invalid definitions show a local error while leaving the article readable.
-Inline blocks in transcluded notes use that note as their default target.
-By default, every inline grid or table starts with an H2 heading matching the index label
-(Residents, Settlements, Members, Rivers or Places). Set `heading: false` when an
-authored heading already supplies that context, for example:
+`members` includes deceased people who never explicitly left. `current-members`
+also requires `life.active`. `region` searches above immediate home for the
+first realm/region, falling back to Taelgar. See the
+[display examples](index-registry-proposal.md#display-examples).
 
-````markdown
-```taelgar-index
-type: settlements
-mode: table
-heading: false
-```
-````
+### Header buttons and personal settings
 
-This option works in both Obsidian and the website, including empty indexes.
+Registry `headerRules` add buttons below generated `taelgar-header` blocks.
+An explicit note `indexes: [members]` replaces automatic rules; `indexes: []`
+suppresses buttons. Popups use `header.mode` and `header.hideWhenEmpty`.
+Ordinary titles and saved headers do not receive buttons.
 
-Rivers tables have **River** and **Type Of** columns. Places tables have **Place**
-and **Type Of** columns. Both include available name pronunciation and use the
-same type formatting as headers. Their grids use available lead images. For
-example, use `type: rivers` on a watershed or `type: places` on a town, with
-`mode: table` for the compact two-column view. Both support explicit `target`,
-`show` and `recursive` options like the existing indexes.
+Obsidian settings **Index registry** and **Index override** select vault-relative
+paths. Blank means `_scripts/indexes.yaml` and no override. Select a Git-shared
+`_scripts/indexes.mike.yaml` or one ignored local file on each computer.
+**Show header index popups** is the Obsidian master switch. The example personal
+profile enables Members locally; the shared example enables it on the website.
+Explicit note lists take precedence.
 
-Tables use compact rows, regular-weight links, and a single rule below the
-column headings, without a separate result-count line.
-
-With `mode: table`, Residents have four columns, using the existing people query's
-header templates:
-
-| Column | Template |
-| --- | --- |
-| Person | `<name> (<pronouns> <pronunciation>)` |
-| Info | `<ancestry> <maintype>` |
-| Current Location | `<lastknown:2> (<lastknowndate>)` |
-| Home | `<home:1>` |
-
-Current Location includes the first two locations, including regions, following
-the hierarchy at the last-known date. Home shows the immediate home at the
-selected date. Residents are selected by home; their displayed current or
-last-known location may be elsewhere. Empty home
-or location values show **Unknown**. All calculations use the selected date;
-the legacy helper's `includeDead` parameter is explicitly `false` for Residents.
-Resolvable names link to their pages, and website-hidden destinations show
-**Unknown**. Table rows have no image column.
-
-Member tables have four columns, using the existing query's header templates:
-
-| Column | Template |
-| --- | --- |
-| Person | `<name> (<pronouns> <pronunciation>)` |
-| Info | `<ancestry> <maintype>` |
-| Current Location | `<lastknown:2Fr> (<lastknowndate>)` |
-| Home | `<home:1>` |
-
-Pronouns use explicit `pronouns` or the header's gender fallback; empty optional
-values and parentheses are removed by the formatter. Info honors ancestry and
-main-type aliases, with species taking precedence for the main type. Current
-Location shows the last-known location chain and observation date, even after
-travel has ended. It includes the first location, excludes subsequent regions,
-and limits the chain to two counted locations. The chain follows the hierarchy
-at the last-known date, and the date retains its original precision. Resolved
-names link to their pages; website-hidden destinations show **Unknown**.
-
-Settlement tables have four columns: **Place**, **Region**, **Type Of**, and
-**Population**. Place includes pronunciation when available. Region is the
-immediate dated home location (`<home:1>`), even when inclusion matched a
-secondary or last-known location. Type Of uses the header's `<maintype>` rules,
-including `typeOfAlias`; Population uses `<population>` formatting, including
-the `pop.` prefix, numeric separators and textual values. Missing type or
-population shows an em dash. For example:
-
-````markdown
-```taelgar-index
-type: settlements
-mode: table
-show: both
-```
-````
-
-Obsidian queries current vault metadata and follows the same date-selection
-order as generated bios. Open indexes and header buttons refresh after metadata
-changes, renames, deletions, or calendar/override date changes. Repeated author-view
-queries reuse results for the same metadata snapshot, date and target; refreshing
-metadata discards those results. Obsidian's own
-note resolver and links are used; publication exclusions do not restrict the
-local vault view. The shared metadata and campaign registry files listed below
-are required when rendering indexes, as for bios.
-
-The website calculates results from the latest published metadata at request
-time. It applies the selected date, campaign exclusions, and POV preference
-before generating cards or counts, and preserves the reader's context in links.
-Editing the vault requires content publication before the website sees the
-change. Index fences survive export and publication as definitions; results are
-not frozen by the materializer. Deploy website support before publishing notes
-that use them. Generated rows do not become authored search text or backlinks.
+Publisher settings `index_registry` and `index_override` are independent of
+Obsidian settings. Only the effective website registry is stored with the
+content revision. Registry edits need content publication; supported YAML changes
+need no code rebuild. An absent default file leaves indexes unconfigured;
+an explicitly selected missing or invalid file is an error.
 
 ## Campaign calendar prototype
 
@@ -863,8 +710,9 @@ The website also uses a few files that are not published as articles:
 | --- | --- |
 | `.obsidian/metadata.json` | Shared defaults for names and header display. |
 | `_scripts/session_note_campaigns.json` | Campaign names, codes, aliases, and folder information. |
+| `_scripts/indexes.yaml` and one selected override | Named queries, display controls, and automatic header rules. |
 
-Changes to the two JSON files take effect after publishing content again.
+Changes to these input files take effect after publishing content again.
 Header logic is maintained in this repository's `src/header-core/`; changes use
 the website code release path and a separate plugin release. The vault's
 `_scripts/customJS/` still belongs to the legacy materializer and compatibility

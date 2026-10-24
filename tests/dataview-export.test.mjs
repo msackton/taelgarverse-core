@@ -139,7 +139,7 @@ test('a vault without remaining DQL prepares without starting Obsidian',async t=
 
 test('Obsidian website mode leaves native blocks, saved headers and JavaScript for the later Node conversion',async t=>{
   const source='---\nheaderVersion: 1\ntags: [group]\n---\n# Saved\n>[!info] Header\n\n'+
-    '```taelgar-index\ntype: members\n```\n\n```taelgar-map\nimage: [[Map.png]]\n```\n\n'+
+    '```taelgar-index\nindex: members\n```\n\n```taelgar-map\nimage: [[Map.png]]\n```\n\n'+
     '```dataviewjs\nawait dv.view("_scripts/view/get_CampaignInteractions");\n```\n\n```dataview\nLIST\n```\n';
   const f=await fixture(t,{'Note.md':source});f.store.entries[0].note=parseNote(source);
   const result=await materializeWebsite(f.store,{...f.options,materializer:'obsidian'},{run:f.run,createRuntime:()=>assert.fail('Node engine must not load')});

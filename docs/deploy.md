@@ -465,6 +465,14 @@ if the command reports a leftover D1 lock and all publishers have stopped.
 
 ## Configuration settings
 
+Index registries are vault content. `index_registry` selects a vault-relative base
+(default `_scripts/indexes.yaml`); `index_override` selects one optional profile
+(or null for none). These settings are independent of Obsidian. Publication
+validates and fingerprints the effective website registry and stores it with the
+revision. Supported YAML changes need content publication, without a code
+rebuild. See the [registry reference](index-registry-proposal.md).
+
+
 Settings are split by purpose. The shared defaults work when `taelgar` and
 `taelgarverse-core` are beside each other.
 
@@ -484,6 +492,8 @@ The shared defaults are in [config.json](../config.json):
 | `vault_dir` | `"../taelgar"` | Your Taelgar vault. Used for notes, media, supporting scripts, and metadata by previews and publishing. This is the only folder you normally need to set. |
 | `default_date` | `"1750-01-01"` | The in-world fallback date when no campaign session date is available. Use a full year-month-day date. Campaign dates normally come from session notes. |
 | `respect_pov_dates` | `false` | Default for POV date filtering. Readers can override it with `pov=1` or `pov=0` in URLs. Plural years such as `1740s` mean January 1, 1740. |
+| `index_registry` (optional) | `_scripts/indexes.yaml` | Vault-relative named-query base file. |
+| `index_override` (optional) | None | One vault-relative profile or `null`; independent of Obsidian. |
 | `source_dir` (optional) | Uses `vault_dir` | Selects content for internal preparation/server tools. Quick `dev` deliberately reads the live vault; full `dev` prepares its own materialized snapshot. |
 | `nav_source` (optional) | `_website/navigation.md` inside the vault | Uses a different menu file. Set it to `null` to build the menu from the note folders. |
 | `home_source` (optional) | `_website/home.md` inside the vault | Uses a different homepage file. Set it to `null` to show the page finder as the homepage. |

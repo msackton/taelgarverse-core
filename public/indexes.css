@@ -27,3 +27,7 @@
 .taelgar-index-pronunciation { color:var(--muted,var(--text-muted,#617267)); }
 .taelgar-index-error,.taelgar-index-warning { color:var(--text-error,#a44738); }
 .taelgar-index[hidden],.taelgar-index-close[hidden] { display:none; }
+
+.taelgar-index-card-title { font-size:1.1em; font-weight:600; }
+.taelgar-index-card-footer { color:var(--muted,var(--text-muted,#617267)); margin-top:.65rem; }
+.taelgar-index-table img.taelgar-index-image { display:block; max-width:100px; max-height:100px; object-fit:contain; }

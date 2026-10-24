@@ -2,8 +2,10 @@ import {Component,MarkdownRenderChild,MarkdownRenderer} from 'obsidian';
 import {createHeaderSnapshot,renderBio} from '../../../src/header-core/index.mjs';
 import {Contexts} from '../../../src/contexts.mjs';
 import {escapeHtml} from '../../../src/common.mjs';
-import {headerIndexesForMetadata,parseIndex,queryIndex,indexHasResults,indexLabels} from '../../../src/indexes.mjs';
-import {indexView,indexPopup,indexPopupShell,indexError} from '../../../src/index-view.mjs';
+import {headerIndexesForMetadata,parseIndex,queryIndex,indexHasResults} from '../../../src/indexes.mjs';
+import {EMPTY_INDEX_REGISTRY,parseIndexRegistry,compileIndexRegistry,resolveIndex} from '../../../src/index-registry.mjs';
+import {indexNeedsContent,hydrateIndexItem} from '../../../src/index-columns.mjs';
+import {indexView,indexPopupShell,indexError} from '../../../src/index-view.mjs';
 import {indexImageTarget} from '../../../src/index-images.mjs';
 import {IMAGE_TYPES,parseNote} from '../../../src/content-store.mjs';
 import {firstDescriptionSentence} from '../../../src/index-description.mjs';
@@ -21,7 +23,7 @@ export function bioDate(metadata, globals, fallback) {
   catch { return fallback; }
 }
 
-export async function obsidianHeaders(app) {
+export async function obsidianHeaders(app,settings={},host='obsidian') {
   const [coreMeta,registry] = await Promise.all([
     app.vault.adapter.read((app.vault.configDir || '.obsidian') + '/metadata.json'),
     app.vault.adapter.read('_scripts/session_note_campaigns.json'),
@@ -31,7 +33,23 @@ export async function obsidianHeaders(app) {
     resolveLink:target=>app.metadataCache.getFirstLinkpathDest(target,app.vault.getRoot().path)?.path,
   });
   const fallback = new Contexts({entries:pages.map(page=>({id:page.path,note:{metadata:page.metadata}}))},registry,{default_date:'1750-01-01'}).resolve().date;
-  return {runtime,fallback};
+  let indexRegistry=EMPTY_INDEX_REGISTRY,registryError;
+  try {
+    const read=async (value,optional=false)=>{
+      if(typeof value!=='string' || !value.trim() || value.startsWith('/') || value.includes('\\') || /^[a-z]:/i.test(value) || value.split('/').includes('..'))throw new Error('Index paths must be vault-relative.');
+      if(app.vault.adapter.exists && !await app.vault.adapter.exists(value)) {
+        if(optional)return;
+        throw new Error('Selected index registry file is missing: '+value);
+      }
+      try{return await app.vault.adapter.read(value);}
+      catch(error){if(optional && /ENOENT|not found|does not exist/i.test(error.message))return;throw error;}
+    };
+    const base=await read(settings.indexRegistry || '_scripts/indexes.yaml',!settings.indexRegistry);
+    const overlay=settings.indexOverride?await read(settings.indexOverride):undefined;
+    if(overlay && !base)throw new Error('An index override requires a base registry.');
+    if(base)indexRegistry=compileIndexRegistry(parseIndexRegistry(base),overlay?parseIndexRegistry(overlay,{overlay:true}):undefined,{host});
+  }catch(error){registryError=error;}
+  return {runtime,fallback,indexRegistry,registryError,host};
 }
 
 export function obsidianBio(snapshot,file,metadata,globals=globalThis,includeTitle=true) {
@@ -69,41 +87,51 @@ function indexState(snapshot) {
   }
   return state;
 }
-const indexKey=(options,sourcePath,date)=>JSON.stringify([sourcePath,options.type,options.target,options.recursive ?? options.type!=='members',options.placeType,date]);
-const indexContext=(app,state,sourcePath,date)=>({date,sourcePath,resolve:(target,source)=>{
+const indexKey=(options,sourcePath,date)=>JSON.stringify([sourcePath,options,date]);
+const indexContext=(app,snapshot,state,sourcePath,date)=>({date,sourcePath,indexRegistry:snapshot.indexRegistry,host:snapshot.host || 'obsidian',resolve:(target,source)=>{
   const file=app.metadataCache.getFirstLinkpathDest(target,source);
   return file && state.pages.get(file.path);
 }});
 export function obsidianIndexExists(app,snapshot,options,sourcePath,date) {
+  if(snapshot.registryError)throw snapshot.registryError;
   const state=indexState(snapshot),cached=state.queries.get(indexKey(options,sourcePath,date));
-  return cached ? cached.items.length>0 : indexHasResults(snapshot.runtime,options,indexContext(app,state,sourcePath,date));
+  return cached ? cached.items.length>0 : indexHasResults(snapshot.runtime,options,indexContext(app,snapshot,state,sourcePath,date));
 }
 export function obsidianIndex(app,snapshot,options,sourcePath,date) {
+  if(snapshot.registryError)throw snapshot.registryError;
   const state=indexState(snapshot),key=indexKey(options,sourcePath,date);
   let result=state.queries.get(key);
   if(result)state.queries.delete(key);
-  else result=queryIndex(snapshot.runtime,options,indexContext(app,state,sourcePath,date));
+  else result=queryIndex(snapshot.runtime,options,indexContext(app,snapshot,state,sourcePath,date));
   state.queries.set(key,result);
   if(state.queries.size>MAX_INDEX_QUERIES)state.queries.delete(state.queries.keys().next().value);
   // Image URLs and other host additions belong to this render, not the cache.
   return structuredClone(result);
 }
 
-async function indexMarkup(feature,snapshot,options,sourcePath,date,{popup=false,heading=false}={}) {
+export async function indexMarkup(feature,snapshot,options,sourcePath,date,{heading=false}={}) {
+  options=resolveIndex(snapshot.indexRegistry,options,{host:snapshot.host || 'obsidian'});
   const result=obsidianIndex(feature.app,snapshot,options,sourcePath,date);
-  if(options.type==='members' && (popup || options.mode!=='table'))await Promise.all(result.items.map(async item=>{
-    const file=feature.app.vault.getAbstractFileByPath(item.path);
-    if(file)item.firstSentence=firstDescriptionSentence(parseNote(await feature.app.vault.cachedRead(file)),{date,source:item.path});
-  }));
-  if(popup || options.mode!=='table')for(const item of result.items) {
-    const target=indexImageTarget(item.imageTarget);
-    const file=target && feature.app.metadataCache.getFirstLinkpathDest(target,item.path);
-    if(file && IMAGE_TYPES.has('.'+file.path.split('.').at(-1).toLowerCase()))item.image=feature.app.vault.getResourcePath(file);
-  }
-  const link=item=>item.path ? '<a class="internal-link taelgar-index-link" data-href="'+escapeHtml(item.path)+'" href="'+escapeHtml(item.path)+'">'+escapeHtml(item.name)+'</a>' : escapeHtml(item.name);
-  return popup ? indexPopup(result,link) : indexView(result,link,options.mode,{heading});
+  await hydrateObsidianIndex(feature.app,result,options,date);
+  const link=item=>item.path?'<a class="internal-link taelgar-index-link" data-href="'+escapeHtml(item.path)+'" href="'+escapeHtml(item.path)+'">'+escapeHtml(item.name)+'</a>':escapeHtml(item.name);
+  return indexView(result,link,options.mode,{heading});
 }
 
+export async function hydrateObsidianIndex(app,result,options,date) {
+  await Promise.all(result.items.map(async item=>{
+    let firstSentence,image;
+    if(indexNeedsContent(options,'firstSentence')) {
+      const file=app.vault.getAbstractFileByPath(item.path);
+      if(file)firstSentence=firstDescriptionSentence(parseNote(await app.vault.cachedRead(file)),{date,source:item.path});
+    }
+    if(indexNeedsContent(options,'image')) {
+      const target=indexImageTarget(item.imageTarget),file=target && app.metadataCache.getFirstLinkpathDest(target,item.path);
+      if(file && IMAGE_TYPES.has('.'+file.path.split('.').at(-1).toLowerCase()))image=app.vault.getResourcePath(file);
+    }
+    hydrateIndexItem(item,{image,firstSentence});
+  }));
+  return result;
+}
 function mountIndexes(root,app,sourcePath,options={}) {
   const disposePopup=mountIndexPopups(root,options),disposers=[];
   // Delegation also covers links inserted by a lazy load after mounting.
@@ -119,9 +147,14 @@ function mountIndexes(root,app,sourcePath,options={}) {
   return ()=>{disposePopup();for(const dispose of disposers)dispose();};
 }
 
+function headerIds(snapshot,metadata,sourcePath,date) {
+  if(snapshot.registryError)throw snapshot.registryError;
+  return headerIndexesForMetadata(metadata,snapshot.indexRegistry,{snapshot:snapshot.runtime,sourcePath,date});
+}
 function headerIndexMarkup(feature,snapshot,metadata,sourcePath,date) {
-  try{return headerIndexesForMetadata(metadata).filter(type=>obsidianIndexExists(feature.app,snapshot,{type},sourcePath,date))
-    .map(type=>indexPopupShell({type,label:indexLabels[type],target:metadata.name || sourcePath.split('/').at(-1).replace(/\.md$/,'')})).join('');}
+  try{return headerIds(snapshot,metadata,sourcePath,date).map(index=>resolveIndex(snapshot.indexRegistry,{index},{host:'obsidian',header:true}))
+    .filter(options=>options.enabled && (!options.header.hideWhenEmpty || obsidianIndexExists(feature.app,snapshot,options,sourcePath,date)))
+    .map(options=>indexPopupShell({index:options.index,label:options.label,target:metadata.name || sourcePath.split('/').at(-1).replace(/\.md$/,'')})).join('');}
   catch(error){return indexError(error);}
 }
 
@@ -174,7 +207,11 @@ class BioChild extends MarkdownRenderChild {
             const currentFile=app.vault.getAbstractFileByPath(this.context.sourcePath);
             if(!currentFile)throw new Error('Index target unavailable');
             const currentMetadata=app.metadataCache.getFileCache(currentFile)?.frontmatter || {};
-            return indexMarkup(this.feature,current,{type:details.dataset.indexType},this.context.sourcePath,bioDate(currentMetadata,globalThis,current.fallback));
+            const index=details.dataset.index,date=bioDate(currentMetadata,globalThis,current.fallback);
+            if(!headerIds(current,currentMetadata,this.context.sourcePath,date).includes(index))throw new Error('Index is no longer enabled.');
+            const options=resolveIndex(current.indexRegistry,{index},{host:'obsidian',header:true});
+            if(!options.enabled)throw new Error('Index is no longer enabled.');
+            return indexMarkup(this.feature,current,options,this.context.sourcePath,date);
           }});
         }
       }
@@ -197,11 +234,12 @@ class IndexChild extends BioChild {
   async render() {
     const sequence=++this.sequence,element=this.containerEl;
     try {
-      const options=parseIndex(this.source);
-      if(options?.show==='website') {
+      const snapshot=await this.feature.getSnapshot();
+      if(snapshot.registryError)throw snapshot.registryError;
+      const options=parseIndex(this.source,snapshot.indexRegistry,{host:'obsidian'});
+      if(!options.enabled) {
         this.disposeIndexes?.();this.disposeIndexes=null;element.replaceChildren();element.hidden=true;return;
       }
-      const snapshot=await this.feature.getSnapshot();
       if(this.disposed || sequence!==this.sequence)return;
       const metadata=this.feature.app.metadataCache.getFileCache(this.feature.app.vault.getAbstractFileByPath(this.context.sourcePath))?.frontmatter || {};
       const date=bioDate(metadata,globalThis,snapshot.fallback);this.date=JSON.stringify(date);
@@ -232,17 +270,17 @@ export class HeadersFeature extends Component {
     this.plugin.registerMarkdownCodeBlockProcessor('taelgar-header',(source,element,context)=>{
       context.addChild(new BioChild(this,source,element,context));
     });
-    const refresh=()=>{
+    this.refresh=()=>{
       this.pending=null;this.snapshot=null;clearTimeout(this.timer);
       this.timer=setTimeout(()=>{for(const child of this.bios)child.render();},100);
     };
-    for(const [events,names] of [[this.app.metadataCache,['changed','resolved']],[this.app.vault,['rename','delete']]]) {
-      if(events?.on)for(const name of names)this.registerEvent(events.on(name,refresh));
+    for(const [events,names] of [[this.app.metadataCache,['changed','resolved']],[this.app.vault,['create','modify','rename','delete']]]) {
+      if(events?.on)for(const name of names)this.registerEvent(events.on(name,this.refresh));
     }
   }
   async getSnapshot() {
     if(!this.pending) {
-      const pending=obsidianHeaders(this.app);this.pending=pending;
+      const pending=obsidianHeaders(this.app,this.plugin.settings);this.pending=pending;
       pending.catch(()=>{if(this.pending===pending)this.pending=null;});
     }
     const pending=this.pending,snapshot=await pending;

@@ -61,7 +61,11 @@ export class RenderEngine {
     const bio = Object.hasOwn(note,'bio') ? note.bio : leadingBioBlock(body);
     // Explicit declarations also need a slot when invalid: the index adapter
     // renders their error locally without interrupting the generated header.
-    const hasHeaderIndexSlot = bio && (metadata.indexes!==undefined || headerIndexesForMetadata(metadata).length>0);
+    let hasHeaderIndexSlot=false;
+    if(bio) {
+      try{hasHeaderIndexSlot=headerIndexesForMetadata(metadata,this.store.indexRegistry,{snapshot:this.headers,date,sourcePath:entry.id}).length>0;}
+      catch{hasHeaderIndexSlot=true;}
+    }
     if (bio?.error) throw new RenderError(422, bio.error);
     // Prepared Markdown places this marker at the start of the body. A leading
     // marker is explicit; examples inside code or prose are left alone.
@@ -103,13 +107,13 @@ export class RenderEngine {
         ? linkedFrom(backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
   }
 
-  renderIndex(page,type,date,contextId,dm,selectedCampaigns,pov,noteLoading) {
+  renderIndex(page,index,date,contextId,dm,selectedCampaigns,pov,noteLoading) {
     const {entry,context}=this.resolvePage(page,date,contextId,dm,selectedCampaigns,pov);
-    return renderHeaderIndex(type,{store:this.store,entry,context,headers:this.headers,warnings:[],noteLoading});
+    return renderHeaderIndex(index,{store:this.store,entry,context,headers:this.headers,warnings:[],noteLoading});
   }
 
-  async renderIndexAsync(page,type,date,contextId,dm,selectedCampaigns,loadNote,pov) {
-    return this.loadNotes(loading=>this.renderIndex(page,type,date,contextId,dm,selectedCampaigns,pov,loading),loadNote);
+  async renderIndexAsync(page,index,date,contextId,dm,selectedCampaigns,loadNote,pov) {
+    return this.loadNotes(loading=>this.renderIndex(page,index,date,contextId,dm,selectedCampaigns,pov,loading),loadNote);
   }
 
   async renderAsync(page,date,contextId,dm,selectedCampaigns,loadNote,pov) {

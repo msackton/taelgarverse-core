@@ -7,6 +7,7 @@ import {build} from 'esbuild';
 import {ROOT} from '../src/config.mjs';
 import {headerFixture,fixtureForCase} from './helpers/header-fixture.mjs';
 import {indexNotes} from './fixtures/indexes.mjs';
+import {indexRegistry} from './helpers/index-registry.mjs';
 import {renderCases} from './fixtures/header-cases.mjs';
 import {buildEvalCode,buildMaterializerRequest,parseArgs} from '../scripts/materialize-static.mjs';
 
@@ -21,7 +22,7 @@ function feature(fixture=headerFixture({baseNotes:indexNotes,date:'1720-01-01'})
     const page=pages.find(p=>p.path===target || p.name===target);return page&&{path:page.path};
   }}};
   const materializer=new module.exports.MaterializerFeature({app,manifest:{id:'taelgarverse'},addCommand:()=>{}});
-  return {materializer,runtime:{api:{tryQueryMarkdown:async()=>'- [[DQL output]]'},customJS:{},headers:async()=>({runtime:fixture.runtime,fallback:'1720-01-01'})}};
+  return {materializer,runtime:{api:{tryQueryMarkdown:async()=>'- [[DQL output]]'},customJS:{},headers:async()=>({runtime:fixture.runtime,indexRegistry,host:'website',fallback:'1720-01-01'})}};
 }
 
 const capturedHeaders=JSON.parse(fs.readFileSync(new URL('./fixtures/header-outputs.json',import.meta.url),'utf8'));
@@ -45,7 +46,7 @@ for(const headerType of ['website','static'])test('native headers match captured
 
 test('static materializer renders native headers/indexes, converts maps, and retains DQL/DataviewJS support',async()=>{
   const {materializer,runtime}=feature(),file={path:'Groups/Guild.md',name:'Guild.md',basename:'Guild'};
-  const source='---\nheaderVersion: 1\ntags: [group]\n---\n```taelgar-header\n```\n\n```taelgar-index\ntype: members\n```\n\n'+
+  const source='---\nheaderVersion: 1\ntags: [group]\n---\n```taelgar-header\n```\n\n```taelgar-index\nindex: members\n```\n\n'+
     '> ```taelgar-map\n> image: [[Map.png]]\n> ```\n\n```dataview\nLIST\n```\n\n```dataviewjs\ndv.paragraph("Legacy JS output");\n```\n';
   const config=materializer.normalizeConfig({headerType:'static',overrideDate:'1720-01-01'});
   materializer.regenerateHeader=()=>assert.fail('native header must not also run legacy regeneration');
@@ -61,6 +62,30 @@ test('invalid native blocks remain visible in partial output with errors',async(
   materializer.regenerateHeader=()=>assert.fail('invalid native block must not be swallowed by a saved-header rewrite');
   const result=await materializer.materializeMarkdown(source,{path:'Groups/Guild.md',name:'Guild.md'},runtime,materializer.loadCore(),{headerType:'static',blockTimeoutMs:1000});
   assert.equal(result.report.counts.errors,1);assert.match(result.content,/invalid/);
+});
+
+test('static member exports preserve custom fields and distinguish active members',async()=>{
+  const {materializer,runtime}=feature(),file={path:'Groups/Guild.md',name:'Guild.md',basename:'Guild'};
+  const source='```taelgar-index\nindex: members\ncolumns: [person, {label: Role, field: membership.title}, {label: Born, template: "<startDate>"}]\n```\n';
+  const result=await materializer.materializeMarkdown(source,file,runtime,materializer.loadCore(),{headerType:'none',overrideDate:'1720-01-01',blockTimeoutMs:1000});
+  assert.equal(result.report.counts.errors,0);assert.match(result.content,/\| Person \| Role \| Born \|/);
+  assert.match(result.content,/Treasurer/);assert.match(result.content,/People\/Dead.md/);
+  const current=await materializer.materializeMarkdown(source.replace('index: members','index: current-members'),file,runtime,materializer.loadCore(),{headerType:'none',overrideDate:'1720-01-01',blockTimeoutMs:1000});
+  assert.equal(current.report.counts.errors,0);assert.doesNotMatch(current.content,/People\/Dead.md/);assert.match(current.content,/Treasurer/);
+});
+
+test('static exports use configurable resident, settlement and place columns instead of their default layouts',async()=>{
+  const {materializer,runtime}=feature();
+  for(const [type,path,columns,header,expected] of [
+    ['residents','Places/Realm.md','[person, {label: Born, template: "<startDate>"}]','Person | Born','Alice Example'],
+    ['settlements-in','Places/Realm.md','[name, {label: Residents, field: metadata.population, format: number}, region]','Name | Residents | Region','1,234'],
+    ['places-in','Places/Town.md','[name, {label: Location, field: location.home}]','Name | Location','Inn'],
+  ]) {
+    const source='```taelgar-index\nindex: '+type+'\ncolumns: '+columns+'\n```\n';
+    const result=await materializer.materializeMarkdown(source,{path,name:path.split('/').at(-1)},runtime,materializer.loadCore(),{headerType:'none',overrideDate:'1720-01-01',blockTimeoutMs:1000});
+    assert.equal(result.report.counts.errors,0,type);assert.ok(result.content.includes('| '+header+' |'),type);
+    assert.match(result.content,new RegExp(expected));assert.doesNotMatch(result.content,/Current Location|taelgar-index/);
+  }
 });
 
 test('an authored title immediately before a native header is preserved, including CRLF source',async()=>{
@@ -100,3 +125,10 @@ test('materializer website mode delegates only DQL export and shares the static 
 });
 
 function pathParent(value){return value.replace(/[\\/][^\\/]+[\\/]?$/,'');}
+
+test('static CLI registry selection is independent of Obsidian settings and preserved by normalization',()=>{
+  const args=parseArgs(['--vault',ROOT,'--index-registry','_scripts/indexes.yaml','--index-override','_scripts/indexes.export.yaml']);
+  const {request}=buildMaterializerRequest(args),{materializer}=feature(),config=materializer.normalizeConfig(request.config);
+  assert.equal(config.indexRegistry,'_scripts/indexes.yaml');assert.equal(config.indexOverride,'_scripts/indexes.export.yaml');
+  assert.throws(()=>materializer.normalizeConfig({...request.config,indexRegistry:'../outside.yaml'}),/vault-relative/);
+});

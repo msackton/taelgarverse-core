@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {ContentStore,parseNote} from './content-store.mjs';
 import {RenderError} from './common.mjs';
+import {compileIndexRegistry,EMPTY_INDEX_REGISTRY} from './index-registry.mjs';
 import {RenderEngine} from './render-engine.mjs';
 import {createHeaderSnapshot,renderHeader,renderBio} from './header-core/index.mjs';
 
@@ -8,6 +9,7 @@ export class SnapshotStore extends ContentStore {
   constructor(index,bucket,lookups) {
     super(index.entries,index.warnings,index.settings,lookups);
     this.bucket=bucket;this.revision=index.revision;
+    this.indexRegistry=index.indexRegistry?compileIndexRegistry(index.indexRegistry):EMPTY_INDEX_REGISTRY;
     this.shards=new Map();this.pending=new Map();this.maxShards=8;
   }
   async getNote(entry) {

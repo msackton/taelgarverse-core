@@ -79,7 +79,7 @@ export function compileRuntime(index,sourceStore,{noteShardBytes=65536,backlinkS
     items.push(entry);partitions.set(key,items);
   }
   const assets=Object.fromEntries([...partitions].sort(([a],[b])=>a.localeCompare(b)).map(([key,items])=>[key,add('runtime/assets/'+key+'.json',items)]));
-  const manifest={version:RUNTIME_VERSION,settings:index.settings,sourceVersion:index.sourceVersion,search:index.search,
+  const manifest={version:RUNTIME_VERSION,indexRegistry:index.indexRegistry,settings:index.settings,sourceVersion:index.sourceVersion,search:index.search,
     pages:store.bySlug.size,warnings:index.warnings,contexts:contexts.compile(),sites:sites.compile().map(([host,{note,...site}])=>[host,site]),
     parts:{search,navigation:nav,headers,backlinks,render},assets};
   return {manifest,objects,digest:hash(JSON.stringify({manifest,objects:[...objects].map(([file,json])=>[file,hash(json)])}))};

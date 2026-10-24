@@ -1,7 +1,7 @@
 import LegacyMaterializer from '../materializer/legacy.cjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import {obsidianHeaders,bioDate,obsidianIndex} from './headers.mjs';
+import {obsidianHeaders,bioDate,obsidianIndex,hydrateObsidianIndex} from './headers.mjs';
 import {obsidianInteractions,knownCampaigns,localInteractions} from './interaction-data.mjs';
 import {renderBio} from '../../../src/header-core/index.mjs';
 import {parseIndex} from '../../../src/indexes.mjs';
@@ -25,6 +25,15 @@ export class MaterializerFeature extends LegacyMaterializer {
     finally{this.running=false;}
   }
 
+  normalizeConfig(rawConfig) {
+    const config=super.normalizeConfig(rawConfig);
+    for(const key of ['indexRegistry','indexOverride']) {
+      const value=rawConfig[key];
+      if(value!==undefined && value!==null && (typeof value!=='string' || !value.trim() || value.startsWith('/') || value.includes('\\') || /^[a-z]:/i.test(value) || value.split('/').includes('..')))throw new Error(key+' must be a vault-relative path.');
+      config[key]=value;
+    }
+    return config;
+  }
   async runMaterialization(rawConfig) {
     const config=this.normalizeConfig(rawConfig);
     if(config.outputPath) {
@@ -48,7 +57,7 @@ export class MaterializerFeature extends LegacyMaterializer {
 
   async prepareRuntime(config) {
     const runtime=await super.prepareRuntime(config);
-    runtime.headers=()=>runtime.headerSnapshot ??= obsidianHeaders(this.app);
+    runtime.headers=()=>runtime.headerSnapshot ??= obsidianHeaders(this.app,{indexRegistry:config.indexRegistry,indexOverride:config.indexOverride},'website');
     runtime.interactions=()=>runtime.interactionSnapshot ??= obsidianInteractions(this.app);
     return runtime;
   }
@@ -76,8 +85,10 @@ export class MaterializerFeature extends LegacyMaterializer {
             markdown=renderBio(snapshot.runtime,{name:file.basename || file.name.replace(/\.md$/i,''),metadata,date,headerType,includeTitle});
             nativeHeader=true;
           } else if(block.language==='taelgar-index') {
-            const options=parseIndex(block.body);
-            markdown=options.show==='obsidian'?'':indexMarkdown(obsidianIndex(this.app,snapshot,options,file.path,date));
+            if(snapshot.registryError)throw snapshot.registryError;
+            const options=parseIndex(block.body,snapshot.indexRegistry,{host:'website'});
+            options.mode='table';
+            markdown=!options.enabled?'':indexMarkdown(await hydrateObsidianIndex(this.app,obsidianIndex(this.app,snapshot,options,file.path,date),options,date));
           } else {
             if(block.body.trim())throw new Error('Leave the taelgar-interactions block empty.');
             const data=await runtime.interactions();
