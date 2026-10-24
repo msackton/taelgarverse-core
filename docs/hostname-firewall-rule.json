@@ -1,0 +1,7 @@
+{
+  "ref": "block_unconfigured_taelgar_hosts",
+  "description": "Block unconfigured Taelgar hostnames before Workers execute",
+  "expression": "not (lower(http.host) in {\"taelgar.org\" \"www.taelgar.org\" \"characters.taelgar.org\" \"cleenseau.taelgar.org\" \"tim.taelgar.org\"})",
+  "action": "block",
+  "enabled": true
+}

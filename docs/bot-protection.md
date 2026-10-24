@@ -97,10 +97,10 @@ do not cover `workers.dev` hostnames; the Worker guard remains useful there.
 
 ## Follow-up optimizations to assess
 
-- Reject unconfigured wildcard hostnames at the edge after inventorying all
-  valid campaign hosts and the character manager domain. Scanner traffic was
-  reaching names such as `intranet`, `panel`, `uat`, and `staging2`. Do not block
-  valid campaign subdomains with an incomplete allowlist.
+- [Reject unconfigured wildcard hostnames](hostname-protection.md): the inventory
+  and exact WAF rule are prepared, including the character manager and both
+  published campaign hosts. Activation awaits WAF write access and production
+  authorization. The rule is not yet applied.
 - Consider Always Use HTTPS after checking current redirects and health checks.
   It was off during inspection. This is a separate zone setting change.
 - Add rate limits only after measuring legitimate page, search, map-tile, and

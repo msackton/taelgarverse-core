@@ -11,6 +11,11 @@ Campaign subdomains use this same Worker. The wildcard route is declared in
 Markdown-only campaign activation works. See [campaign landing pages](campaign-sites.md)
 for setup, the Cleenseau opt-in, and checks for existing subdomains.
 
+The [hostname protection inventory and proposed WAF rule](hostname-protection.md)
+preserve the apex, `www`, character manager, Cleenseau, and Tim campaign hosts.
+That edge allowlist is prepared but not applied; it requires separate zone write
+access. Once enabled, new campaign hosts must be added before publication.
+
 Both custom domains are attached to the `taelgarverse` Worker and declared in
 `wrangler.json`. Cloudflare manages their DNS records and HTTPS certificates.
 On **2026-10-20**, both domains returned HTTP 200 over HTTPS for the homepage

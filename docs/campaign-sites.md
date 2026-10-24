@@ -167,6 +167,11 @@ permission, an individual Worker Custom Domain can provision a campaign's DNS an
 certificate instead, but each additional campaign then needs a domain attachment
 until wildcard DNS is configured.
 
+An additional [hostname firewall allowlist](hostname-protection.md) is prepared
+but has not been applied. Once enabled, add a new campaign's exact hostname to
+that edge rule **before publication**. Wildcard DNS and a published campaign home
+will then be insufficient on their own. Retain hosts needed for rollback too.
+
 On **2026-10-20**, Cleenseau's dedicated Custom Domain attachment was removed
 through the Cloudflare API. The API confirmed that the shared wildcard route and
 the apex/`www` attachments remained. Cleenseau's homepage and contexts API still
