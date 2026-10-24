@@ -548,7 +548,7 @@ preview refreshes automatically; rerun full preview after changing vault content
 ### Cloudflare settings
 
 [wrangler.json](../wrangler.json) is the shared Cloudflare configuration.
-These settings are already supplied for the live site:
+These are the shared deployment defaults:
 
 | Setting | Current value | What it means |
 | --- | --- | --- |
@@ -561,10 +561,26 @@ These settings are already supplied for the live site:
 | `preview_urls` | `false` | Turns off Cloudflare's separate version and preview addresses. |
 | `compatibility_date` | `2026-10-01` | Selects the Cloudflare behavior the code expects. It is not a content publication date. |
 | `observability.enabled` | `true` | Enables Cloudflare logging. |
+| `vars.BLOCK_CRAWLERS` | `"true"` | Enables early Worker rejection of crawlers/automated clients and no-index response headers. See [crawler behavior](cloudflare.md#what-happens-when-someone-opens-a-page). |
 
-The `$schema` line helps editors check the file. No custom domain is declared here.
+The `$schema` line helps editors check the file. The `routes` entries retain the
+main domains and wildcard campaign-host routing.
 Cloudflare's [configuration reference](https://developers.cloudflare.com/workers/wrangler/configuration/)
 explains the provider settings in more detail.
+
+Crawler blocking changes take effect with the normal website/code deployment;
+they do not require republishing vault content. Set `vars.BLOCK_CRAWLERS` to
+`"false"` and deploy to turn off the Worker guard and its dynamic-response headers.
+The static `public/robots.txt` exclusions and `public/_headers` no-index policy
+remain independent. Normal browsers are supported; script clients advertising
+curl, Python, Node fetch, or other known automation agents are intentionally
+rejected outside the GET/HEAD `/health` and `/robots.txt` endpoints. An automated
+full-content smoke check will consequently be denied while blocking is enabled.
+
+For stronger protection before Workers execute, use Cloudflare zone firewall
+rules/Bot Fight Mode. Those require zone edit permissions or dashboard access;
+the read-only inspection token used by this chat cannot change them. GitHub's
+existing deployment credentials are separate from that inspection token.
 
 For a normal publication, leave these settings as they are. If you want this
 computer to remember which account to use, you can create `wrangler.local.json`

@@ -86,6 +86,7 @@ flowchart LR
 | `src/snapshot.mjs` | Load the R2 index and fetch/cache Markdown shards on demand. |
 | `src/runtime-snapshot.mjs` | Select compiled or legacy snapshots; lazily load route data and verify/cache prepared notes and asset manifests. |
 | `src/page-cache.mjs` | Worker-only HTML response caching, keyed by publication/build identity and full URL; browser ETag revalidation. |
+| `src/crawler-policy.mjs`, `public/robots.txt`, `public/_headers` | Worker crawler rejection before content/cache access, static crawler exclusions, and no-index responses. Hosted behavior and limits belong in [Cloudflare](cloudflare.md#what-happens-when-someone-opens-a-page). |
 | `src/application.mjs` | Shared Fetch API router: homepage, articles, search HTML/JSON, contexts, navigation, assets, health. |
 | `src/render-engine.mjs` | Resolve context/page, generate header, filter comments, render Markdown and page shell. |
 | `src/article-layout.mjs` | Shell-only prose grouping and semantic media breakouts, retaining float contexts and embedded-note boundaries. |

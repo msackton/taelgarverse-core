@@ -21,5 +21,6 @@
   "d1_databases": [
     {"binding": "SEARCH_DB", "database_name": "taelgarverse-search", "database_id": "983f12bb-3952-4ff1-9224-a87f6d5c0b4f"}
   ],
-  "observability": {"enabled": true}
+  "observability": {"enabled": true},
+  "vars": {"BLOCK_CRAWLERS": "true"}
 }

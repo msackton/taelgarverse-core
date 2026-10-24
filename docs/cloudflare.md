@@ -134,6 +134,30 @@ those rules requires a [code update](architecture.md#change-and-release-rules).
 
 ## What happens when someone opens a page
 
+The checked-in configuration sets `vars.BLOCK_CRAWLERS` to `"true"`. With that
+binding enabled, [`crawler-policy.mjs`](../src/crawler-policy.mjs) runs before
+the page cache, R2 pointer, snapshot initialization, or D1 access. Identified
+crawlers, verified bots (including search engines and link previews), common
+automated HTTP clients, and requests without a User-Agent receive a small
+uncached `403`. `robots.txt` allows GET/HEAD from everyone and says
+`User-agent: *` / `Disallow: /`; it does not load content. GET/HEAD health checks
+retain their normal publication checks. Browser requests continue through the
+existing flow below.
+
+Enabled Worker responses carry `X-Robots-Tag: noindex, nofollow, noarchive,
+nosnippet, noimageindex`, including cached pages, API responses, and errors.
+[`public/_headers`](../public/_headers) applies the same opt-out to directly
+served Static Assets; [`public/robots.txt`](../public/robots.txt) supplies their
+crawler policy. These static files stay in place if the Worker binding is disabled.
+
+This is a Worker-level guard, so rejected requests still count as Worker
+invocations, and bots that imitate an ordinary browser can evade User-Agent
+matching. Zone firewall rules and Bot Fight Mode are separate edge controls.
+On 2026-10-24, attempts to enable Bot Fight Mode and create a custom firewall
+ruleset were rejected with HTTP 403 authentication errors by the chat's
+read-only Cloudflare token. No edge-setting change was applied. The source
+changes described here are not evidence of a production deployment.
+
 1. The Worker reads the current publication pointer. For an article or homepage,
    it checks the response cache using the full URL and publication/build identity.
    A hit returns HTML or an ETag-based `304` without loading the snapshot.

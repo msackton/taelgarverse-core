@@ -4,10 +4,11 @@ import {serveAsset,themeFiles} from './http-assets.mjs';
 import {RenderError} from './common.mjs';
 import {createD1Search} from './search.mjs';
 import {pageCache} from './page-cache.mjs';
+import {crawlerResponse,withCrawlerHeaders} from './crawler-policy.mjs';
 
 export function createWorker(coreRelease = {},{cache}={}) {
   let state;
-  return {async fetch(request,env,context) {
+  async function fetchResponse(request,env,context) {
     try {
       const url=new URL(request.url);
       if (url.pathname.startsWith('/theme/')) {
@@ -69,5 +70,10 @@ export function createWorker(coreRelease = {},{cache}={}) {
         status,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'},
       });
     }
+  }
+  return {async fetch(request,env,context) {
+    const enabled=env.BLOCK_CRAWLERS==='true';
+    const rejected=enabled?crawlerResponse(request):null;
+    return withCrawlerHeaders(rejected || await fetchResponse(request,env,context),enabled);
   }};
 }
