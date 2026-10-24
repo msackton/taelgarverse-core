@@ -38,6 +38,15 @@ test('saved-header replacement preserves custom frontmatter, authored headings a
   }
 });
 
+test('omitting the generated title preserves every remaining header detail',()=>{
+  const h=headerFixture();
+  for(const headerType of ['static','website']){
+    const request={name:'Example',metadata:h.metadata('Example'),date:'1720-01-01',headerType};
+    const complete=renderBio(h.runtime,request);
+    assert.equal(renderBio(h.runtime,{...request,includeTitle:false}),complete.slice(complete.indexOf('\n')+1));
+  }
+});
+
 test('notes with no saved header keep their first authored paragraph',()=>{
   const h=headerFixture(),source='---\ncustom: keep\n---\nOpening paragraph.\n\n## Details\n\nArticle.\n';
   const output=h.render('Example',{source});

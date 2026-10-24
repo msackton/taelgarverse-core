@@ -45,6 +45,7 @@ function host(extraSources={}){
   const app={metadataCache:{...cacheEvents,on:cacheEvents.on,getFileCache:file=>({frontmatter:metadata.get(file?.path)}),
     getFirstLinkpathDest:target=>files.find(file=>file.path===target || file.path===target+'.md' || file.basename===target)},
     vault:{...vaultEvents,on:vaultEvents.on,configDir:'.obsidian',getRoot:()=>({path:''}),getMarkdownFiles:()=>files,getAbstractFileByPath:p=>files.find(file=>file.path===p),
+      cachedRead:async file=>notes[file.path],
       adapter:{read:async p=>JSON.stringify(p.endsWith('metadata.json')?coreMeta:registry)}}};
   const plugin={app,registerMarkdownCodeBlockProcessor(type,processor){
     // Obsidian interpolates the language into this unescaped CSS selector.
@@ -56,8 +57,31 @@ function host(extraSources={}){
   const doc={createElement:()=>({})},element={ownerDocument:doc,replaceChildren(output){this.output=output;}};
   return {...module.exports,plugin,feature,app,globals,metadata,calls,intervals,element,cacheEvents,vaultEvents,
     defer(){deferred=new Promise(resolve=>{this.release=()=>{deferred=null;resolve();};});},
-    child(source='',sourcePath='Bio Person.md'){let child;plugin.processor(source,element,{sourcePath,addChild(value){child=value;}});return child;}};
+    notes,
+    child(source='',sourcePath='Bio Person.md',section){let child;plugin.processor(source,element,{sourcePath,getSectionInfo:()=>section,addChild(value){child=value;}});return child;}};
 }
+
+test('Obsidian uses an adjacent authored H1 in Reading View and Live Preview and refreshes after title edits',async()=>{
+  const block='```taelgar-header\n```\n',base=sources['Bio Person.md'];
+  for(const prefix of ['# Custom title\n\n','Custom title\n============\n\n','## Section\n\n','# Earlier title\n\nProse.\n\n']){
+    for(const positioned of [true,false]){
+      const note=base.replace(block,prefix+block),h=host({'Custom.md':note});
+      const lineStart=note.slice(0,note.indexOf(block)).split('\n').length-1;
+      const child=h.child('','Custom.md',positioned?{text:note,lineStart}:null);
+      try{
+        await child.onload();
+        const hasTitle=prefix.startsWith('# Custom') || prefix.startsWith('Custom');
+        assert.equal(/^# /m.test(h.element.output.markdown),!hasTitle,prefix);
+        assert.match(h.element.output.markdown,/BY-oh|Biographical Info/);
+        if(!positioned && hasTitle){
+          h.notes['Custom.md']=base;
+          h.cacheEvents.trigger('changed');await pause(180);
+          assert.match(h.element.output.markdown,/^# /);
+        }
+      }finally{h.feature.unload();}
+    }
+  }
+});
 
 test('Obsidian bios match the existing static header generator for people, places and dated events without Dataview or CustomJS',async()=>{
   const h=host();

@@ -69,7 +69,7 @@ export class RenderEngine {
     if (bio || headerMarker || (metadata.headerVersion && metadata.tags)) {
       try {
         let generated;
-        if(bio && this.renderBio)generated=this.renderBio(this.headers,{name:entry.name,metadata,date,headerType:'website'});
+        if(bio && this.renderBio)generated=this.renderBio(this.headers,{name:entry.name,metadata,date,headerType:'website',includeTitle:!bio.title});
         else {
           const source = bio || headerMarker ? '---\n---\n' : note.source;
           const header = parseNote(this.renderHeader(this.headers, {source, name: entry.name, metadata, date})).body;
@@ -78,7 +78,7 @@ export class RenderEngine {
         // The new header owns its controls. Place their slot after the complete
         // generated header, outside its information box and before authored prose.
         if (hasHeaderIndexSlot) generated=generated.trimEnd()+'\n\n'+HEADER_INDEX_SLOT;
-        body = bio || headerMarker ? generated.trimEnd() + '\n\n' + body.slice(bio?.end ?? headerMarker[0].length).replace(/^(?:[ \t]*\r?\n)*/, '') : generated;
+        body = bio || headerMarker ? (bio?.title || '') + generated.trimEnd() + '\n\n' + body.slice(bio?.end ?? headerMarker[0].length).replace(/^(?:[ \t]*\r?\n)*/, '') : generated;
       } catch (error) {
         if(error instanceof HeaderDataError)throw new RenderError(422,`Header generation failed: circular ${error.kind} chain.`);
         const wrapped = new RenderError(422, 'Header generation failed; check the note metadata and display rules');

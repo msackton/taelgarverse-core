@@ -1,3 +1,5 @@
+import {scanFencedCodeBlocks,scanSectionHeadings} from './markdown-fences.mjs';
+
 export const HEADER_BLOCK = '```taelgar-header\n```\n';
 
 const blanks = '(?:[\\t ]*\\r?\\n)*';
@@ -7,16 +9,33 @@ export function leadingHeaderMarker(body) {
   return new RegExp('^' + blanks + marker).exec(body);
 }
 
-// Consume older materializer markers and a separately saved title together with
-// the fence. The block now owns the complete header, including its H1.
+// A title immediately above the fence is authored Markdown. Blank lines may
+// separate it from the block; any other intervening content breaks adjacency.
+export function hasPrecedingH1(source,offset=source.length) {
+  const before=source.slice(0,offset);
+  return scanSectionHeadings(before,scanFencedCodeBlocks(before))
+    .some(heading=>heading.level===1 && !before.slice(heading.contentStart).trim());
+}
+
+// Consume older materializer markers, retaining an adjacent authored title.
 export function leadingBioBlock(body) {
-  const opening = new RegExp('^' + blanks + '(?:' + marker + blanks + ')?' +
-    '(?: {0,3}#[\\t ]+[^\\r\\n]+\\r?\\n' + blanks + ')?' +
-    ' {0,3}(`{3,}|~{3,})taelgar-header[\\t ]*\\r?\\n').exec(body);
+  const prefix=new RegExp('^'+blanks+'(?:'+marker+blanks+')?').exec(body)[0].length;
+  const fenceOpening=/^ {0,3}(`{3,}|~{3,})taelgar-header[\t ]*\r?\n/;
+  let start=prefix,title='';
+  if(!fenceOpening.test(body.slice(start))) {
+    const candidate=/^[^\r\n]*(?:\r?\n|$)(?:[^\r\n]*(?:\r?\n|$))?/.exec(body.slice(prefix))[0];
+    const heading=scanSectionHeadings(candidate,scanFencedCodeBlocks(candidate))
+      .find(heading=>heading.start===0 && heading.level===1);
+    if(!heading)return null;
+    const titleEnd=prefix+heading.contentStart;
+    start=titleEnd+new RegExp('^'+blanks).exec(body.slice(titleEnd))[0].length;
+    title=body.slice(prefix,start);
+  }
+  const opening=fenceOpening.exec(body.slice(start));
   if (!opening) return null;
-  const fence = opening[1], rest = body.slice(opening[0].length);
+  const fence = opening[1], end=start+opening[0].length, rest = body.slice(end);
   const closing = new RegExp('^ {0,3}' + fence[0] + '{' + fence.length + ',}[\\t ]*(?:\\r?\\n|$)', 'm').exec(rest);
-  return {end: closing ? opening[0].length + closing.index + closing[0].length : body.length,
+  return {title,end: closing ? end + closing.index + closing[0].length : body.length,
     error: !closing ? 'Close the taelgar-header code block.' : rest.slice(0, closing.index).trim() ? 'Leave the taelgar-header block empty; its values come from frontmatter.' : null};
 }
 
@@ -49,7 +68,7 @@ export function normalizeHeader(note) {
   if (end == null) return note;
   const suffix = note.body.slice(end);
   const separator = suffix && !/^[\t ]*\r?\n/.test(suffix) ? '\n' : '';
-  const body = HEADER_BLOCK + separator + suffix;
+  const body = (bio?.title || '') + HEADER_BLOCK + separator + suffix;
   if (body === note.body) return note;
   const frontmatter = note.source.slice(0, note.source.length - note.body.length);
   return {...note, body, source: frontmatter + body};

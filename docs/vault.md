@@ -137,30 +137,36 @@ callout:
 Keep the note's frontmatter, including `headerVersion` when present. The website
 uses the selected date and campaign as usual, with the same header styling.
 The block renders the complete header, including one H1 title, pronunciation,
-and the remaining details. The Taelgarverse Obsidian development plugin uses the
-familiar native information callout with values filled in. Remove a separately
-saved H1 above the block when migrating a vault note. Rendering does not modify
-the note.
+and the remaining details. To supply a custom title, put a Markdown H1 directly
+above the block; blank lines may separate them. That heading is preserved and
+the block omits its generated H1 while still rendering pronunciation, details,
+and index controls. Both `# Custom title` and a title underlined with `===`
+work. An H2 or an earlier H1 separated by prose or another block does not
+suppress the generated title. The Taelgarverse Obsidian development plugin uses
+the familiar native information callout with values filled in. Rendering does
+not modify the note.
 In Obsidian, pronunciation sits directly beneath the name without the normal
 heading-to-paragraph gap; this spacing applies only to generated bios with pronunciation.
 Generated bios use the note's normal spacing after the callout when there are no
 index buttons. When buttons are present, their row supplies the spacing.
 Existing saved headers and prepared HTML header markers remain supported;
-an older materializer's marker or separately saved H1 before the new block is
-consumed as one header on the website.
+an older materializer's marker before the new block is removed on the website,
+while an adjacent authored H1 is retained.
 The block is omitted from note transclusions and authored search/backlink text.
 Node, Worker and the development plugin use the same maintained header core;
 the vault's legacy CustomJS scripts are not required to render these blocks.
 Circular location or organization chains show a header error instead of a
 partial header or a stack overflow.
 
-The block must be empty and at the start of the note body. Examples inside other
+The block must be empty and at the start of the note body, optionally preceded
+by that authored H1. Examples inside other
 code fences stay literal. Replacing existing vault headers is a separate,
 explicit edit; enabling support does not migrate notes automatically.
 
 Content preparation normalizes old `<!-- taelgar:header -->` markers (including
 the `<!-- taelgar-header -->` spelling), detected versioned generated headers,
-and title-plus-block layouts into one leading empty `taelgar-header` fence.
+and native fences into one leading empty `taelgar-header` fence, preserving an
+authored H1 immediately before an existing native fence.
 This runs in Node before content hashes, search, backlinks, or media discovery;
 it accepts raw notes or materializer exports without modifying the vault.
 Frontmatter and authored content are retained. Invalid explicit blocks stop

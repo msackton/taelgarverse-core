@@ -66,7 +66,7 @@ export class OutputHandler {
         return currentContents
     }
 
-    generateWebsiteHeader(fileName, metadata) {
+    generateWebsiteHeader(fileName, metadata, {includeTitle=true}={}) {
         const {events, names, templates, dates} = this;
 
         let file = { name: fileName, frontmatter: metadata }
@@ -75,7 +75,7 @@ export class OutputHandler {
         let hasPageDates = pageDates.startDate || pageDates.endDate
         let pageType = names.getPageType(metadata)
 
-        let output = templates.formatDisplayString("# <name:tn>", file) + "\n"
+        let output = includeTitle ? templates.formatDisplayString("# <name:tn>", file) + "\n" : ""
         let whereaboutsStrings = this.getWhereaboutsStrings(fileName, metadata)
         let boxInfo = templates.formatDisplayString(displayDefaults.boxInfo, file).trim()
         const hasText = (value) => value && value.trim().length > 0
@@ -241,7 +241,7 @@ export class OutputHandler {
         return output
     }
 
-    generateHeader(fileName, metadata) {
+    generateHeader(fileName, metadata, {includeTitle=true}={}) {
 
         const {events, names, templates, dates} = this;
 
@@ -251,7 +251,7 @@ export class OutputHandler {
         let hasPageDates = pageDates.startDate || pageDates.endDate
         let pageType = names.getPageType(metadata)
 
-        let output = templates.formatDisplayString("# <name:tn>", file) + "\n"
+        let output = includeTitle ? templates.formatDisplayString("# <name:tn>", file) + "\n" : ""
 
         let secondary = templates.formatDisplayString("<(*()pronunciation()*)>", file)
         if (secondary && secondary.length > 0) {

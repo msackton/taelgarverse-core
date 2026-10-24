@@ -42,12 +42,12 @@ test('invalid native blocks remain visible in partial output with errors',async(
   assert.equal(result.report.counts.errors,1);assert.match(result.content,/invalid/);
 });
 
-test('a saved title immediately before a native header is consumed once, including CRLF source',async()=>{
+test('an authored title immediately before a native header is preserved, including CRLF source',async()=>{
   const {materializer,runtime}=feature();
   const source='---\r\nheaderVersion: 1\r\ntags: [group]\r\n---\r\n# Saved name\r\n\r\n```taelgar-header\r\n```\r\n\r\nProse.\r\n';
   const result=await materializer.materializeMarkdown(source,{path:'Groups/Guild.md',name:'Guild.md',basename:'Guild'},runtime,materializer.loadCore(),{headerType:'static',blockTimeoutMs:1000});
   assert.equal(result.report.counts.errors,0);assert.equal((result.content.match(/^# /gm)||[]).length,1);
-  assert.doesNotMatch(result.content,/Saved name|taelgar-header/);assert.match(result.content,/Prose\.\r\n/);
+  assert.match(result.content,/# Saved name\r\n/);assert.doesNotMatch(result.content,/# Guild|taelgar-header/);assert.match(result.content,/Prose\.\r\n/);
 });
 
 test('static CLI dispatches only to Taelgarverse materializer and keeps legacy export flags',async()=>{

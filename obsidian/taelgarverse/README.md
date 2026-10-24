@@ -9,8 +9,10 @@ saved title and information callout with an empty `taelgar-header` code fence
 immediately after frontmatter. It renders the same header information as a
 native Obsidian callout, using the bundled header rules; Dataview and CustomJS
 are not required. The block includes the generated H1, pronunciation and all
-other details. Remove any separately saved H1 above it to avoid a duplicate
-title in Obsidian. Notes are never rewritten by the renderer.
+other details. An authored H1 directly above the block replaces the generated
+title; blank lines are allowed between them. Pronunciation, information and
+index buttons still render. An H2 or an H1 separated by prose or another block
+does not suppress the title. Notes are never rewritten by the renderer.
 Location links use Obsidian's own resolution, including when a campaign homepage
 and a location note share a name.
 In Live Preview, the bio has no code-block edit button or hover frame/background;

@@ -33,9 +33,9 @@ export function renderHeader(snapshot,{source,name,metadata,date,headerType='web
 
 // Blocks generate the complete header directly, without dummy YAML or a saved
 // header rewrite. Preserve the existing final newline in the Markdown contract.
-export function renderBio(snapshot,{name,metadata,date,headerType='static'}) {
+export function renderBio(snapshot,{name,metadata,date,headerType='static',includeTitle=true}) {
   const {output}=createHeaderContext(snapshot,{date});
   const copy=structuredClone(metadata);
-  const body=headerType==='static'?output.generateHeader(name,copy):output.generateWebsiteHeader(name,copy);
+  const body=headerType==='static'?output.generateHeader(name,copy,{includeTitle}):output.generateWebsiteHeader(name,copy,{includeTitle});
   return body+'\n';
 }

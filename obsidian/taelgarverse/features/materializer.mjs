@@ -6,7 +6,7 @@ import {obsidianInteractions,knownCampaigns,localInteractions} from './interacti
 import {renderBio} from '../../../src/header-core/index.mjs';
 import {parseIndex} from '../../../src/indexes.mjs';
 import {parseNote} from '../../../src/content-store.mjs';
-import {leadingBioBlock} from '../../../src/bio-block.mjs';
+import {leadingBioBlock,hasPrecedingH1} from '../../../src/bio-block.mjs';
 import {scanFencedCodeBlocks,applyReplacements,prefixMarkdownLines} from '../../../src/markdown-fences.mjs';
 import {indexMarkdown,interactionsMarkdown} from '../../../src/static-markdown.mjs';
 import {DATAVIEW_EXPORT_VERSION} from '../../../src/dataview-export.mjs';
@@ -71,7 +71,8 @@ export class MaterializerFeature extends LegacyMaterializer {
           const snapshot=await runtime.headers(),date=config.overrideDate || bioDate(metadata,globalThis,snapshot.fallback);
           if(block.language==='taelgar-header') {
             if(block.body.trim())throw new Error('Leave the taelgar-header block empty.');
-            markdown=renderBio(snapshot.runtime,{name:file.basename || file.name.replace(/\.md$/i,''),metadata,date,headerType:'static'});
+            const includeTitle=block.quoteDepth>0 || !hasPrecedingH1(original.slice(bodyStart),block.start-bodyStart);
+            markdown=renderBio(snapshot.runtime,{name:file.basename || file.name.replace(/\.md$/i,''),metadata,date,headerType:'static',includeTitle});
             nativeHeader=true;
           } else if(block.language==='taelgar-index') {
             const options=parseIndex(block.body);
@@ -84,7 +85,8 @@ export class MaterializerFeature extends LegacyMaterializer {
           nativeBlocks++;
         }
         const start=block.language==='taelgar-header' && leading && bodyStart+leading.end===block.end?bodyStart:block.start;
-        replacements.push({start,end:block.end,text:prefixMarkdownLines(markdown.trimEnd(),block.quotePrefix)+'\n'});
+        const title=start===bodyStart && block.language==='taelgar-header' ? leading?.title || '' : '';
+        replacements.push({start,end:block.end,text:title+prefixMarkdownLines(markdown.trimEnd(),block.quotePrefix)+'\n'});
       } catch(error) {issues.push({type:'error',line:block.startLine,message:error.message});}
     }
     const source=applyReplacements(original,replacements);

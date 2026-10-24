@@ -8,6 +8,8 @@ import {indexImageTarget} from '../../../src/index-images.mjs';
 import {IMAGE_TYPES,parseNote} from '../../../src/content-store.mjs';
 import {firstDescriptionSentence} from '../../../src/index-description.mjs';
 import {mountIndexPopups} from '../../../src/browser/index-popups.mjs';
+import {hasPrecedingH1} from '../../../src/bio-block.mjs';
+import {scanFencedCodeBlocks} from '../../../src/markdown-fences.mjs';
 
 export function bioDate(metadata, globals, fallback) {
   if (globals.customJS?.state?.overrideDate) return globals.customJS.state.overrideDate;
@@ -31,9 +33,27 @@ export async function obsidianHeaders(app) {
   return {runtime,fallback};
 }
 
-export function obsidianBio(snapshot,file,metadata,globals=globalThis) {
+export function obsidianBio(snapshot,file,metadata,globals=globalThis,includeTitle=true) {
   return renderBio(snapshot.runtime,{name:file.basename,
-    metadata,date:bioDate(metadata,globals,snapshot.fallback),headerType:'static'});
+    metadata,date:bioDate(metadata,globals,snapshot.fallback),headerType:'static',includeTitle});
+}
+
+async function bioHasTitle(app,file,context,element) {
+  const section=context.getSectionInfo?.(element);
+  if(section) {
+    const lines=section.text.split('\n');
+    if(/^ {0,3}(?:`{3,}|~{3,})taelgar-header[\t ]*\r?$/.test(lines[section.lineStart] || ''))
+      return hasPrecedingH1(lines.slice(0,section.lineStart).join('\n')+'\n');
+  }
+  // Section positions can be unavailable in Live Preview. A single native
+  // block in the source file is unambiguous even when its DOM is virtualized.
+  const source=await app.vault.cachedRead(file);
+  const blocks=scanFencedCodeBlocks(source).filter(block=>block.language==='taelgar-header');
+  if(section) {
+    const block=blocks.find(block=>block.startLine===section.lineStart+1);
+    if(block)return !block.quoteDepth && hasPrecedingH1(source,block.start);
+  }
+  return blocks.length===1 && !blocks[0].quoteDepth && hasPrecedingH1(source,blocks[0].start);
 }
 
 // Metadata changes replace the runtime snapshot, dropping its cached queries.
@@ -130,7 +150,9 @@ class BioChild extends MarkdownRenderChild {
       if(!file)throw new Error('The source note is no longer available.');
       const metadata=app.metadataCache.getFileCache(file)?.frontmatter || {};
       this.date=JSON.stringify(bioDate(metadata,globalThis,snapshot.fallback));
-      const markdown=obsidianBio(snapshot,file,metadata);
+      const includeTitle=!await bioHasTitle(app,file,this.context,element);
+      if(this.disposed || sequence!==this.sequence)return;
+      const markdown=obsidianBio(snapshot,file,metadata,globalThis,includeTitle);
       // Render offscreen so a stale async render cannot replace a newer header.
       const output=element.ownerDocument.createElement('div');
       output.className='taelgar-generated-bio'+(metadata.pronunciation ? ' taelgar-bio taelgar-bio--pronunciation' : '');

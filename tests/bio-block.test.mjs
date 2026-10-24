@@ -8,7 +8,7 @@ import {Engine} from '../src/engine.mjs';
 import {ROOT,loadSettings} from '../src/config.mjs';
 import {parseNote,authoredBody} from '../src/content-store.mjs';
 import {loadSnapshot} from '../src/snapshot.mjs';
-import {leadingBioBlock} from '../src/bio-block.mjs';
+import {leadingBioBlock,hasPrecedingH1} from '../src/bio-block.mjs';
 
 let engine,directory,worker;
 before(async()=>{
@@ -17,7 +17,8 @@ before(async()=>{
   const notes={...JSON.parse(fs.readFileSync(new URL('./fixtures/notes.json',import.meta.url))),
     ...JSON.parse(fs.readFileSync(new URL('./fixtures/bio-blocks.json',import.meta.url)))};
   notes['Exported Bio.md']=notes['Bio Person.md'].replace('```taelgar-header','<!-- taelgar:header -->\n\n```taelgar-header');
-  notes['Titled Bio.md']=notes['Bio Person.md'].replace('```taelgar-header','# Stale saved title\n```taelgar-header');
+  notes['Titled Bio.md']=notes['Bio Person.md'].replace('```taelgar-header','# Custom title\n```taelgar-header');
+  notes['Setext Bio.md']=notes['Bio Person.md'].replace('```taelgar-header','Custom title\n============\n\n```taelgar-header');
   notes['Legacy Marker.md']=notes['Bio Person.md'].replace('```taelgar-header\n```','<!-- taelgar:header -->');
   notes['Host.md']='![[Bio Person]]';
   notes['Loop Person.md']='---\ntags: [person]\nwhereabouts: Loop Chest A\n---\n```taelgar-header\n```\n';
@@ -39,20 +40,30 @@ before(async()=>{
 after(()=>{if(directory)fs.rmSync(directory,{recursive:true});});
 
 test('person, place and event bio blocks use the existing header output and preserve authored bodies in Node and Worker',async()=>{
-  for(const page of ['Bio Person','Bio Place','Bio Event','Exported Bio','Titled Bio','Legacy Marker'])for(const date of ['1720-01-01','1730-01-01']){
+  for(const page of ['Bio Person','Bio Place','Bio Event','Exported Bio','Titled Bio','Setext Bio','Legacy Marker'])for(const date of ['1720-01-01','1730-01-01']){
     const actual=engine.render(page,date),entry=engine.store.resolve(page);
     const header=parseNote(engine.renderHeader(engine.headers,{source:'---\n---\n',name:entry.name,metadata:entry.note.metadata,date})).body;
-    const expectedBody=header;
-    const expected=engine.renderBody(expectedBody+'\n\n'+authoredBody(entry.note),entry,actual.context);
+    const title=leadingBioBlock(entry.note.body)?.title;
+    const expectedHeader=title ? title+header.slice(header.indexOf('\n')+1) : header;
+    const expected=engine.renderBody(expectedHeader+'\n\n'+authoredBody(entry.note),entry,actual.context);
     assert.equal(actual.html,expected.html,page+' at '+date);
     const remote=await worker.engine.renderAsync(page,date,undefined,false,undefined,e=>worker.store.getNote(e));
     assert.equal(remote.html,actual.html);
     assert.equal(load(actual.html)('h1').length,1);
+    if(title)assert.equal(load(actual.html)('h1').text(),'Custom title');
     assert.equal(load(actual.html)('h2').length,1);
     assert.doesNotMatch(actual.html,/language-taelgar|taelgar-header|Dynamic value unavailable/);
   }
   assert.notEqual(engine.render('Bio Person','1720-01-01').html,engine.render('Bio Person','1730-01-01').html);
   assert.match(engine.render('Bio Person','1730-01-01').html,/BY-oh/);
+});
+
+test('only an immediately preceding Markdown H1 suppresses the generated title',()=>{
+  for(const source of ['# Custom\n','# Custom\n \t\n\n','Custom\n======\n\n'])
+    assert.equal(hasPrecedingH1(source),true,source);
+  for(const source of ['', '## Section\n', '# Earlier\n\nProse.\n', '# Earlier\n\n<!-- comment -->\n',
+    '> # Quoted\n', '    # Code\n', '```markdown\n# Example\n', 'Title\n-----\n'])
+    assert.equal(hasPrecedingH1(source),false,source);
 });
 
 test('bio blocks are omitted from note embeds, authored search text and backlinks',()=>{

@@ -32,8 +32,9 @@ const forms={
 for(const [name,header] of Object.entries(forms))test('preparation normalizes '+name+' without changing frontmatter or authored content',()=>{
   const note=parseNote(yaml+header+article),before=structuredClone(note);
   const result=normalizeHeader(note);
-  assert.equal(result.source,yaml+HEADER_BLOCK+article);
-  assert.equal(result.body,HEADER_BLOCK+article);
+  const title=name==='saved title and block'?'# Old saved title\n\n':name==='marker, saved title and block'?'# Old saved title\n':'';
+  assert.equal(result.source,yaml+title+HEADER_BLOCK+article);
+  assert.equal(result.body,title+HEADER_BLOCK+article);
   assert.equal(authoredBody(result),article);
   assert.deepEqual(note,before,'input remains unchanged');
   assert.strictEqual(normalizeHeader(result),result,'second pass is unchanged');
@@ -67,7 +68,7 @@ test('canonical blocks need no frontmatter or headerVersion; empty notes and CRL
   assert.equal(normalizeHeader(parseNote(yaml+'# Old title')).source,yaml+HEADER_BLOCK);
   assert.equal(normalizeHeader(parseNote((yaml+forms['saved generated header']+article).replaceAll('\n','\r\n'))).source,yaml+HEADER_BLOCK+article);
   const note=parseNote(HEADER_BLOCK+article);assert.strictEqual(normalizeHeader(note),note);
-  assert.equal(normalizeHeader(parseNote('# Stale title\n'+HEADER_BLOCK+article)).source,HEADER_BLOCK+article);
+  assert.equal(normalizeHeader(parseNote('# Custom title\n'+HEADER_BLOCK+article)).source,'# Custom title\n'+HEADER_BLOCK+article);
 });
 
 test('invalid explicit header blocks fail preparation instead of being silently removed',()=>{
@@ -105,7 +106,8 @@ test('all 21 vault cases package to one format and render one complete header in
     const local=new Engine(settings);
     for(const example of vaultCases.cases){
       const entry=remote.store.entries.find(e=>e.id===example.path),packed=await remote.store.getNote(entry);
-      assert.equal(packed.body,HEADER_BLOCK+article,example.path);
+      const title=caseByPath.get(example.path)%6===3?'# Old saved title\n\n':'';
+      assert.equal(packed.body,title+HEADER_BLOCK+article,example.path);
       assert.deepEqual(packed.metadata,parseNote(originals.get(example.path)).metadata,example.path);
       assert.equal(entry.note.sha256,createHash('sha256').update(packed.source).digest('hex'));
       for(const date of ['1752-01-01','1760-01-01']){
