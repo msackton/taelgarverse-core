@@ -5,6 +5,10 @@ except for D1; activation requires Zone WAF edit access and explicit production
 authorization under [AGENTS.md](../AGENTS.md). No application deployment or vault
 publication is needed to activate this rule.
 
+Publisher synchronization is implemented in this checkout as of 2026-10-25,
+but has not been pushed or used against production. Install/use the updated core
+publisher before relying on automatic additions.
+
 ## Verified allowlist
 
 The inventory used live Cloudflare DNS, Worker routes, Worker Custom Domains,
@@ -88,12 +92,46 @@ either Worker. A TLS certificate error alone does not prove WAF blocking.
 Zone WAF does not cover the Workers' separate `workers.dev` addresses; existing
 Worker crawler protection remains useful there.
 
-**After this rule is enabled, campaign activation is no longer publication-only.**
-Before publishing a new campaign host, add its exact hostname to this rule and
-verify that the update is live. Preserve all existing services and any host in a
-retained rollback snapshot. Remove old hosts only after confirming they are no
-longer needed by live content, rollback, or another service. Repeat the inventory
-before changes; a checked-in allowlist is not automatically synchronized with R2.
+## Automatic additions during publication
+
+[`hostname-firewall.mjs`](../scripts/hostname-firewall.mjs) synchronizes the enabled
+rule with `ref: block_unconfigured_taelgar_hosts` before the remote storage
+adapter writes `published/current.json`. This covers `npm run publish`, the
+lower-level prepared-content activation command, and rollback. An unchanged
+normal publication also checks/repairs host access without rebuilding content.
+
+The publisher reads the new revision and retained rollback revision from their
+uploaded runtime `sites` arrays, with a legacy `index.json` / `campaignHomes`
+fallback. It validates host labels, adds their full hostnames plus the apex,
+`www`, and `characters`, and preserves every existing allowlist entry. It reads
+the rule again before updating to preserve recent dashboard additions, patches
+only that rule's expression, and verifies the result through a fresh API read
+before activating content. Unknown policy expressions, malformed manifests,
+permission failures, and failed read-back stop activation. The current content
+pointer stays unchanged. A failed activation may leave an extra allowed host;
+the application still returns its usual 404 until content configures that host.
+
+Initial rule creation/enabling remains a separate authorized setup action. An
+absent/disabled rule is left unchanged; the publisher does not create or enable
+one. Synchronization runs only for the inventoried Taelgar account, Worker, and
+bucket, and never for local preview, build-only, or assets-only publication.
+Remote publishers need WAF read access for the check and WAF edit access when
+adding hostnames, in addition to their existing R2/D1 permissions. Using an old
+publisher after enabling the edge rule will still require manual host additions.
+
+With the updated publisher and token, a new campaign home needs only the normal
+publication command: its edge allowlist addition is part of activation. Other
+new web services still require a manual inventory/update. Automatic synchronization
+never removes hosts; remove retired hosts manually only after checking live
+content, rollback, and other services. This avoids accidentally blocking a service
+that is not represented in the vault.
+
+The shared D1 publication lock serializes publishers. Avoid editing this rule in
+the dashboard during publication; the API has no cross-service transaction with
+R2. API read-back confirms configuration acceptance, not simultaneous propagation
+to every Cloudflare location. A newly added host can briefly return an edge 403
+while Cloudflare propagates the rule. DNS and certificate coverage must already
+exist through the wildcard setup.
 
 For rollback, disable only the rule identified by
 `ref: block_unconfigured_taelgar_hosts` using its recorded ruleset/rule IDs.

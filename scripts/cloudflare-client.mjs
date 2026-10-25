@@ -34,7 +34,7 @@ export async function createCloudflareClient(config,{fetcher=fetch,credentials=s
     })().finally(()=>{refreshing=null;});
     await refreshing;
   };
-  const request=async(resource,makeInit=()=>({}),{retry=false,timeoutMs=30000}={})=>{
+  const requestScoped=async(scope,resource,makeInit=()=>({}),{retry=false,timeoutMs=30000}={})=>{
     if(!resource.startsWith('/') || resource.startsWith('//'))throw new Error('Invalid Cloudflare resource path');
     let refreshed=false;
     for(let attempt=0;;attempt++){
@@ -44,7 +44,7 @@ export async function createCloudflareClient(config,{fetcher=fetch,credentials=s
       if(start>now())await wait(start-now());
       if(now()-checkedAt>=60000)await refresh();
       const token=auth.token,init=await makeInit();let response,networkError=false;
-      try{response=await fetcher('https://api.cloudflare.com/client/v4/accounts/'+account+resource,{
+      try{response=await fetcher('https://api.cloudflare.com/client/v4/'+scope+resource,{
         ...init,redirect:'error',signal:AbortSignal.timeout(timeoutMs),headers:{...init.headers,Authorization:'Bearer '+token}});}
       catch{networkError=true;}
       finally{init.body?.destroy?.();}
@@ -69,5 +69,11 @@ export async function createCloudflareClient(config,{fetcher=fetch,credentials=s
       return response;
     }
   };
-  return {account,request};
+  return {account,
+    request:(...args)=>requestScoped('accounts/'+account,...args),
+    zoneRequest:(zone,...args)=>{
+      if(!/^[a-f0-9]{32}$/.test(zone || ''))throw new Error('Invalid Cloudflare zone');
+      return requestScoped('zones/'+zone,...args);
+    },
+  };
 }

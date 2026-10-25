@@ -5,6 +5,18 @@ import {createSearchDatabase} from '../scripts/search-database.mjs';
 
 const account='a'.repeat(32),credentials=()=>({account,token:'secret'});
 const fast={credentials,intervalMs:0,wait:async()=>{}};
+test('zone requests share authentication while retaining their explicit zone scope',async()=>{
+  const zone='b'.repeat(32),urls=[];let reads=0;
+  const client=await createCloudflareClient({}, {...fast,credentials:()=>({account,token:++reads===1?'expired':'fresh'}),fetcher:async(url,init)=>{
+    urls.push(url);return new Response('',{status:init.headers.Authorization==='Bearer fresh'?200:401});
+  }});
+  await client.zoneRequest(zone,'/rulesets/phases/http_request_firewall_custom/entrypoint');
+  await client.request('/r2/buckets/test');
+  assert.deepEqual(urls,[...Array(2).fill(`https://api.cloudflare.com/client/v4/zones/${zone}/rulesets/phases/http_request_firewall_custom/entrypoint`),
+    `https://api.cloudflare.com/client/v4/accounts/${account}/r2/buckets/test`]);
+  assert.throws(()=>client.zoneRequest('../other','/rulesets'),/Invalid Cloudflare zone/);
+  await assert.rejects(client.zoneRequest(zone,'//other.example/'),/Invalid Cloudflare resource/);
+});
 test('transient requests retry with backoff and respect Retry-After',async()=>{
   const delays=[];let calls=0;
   const client=await createCloudflareClient({}, {...fast,wait:async ms=>delays.push(ms),fetcher:async()=>{

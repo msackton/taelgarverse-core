@@ -125,6 +125,7 @@ export function createStorage({storage,log=()=>{}}) {
       return validateCheckpoint(value);
     },
     async upload(report,options) {return uploadContent(report,await storage(),{log,...options});},
+    async ensureHosts(pointer) {await (await storage()).ensureHosts?.(pointer);},
     async writeCheckpoint(value,filename) {
       validateCheckpoint(value);await json(filename,value);
       await (await storage()).putPointer(value);
@@ -146,6 +147,7 @@ export async function publishContent(options, deps) {
       if(!deps.verifySearch)throw new Error('Search readiness verification is required before skipping this publication');
       await withPublicationProgress('Verifying the published search index',()=>deps.verifySearch(previous),deps.log);
     }
+    await deps.ensureHosts?.(previous);
     await deps.prune?.(previous);
     deps.log(`Taelgar ${before.commit.slice(0, 12)} is already in ${options.local?'local R2':'R2'}; skipping export, images, and upload.`);
     return {skipped: true, ...previous};
@@ -240,7 +242,7 @@ export function buildFingerprint(settings, options, config={}) {
     // invalidate the shared R2 checkpoint for an otherwise identical build.
     hash.update(filename ? readFileSync(filename, 'utf8').replace(/\r\n/g, '\n') : '<no-website-source>');
   }
-  for(const filename of ['./compile-search.mjs','./compile-runtime.mjs','./search-index.mjs','./search-database.mjs','./content-retention.mjs','./cloudflare-client.mjs','./upload-content.mjs','./publication-progress.mjs','../src/search-text.mjs','../src/search-metadata.mjs','../src/search-types.mjs','../src/runtime-format.mjs','../src/navigation.mjs','../src/contexts.mjs','../src/header-core/snapshot.mjs','../src/header-core/campaigns.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
+  for(const filename of ['./compile-search.mjs','./compile-runtime.mjs','./search-index.mjs','./search-database.mjs','./content-retention.mjs','./hostname-firewall.mjs','./cloudflare-client.mjs','./upload-content.mjs','./publication-progress.mjs','../src/search-text.mjs','../src/search-metadata.mjs','../src/search-types.mjs','../src/runtime-format.mjs','../src/navigation.mjs','../src/contexts.mjs','../src/header-core/snapshot.mjs','../src/header-core/campaigns.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
   return hash.digest('hex');
 }
 
@@ -283,6 +285,7 @@ export async function main(options) {
     const result = await publishContent({...options, fingerprint}, {
       withPublicationLock:async (action,lockOptions)=>{publicationIndex=await index();return publicationIndex.withPublicationLock(action,lockOptions);},
       readPointer:async()=>(await retainedStorage()).getJSON(CHECKPOINT_KEY),
+      ensureHosts:pointer=>storage.ensureHosts(pointer),
       prune:async pointer=>timed('Completing retention cleanup',async()=>prunePublication(await retainedStorage(),publicationIndex,pointer,{log:console.log})),
       repositoryState: () => repositoryState(vault),
       readCheckpoint: () => storage.readCheckpoint(path.join(CACHE, 'previous-checkpoint.json')),

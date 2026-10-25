@@ -582,6 +582,15 @@ rules/Bot Fight Mode. Those require zone edit permissions or dashboard access;
 the read-only inspection token used by this chat cannot change them. GitHub's
 existing deployment credentials are separate from that inspection token.
 
+The [hostname allowlist](hostname-protection.md#automatic-additions-during-publication)
+is provisioned separately. Once its managed rule is enabled, the updated content
+publisher automatically adds campaign hosts before activating content, preserving
+existing services and rollback hosts. The publishing token needs zone WAF read
+access for checks and WAF edit access for additions, alongside R2/D1 permissions.
+Failures stop activation; local previews, build-only, and assets-only runs do not
+change the WAF. This behavior belongs to the local publisher, so update the core
+checkout used for publication; deploying website code alone does not update it.
+
 For a normal publication, leave these settings as they are. If you want this
 computer to remember which account to use, you can create `wrangler.local.json`
 in `taelgarverse-core` with just:

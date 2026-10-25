@@ -15,6 +15,8 @@ The [hostname protection inventory and proposed WAF rule](hostname-protection.md
 preserve the apex, `www`, character manager, Cleenseau, and Tim campaign hosts.
 That edge allowlist is prepared but not applied; it requires separate zone write
 access. Once enabled, new campaign hosts must be added before publication.
+The updated publisher automates those additions before activating the R2 pointer;
+it requires WAF read/edit access and preserves existing service/rollback hosts.
 
 Both custom domains are attached to the `taelgarverse` Worker and declared in
 `wrangler.json`. Cloudflare manages their DNS records and HTTPS certificates.

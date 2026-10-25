@@ -168,9 +168,10 @@ certificate instead, but each additional campaign then needs a domain attachment
 until wildcard DNS is configured.
 
 An additional [hostname firewall allowlist](hostname-protection.md) is prepared
-but has not been applied. Once enabled, add a new campaign's exact hostname to
-that edge rule **before publication**. Wildcard DNS and a published campaign home
-will then be insufficient on their own. Retain hosts needed for rollback too.
+but has not been applied. Once enabled, the updated publisher automatically adds
+new campaign hostnames and verifies the edge rule before activating content.
+Its token needs WAF read/edit access. Existing services and rollback hosts are
+preserved. Older publishers require manually allowing the host before publication.
 
 On **2026-10-20**, Cleenseau's dedicated Custom Domain attachment was removed
 through the Cloudflare API. The API confirmed that the shared wildcard route and

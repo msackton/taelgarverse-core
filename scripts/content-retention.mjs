@@ -7,6 +7,7 @@ import {validateSearchDescriptor} from './search-index.mjs';
 import {DERIVATIVE_MANIFEST_KEY,manifestRecords} from './derivative-cache.mjs';
 import {withPublicationProgress} from './publication-progress.mjs';
 import {validRuntimeDescriptor,runtimeHash,supportedRuntimeVersion} from '../src/runtime-format.mjs';
+import {syncPublicationHosts} from './hostname-firewall.mjs';
 
 export const POINTER_KEY='published/current.json';
 const revisionPattern=/^[a-f0-9]{64}$/;
@@ -90,9 +91,10 @@ export async function createRetentionStorage(config,{local=false,persistTo=path.
     if(!response.ok){await response.body?.cancel();throw new Error('R2 request failed (HTTP '+response.status+')');}
     return response;
   };
-  return {
+  const storage={
     async getJSON(key){const response=await request('/'+key.split('/').map(encodeURIComponent).join('/'));return response?response.json():null;},
-    async putPointer(pointer){validatePointer(pointer);const response=await request('/'+POINTER_KEY,'PUT',JSON.stringify(pointer)+'\n');await response.body?.cancel();},
+    async ensureHosts(pointer){validatePointer(pointer);return syncPublicationHosts(config,client,storage,pointer,{log});},
+    async putPointer(pointer){validatePointer(pointer);await storage.ensureHosts(pointer);const response=await request('/'+POINTER_KEY,'PUT',JSON.stringify(pointer)+'\n');await response.body?.cancel();},
     async putDerivativeManifest(manifest){const response=await request('/'+DERIVATIVE_MANIFEST_KEY,'PUT',JSON.stringify({schemaVersion:1,records:manifestRecords(manifest)}));await response.body?.cancel();},
     async putFile(key,file){
       if(!assetPattern.test(key) && !snapshotPattern.test(key))throw new Error('Invalid immutable upload key');
@@ -129,6 +131,7 @@ export async function createRetentionStorage(config,{local=false,persistTo=path.
       for(let offset=0;offset<keys.length;offset+=8){const result=await Promise.allSettled(keys.slice(offset,offset+8).map(async key=>{const response=await request('/'+key.split('/').map(encodeURIComponent).join('/'),'DELETE');await response.body?.cancel();}));const failure=result.find(r=>r.status==='rejected');if(failure)throw failure.reason;}
     },close:async()=>{},
   };
+  return storage;
 }
 
 // Caller holds the D1 publication lock throughout upload, activation and prune.
