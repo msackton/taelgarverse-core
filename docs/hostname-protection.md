@@ -5,9 +5,9 @@ except for D1; activation requires Zone WAF edit access and explicit production
 authorization under [AGENTS.md](../AGENTS.md). No application deployment or vault
 publication is needed to activate this rule.
 
-Publisher synchronization is implemented in this checkout as of 2026-10-25,
-but has not been pushed or used against production. Install/use the updated core
-publisher before relying on automatic additions.
+Publisher synchronization is implemented as of 2026-10-25 and covered by local
+tests. It has not been used against production. Update the core checkout used
+for publishing before relying on automatic additions.
 
 ## Verified allowlist
 
