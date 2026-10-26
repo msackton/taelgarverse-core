@@ -1,0 +1,68 @@
+[
+  {
+    "file": "tree-0.png",
+    "source_layer": "forest",
+    "psb_bbox": [
+      5981,
+      5529,
+      6011,
+      5569
+    ],
+    "note": "Connected-component candidate; native transparent pixel crop"
+  },
+  {
+    "file": "tree-1.png",
+    "source_layer": "forest",
+    "psb_bbox": [
+      6407,
+      5722,
+      6442,
+      5757
+    ],
+    "note": "Connected-component candidate; native transparent pixel crop"
+  },
+  {
+    "file": "tree-2.png",
+    "source_layer": "forest",
+    "psb_bbox": [
+      6064,
+      5169,
+      6102,
+      5207
+    ],
+    "note": "Connected-component candidate; native transparent pixel crop"
+  },
+  {
+    "file": "tree-3.png",
+    "source_layer": "forest",
+    "psb_bbox": [
+      6303,
+      5190,
+      6341,
+      5229
+    ],
+    "note": "Connected-component candidate; native transparent pixel crop"
+  },
+  {
+    "file": "tree-4.png",
+    "source_layer": "forest",
+    "psb_bbox": [
+      6419,
+      5821,
+      6448,
+      5861
+    ],
+    "note": "Connected-component candidate; native transparent pixel crop"
+  },
+  {
+    "file": "tree-5.png",
+    "source_layer": "forest",
+    "psb_bbox": [
+      5949,
+      5182,
+      5978,
+      5221
+    ],
+    "note": "Connected-component candidate; native transparent pixel crop"
+  }
+]

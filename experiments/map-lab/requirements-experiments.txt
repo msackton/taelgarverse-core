@@ -1,0 +1,7 @@
+# Bootstrap dependencies for archived experiments, not the future exporter lock.
+psd-tools
+Pillow
+numpy
+opencv-python-headless
+scipy
+cairosvg

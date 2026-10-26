@@ -1,0 +1,49 @@
+TAELGAR: WORLD-TO-REGION LEAFLET TRIAL
+
+Unzip the whole folder, then open index.html in your browser.
+All scripts, styles and map images are included; there is no remote service.
+Keep the vendor directory and images beside index.html.
+
+Click "Zoom to Aveil" to watch the world map zoom into the same location and
+reveal sharper woodland artwork. Use Leaflet's +/− controls or the mouse wheel
+to move through the transition yourself. "World view" reverses it.
+"Compare world artwork" temporarily hides the detailed layer at the current
+position and zoom. At close zoom, Cleenseau and Rinburg have clickable markers.
+
+WHAT THIS TESTS
+
+One actual Leaflet 1.9.4 map, using CRS.Simple as the Taelgarverse viewer does.
+The published world map remains underneath a regional image overlay.
+Detail opacity interpolates from 0 at zoom -0.5 to 1 at zoom 1.0.
+The regional image starts loading shortly before it becomes visible.
+Failed detail loading keeps the world image visible.
+
+The layer occupies published-world pixels x=3450..3900, y=3500..3890.
+World image dimensions: 11329 x 9419. Leaflet bounds are
+[[5529,3450],[5919,3900]] because image Y increases downwards and map Y upwards.
+The 1800 x 1560 detail image has four source samples per world pixel.
+Its rivers, roads and settlement positions come from the existing world crop.
+Only the woodland artwork is revised. This is a test of the zoom mechanism,
+not the completed detailed regional cartography.
+
+The independently drawn Aveil reference map is not used as the overlay:
+its geography does not yet align sufficiently for this transition.
+
+IMPLEMENTATION STATUS
+
+detail-layer.js contains the reusable attachDetailLayer(L,map,options) helper.
+trial.js creates the demonstration map and adds the fixed-position overlay.
+detail.json records placement, source dimensions and fade thresholds.
+This is an isolated prototype. The installed Obsidian plugin, shared production
+viewer and website have not been changed. Native map-block configuration and
+asset resolution are the next integration step, after reviewing this behavior.
+
+Verified in Chromium: one map instance across the transition; opacity at low,
+intermediate and high zoom; reversal on zoom-out; exact rendered overlay corner
+and dimensions; comparison toggle; town popup; missing-detail fallback.
+
+If your browser policy blocks local file navigation, serve this folder locally:
+    python -m http.server 8875 --bind 127.0.0.1
+Then visit http://127.0.0.1:8875/
+
+The included Leaflet library is version 1.9.4. Its license is in vendor/LICENSE.

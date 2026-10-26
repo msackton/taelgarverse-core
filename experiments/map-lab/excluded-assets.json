@@ -1,0 +1,322 @@
+{
+  "policy": "Source and small text metadata only; binary assets, generated SVG artwork, vendor files, and text files larger than 128 KiB excluded.",
+  "originalSource": "Dropbox /MapV3/base/taelgar-basemap.psb",
+  "files": [
+    {
+      "path": "Taelgar Progressive Map.zip",
+      "bytes": 25319872
+    },
+    {
+      "path": "Taelgar Traced Rivers.zip",
+      "bytes": 28384942
+    },
+    {
+      "path": "aveil/Taelgar Leaflet Zoom Trial.zip",
+      "bytes": 26728425
+    },
+    {
+      "path": "aveil/clean-terrain/aveil-terrain-only.png",
+      "bytes": 47977
+    },
+    {
+      "path": "aveil/clean-terrain/known-world-preview.png",
+      "bytes": 1067321
+    },
+    {
+      "path": "aveil/clean-terrain/sembara-terrain-only.png",
+      "bytes": 489052
+    },
+    {
+      "path": "aveil/clean-terrain/taelgar-terrain-known-world.png",
+      "bytes": 25460107
+    },
+    {
+      "path": "aveil/clean-terrain/taelgar-terrain-transparent.png",
+      "bytes": 24235681
+    },
+    {
+      "path": "aveil/exports/aveil-study.png",
+      "bytes": 1154918
+    },
+    {
+      "path": "aveil/exports/aveil-study.svg",
+      "bytes": 3019980
+    },
+    {
+      "path": "aveil/exports/aveil-world-context.png",
+      "bytes": 76826
+    },
+    {
+      "path": "aveil/exports/coastline-paths.json",
+      "bytes": 1794990
+    },
+    {
+      "path": "aveil/exports/coastline.svg",
+      "bytes": 834315
+    },
+    {
+      "path": "aveil/exports/forest-comparison.png",
+      "bytes": 976489
+    },
+    {
+      "path": "aveil/exports/forest-comparison.svg",
+      "bytes": 2216810
+    },
+    {
+      "path": "aveil/exports/forest-groves.png",
+      "bytes": 2214906
+    },
+    {
+      "path": "aveil/exports/forest-v1/aveil-study.png",
+      "bytes": 507154
+    },
+    {
+      "path": "aveil/exports/forest-v1/aveil-study.svg",
+      "bytes": 532843
+    },
+    {
+      "path": "aveil/exports/forest.png",
+      "bytes": 31545
+    },
+    {
+      "path": "aveil/exports/hill-cluster.png",
+      "bytes": 3040
+    },
+    {
+      "path": "aveil/exports/lakes.png",
+      "bytes": 1701
+    },
+    {
+      "path": "aveil/exports/locations.png",
+      "bytes": 3110
+    },
+    {
+      "path": "aveil/exports/plains.png",
+      "bytes": 1548
+    },
+    {
+      "path": "aveil/exports/psb-overview.png",
+      "bytes": 2715454
+    },
+    {
+      "path": "aveil/exports/psb-region.png",
+      "bytes": 370932
+    },
+    {
+      "path": "aveil/exports/psb-region.svg",
+      "bytes": 92057
+    },
+    {
+      "path": "aveil/exports/review.png",
+      "bytes": 1514024
+    },
+    {
+      "path": "aveil/exports/review.svg",
+      "bytes": 4020976
+    },
+    {
+      "path": "aveil/exports/rivers.png",
+      "bytes": 3357
+    },
+    {
+      "path": "aveil/exports/rivers_old.png",
+      "bytes": 7663
+    },
+    {
+      "path": "aveil/exports/roads.png",
+      "bytes": 8956
+    },
+    {
+      "path": "aveil/exports/swamp.png",
+      "bytes": 1548
+    },
+    {
+      "path": "aveil/exports/topography.png",
+      "bytes": 8996
+    },
+    {
+      "path": "aveil/exports/tree-0.png",
+      "bytes": 1349
+    },
+    {
+      "path": "aveil/exports/tree-1.png",
+      "bytes": 1375
+    },
+    {
+      "path": "aveil/exports/tree-2.png",
+      "bytes": 1540
+    },
+    {
+      "path": "aveil/exports/tree-3.png",
+      "bytes": 1544
+    },
+    {
+      "path": "aveil/exports/tree-4.png",
+      "bytes": 1541
+    },
+    {
+      "path": "aveil/exports/tree-5.png",
+      "bytes": 1326
+    },
+    {
+      "path": "aveil/exports/tree-cluster.png",
+      "bytes": 3720
+    },
+    {
+      "path": "aveil/exports/world-overview.png",
+      "bytes": 2138038
+    },
+    {
+      "path": "aveil/leaflet-trial/aveil-detail.png",
+      "bytes": 1408497
+    },
+    {
+      "path": "aveil/leaflet-trial/aveil-detail.svg",
+      "bytes": 3188594
+    },
+    {
+      "path": "aveil/leaflet-trial/detail-view.png",
+      "bytes": 530253
+    },
+    {
+      "path": "aveil/leaflet-trial/vendor/LICENSE",
+      "bytes": 1395
+    },
+    {
+      "path": "aveil/leaflet-trial/vendor/leaflet.css",
+      "bytes": 14806
+    },
+    {
+      "path": "aveil/leaflet-trial/vendor/leaflet.js",
+      "bytes": 147552
+    },
+    {
+      "path": "aveil/leaflet-trial/world-view.png",
+      "bytes": 377179
+    },
+    {
+      "path": "aveil/leaflet-trial/world.png",
+      "bytes": 27011174
+    },
+    {
+      "path": "aveil/leaflet-trial/zoom-demo.mp4",
+      "bytes": 1834538
+    },
+    {
+      "path": "aveil/source/taelgar-basemap.psb",
+      "bytes": 463733393
+    },
+    {
+      "path": "aveil/try-aveil/Aveil Map Trial/.nopublish",
+      "bytes": 72
+    },
+    {
+      "path": "aveil/try-aveil/Aveil Map Trial/assets/aveil-study.png",
+      "bytes": 1154918
+    },
+    {
+      "path": "aveil/try-aveil/Aveil Map Trial/assets/aveil-study.svg",
+      "bytes": 3019980
+    },
+    {
+      "path": "aveil/try-aveil/Aveil Map Trial.html",
+      "bytes": 5009715
+    },
+    {
+      "path": "aveil/try-aveil/Aveil Map Trial.zip",
+      "bytes": 7027102
+    },
+    {
+      "path": "aveil/try-aveil/trial-preview.png",
+      "bytes": 535588
+    },
+    {
+      "path": "progressive-map/previews/local-traced.png",
+      "bytes": 443776
+    },
+    {
+      "path": "progressive-map/previews/local.png",
+      "bytes": 354379
+    },
+    {
+      "path": "progressive-map/previews/region-traced.png",
+      "bytes": 772411
+    },
+    {
+      "path": "progressive-map/previews/region.png",
+      "bytes": 384279
+    },
+    {
+      "path": "progressive-map/previews/river-original.png",
+      "bytes": 311911
+    },
+    {
+      "path": "progressive-map/previews/river-traced.png",
+      "bytes": 267321
+    },
+    {
+      "path": "progressive-map/previews/town.png",
+      "bytes": 158421
+    },
+    {
+      "path": "progressive-map/previews/world.png",
+      "bytes": 424186
+    },
+    {
+      "path": "progressive-map/progressive-zoom-demo.mp4",
+      "bytes": 1824161
+    },
+    {
+      "path": "progressive-map/river-source.png",
+      "bytes": 52109
+    },
+    {
+      "path": "progressive-map/river-zoom-demo.mp4",
+      "bytes": 2724224
+    },
+    {
+      "path": "progressive-map/terrain.png",
+      "bytes": 25460107
+    },
+    {
+      "path": "progressive-map/vendor/LICENSE",
+      "bytes": 1395
+    },
+    {
+      "path": "progressive-map/vendor/leaflet.css",
+      "bytes": 14806
+    },
+    {
+      "path": "progressive-map/vendor/leaflet.js",
+      "bytes": 147552
+    },
+    {
+      "path": "river-tracing/components.png",
+      "bytes": 13841
+    },
+    {
+      "path": "river-tracing/context.jpg",
+      "bytes": 361952
+    },
+    {
+      "path": "river-tracing/labels.npy",
+      "bytes": 18480128
+    },
+    {
+      "path": "river-tracing/lakes.png",
+      "bytes": 114607
+    },
+    {
+      "path": "river-tracing/river-comparison.png",
+      "bytes": 347936
+    },
+    {
+      "path": "river-tracing/rivers.png",
+      "bytes": 407018
+    },
+    {
+      "path": "river-tracing/rivers_old.png",
+      "bytes": 599585
+    }
+  ]
+}

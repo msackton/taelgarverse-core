@@ -1,0 +1,16 @@
+AVEIL MAP TRIAL
+
+Browser: open "Aveil Map Trial.html" in Chrome, Firefox, Safari or Edge.
+It is self-contained and works offline; no server or account is required.
+Try Woodland, scroll or pinch to zoom, toggle Original reference, and select
+Aslain. Set your local vault name before choosing Open note in Obsidian.
+
+Obsidian: copy the "Aveil Map Trial" folder into your Taelgar vault, then open
+"Aveil map trial" in Reading View with the Taelgarverse Maps feature enabled.
+This uses your installed image-map viewer. Clickable town overlays are available
+only in the browser trial; the note supplies ordinary links to the same towns.
+The .nopublish marker excludes the experiment folder from website publication.
+
+The HTML is a separate experimental viewer, not an update to the plugin or site.
+It does not implement a world-to-region zoom transition. Regional alignment and
+real-distance calibration remain unresolved. No notes are edited by the viewer.

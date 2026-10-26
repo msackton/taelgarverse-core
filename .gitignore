@@ -150,6 +150,7 @@ vite.config.ts.timestamp-*
 
 # Python API and local configuration
 .venv/
+/.venv-map-lab/
 __pycache__/
 .pytest_cache/
 *.py[cod]

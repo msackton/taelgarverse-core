@@ -1,0 +1,52 @@
+{
+  "status": "REJECTED for seamless overlay: independent hydrology mismatch",
+  "controls": [
+    {
+      "name": "Cleenseau",
+      "reference_display": [
+        35.0,
+        1676.0
+      ],
+      "world": [
+        3641.0,
+        3768.0
+      ]
+    },
+    {
+      "name": "Rinburg",
+      "reference_display": [
+        963.0,
+        1209.0
+      ],
+      "world": [
+        3730.0,
+        3698.0
+      ]
+    }
+  ],
+  "method": "Two-point similarity fit using approximate town icon centers; exploratory only",
+  "reference_display_to_world": [
+    [
+      0.10681449457180898,
+      0.02167848171871251,
+      3600.9283573294247
+    ],
+    [
+      -0.02167848171871251,
+      0.10681449457180898,
+      3589.737653957803
+    ]
+  ],
+  "check": {
+    "feature": "Leandre-Auberonne confluence",
+    "predicted_world": [
+      3704.247755665156,
+      3662.077264973737
+    ],
+    "observed_world": [
+      3669.0,
+      3655.0
+    ],
+    "error_world_pixels": 35.95124419180824
+  }
+}

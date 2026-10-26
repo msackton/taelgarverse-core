@@ -1,0 +1,45 @@
+{
+  "world_size": [
+    11329,
+    9419
+  ],
+  "source_world_bbox": [
+    3450,
+    3500,
+    3900,
+    3890
+  ],
+  "leaflet_bounds": [
+    [
+      5529,
+      3450
+    ],
+    [
+      5919,
+      3900
+    ]
+  ],
+  "detail_size": [
+    1800,
+    1560
+  ],
+  "fade_start_zoom": -0.5,
+  "fade_end_zoom": 1,
+  "content": "World-registered crop with sharper woodland artwork; original river, road and town pixels retained. This is not the independently drawn Aveil reference map.",
+  "towns": [
+    {
+      "name": "Cleenseau",
+      "world_xy": [
+        3641,
+        3768
+      ]
+    },
+    {
+      "name": "Rinburg",
+      "world_xy": [
+        3730,
+        3698
+      ]
+    }
+  ]
+}

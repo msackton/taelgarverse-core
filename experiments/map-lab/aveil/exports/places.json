@@ -1,0 +1,122 @@
+[
+  {
+    "name": "Veltor",
+    "reference_xy": [
+      671.29,
+      273.07
+    ],
+    "reference_image": "assets/Aveil.jpg",
+    "note": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Veltor.md",
+    "uri": "obsidian://open?vault=taelgar&file=Gazetteer%2FGreater%20Sembara%2FSembara%2FBarony%20of%20Aveil%2FVeltor.md",
+    "world_xy": null,
+    "status": "provisional manual digitization; world registration unresolved"
+  },
+  {
+    "name": "Aslain",
+    "reference_xy": [
+      951.18,
+      922.74
+    ],
+    "reference_image": "assets/Aveil.jpg",
+    "note": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Aslain.md",
+    "uri": "obsidian://open?vault=taelgar&file=Gazetteer%2FGreater%20Sembara%2FSembara%2FBarony%20of%20Aveil%2FAslain.md",
+    "world_xy": null,
+    "status": "provisional manual digitization; world registration unresolved"
+  },
+  {
+    "name": "Peydon",
+    "reference_xy": [
+      1017.17,
+      1132.09
+    ],
+    "reference_image": "assets/Aveil.jpg",
+    "note": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Peydon.md",
+    "uri": "obsidian://open?vault=taelgar&file=Gazetteer%2FGreater%20Sembara%2FSembara%2FBarony%20of%20Aveil%2FPeydon.md",
+    "world_xy": null,
+    "status": "provisional manual digitization; world registration unresolved"
+  },
+  {
+    "name": "Rinburg",
+    "reference_xy": [
+      1095.68,
+      1375.57
+    ],
+    "reference_image": "assets/Aveil.jpg",
+    "note": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Rinburg.md",
+    "uri": "obsidian://open?vault=taelgar&file=Gazetteer%2FGreater%20Sembara%2FSembara%2FBarony%20of%20Aveil%2FRinburg.md",
+    "world_xy": null,
+    "status": "provisional manual digitization; world registration unresolved"
+  },
+  {
+    "name": "Essenmer",
+    "reference_xy": [
+      814.65,
+      1524.62
+    ],
+    "reference_image": "assets/Aveil.jpg",
+    "note": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Essenmer.md",
+    "uri": "obsidian://open?vault=taelgar&file=Gazetteer%2FGreater%20Sembara%2FSembara%2FBarony%20of%20Aveil%2FEssenmer.md",
+    "world_xy": null,
+    "status": "provisional manual digitization; world registration unresolved"
+  },
+  {
+    "name": "Eftly",
+    "reference_xy": [
+      659.91,
+      1609.96
+    ],
+    "reference_image": "assets/Aveil.jpg",
+    "note": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Eftly.md",
+    "uri": "obsidian://open?vault=taelgar&file=Gazetteer%2FGreater%20Sembara%2FSembara%2FBarony%20of%20Aveil%2FEftly.md",
+    "world_xy": null,
+    "status": "provisional manual digitization; world registration unresolved"
+  },
+  {
+    "name": "Champimont",
+    "reference_xy": [
+      549.55,
+      1660.02
+    ],
+    "reference_image": "assets/Aveil.jpg",
+    "note": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Champimont.md",
+    "uri": "obsidian://open?vault=taelgar&file=Gazetteer%2FGreater%20Sembara%2FSembara%2FBarony%20of%20Aveil%2FChampimont.md",
+    "world_xy": null,
+    "status": "provisional manual digitization; world registration unresolved"
+  },
+  {
+    "name": "Dallet",
+    "reference_xy": [
+      360.68,
+      1747.63
+    ],
+    "reference_image": "assets/Aveil.jpg",
+    "note": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Dallet.md",
+    "uri": "obsidian://open?vault=taelgar&file=Gazetteer%2FGreater%20Sembara%2FSembara%2FBarony%20of%20Aveil%2FDallet.md",
+    "world_xy": null,
+    "status": "provisional manual digitization; world registration unresolved"
+  },
+  {
+    "name": "Beury",
+    "reference_xy": [
+      166.12,
+      1905.78
+    ],
+    "reference_image": "assets/Aveil.jpg",
+    "note": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Cleenseau Region/Beury.md",
+    "uri": "obsidian://open?vault=taelgar&file=Gazetteer%2FGreater%20Sembara%2FSembara%2FBarony%20of%20Aveil%2FCleenseau%20Region%2FBeury.md",
+    "world_xy": null,
+    "status": "provisional manual digitization; world registration unresolved"
+  },
+  {
+    "name": "Cleenseau",
+    "reference_xy": [
+      39.82,
+      1906.92
+    ],
+    "reference_image": "assets/Aveil.jpg",
+    "note": "Gazetteer/Greater Sembara/Sembara/Barony of Aveil/Cleenseau Region/Cleenseau/Cleenseau.md",
+    "uri": "obsidian://open?vault=taelgar&file=Gazetteer%2FGreater%20Sembara%2FSembara%2FBarony%20of%20Aveil%2FCleenseau%20Region%2FCleenseau%2FCleenseau.md",
+    "world_xy": null,
+    "status": "provisional manual digitization; world registration unresolved"
+  }
+]

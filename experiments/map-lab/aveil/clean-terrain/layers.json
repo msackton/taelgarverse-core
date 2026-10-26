@@ -1,0 +1,128 @@
+{
+  "source": "/MapV3/base/taelgar-basemap.psb",
+  "source_size": [
+    14400,
+    14400
+  ],
+  "included": [
+    {
+      "layer": "coastline_VEC",
+      "kind": "shape",
+      "opacity": 255,
+      "bbox": [
+        432,
+        72,
+        13984,
+        14404
+      ]
+    },
+    {
+      "layer": "ripples_1",
+      "kind": "pixel",
+      "opacity": 128,
+      "bbox": [
+        426,
+        66,
+        13990,
+        14400
+      ]
+    },
+    {
+      "layer": "ripples_2",
+      "kind": "pixel",
+      "opacity": 128,
+      "bbox": [
+        418,
+        58,
+        13998,
+        14400
+      ]
+    },
+    {
+      "layer": "ripples_3",
+      "kind": "pixel",
+      "opacity": 128,
+      "bbox": [
+        402,
+        42,
+        14014,
+        14400
+      ]
+    },
+    {
+      "layer": "plains",
+      "kind": "pixel",
+      "opacity": 255,
+      "bbox": [
+        3427,
+        4081,
+        7315,
+        7764
+      ]
+    },
+    {
+      "layer": "forest",
+      "kind": "pixel",
+      "opacity": 255,
+      "bbox": [
+        3125,
+        2999,
+        9653,
+        7826
+      ]
+    },
+    {
+      "layer": "swamp",
+      "kind": "pixel",
+      "opacity": 255,
+      "bbox": [
+        3608,
+        3600,
+        9758,
+        6694
+      ]
+    },
+    {
+      "layer": "topography",
+      "kind": "pixel",
+      "opacity": 255,
+      "bbox": [
+        2651,
+        345,
+        12613,
+        10102
+      ]
+    }
+  ],
+  "excluded": [
+    "Background (replaced by transparency or white)",
+    "Layer 1",
+    "Layer 2",
+    "hex-grid",
+    "hex-labels",
+    "latitude",
+    "coast_old",
+    "rivers (including rivers_old, rivers and lakes)",
+    "points-of-interest (including locations, roads and volcanos)"
+  ],
+  "full_export": "taelgar-terrain-transparent.png",
+  "known_world_export": "taelgar-terrain-known-world.png",
+  "known_world_size": [
+    11329,
+    9419
+  ],
+  "world_to_psb": [
+    [
+      1.0000860605877933,
+      2.7439607104407775e-05,
+      2475.139841999056
+    ],
+    [
+      -2.7439607104407775e-05,
+      1.0000860605877933,
+      1868.0739718010993
+    ]
+  ],
+  "method": "Native RGBA layer pixels, Photoshop normal blending and authored opacity. Coastline uses cached raster rendering of the original vector shape. Registered known-world export resamples with the fitted affine transform.",
+  "limitation": "Excludes separate lake and volcano layers as well as rivers. Coastline paths may themselves enclose inland water-shaped features; no semantic cleanup or invention is applied."
+}

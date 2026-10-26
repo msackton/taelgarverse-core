@@ -1,0 +1,19 @@
+# Restore/generate assets locally. Do not add them to this handoff branch.
+*.psb
+*.psd
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.tif
+*.tiff
+*.svg
+*.mp4
+*.webm
+*.zip
+*.npy
+*.npz
+vendor/
+aveil/try-aveil/*.html
+aveil/exports/coastline-paths.json

@@ -1,0 +1,36 @@
+{
+  "source": "/MapV3/base/taelgar-basemap.psb",
+  "layer": "rivers",
+  "sourceIsRaster": true,
+  "worldToPsb": [
+    [
+      1.0000860605877933,
+      2.7439607104407775e-05,
+      2475.139841999056
+    ],
+    [
+      -2.7439607104407775e-05,
+      1.0000860605877933,
+      1868.0739718010993
+    ]
+  ],
+  "sourceBounds": [
+    3445,
+    2719,
+    4221,
+    3381
+  ],
+  "riverFocus": [
+    3928.5,
+    3246.5
+  ],
+  "featureCount": 10,
+  "method": "Registered raster alpha >70; connected component at mouth; Zhang-Suen centerline; connected graph; longest upstream path for display hierarchy; Gaussian sigma 1 pixel; RDP tolerance 0.65 pixel; endpoint coordinates preserved.",
+  "limitations": [
+    "Approximate centerline trace, not original Photoshop vector geometry.",
+    "Ranks are illustrative cartographic choices, not surveyed hydrological importance.",
+    "Only detail already present in the river layer is recovered.",
+    "Canonical river names are not assigned.",
+    "Other river systems and the separate lakes layer are outside this extraction."
+  ]
+}

@@ -1,0 +1,554 @@
+[
+  {
+    "name": "Background",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      0,
+      0,
+      14400,
+      14400
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "Layer 2",
+    "kind": "pixel",
+    "visible": false,
+    "bbox": [
+      2987,
+      3631,
+      3995,
+      4975
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "Layer 1",
+    "kind": "pixel",
+    "visible": false,
+    "bbox": [
+      2170,
+      5398,
+      4017,
+      6854
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "hex-grid",
+    "kind": "group",
+    "visible": true,
+    "bbox": [
+      0,
+      0,
+      14400,
+      14400
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "hex-grid",
+    "kind": "patternfill",
+    "visible": true,
+    "bbox": [
+      0,
+      0,
+      14400,
+      14400
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "3x3-boxes",
+    "kind": "patternfill",
+    "visible": true,
+    "bbox": [
+      0,
+      0,
+      14400,
+      14400
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "hex-labels",
+    "kind": "group",
+    "visible": true,
+    "bbox": [
+      0,
+      0,
+      14400,
+      14400
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "text-3x3",
+    "kind": "patternfill",
+    "visible": true,
+    "bbox": [
+      0,
+      0,
+      14400,
+      14400
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "outer-grid-labels-FLAT",
+    "kind": "smartobject",
+    "visible": true,
+    "bbox": [
+      251,
+      205,
+      14031,
+      14161
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "latitude",
+    "kind": "group",
+    "visible": true,
+    "bbox": [
+      -3,
+      1885,
+      14392,
+      11204
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "lat-15-deg",
+    "kind": "group",
+    "visible": true,
+    "bbox": [
+      -2,
+      2795,
+      14392,
+      9104
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "deg-15N",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -2,
+      9095,
+      14392,
+      9104
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "deg-30N",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -2,
+      6995,
+      14392,
+      7004
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "deg-45N",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -2,
+      4895,
+      14392,
+      4904
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "deg-60N",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -2,
+      2795,
+      14392,
+      2804
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "lat-5-deg",
+    "kind": "group",
+    "visible": true,
+    "bbox": [
+      -3,
+      3496,
+      14390,
+      10502
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "deg-5N",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -3,
+      10497,
+      14390,
+      10502
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "deg-10N",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -3,
+      9797,
+      14390,
+      9802
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "deg-20N",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -3,
+      8397,
+      14390,
+      8402
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "deg-25N",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -3,
+      7697,
+      14390,
+      7702
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "deg-35N",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -3,
+      6297,
+      14390,
+      6302
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "deg-40N",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -3,
+      5597,
+      14390,
+      5602
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "deg-50N",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -3,
+      4197,
+      14390,
+      4203
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "deg-55N",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -3,
+      3496,
+      14390,
+      3503
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "lat-major",
+    "kind": "group",
+    "visible": true,
+    "bbox": [
+      -2,
+      1885,
+      14389,
+      11204
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "arctic",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -2,
+      1885,
+      14389,
+      1895
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "tropics",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -2,
+      7905,
+      14389,
+      7914
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "equator",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      -2,
+      11195,
+      14389,
+      11204
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "coastline",
+    "kind": "group",
+    "visible": true,
+    "bbox": [
+      402,
+      42,
+      14014,
+      14404
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "coast_old",
+    "kind": "pixel",
+    "visible": false,
+    "bbox": [
+      434,
+      73,
+      13984,
+      14400
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "coastline_VEC",
+    "kind": "shape",
+    "visible": true,
+    "bbox": [
+      432,
+      72,
+      13984,
+      14404
+    ],
+    "vector_mask": true
+  },
+  {
+    "name": "ripples_1",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      426,
+      66,
+      13990,
+      14400
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "ripples_2",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      418,
+      58,
+      13998,
+      14400
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "ripples_3",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      402,
+      42,
+      14014,
+      14400
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "rivers",
+    "kind": "group",
+    "visible": true,
+    "bbox": [
+      3241,
+      2340,
+      11068,
+      9990
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "rivers_old",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      3241,
+      2343,
+      10194,
+      9990
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "rivers",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      3241,
+      2340,
+      11068,
+      8829
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "lakes",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      3956,
+      3184,
+      9704,
+      6415
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "points-of-interest",
+    "kind": "group",
+    "visible": true,
+    "bbox": [
+      2697,
+      2624,
+      13471,
+      12570
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "locations",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      3206,
+      3682,
+      10402,
+      8705
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "roads",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      3507,
+      4173,
+      9827,
+      7717
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "volcanos",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      2697,
+      2624,
+      13471,
+      12570
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "plains",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      3427,
+      4081,
+      7315,
+      7764
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "forest",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      3125,
+      2999,
+      9653,
+      7826
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "swamp",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      3608,
+      3600,
+      9758,
+      6694
+    ],
+    "vector_mask": false
+  },
+  {
+    "name": "topography",
+    "kind": "pixel",
+    "visible": true,
+    "bbox": [
+      2651,
+      345,
+      12613,
+      10102
+    ],
+    "vector_mask": false
+  }
+]
