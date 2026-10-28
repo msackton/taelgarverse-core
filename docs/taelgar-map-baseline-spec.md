@@ -13,7 +13,12 @@ for commands, numbering, examples and migration from older drafts.
   CLI. Missing selected layers fail. Repeatable `--include-layer` and
   `--exclude-layer` flags override defaults. There are no special POI or
   latitude/longitude policies in code.
-- Compose selected layers in source stacking order on white, preserving opacity.
+- `--only-layer /group/layer` bypasses the recipe and selects exactly one
+  drawable leaf. It outputs transparent RGBA with saved alpha and layer opacity,
+  preserving the full canvas or explicit hex crop. Include/exclude overrides
+  cannot be combined with this mode. Both output files and offset semantics are
+  unchanged.
+- Compose recipe-selected layers in source stacking order on white, preserving opacity.
   Fail on unsupported compositing features. Preserve native resolution.
 - Optional inclusive hex endpoints select a mathematical crop; no endpoints
   exports the full canvas. Whole pixels enclose the final hex envelope. Reject
@@ -76,9 +81,14 @@ Town placement and its importance/symbol controls live in the editor; Save
 patches only the town's guarded `mapLocation`, preserving other metadata and
 live editor text. Opening or viewing never writes a note. Existing source tabs
 are reused without resetting their town draft. Workspace restoration remembers
-the source; unsaved drafts are temporary. Shared line/region layer authoring is
-future work; it will not use the retired per-map mask system.
-See [editor details](map-editor.md).
+the source; unsaved drafts are temporary. Region authoring saves shared
+`.map-layers.json` files referenced by the manifest. Both hosts display these
+layers with per-map opt-in visibility controls (`toggleableLayers`, empty by
+default); they do not use the retired mask
+system. See [region layer format](map-layers.md).
+The editor can also load a temporary transparent PNG tracing reference, aligned
+in Photoshop coordinates with opacity controls. It is never stored in the map
+block or manifest. See [editor details](map-editor.md).
 
 Website preparation resolves exact manifest/image paths, decodes the PNG, validates
 geometry and generates reusable full-image tile pyramids. Snapshot metadata keeps

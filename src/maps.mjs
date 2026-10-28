@@ -1,11 +1,13 @@
 import path from 'node:path';
 import {parse} from 'yaml';
 import MarkdownIt from 'markdown-it';
-import {IMAGE_TYPES,parseNote,publicationExclusions} from './content-store.mjs';
-import {escapeHtml} from './common.mjs';
+import {IMAGE_TYPES,parseNote,publicationExclusions,availableInContext} from './content-store.mjs';
+import {escapeHtml,pageUrl} from './common.mjs';
 import {measurementOptions} from './map-distance.mjs';
 import {validateManifest,resolveMapSource} from './map-core.mjs';
 import {baselineViewConfig} from './map-block.mjs';
+
+import {resolvedMapLayers} from './map-layers.mjs';
 
 const point = value => Array.isArray(value) && value.length === 2 && value.every(v => Number.isFinite(v) && Math.abs(v) <= 10_000_000);
 function number(value, fallback, name) {
@@ -30,7 +32,14 @@ function baselineMap(data,store,author,verifyImage) {
   const source=exactEntry(store,relative) || exactEntry(store,target) || (!target.includes('/') && store.lookup(target).entry);
   if(!source || source.note || !source.id.endsWith('.map.json'))throw new Error('Map manifest is missing or ambiguous: '+target);
   if(source.mapManifestError)throw new Error('Invalid map manifest: '+source.mapManifestError);
-  const manifest=validateManifest(source.mapManifest);
+  const manifest={...validateManifest(source.mapManifest)};
+  delete manifest.regionLayers;
+  const documents=(manifest.layers??[]).map(relative=>{
+    const id=path.posix.join(path.posix.dirname(source.id),relative),file=exactEntry(store,id);
+    if(!file?.mapLayers || file.mapLayersError)throw new Error('Map layer file missing or invalid: '+id+(file?.mapLayersError?' · '+file.mapLayersError:''));
+    return {path:id,data:file.mapLayers};
+  });
+  if(documents.length)manifest.regionLayers=resolvedMapLayers(documents);
   const imagePath=path.posix.join(path.posix.dirname(source.id),manifest.image),entry=exactEntry(store,imagePath);
   if(!entry || entry.note || entry.extension!=='.png')throw new Error('Core image is missing: '+imagePath);
   if(verifyImage){
@@ -79,6 +88,15 @@ export function parseMap(source, store, author, {verifyImage=true}={}) {
 export function renderMap(source, env) {
   try {
     const {entry,config} = parseMap(source,env.store,env.entry);
+    if(config.regionLayers){
+      config.regionLinks={};
+      for(const layer of config.regionLayers)for(const region of layer.regions){
+        if(!region.note)continue;
+        const target=env.store.lookup(region.note).entry;
+        if(target?.note && availableInContext(target,env.context??{date:env.date,campaigns:[]},env.store.settings))
+          config.regionLinks[layer.key+'#'+region.id]=pageUrl(target.slug,env.date,env.context);
+      }
+    }
     if(!config.measurement)env.warnings.push('Leaflet map: distance measurement disabled; verify image calibration, unit, and scale');
     const tile = entry.mapTiles?.find(tile => JSON.stringify(tile.bounds) === JSON.stringify(config.bounds));
     if (tile) config.tile = tile;

@@ -36,9 +36,50 @@ opacity and color profiles produce an error. No scaling or resampling occurs.
 The current source lacks the geographic names on the published map; using it
 for this first baseline was approved.
 
+## Export one layer on transparency
+
+Use `--only-layer` with the exact full path of one drawable Photoshop layer:
+
+```powershell
+.venv-map-lab/Scripts/python.exe scripts/map-export/export_core.py --source experiments/map-lab/aveil/source/taelgar-basemap.psb --only-layer "/points-of-interest/roads" --output .cache/map-baseline/roads-tracing
+```
+
+This mode ignores the recipe entirely and exports only that layer, even if it
+or its parent group is hidden in Photoshop. It writes an **RGBA PNG** on a
+transparent background, preserving saved pixel alpha and layer opacity. It
+still rejects unsupported masks, blending, effects and ancestor compositing;
+select a drawable leaf, not a group. `--include-layer` and `--exclude-layer`
+cannot be combined with `--only-layer`.
+
+With no hex endpoints, the PNG retains the entire Photoshop canvas, including
+transparent margins. Add the same `--top-left` and `--bottom-right` values used
+for a basemap to produce a tracing PNG with exactly the same extent. No trimming,
+scaling or resampling occurs. A crop that misses the selected layer produces a
+fully transparent PNG of the requested size.
+
+Both `PREFIX.png` and `PREFIX.map.json` are written, retaining the normal
+no-overwrite and cleanup guarantees. The manifest records `sourceOffset`, and
+the CLI prints **Tracing X**, **Y** and **scale: 1**. Load the PNG through the
+editor's **Load tracing PNG** control. Matching basemap extents align
+automatically; otherwise use the printed X/Y. The tracing control does not read
+the sidecar automatically.
+
+The Windows helper supports the same option:
+
+```powershell
+.\scripts\test-map-export.ps1 -OnlyLayer '/points-of-interest/roads' -FullCanvas -Output .cache/map-baseline/roads-tracing
+.\scripts\test-map-export.ps1 -OnlyLayer '/points-of-interest/roads' -TopLeft 16.10 -BottomRight 17.12 -Plan
+```
+
+`-FullCanvas` cannot be combined with explicit hex endpoints. Without it, the
+helper retains its existing default single-hex sample at `16.11`. `-Preview`
+works with either mode. `--plan` / `-Plan` prints the selected path, extent and
+transparent background without reading the source PSB or writing outputs.
+
 ## Manifest and note
 
-The generated manifest has exactly three fields:
+A newly generated manifest has three fields (the editor can add optional shared
+`layers` references):
 
 ```json
 {
@@ -221,7 +262,8 @@ demo note. Reload the plugin or restart Obsidian to activate it.
 
 The current editor is a separate Obsidian tab; embeds retain rectangular crops
 and viewer controls. Polygon masks, dimming and hide-content controls are removed.
-Shared border/region layer authoring remains future work.
+Shared border/region layers are now authored in the editor and displayed by both
+hosts; see [region borders](map-editor.md#region-borders).
 
 Python tests cover layer selection, unknown-layer warnings, hidden source layers,
 unsupported composition, exact crop pixels, generic overrides and locator fixtures.
@@ -238,3 +280,30 @@ Deploy website code before publishing new map content; plugin releases are
 independent. Production writes and pushes require the permissions in `AGENTS.md`.
 The user manages the vault export and test note. No production rollout is implied
 by these local changes or the development plugin install.
+
+## Drawing and zoom performance (2026-10-28)
+
+Freehand measurement/sketch previews reuse one line and endpoint markers, update
+once per animation frame, and accumulate live distance incrementally. Completed
+drawings are rebuilt only on edits, commits or tool changes. Pointer samples are
+retained, and pending frames are cancelled on cancellation, navigation and unload.
+Town markers are reused when unchanged and culled outside the viewport plus a
+15% margin. Grid levels reuse vertex offsets; unchanged views and same-cell
+hover avoid rebuilding geometry.
+
+A local headless Chromium comparison used real Leaflet, a synthetic 12,000 ×
+10,000 basemap and a 1,400 × 1,000 browser viewport. These measure handler time,
+not frame rate or image decoding on a real vault:
+
+| Workload | Before | After |
+| --- | ---: | ---: |
+| Median synchronous view update; 1,200 towns, 36 pans/zooms at zoom 0–5 | 288.3 ms | 1.1 ms |
+| Median batch of four pointer events; 20 completed strokes plus 400 new samples | 26.4 ms | 0.8 ms |
+| Burst of 10,000 hover events within one hex | 458.4 ms | 75.1 ms |
+
+The town run created 108 markers instead of 43,200. The drawing run created 22
+polylines instead of 8,440 and retained the same final 6,862.6-mile total. Grid-only
+zoom timing showed no consistent improvement. A 100-region/18,000-vertex overlay
+already moved cheaply as one SVG and did not need a rendering rewrite.
+Regression tests cover sampled bends, frame cancellation, marker reuse and
+viewport re-entry, and grid geometry at every hierarchy level.

@@ -37,6 +37,9 @@ Separate strokes add to the total without inserting a straight connecting
 segment. Switch off Trace path to pan or add point segments; zoom buttons remain
 available. Zoom in for finer tracing. A cancelled stroke or a view change during
 drawing discards the unfinished stroke without changing completed measurements.
+The live stroke refreshes once per display frame without rebuilding completed
+drawings. All accepted pointer samples still contribute to its geometry and
+distance; releasing the pointer immediately commits the final result.
 
 To measure a region, draw its outline and return to the start, or choose
 **Close shape** to add a straight segment back to the first point. An endpoint
@@ -182,6 +185,8 @@ more than one block is in view. They disappear when the visible crop fits within
 one block and return when panning or zooming exposes a neighboring block.
 Grid geometry refreshes after a pan or zoom ends; Leaflet moves the existing grid
 during the gesture. Grid and selection edges are clipped to the crop.
+Unchanged views reuse their grid geometry; hovering within the same cell reuses
+its highlight and coordinate label.
 
 Closer zoom resolves four levels of **seven-child families**: approximately
 9.07, 3.43, 1.30 and 0.49 miles across opposite edges. A reference such as
@@ -217,16 +222,18 @@ The same block therefore produces the same physical distance on both surfaces.
 
 ## Delivery and maintenance
 
-Version 2 maps reference a `.map.json` file in the vault. Only this JSON suffix is
-discovered as a map asset; ordinary JSON files are not automatically published.
+Version 2 maps reference a `.map.json` file in the vault. The store discovers
+`.map.json` manifests and `.map-layers.json` region assets; ordinary JSON files
+are not automatically published.
 The source can be a quoted wikilink, an exact vault path, or a path relative to
 the note. Missing qualified paths never fall back to a matching basename. The
 manifest's PNG path resolves exactly relative to the manifest, and normal folder
 publication exclusions apply to both files.
 
 Preparation validates pixel or hex crop bounds and fully decodes the static
-PNG before tiling. The tiny version 2 manifest contains only `version`, `image`
-and `sourceOffset`; image dimensions come from the PNG. The shared Taelgar grid
+PNG before tiling. The tiny version 2 manifest contains `version`, `image`
+and `sourceOffset`, plus optional shared `layers` file references. Image dimensions
+come from the PNG. The shared Taelgar grid
 sets the scale to 0.6 miles/pixel. Rendering subtracts `sourceOffset` from saved
 geometry, so a different export extent preserves geographical positions. Crops
 are intersected with available coverage; a disjoint crop displays an error. Invalid referenced baselines
@@ -291,3 +298,8 @@ Sketch checks cover mode switching, separate measurement state, missing
 calibration, per-map isolation, disposal, and Clear. Closure correction checks
 cover tiny loops, touches, overshoots, zoom sensitivity, winding, and retention
 of substantial crossings.
+
+Shared region borders now render in both hosts over PNGs or tiles, with names, optional note links, and per-map opt-in layer
+checkboxes (`toggleableLayers`, empty by default). They use Photoshop coordinates and
+clip to each map crop. See [region layers](map-layers.md) and
+[authoring](map-editor.md#region-borders).

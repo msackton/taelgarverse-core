@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {addMapBaseline,gridDetail,HEX_DETAIL_MIN_PIXELS} from '../src/browser/map-baseline.mjs';
 import {LOCATOR_SCHEME} from '../src/map-locators.mjs';
-import {hexLevel} from '../src/map-hex-hierarchy.mjs';
+import {visibleHexes,hexVertices} from '../src/map-core.mjs';
+import {hexLevel,hierarchyGrid} from '../src/map-hex-hierarchy.mjs';
 
 function setup({overlays=[],visible=true,showCoordinates=true,addressing,blockOrigin,zoom=0,grid={},
   crop={x:100,y:100,width:300,height:300},viewport={x:0,y:0,width:500,height:500}}={}) {
@@ -27,7 +28,7 @@ function setup({overlays=[],visible=true,showCoordinates=true,addressing,blockOr
     center:{lat:800,lng:200},getCenter(){return this.center;},
     viewport,getBounds(){const rect=this.viewport;return {getNorth:()=>1000-rect.y,getSouth:()=>1000-rect.y-rect.height,getWest:()=>rect.x,getEast:()=>rect.x+rect.width};}};
   const layer=(kind,points,options)=>({kind,points,options,children:[],addTo(parent){layers.push(this);parent.children?.push(this);return this;},
-    setLatLngs(points){this.points=points;},setStyle(style){Object.assign(this.options,style);},bringToBack(){this.atBack=true;return this;},
+    setLatLngs(points){this.points=points;this.updates=(this.updates??0)+1;},setStyle(style){Object.assign(this.options,style);},bringToBack(){this.atBack=true;return this;},
     removeLayer(child){this.children=this.children.filter(item=>item!==child);child.remove();},
     clearLayers(){for(const child of this.children)child.remove();this.children=[];},remove(){this.clearLayers();this.removed=true;}});
   const L={canvas:options=>layer('renderer',[],options),layerGroup:()=>layer('group',[]),svgOverlay:(svg,bounds,options)=>({...layer('svg',bounds,options),svg}),
@@ -179,4 +180,30 @@ test('faint block boundaries persist through hex detail and disappear when the v
   assert.deepEqual(cropped.layers.filter(layer=>layer.kind==='line')[3].points,[],'off-crop blocks do not count');cropped.dispose();
   const unknown=setup({...options,addressing:{status:'unverified'}});
   assert.deepEqual(unknown.layers.filter(layer=>layer.kind==='line')[3].points,[],'unverified maps cannot invent block boundaries');unknown.dispose();
+});
+
+
+test('unchanged view and same-cell hover avoid geometry/selection redraws',()=>{
+  const h=setup(),line=h.layers.find(layer=>layer.kind==='line'),selection=h.layers.find(layer=>layer.options?.fill===false);
+  const updates=line.updates;h.event('moveend');h.event('zoomend');h.flush();assert.equal(line.updates,updates);
+  h.event('mousemove',[200,200]);const selected=selection.updates;
+  for(let i=0;i<20;i++)h.event('mousemove',[200+i*.01,200]);
+  assert.equal(selection.updates,selected);h.event('click',[200,200]);assert.equal(h.copy.disabled,false);
+  h.clear.click();h.event('mousemove',[200,200]);assert.equal(selection.updates,selected+2,'unpin clears the cached cell');h.dispose();
+});
+
+test('optimized grid segments match authoritative vertices at every hierarchy level',()=>{
+  const grid={origin:[16.5,20.5],axialOrigin:[0,0]},viewport={x:300,y:300,width:200,height:200};
+  for(let depth=0;depth<=4;depth++){
+    const level=hexLevel(depth),zoom=Math.log2(19/level.hexPixels),cellGrid=hierarchyGrid(grid,depth);
+    const h=setup({zoom,grid,viewport,crop:{x:0,y:0,width:1000,height:1000},blockOrigin:[0,0],addressing:{status:'verified',scheme:LOCATOR_SCHEME}});
+    const expected=[];
+    for(const axial of visibleHexes(cellGrid,viewport,level.hexPixels)){
+      const vertices=hexVertices(cellGrid,axial,level.hexPixels);
+      for(let i=0;i<3;i++)expected.push([vertices[i],vertices[i+1]].map(([x,y])=>[1000-y,x]));
+    }
+    const actual=h.layers.find(layer=>layer.kind==='line').points;assert.equal(actual.length,expected.length);
+    for(let i=0;i<actual.length;i++)for(let j=0;j<2;j++)for(let k=0;k<2;k++)assert.ok(Math.abs(actual[i][j][k]-expected[i][j][k])<1e-8);
+    h.dispose();
+  }
 });

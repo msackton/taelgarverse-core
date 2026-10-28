@@ -8,9 +8,7 @@ reuses the editor and preserves its current town draft. Tabs remember their
 source across workspace restoration; unsaved town drafts are temporary.
 
 Embedded maps show towns, navigation, measurement and the optional grid.
-Town placement controls appear only in the editor. The editor currently authors
-town positions; shared border/region layers and their drawing tools are future
-work. Polygon masking, dimming, and hide-content controls have been removed.
+Town placement controls appear only in the editor. The editor authors town positions and persistent shared region borders. Polygon masking, dimming, and hide-content controls have been removed.
 Old development blocks' `overlays` fields are ignored and can be deleted.
 
 Keep the PNG and its `.map.json` together in the vault. Quote wikilinks:
@@ -118,6 +116,11 @@ click a saved marker to open its note. X/Y are authoritative when loading
 markers, even if a manually edited hex field is stale. Website town-marker
 publication is not implemented by this local authoring feature.
 
+Saved markers are retained across view changes when their appearance is
+unchanged. Only markers within the viewport plus a 15% margin are mounted;
+panning or zooming refreshes that set when the gesture ends. This keeps distant
+towns from adding hidden elements to the map.
+
 Markers use a transparent crop of the source Photoshop artwork, centered on the
 saved position. Saved icons shrink to 6 CSS pixels high at world overview zoom,
 grow smoothly with zoom (about 11 pixels at the readable 24-mile scale), and reach
@@ -133,6 +136,93 @@ text and line endings remain unchanged. Open editor buffers receive a range
 transaction, retaining unsaved prose; closed notes use an atomic vault update.
 Conflicting position edits or malformed frontmatter block Save and retain the
 draft. Saving never creates a note, modifies the map block, commits or publishes.
+
+## Trace an existing Photoshop layer
+
+In the editor's **Tracing image** controls, choose **Load tracing PNG** and select
+an exported PNG from your computer. Transparency is preserved. The reference
+appears above the basemap and below saved borders, draft vertices and the grid;
+it does not intercept clicks or change map coordinates. Use **Draw region** to
+trace its outlines and save the resulting vector regions normally.
+
+The [Photoshop exporter](map-baseline-progress.md#export-one-layer-on-transparency)
+can create a tracing PNG directly with `--only-layer /group/layer`.
+
+Export at native resolution with transparency and preserve the canvas extent
+when possible. Alignment uses the PNG's top-left position on the original
+Photoshop canvas:
+
+- A PNG with the same dimensions as the basemap export automatically starts at
+  that export's `sourceOffset`, with scale 1.
+- Other PNGs initially assume the full Photoshop canvas, X 0 and Y 0, scale 1.
+  The status shows this assumption. A trimmed export requires its original
+  top-left X/Y; these cannot be recovered from an ordinary PNG.
+- **Align to basemap export** and **Align to canvas origin** set those respective
+  offsets and reset scale to 1. You can always override X/Y numerically.
+- **Tracing scale** is Photoshop canvas pixels per PNG pixel. Use 2 for an image
+  exported at half resolution. X/Y remain original canvas coordinates. Rotation
+  and nonuniform scaling are not supported.
+
+**Tracing opacity** adjusts the reference; **Show tracing image** hides/reveals
+it. It clips to the available basemap export and follows pan/zoom. Loading it
+does not change the map's camera bounds. **Remove tracing image** clears it.
+
+The reference is temporary to the editor tab. Reopening the same tab retains it;
+closing or rebuilding the tab discards it. Loading never copies the PNG into the
+vault, writes a manifest/map block, or makes it available on published maps.
+Only the regions you explicitly save persist. Supported PNGs are at most
+256 MiB, 50000 pixels per side and 250 million total pixels.
+
+## Region borders
+
+Choose **Draw region** in the editor, select an existing layer or **New layer**,
+and give the layer and region names. Layers can represent realms, regions,
+provinces or other subdivisions; these names have no hard-coded political meaning.
+Click to add vertices, or use **Add vertex at map center** after keyboard panning.
+**Save region** closes and validates the outline. Self-crossings, touching edges,
+repeated vertices and zero-area shapes are rejected with the draft retained.
+
+Choose an existing region and **Edit region** to change its name, optional vault
+note path, color, width, dashed border or fill opacity. Select a numbered **Vertex**
+and click to move it; **Remove vertex** removes it, and **Add vertex** resumes
+appending. **Undo vertex** removes the last vertex. **Cancel region** discards the
+whole draft. **Delete region** requires **Confirm deletion**. Finish or cancel the
+current authoring tool before switching to towns, measurement or sketching.
+
+The first save creates a `.map-layers.json` beside the manifest and adds its
+relative filename to the manifest's optional `layers` array. Later saves update
+only that layer file. All maps referencing this manifest see the same borders.
+To reuse layers across exports, add the same relative layer-file reference to
+each manifest (keep the file beside, or below, the manifests). New Photoshop
+exports still produce only the original three manifest fields; attach shared
+layer references to each new export explicitly.
+
+Embedded maps offer no layer checkboxes by default. Opt in per map with
+`toggleableLayers: [realms, regions]`, using the desired layer IDs. The editor
+always offers all layer toggles for authoring. Each layer has a collapsible
+list of region names. Optional region note paths become native Obsidian links;
+the website links only to published notes available in the current context.
+Layer `visible: false` sets its initial visibility. Layers not listed in
+`toggleableLayers` keep that visibility without a checkbox; checkbox changes are
+local to that viewer. Styles use screen-pixel border widths, and crop clipping never adds
+an artificial outline along the crop edge. Region geometry uses original
+Photoshop coordinates, independent of the PNG extent and individual map crops.
+
+Saves compare the loaded layer-file text inside an atomic vault update. External
+changes block Save and preserve the draft. Cancel and choose **Reload region
+layers** to load the current files. Other open editor tabs can use the same
+control; saved changes refresh embedded maps. If creation succeeds but attaching
+the file to the manifest fails, the error identifies the saved file for recovery.
+No files are silently overwritten or removed.
+
+The initial format supports simple polygons, with no holes or disconnected
+parts; use separate named regions for islands. Shared-edge topology, snapping,
+freehand boundary tracing and date-dependent borders are not implemented.
+Layer files are publishable map assets, including their names and geometry;
+put only public information in files used by published maps. Cropping and hiding
+layers are presentation controls, not access controls.
+
+See [region layer format](map-layers.md) for JSON authoring and reuse.
 
 ## Local testing
 

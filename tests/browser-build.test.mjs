@@ -25,7 +25,7 @@ test('Wrangler custom build produces map and diagram assets without a prior loca
     await fs.copyFile(path.join(ROOT,'scripts',file),path.join(directory,'scripts',file));
   }
   await fs.cp(path.join(ROOT,'src/browser'),path.join(directory,'src/browser'),{recursive:true});
-  for(const file of ['map-distance.mjs','map-path.mjs','map-core.mjs','map-locators.mjs','map-hex-hierarchy.mjs','map-geometry.json'])await fs.copyFile(path.join(ROOT,'src',file),path.join(directory,'src',file));
+  for(const file of ['map-layers.mjs','map-distance.mjs','map-path.mjs','map-core.mjs','map-locators.mjs','map-hex-hierarchy.mjs','map-geometry.json'])await fs.copyFile(path.join(ROOT,'src',file),path.join(directory,'src',file));
   const config = JSON.parse(await fs.readFile(path.join(ROOT,'wrangler.json'),'utf8'));
   await run(config.build.command,{cwd:directory,windowsHide:true});
   for (const file of ['maps.js','leaflet.css','diagrams.js','image-viewer.js','interactions.js']) {

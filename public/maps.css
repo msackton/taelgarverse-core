@@ -23,3 +23,9 @@
 .map-hex-coordinate { font-variant-numeric:tabular-nums; }
 .map-grid-detail { color:var(--muted,#526a63); font-size:.8rem; }
 @media (max-width:600px) { .map-canvas { height:min(var(--map-height,600px),65vh); } }
+
+.map-region-controls { display:inline-flex; flex-wrap:wrap; gap:.6rem; }
+.map-region-controls label { display:inline-flex; align-items:center; gap:.2rem; cursor:pointer; }
+.map-region-overlay { pointer-events:none; }
+.map-region-overlay polygon { pointer-events:stroke; }
+.map-editing .map-region-overlay polygon, .map-measuring .map-region-overlay polygon { pointer-events:none; }

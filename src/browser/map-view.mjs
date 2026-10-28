@@ -1,3 +1,4 @@
+import {addMapRegions} from './map-regions.mjs';
 import L from 'leaflet';
 import {addMeasurement} from './map-measurement.mjs';
 import {addMapBaseline,cropInset} from './map-baseline.mjs';
@@ -5,9 +6,9 @@ import {cropBounds} from '../map-core.mjs';
 
 const blank = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
-export function mountMap(figure,{decorate}={}) {
+export function mountMap(figure,{decorate,openRegionNote,baseImagePane}={}) {
   const canvas = figure.querySelector('.map-canvas'), status = figure.querySelector('.map-status');
-  let map,observer,disposeMeasurement,disposeBaseline,disposeDecoration,fit;
+  let map,observer,disposeMeasurement,disposeBaseline,disposeDecoration,disposeRegions,fit;
   try {
     let config = JSON.parse(figure.dataset.map);
     const bounds = L.latLngBounds(config.bounds);
@@ -49,7 +50,7 @@ export function mountMap(figure,{decorate}={}) {
         minNativeZoom:tile.minNativeZoom,maxNativeZoom:tile.maxNativeZoom,noWrap:true,bounds})
         .on('tileerror',fail).addTo(map);
     } else {
-      imageLayer=L.imageOverlay(config.image,bounds).on('error',fail).addTo(map);
+      imageLayer=L.imageOverlay(config.image,bounds,baseImagePane?{pane:baseImagePane}:{}).on('error',fail).addTo(map);
     }
     const reset = () => config.fitBounds && canvas.clientWidth && canvas.clientHeight ? map.fitBounds(viewBounds) :
       map.setView(config.center || viewBounds.getCenter(),config.defaultZoom);
@@ -59,6 +60,7 @@ export function mountMap(figure,{decorate}={}) {
     fit.type = 'button';fit.textContent = 'Fit map';fit.addEventListener('click',() => map.fitBounds(viewBounds));
     figure.querySelector('figcaption').prepend(fit);
     if(config.version===2)disposeBaseline=addMapBaseline(L,map,canvas,figure,config);
+    if(config.version===2)disposeRegions=addMapRegions(L,map,canvas,figure,config,openRegionNote);
     disposeMeasurement=addMeasurement(L,map,canvas,figure,config.measurement,viewBounds);
     // Host-only authoring controls stay outside serialized map definitions and
     // website bundles. Their lifetime follows the mounted map.
@@ -78,7 +80,7 @@ export function mountMap(figure,{decorate}={}) {
     observer.observe(canvas);
     figure.dataset.mapReady = 'true';
     let disposed=false;
-    const dispose=()=>{disposed=true;observer.disconnect();disposeDecoration?.();disposeMeasurement?.();disposeBaseline?.();map.remove();fit.remove();delete figure.dataset.mapReady;};
+    const dispose=()=>{disposed=true;observer.disconnect();disposeDecoration?.();disposeRegions?.();disposeMeasurement?.();disposeBaseline?.();map.remove();fit.remove();delete figure.dataset.mapReady;};
     // Editor changes keep the image and Leaflet map alive. Only committed
     // crop/grid changes need new controls.
     dispose.update=next=>{
@@ -93,12 +95,14 @@ export function mountMap(figure,{decorate}={}) {
       tileLayer?.redraw();
       disposeBaseline=addMapBaseline(L,map,canvas,figure,config);
       disposeMeasurement=addMeasurement(L,map,canvas,figure,config.measurement,viewBounds);
+      disposeRegions?.update(config);
       disposeDecoration?.update?.(config);
       if(oldCrop!==JSON.stringify(config.crop))map.fitBounds(viewBounds);
     };
+    dispose.updateRegions=(regionLayers,sourceOffset)=>{if(disposed)return;config={...config,regionLayers,sourceOffset};figure.dataset.map=JSON.stringify(config);disposeRegions?.update(config);};
     return dispose;
   } catch (error) {
-    observer?.disconnect();disposeDecoration?.();disposeMeasurement?.();disposeBaseline?.();map?.remove();fit?.remove();canvas.hidden = true;
+    observer?.disconnect();disposeDecoration?.();disposeRegions?.();disposeMeasurement?.();disposeBaseline?.();map?.remove();fit?.remove();canvas.hidden = true;
     status.textContent = 'Interactive map could not load. ';
     console.error('Unable to initialize map',error);
     return ()=>{};

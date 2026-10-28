@@ -7,12 +7,16 @@ Export a small map sample, optionally serving it in the local map viewer.
 .\scripts\test-map-export.ps1 -TopLeft 04.9 -BottomRight 16.11 -Plan
 .EXAMPLE
 .\scripts\test-map-export.ps1 -TopLeft 04.04.H.07 -Preview
+.EXAMPLE
+.\scripts\test-map-export.ps1 -OnlyLayer '/points-of-interest/roads' -FullCanvas -Output .cache/map-baseline/roads-tracing
 .DESCRIPTION
 Endpoints accept row.column[.letter[.number]]; missing letter/number mean A/01.
 Append / followed by up to four digits 0-6 for finer seven-child hexes; use the same depth at both corners.
 Legacy .01-.16 suffixes remain accepted for 6-mile crops.
 Omitting BottomRight exports the single hex at TopLeft. Layer defaults come from the recipe.
 Output is a file prefix: -Output maps/region writes maps/region.png and maps/region.map.json.
+OnlyLayer exports one drawable layer on transparency, ignoring recipe choices.
+FullCanvas omits hex bounds and retains the complete Photoshop canvas.
 #>
 [CmdletBinding()]
 param(
@@ -21,6 +25,8 @@ param(
     [string]$Output,
     [string[]]$IncludeLayer = @(),
     [string[]]$ExcludeLayer = @(),
+    [string]$OnlyLayer,
+    [switch]$FullCanvas,
     [switch]$Plan,
     [switch]$Preview,
     [ValidateRange(1024, 65535)]
@@ -29,6 +35,11 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if ($Plan -and $Preview) { throw 'Use -Plan to inspect options or -Preview to export and view them.' }
+if ($FullCanvas -and ($PSBoundParameters.ContainsKey('TopLeft') -or $PSBoundParameters.ContainsKey('BottomRight'))) {
+    throw 'Use -FullCanvas or hex endpoints, not both.'
+}
+if ($PSBoundParameters.ContainsKey('OnlyLayer') -and [string]::IsNullOrWhiteSpace($OnlyLayer)) { throw 'OnlyLayer requires a full /group/layer path.' }
+if ($OnlyLayer -and ($IncludeLayer.Count -or $ExcludeLayer.Count)) { throw 'OnlyLayer cannot be combined with IncludeLayer or ExcludeLayer.' }
 $mapRepoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $mapPython = Join-Path $mapRepoRoot '.venv-map-lab/Scripts/python.exe'
 if (-not (Test-Path -LiteralPath $mapPython)) {
@@ -37,9 +48,10 @@ if (-not (Test-Path -LiteralPath $mapPython)) {
 if (-not $BottomRight) { $BottomRight = $TopLeft }
 $exportArgs = @(
     (Join-Path $mapRepoRoot 'scripts/map-export/export_core.py'),
-    '--recipe', (Join-Path $mapRepoRoot 'scripts/map-export/taelgar-core.recipe.json'),
-    '--top-left', $TopLeft, '--bottom-right', $BottomRight
+    '--recipe', (Join-Path $mapRepoRoot 'scripts/map-export/taelgar-core.recipe.json')
 )
+if (-not $FullCanvas) { $exportArgs += @('--top-left', $TopLeft, '--bottom-right', $BottomRight) }
+if ($OnlyLayer) { $exportArgs += @('--only-layer', $OnlyLayer) }
 foreach ($layer in $IncludeLayer) { $exportArgs += @('--include-layer', $layer) }
 foreach ($layer in $ExcludeLayer) { $exportArgs += @('--exclude-layer', $layer) }
 if ($Plan) {

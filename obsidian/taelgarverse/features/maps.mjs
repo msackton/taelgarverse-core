@@ -56,7 +56,7 @@ class MapChild extends MarkdownRenderChild {
       const caption=doc.createElement('figcaption'),status=doc.createElement('span');status.className='map-status';status.setAttribute('role','status');
       const original=doc.createElement('a');original.href=config.image;original.textContent=config.version===2?'Open full source image':'Open map image';original.target='_blank';original.rel='noopener';
       caption.append(status,original);figure.append(canvas,caption);element.replaceChildren(figure);
-      this.dispose=mountMap(figure,{decorate:baseline?context=>{
+      this.dispose=mountMap(figure,{openRegionNote:note=>this.plugin.app.workspace.openLinkText(note,this.context.sourcePath,false),decorate:baseline?context=>{
         this.towns=mountTownPlacement({...context,figure,manifest:baseline.manifest,app:this.plugin.app,sourcePath:this.context.sourcePath,
           onSaved:(file,location)=>{for(const child of this.plugin.maps)child.towns?.updateNote(file,location);}});
         return this.towns;

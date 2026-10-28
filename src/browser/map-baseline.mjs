@@ -11,6 +11,7 @@ const sizeLabel=depth=>depth===0?'24':hexLevel(depth).hexMiles.toFixed(2);
 let nextGridPane=0;
 
 function clipEdge(a,b,rect){
+  if(inCrop(a,rect) && inCrop(b,rect))return [a,b];
   const dx=b[0]-a[0],dy=b[1]-a[1];let start=0,end=1;
   for(const [p,q] of [[-dx,a[0]-rect.x],[dx,rect.x+rect.width-a[0]],[-dy,a[1]-rect.y],[dy,rect.y+rect.height-a[1]]]){
     if(p===0){if(q<0)return null;continue;}
@@ -27,7 +28,11 @@ export function addMapBaseline(L,map,canvas,figure,config) {
   const group=L.layerGroup().addTo(map);
   const hasLocators=grid.addressing?.status==='verified' && grid.addressing.scheme===LOCATOR_SCHEME;
   const hasBlocks=hasLocators && Array.isArray(grid.blockOrigin);
-  const levels=Array.from({length:MAX_HEX_DEPTH+1},(_,depth)=>({...hexLevel(depth),grid:hierarchyGrid(grid,depth)}));
+  const levels=Array.from({length:MAX_HEX_DEPTH+1},(_,depth)=>{
+    const level=hexLevel(depth),cellGrid=hierarchyGrid(grid,depth);
+    return {...level,grid:cellGrid,c:Math.cos(cellGrid.rotation??0),s:Math.sin(cellGrid.rotation??0),
+      offsets:hexVertices({...cellGrid,origin:[0,0]},cellGrid.axialOrigin,level.hexPixels)};
+  });
   const gridPaneName='taelgar-grid-lines-'+nextGridPane++;
   const gridPane=map.createPane(gridPaneName,map.getPane('overlayPane'));
   gridPane.style.zIndex='40';gridPane.style.pointerEvents='none';
@@ -50,34 +55,43 @@ export function addMapBaseline(L,map,canvas,figure,config) {
   const clear=doc.createElement('button');clear.type='button';clear.textContent='Unpin hex';clear.hidden=true;
   const detail=doc.createElement('span');detail.className='map-grid-detail';
   controls.append(label,output,center,copy,clear,detail);figure.querySelector('figcaption').append(controls);
-  let pinned=false,address='',disposed=false,frame,mode,lastSelection;
+  let pinned=false,address='',disposed=false,frame,mode,lastSelection,selectionKey,lastView;
   const busy=()=>canvas.classList.contains('map-measuring') || canvas.classList.contains('map-editing');
-  const reset=()=>{pinned=false;address='';lastSelection=null;selection.setLatLngs([]);parentHighlight.setLatLngs([]);output.textContent='';copy.disabled=true;clear.hidden=true;};
+  const reset=()=>{pinned=false;address='';lastSelection=null;selectionKey=null;selection.setLatLngs([]);parentHighlight.setLatLngs([]);output.textContent='';copy.disabled=true;clear.hidden=true;};
   const clipped=line=>{const edge=clipEdge(line[0],line[1],crop);return edge?edge.map(ll):null;};
   const outline=vertices=>vertices.map((p,i)=>clipped([p,vertices[(i+1)%vertices.length]])).filter(Boolean);
-  function cellLines(cellGrid,rect,pixels){
-    const lines=[];
-    for(const axial of visibleHexes(cellGrid,rect,pixels)){
-      const vertices=hexVertices(cellGrid,axial,pixels);
-      // Three edges per cell: shared edges are drawn once, with one-cell margin.
-      for(let i=0;i<3;i++){const edge=clipped([vertices[i],vertices[i+1]]);if(edge)lines.push(edge);}
+  function cellLines(level,rect){
+    const {grid:cellGrid,hexPixels:pixels,offsets,c,s}=level,lines=[];
+    for(const [q,r] of visibleHexes(cellGrid,rect,pixels)){
+      const aq=q-cellGrid.axialOrigin[0],ar=r-cellGrid.axialOrigin[1];
+      const ux=Math.sqrt(3)*pixels*aq/2,uy=pixels*(ar+aq/2);
+      const x=ux*c-uy*s+cellGrid.origin[0],y=ux*s+uy*c+cellGrid.origin[1];
+      // Only four vertices are needed for the three unique edges. Shape offsets
+      // and rotation are fixed per level, rather than recomputed for every cell.
+      let a=[x+offsets[0][0],y+offsets[0][1]];
+      for(let i=1;i<=3;i++){
+        const b=[x+offsets[i][0],y+offsets[i][1]],edge=clipEdge(a,b,crop);
+        if(edge)lines.push([ll(edge[0]),ll(edge[1])]);a=b;
+      }
     }
     return lines;
   }
   function redraw(){
     const scale=map.getZoomScale(map.getZoom(),0),next=toggle.checked?gridDetail(scale,hasBlocks,hasLocators):'off';
     const keepSelection=next!==mode && pinned?lastSelection:null;
-    if(next!==mode){reset();mode=next;gridLine.setStyle({opacity:mode>0?0.45:0.65});}
+    if(next!==mode){reset();lastView=null;mode=next;gridLine.setStyle({opacity:mode>0?0.45:0.65});}
     center.hidden=copy.hidden=!grid.showCoordinates || mode==='off' || mode==='hidden';
     const unit=mode==='blocks'?'block':typeof mode==='number'?sizeLabel(mode)+'-mile hex':'hex';
     center.textContent='Select center '+unit;copy.textContent='Copy '+unit+' coordinates';clear.textContent='Unpin '+unit;
     detail.hidden=mode==='off';detail.textContent=mode==='blocks'?'Blocks · zoom in for hexes':typeof mode==='number'?
       unit+'es'+(hasLocators && mode<MAX_HEX_DEPTH?' · zoom in for '+sizeLabel(mode+1)+'-mile hexes':''):'Zoom in for hexes';
-    coarseLine.setLatLngs([]);blockBoundary.setLatLngs([]);
-    if(mode==='off' || mode==='hidden'){gridLine.setLatLngs([]);return;}
+    if(mode==='off' || mode==='hidden'){if(lastView!==mode){gridLine.setLatLngs([]);coarseLine.setLatLngs([]);blockBoundary.setLatLngs([]);lastView=mode;}return;}
     const bounds=map.getBounds(),nw=latLngToCore([bounds.getNorth(),bounds.getWest()],height),se=latLngToCore([bounds.getSouth(),bounds.getEast()],height);
     const x=Math.max(crop.x,nw[0]),y=Math.max(crop.y,nw[1]);
     const right=Math.min(crop.x+crop.width,se[0]),bottom=Math.min(crop.y+crop.height,se[1]);
+    const viewKey=[mode,x,y,right,bottom].join(',');
+    if(viewKey===lastView)return;lastView=viewKey;
+    coarseLine.setLatLngs([]);blockBoundary.setLatLngs([]);
     if(right<x || bottom<y){gridLine.setLatLngs([]);return;}
     const rect={x,y,width:right-x,height:bottom-y},lines=[];
     if(hasBlocks){
@@ -91,8 +105,8 @@ export function addMapBaseline(L,map,canvas,figure,config) {
       const level=levels[mode];
       // Only the current grid and its immediate predecessor: drawing every
       // ancestor at deep zoom would obscure the smaller cells.
-      gridLine.setLatLngs(cellLines(level.grid,rect,level.hexPixels));
-      if(mode>0){const parent=levels[mode-1];coarseLine.setLatLngs(cellLines(parent.grid,rect,parent.hexPixels));}
+      gridLine.setLatLngs(cellLines(level,rect));
+      if(mode>0){const parent=levels[mode-1];coarseLine.setLatLngs(cellLines(parent,rect));}
     }else gridLine.setLatLngs(lines);
     if(keepSelection)select(keepSelection,true);
   }
@@ -100,24 +114,27 @@ export function addMapBaseline(L,map,canvas,figure,config) {
     if(!toggle.checked || mode==='hidden' || !grid.showCoordinates || busy() || (pinned && !pin))return;
     const point=latLngToCore([latlng.lat,latlng.lng],height);
     if(!inCrop(point,crop)){if(!pinned)reset();return;}
+    const selected=key=>{const same=key===selectionKey;selectionKey=key;lastSelection=latlng;pinned=pin;copy.disabled=!pin;clear.hidden=!pin;return same;};
     if(mode==='blocks'){
       const block=pointToBlock(grid.blockOrigin,point);if(!block){if(!pinned)reset();return;}
+      if(selected('block:'+block.address))return;
       address=block.address;output.textContent=address+' · block';
       const {x,y,width,height}=block;selection.setLatLngs(outline([[x,y],[x+width,y],[x+width,y+height],[x,y+height]]));
     }else if(mode>0){
       const level=levels[mode],parent=levels[mode-1],axial=pointToHex(level.grid,point,level.hexPixels);
+      if(selected(mode+':'+axial.join(',')))return;
       const locator=axialToHexReference(axial,mode);
       address=locator??(`depth ${mode} axial `+axial.join(', '));output.textContent=address+' · '+sizeLabel(mode)+'-mile hex';
       selection.setLatLngs(outline(hexVertices(level.grid,axial,level.hexPixels)));
       parentHighlight.setLatLngs(outline(hexVertices(parent.grid,parentHex(axial,mode).axial,parent.hexPixels)));
     }else{
       const axial=pointToHex(grid,point);
+      if(selected('0:'+axial.join(',')))return;
       const locator=grid.addressing?.status==='verified' && grid.addressing.scheme===LOCATOR_SCHEME?axialToLocator(axial):null;
       address=locator??('axial '+axial.join(', '));
       output.textContent=locator?address+' · regular grid':address+' (historical locator unverified)';
       selection.setLatLngs(outline(hexVertices(grid,axial)));
     }
-    pinned=pin;lastSelection=latlng;copy.disabled=!pin;clear.hidden=!pin;
   }
   const move=event=>select(event.latlng),click=event=>select(event.latlng,true);
   const scheduleRedraw=()=>{

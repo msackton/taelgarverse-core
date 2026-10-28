@@ -46,20 +46,17 @@ export function mountTownPlacement({L,map,canvas,config,figure,manifest,app,sour
   const cancel=button('Cancel placement',()=>end());
   if(editable)figure.querySelector('figcaption').append(controls);
   const savedLayer=L.layerGroup().addTo(map),draftLayer=L.layerGroup().addTo(map);
-  const notes=new Map(),refs=[];let session=null,point=null,busy=false,disposed=false,picker;
+  const notes=new Map(),markers=new Map(),refs=[];let session=null,point=null,busy=false,disposed=false,picker;
   const record=file=>{
     if(file.extension!=='md')return;
     const location=storedMapLocation(app.metadataCache.getFileCache(file)?.frontmatter?.mapLocation);
     if(location)notes.set(file.path,{file,location});else notes.delete(file.path);
   };
   const caption=(file,location)=>`${file.basename??file.name} · X ${location.x.toFixed(3)}, Y ${location.y.toFixed(3)} · ${location.hex} · ${mapImportance(location.importance).label} · ${mapSymbol(location.symbol).label}`;
-  const marker=(layer,file,location,draft=false)=>{
-    const scale=map.getZoomScale(map.getZoom(),0);
-    if(!visible(location) || (!draft && !importanceVisible(location.importance,scale)))return;
+  const marker=(layer,file,location,draft,iconHeight)=>{
     const label=doc.createElement('span');label.textContent=caption(file,location);
     // Keep overview ink small, growing to full size at the readable 9-mile
     // scale. The click target and active placement draft stay easy to use.
-    const iconHeight=draft?18:Math.max(6,Math.min(18,18*Math.sqrt(hexLevel(1).hexPixels*scale/18)));
     const artwork=symbols[location.symbol];
     const icon=L.divIcon({className:'map-town-marker'+(draft?' map-town-marker-draft':''),
       html:`<img src="${artwork.image}" alt="" aria-hidden="true" draggable="false" style="--map-town-icon-height:${iconHeight}px" width="${iconHeight*artwork.width/artwork.height}" height="${iconHeight}">`,
@@ -68,11 +65,26 @@ export function mountTownPlacement({L,map,canvas,config,figure,manifest,app,sour
       keyboard:!session,bubblingMouseEvents:false,interactive:!session}).addTo(layer);
     dot.bindTooltip(label,{direction:'top'});
     if(!session)dot.on('click',()=>void app.workspace.openLinkText(file.path,sourcePath,false));
+    return dot;
   };
   function draw(){
-    savedLayer.clearLayers();draftLayer.clearLayers();
-    for(const {file,location} of notes.values())if(file!==session?.file)marker(savedLayer,file,location);
-    if(session && point)marker(draftLayer,session.file,point,true);
+    if(disposed)return;
+    const scale=map.getZoomScale(map.getZoom(),0);
+    const iconHeight=Math.max(6,Math.min(18,18*Math.sqrt(hexLevel(1).hexPixels*scale/18)));
+    // Retain nearby markers through small pans; far-offscreen notes need no DOM.
+    const viewport=map.getBounds?.().pad(0.15),needed=new Set();
+    for(const {file,location} of notes.values()){
+      if(file===session?.file || !visible(location) || !importanceVisible(location.importance,scale) || (viewport && !viewport.contains(ll(location))))continue;
+      needed.add(file.path);
+      const key=JSON.stringify([file.basename??file.name,location.x,location.y,location.hex,location.importance,location.symbol,iconHeight,!!session]);
+      const previous=markers.get(file.path);
+      if(previous?.key===key && previous.file===file)continue;
+      if(previous)savedLayer.removeLayer(previous.dot);
+      markers.set(file.path,{file,key,dot:marker(savedLayer,file,location,false,iconHeight)});
+    }
+    for(const [path,item] of markers)if(!needed.has(path)){savedLayer.removeLayer(item.dot);markers.delete(path);}
+    draftLayer.clearLayers();
+    if(session && point && visible(point))marker(draftLayer,session.file,point,true,18);
   }
   function state(){
     place.disabled=!!session || busy;center.hidden=save.hidden=cancel.hidden=importanceLabel.hidden=symbolLabel.hidden=!session;
@@ -81,14 +93,15 @@ export function mountTownPlacement({L,map,canvas,config,figure,manifest,app,sour
     symbolPreview.width=18*artwork.width/artwork.height;symbolPreview.height=18;
     center.disabled=cancel.disabled=busy;save.disabled=busy || !point;
     canvas.classList.toggle('map-placing-town',!!session);
-    canvas.classList.toggle('map-editing',!!session);
+    canvas.classList.toggle('map-editing',!!session || busy || canvas.classList.contains('map-editing-region'));
   }
   function end(message=''){
     if(busy)return;session=null;point=null;text.textContent=message;state();draw();
   }
   async function begin(file){
     if(!editable || disposed || busy || session)return;
-    busy=true;place.disabled=true;text.textContent='Reading '+file.path+'…';
+    if(canvas.classList.contains('map-editing') || canvas.classList.contains('map-measuring')){text.textContent='Finish region editing, measurement or sketching first.';return;}
+    busy=true;state();place.disabled=true;text.textContent='Reading '+file.path+'…';
     try{
       const note=await readMapNote(app,file.path);if(disposed)return;
       session={file,guard:captureMapLocation(note)};point=session.guard.location;
@@ -139,8 +152,8 @@ export function mountTownPlacement({L,map,canvas,config,figure,manifest,app,sour
     state();
   };
   importance.addEventListener('change',appearanceChanged);symbol.addEventListener('change',appearanceChanged);
-  if(editable)map.on('click',click);map.on('zoomend',draw);state();draw();
-  const dispose=()=>{disposed=true;picker?.close?.();map.off('click',click);map.off('zoomend',draw);for(const [owner,ref] of refs)owner.offref?.(ref);
+  if(editable)map.on('click',click);map.on('zoomend moveend',draw);state();draw();
+  const dispose=()=>{disposed=true;picker?.close?.();map.off('click',click);map.off('zoomend moveend',draw);for(const [owner,ref] of refs)owner.offref?.(ref);
     canvas.classList.remove('map-placing-town','map-editing');controls.remove();savedLayer.remove();draftLayer.remove();};
   dispose.update=next=>{config=next;draw();};
   dispose.updateNote=(file,location)=>{if(disposed)return;notes.set(file.path,{file,location});draw();};

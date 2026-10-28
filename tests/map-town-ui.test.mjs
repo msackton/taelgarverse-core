@@ -10,7 +10,7 @@ import symbols from '../src/map-symbols.json' with {type:'json'};
 const bundle=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/maps/towns.mjs'],bundle:true,write:false,
   format:'cjs',platform:'browser',external:['obsidian'],logLevel:'silent'});
 const tick=()=>new Promise(setImmediate);
-function setup({overlays=[],editable=true,zoom=2,usePicker=false}={}){
+function setup({overlays=[],editable=true,zoom=2,usePicker=false,viewport=null}={}){
   const {document,window}=parseHTML('<figure><div class="map-canvas"></div><figcaption></figcaption></figure>');
   Object.defineProperty(window.HTMLSelectElement.prototype,'value',{configurable:true,get(){return [...this.options].find(o=>o.selected)?.value??this.options[0]?.value??'';},set(value){for(const o of this.options)o.removeAttribute('selected');const target=[...this.options].find(o=>o.value===String(value));if(target)target.selected=true;}});
   const figure=document.querySelector('figure'),canvas=figure.querySelector('div'),handlers={},layers=[],files=[
@@ -21,9 +21,10 @@ function setup({overlays=[],editable=true,zoom=2,usePicker=false}={}){
   const app={workspace:{getLeavesOfType:()=>[],openLinkText:path=>{opened=path;}},metadataCache:{...events(),getFileCache:file=>caches.get(file)},
     vault:{...events(),getMarkdownFiles:()=>files,getAbstractFileByPath:path=>files.find(file=>file.path===path),read:async()=>text,
       process:async(file,fn)=>{if(deferred)await deferred;if(fail)throw new Error('Save failed');text=fn(text);writes++;}}};
-  const map={on(name,fn){handlers[name]=fn;},off(name){delete handlers[name];},getCenter:()=>({lng:250,lat:700}),
+  const map={on(names,fn){for(const name of names.split(' '))handlers[name]=fn;},off(names){for(const name of names.split(' '))delete handlers[name];},getCenter:()=>({lng:250,lat:700}),
     getZoom:()=>zoom,getZoomScale:(to,from)=>2**(to-from)};
-  const layer=()=>{const item={children:[],addTo(){layers.push(this);return this;},clearLayers(){this.children=[];},remove(){this.removed=true;}};return item;};
+  if(viewport)map.getBounds=()=>({pad:()=>({contains:([lat,lng])=>lng>=viewport.x && lng<=viewport.x+viewport.width && 1000-lat>=viewport.y && 1000-lat<=viewport.y+viewport.height})});
+  const layer=()=>{const item={children:[],addTo(){layers.push(this);return this;},removeLayer(child){this.children=this.children.filter(item=>item!==child);},clearLayers(){this.children=[];},remove(){this.removed=true;}};return item;};
   const L={layerGroup:layer,divIcon:options=>options,marker:(ll,options)=>({ll,options,addTo(parent){parent.children.push(this);return this;},bindTooltip(label){this.label=label;return this;},on(name,fn){this[name]=fn;return this;}})};
   let pickerModal;
   class FuzzySuggestModal {constructor(){pickerModal=this;}setPlaceholder(){}open(){}close(){}}
@@ -32,7 +33,7 @@ function setup({overlays=[],editable=true,zoom=2,usePicker=false}={}){
     config:{crop:{x:0,y:0,width:1000,height:1000},overlays},selectNote:usePicker?undefined:(app,fn)=>{pickerChoice=fn;}});
   const button=label=>[...figure.querySelectorAll('button')].find(b=>b.textContent===label);
   return {api,app,figure,canvas,files,layers,subscriptions,button,caches,get picker(){return pickerModal;},get text(){return text;},set text(value){text=value;},get writes(){return writes;},get opened(){return opened;},
-    zoom:value=>{zoom=value;handlers.zoomend();},
+    zoom:value=>{zoom=value;handlers.zoomend();},pan:next=>{Object.assign(viewport,next);handlers.moveend();},
     importance:value=>{const select=figure.querySelector('[aria-label="Feature importance"]');select.value=value;select.dispatchEvent(new window.Event('change'));},
     symbol:value=>{const select=figure.querySelector('[aria-label="Feature symbol"]');select.value=value;select.dispatchEvent(new window.Event('change'));},
     set fail(value){fail=value;},set deferred(value){deferred=value;},status:()=>figure.querySelector('.map-town-status').textContent,
@@ -154,4 +155,18 @@ test('importance controls zoom visibility while drafts stay visible and importan
   assert.deepEqual(parse(h.text.split('---')[1]).mapLocation,edited,'Cancel preserves saved importance and position');
   await h.choose();h.pick(150,250);h.click('Save town position');await tick();
   assert.equal(parse(h.text.split('---')[1]).mapLocation.importance,'world','moving a town keeps its importance');h.api();
+});
+
+
+test('town markers survive unchanged zooms and are culled/revealed when the viewport moves',()=>{
+  const h=setup({zoom:4,viewport:{x:100,y:100,width:300,height:300}});
+  const first=h.layers[0].children[0];assert.ok(first);
+  h.zoom(5);assert.equal(h.layers[0].children[0],first,'same artwork and location reuse the marker');
+  h.pan({x:120});assert.equal(h.layers[0].children[0],first,'small pan keeps nearby marker');
+  h.pan({x:600});assert.equal(h.layers[0].children.length,0,'offscreen marker is removed');
+  h.pan({x:100});assert.equal(h.layers[0].children.length,1,'panning back restores it');
+  h.layers[0].children[0].click();assert.equal(h.opened,'Places/Other.md');
+  h.api.updateNote(h.files[1],mapLocation([5250,7250],'detail','triangle'));
+  assert.match(h.layers[0].children[0].label.textContent,/X 5250/);assert.ok(h.layers[0].children[0].options.icon.html.includes(symbols.triangle.image));
+  h.api();
 });

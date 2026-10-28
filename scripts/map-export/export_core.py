@@ -1,4 +1,4 @@
-"""Export selected Photoshop layers at native resolution onto a white backdrop."""
+"""Export a recipe on white, or one Photoshop layer on transparency, at native resolution."""
 import argparse
 import json
 from pathlib import Path
@@ -50,7 +50,7 @@ def inventory(document):
     return result
 
 
-def selected_layers(document, decisions, known_paths=None):
+def selected_layers(document, decisions, known_paths=None, *, warn_unknown=True):
     require(document.color_mode == ColorMode.RGB and document.depth == 8, "Exporter requires RGB, 8-bit source layers.")
     require(Resource.ICC_PROFILE not in document.image_resources, "ICC profiles require color conversion; export an untagged RGB source.")
     layers = inventory(document)
@@ -62,7 +62,7 @@ def selected_layers(document, decisions, known_paths=None):
     for name, layer in layers:
         if layer.is_group():
             continue  # Groups are containers; their saved visibility is irrelevant.
-        if name not in (decisions if known_paths is None else known_paths):
+        if warn_unknown and name not in (decisions if known_paths is None else known_paths):
             action = "included by CLI" if decisions.get(name, False) else "omitted"
             print(f"Warning: layer not in recipe; {action}: {name}", file=sys.stderr)
         if not decisions.get(name, False):
@@ -87,9 +87,9 @@ def selected_layers(document, decisions, known_paths=None):
     return selected
 
 
-def compose(rect, layers):
+def compose(rect, layers, *, transparent=False):
     left, top, right, bottom = rect
-    canvas = Image.new("RGBA", (right-left, bottom-top), "white")
+    canvas = Image.new("RGBA", (right-left, bottom-top), (0, 0, 0, 0) if transparent else "white")
     # psd-tools iterates bottom to top. Saved shape pixels already include their vector mask.
     for name, layer in layers:
         x0, y0 = max(left, layer.left), max(top, layer.top)
@@ -105,17 +105,27 @@ def compose(rect, layers):
         canvas.alpha_composite(image, dest=(x0-left, y0-top))
         image.close()
         print("Composited " + name, flush=True)
+    if transparent:
+        return canvas
     result = canvas.convert("RGB")
     canvas.close()
     return result
 
 
-def export(source, recipe_path, output, *, top_left=None, bottom_right=None, include=(), exclude=(), plan=False):
-    recipe = json.loads(Path(recipe_path).read_text(encoding="utf-8"))
-    decisions = layer_choices(recipe, include, exclude)
+def export(source, recipe_path, output, *, top_left=None, bottom_right=None, include=(), exclude=(), only_layer=None, plan=False):
+    if only_layer is not None:
+        require(not include and not exclude, "--only-layer cannot be combined with --include-layer or --exclude-layer.")
+        # Selection is independent of the basemap recipe, including missing or
+        # renamed recipe layers. Other drawable layers are deliberately omitted.
+        recipe = {"layers": {only_layer: True}}
+        decisions = validate_recipe(recipe)
+    else:
+        recipe = json.loads(Path(recipe_path).read_text(encoding="utf-8"))
+        decisions = layer_choices(recipe, include, exclude)
     rect = pixel_bounds(top_left, bottom_right)
     if plan:
-        print(json.dumps({"sourceRect": rect or "full Photoshop canvas", "layers": decisions}, indent=2))
+        print(json.dumps({"sourceRect": rect or "full Photoshop canvas", "layers": decisions,
+                          "background": "transparent" if only_layer is not None else "white"}, indent=2))
         return
     require(source is not None and output is not None, "Pass --source and --output, or use --plan.")
     output = Path(output).resolve()
@@ -132,9 +142,9 @@ def export(source, recipe_path, output, *, top_left=None, bottom_right=None, inc
     rect = rect or [0, 0, document.width, document.height]
     require(0 <= rect[0] < rect[2] <= document.width and 0 <= rect[1] < rect[3] <= document.height,
             "Requested complete hexes extend beyond the Photoshop canvas; choose smaller bounds.")
-    layers = selected_layers(document, decisions, recipe["layers"])
+    layers = selected_layers(document, decisions, recipe["layers"], warn_unknown=only_layer is None)
     output.parent.mkdir(parents=True, exist_ok=True)
-    image = compose(rect, layers)
+    image = compose(rect, layers, transparent=True) if only_layer is not None else compose(rect, layers)
     manifest = {"version": 2, "image": png.name, "sourceOffset": rect[:2]}
     written = []
     try:
@@ -147,6 +157,8 @@ def export(source, recipe_path, output, *, top_left=None, bottom_right=None, inc
             written.append(metadata)
             stream.write(json.dumps(manifest, indent=2)+"\n")
         print(f"Exported {rect[2]-rect[0]} x {rect[3]-rect[1]} pixels\nPNG: {png}\nManifest: {metadata}")
+        if only_layer is not None:
+            print(f"Transparent tracing layer: {only_layer}\nTracing X: {rect[0]}, Y: {rect[1]}, scale: 1")
         return manifest
     except BaseException:
         for destination in reversed(written):
@@ -165,10 +177,11 @@ if __name__ == "__main__":
     parser.add_argument("--bottom-right", help="Last hex, inclusive (same size as first); defaults to first hex")
     parser.add_argument("--include-layer", action="append", default=[], metavar="/GROUP/LAYER")
     parser.add_argument("--exclude-layer", action="append", default=[], metavar="/GROUP/LAYER")
+    parser.add_argument("--only-layer", metavar="/GROUP/LAYER", help="Export exactly one drawable layer as transparent RGBA; ignores the recipe, preserves canvas/crop extent and writes the offset manifest")
     parser.add_argument("--plan", action="store_true", help="Print bounds and layer choices without opening Photoshop or writing files")
     args = parser.parse_args()
     try:
         export(args.source, args.recipe, args.output, top_left=args.top_left, bottom_right=args.bottom_right,
-               include=args.include_layer, exclude=args.exclude_layer, plan=args.plan)
+               include=args.include_layer, exclude=args.exclude_layer, only_layer=args.only_layer, plan=args.plan)
     except (ValueError, OSError) as error:
         parser.exit(1, f"Map export failed: {error}\n")

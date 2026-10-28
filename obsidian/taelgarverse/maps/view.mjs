@@ -26,6 +26,7 @@ export class MapEditorView extends ItemView {
       const baseline=await loadObsidianBaseline(this.app,JSON.stringify({version:2,source:this.state.source}),this.state.sourcePath);
       if(this.closed || sequence!==this.sequence || !this.feature.active)return;
       this.editor=mountMapEditor(this.contentEl,{...baseline,image:baseline.config.image,app:this.app,sourcePath:this.state.sourcePath,
+        onLayersSaved:()=>{for(const child of this.feature.maps)void child.onload();},
         onSaved:(file,location)=>{
           for(const child of this.feature.maps)child.towns?.updateNote(file,location);
           for(const view of this.feature.editors)view.editor?.towns?.updateNote(file,location);

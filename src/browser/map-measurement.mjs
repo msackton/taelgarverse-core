@@ -25,9 +25,31 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
   const help=doc.createElement('span');help.className='map-measure-help';
   controls.append(summary);caption.append(controls);
   figure.append(help);
-  const layers=L.layerGroup().addTo(map);
+  // Completed geometry stays intact while the live stroke updates once per
+  // display frame. Keep all pointer samples for distance and final geometry.
+  const layers=L.layerGroup().addTo(map),preview=L.layerGroup().addTo(map);
+  let frame,disposed=false,strokeLine,strokeEnd,strokeLength=0,baseLength=0,areaText='';
+  const cancelFrame=()=>{if(frame!==undefined){doc.defaultView.cancelAnimationFrame(frame);frame=undefined;}};
+  const clearPreview=()=>{cancelFrame();preview.clearLayers();strokeLine=strokeEnd=null;};
+  function drawStroke(){
+    if(!stroke || disposed)return;
+    const color=mode==='sketch'?'#b34e17':'#126c9a';
+    if(!strokeLine){
+      strokeLine=L.polyline(stroke,{className:'map-measure-line',color,weight:3,smoothFactor:0,interactive:false}).addTo(preview);
+      const style={className:'map-measure-point',radius:5,color:'#fff',weight:2,fillColor:color,fillOpacity:1,interactive:false};
+      L.circleMarker(stroke[0],style).addTo(preview);strokeEnd=L.circleMarker(stroke.at(-1),style).addTo(preview);
+    }else{strokeLine.setLatLngs(stroke);strokeEnd.setLatLng(stroke.at(-1));}
+    undo.disabled=false;close.hidden=true;clear.hidden=false;
+    summary.textContent=mode==='sketch'?'Temporary sketch.':baseLength+strokeLength>0?'Total: '+formatDistance(baseLength+strokeLength,options.unit)+areaText:'Start point set. Add another point.';
+  }
+  function scheduleStroke(){
+    if(!doc.defaultView?.requestAnimationFrame){drawStroke();return;}
+    if(frame===undefined)frame=doc.defaultView.requestAnimationFrame(()=>{frame=undefined;drawStroke();});
+  }
   function draw() {
-    const routes=measurementRoutes(actions,stroke),count=routes.reduce((n,route)=>n+route.length,0);
+    if(disposed)return;
+    clearPreview();
+    const routes=measurementRoutes(actions),count=routes.reduce((n,route)=>n+route.length,0);
     const closed=routes.filter(isClosedRoute),areas=closed.map(route=>routeArea(route,options || {}));
     layers.clearLayers();
     for(const kind of ['measure','sketch']){
@@ -49,22 +71,23 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
     const visiblePoints=new Set(routes.flatMap(route=>route.map(point=>point.lat+','+point.lng)));
     const handles=actions.flatMap(action=>action.kind==='point'?action.points:action.kind==='close'?[]:[action.points[0],action.points.at(-1)])
       .filter(point=>visiblePoints.has(point.lat+','+point.lng));
-    if(stroke)handles.push(stroke[0],stroke.at(-1));
     for(const point of handles)L.circleMarker(point,{className:'map-measure-point',radius:5,color:'#fff',weight:2,fillColor:mode==='sketch'?'#b34e17':'#126c9a',fillOpacity:1,interactive:false}).addTo(layers);
     trace.hidden=!active;undo.hidden=!active;undo.disabled=!count;
     const current=routes.at(-1);
     close.hidden=!active || Boolean(stroke) || !current || current.length<3 || (isClosedRoute(current) && routeArea(current,options || {})!==null);
     clear.hidden=!drawings.measure.length && !drawings.sketch.length && !(active && tracing);
-    const length=routes.reduce((n,route)=>n+routeDistance(route,options || {}),0);
+    const length=baseLength=routes.reduce((n,route)=>n+routeDistance(route,options || {}),0);
     summary.textContent=mode==='sketch'?(count?'Temporary sketch.':active?(tracing?'Drag to sketch.':'Choose a starting point.'):''):
       routes.some(route=>route.length>1) ? 'Total: '+formatDistance(length,options.unit) :
       count ? 'Start point set.'+(active?' Add another point.':'') : active ? tracing?'Drag to trace a path.':'Choose a starting point.' : '';
-    if(mode==='measure' && closed.length)summary.textContent+=' · '+areas.map((area,i)=>
-      (areas.length===1?'Area':'Area '+(i+1))+': '+(area===null?'unavailable (outline must not cross or retrace itself)':formatArea(area,options.unit))).join(' · ');
+    areaText=mode==='measure' && closed.length?' · '+areas.map((area,i)=>
+      (areas.length===1?'Area':'Area '+(i+1))+': '+(area===null?'unavailable (outline must not cross or retrace itself)':formatArea(area,options.unit))).join(' · '):'';
+    summary.textContent+=areaText;
     help.textContent=tracing?(mode==='sketch'?'Drag with a mouse, pen, or one finger to draw.':'Drag with a mouse, pen, or one finger to follow a road or river.')+' Undo removes the last stroke. Turn off Trace path to pan or add points.':
       'Click or tap to add points. Drag to pan. Keyboard: arrow keys pan, Enter adds the center, Escape finishes.';
     help.textContent+=mode==='sketch'?' Return to the start or choose Close shape to fill an outline. Clear removes all sketches and measurements; nothing is saved.':' Return to the start or choose Close shape to measure the enclosed area.';
     if(mode==='measure' && options?.hexMiles)help.textContent+=' Each hex is '+options.hexMiles+' miles across.';
+    if(stroke)drawStroke();
   }
   function setTracing(value) {
     finishStroke(false);tracing=value;
@@ -88,6 +111,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
     setTracing(tracing);
   }
   function chooseMode(value){
+    if(canvas.classList.contains('map-editing')){summary.textContent='Save or cancel map editing before measuring or sketching.';return;}
     if(value===mode && active){setActive(false);return;}
     if(active)setActive(false);
     if(value==='sketch')tracing=true;
@@ -121,7 +145,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
     const point=map.mouseEventToLatLng(event);
     if(!imageBounds.contains(point))return;
     event.preventDefault();pointer=event.pointerId;lastScreen=[event.clientX,event.clientY];
-    stroke=[{lat:point.lat,lng:point.lng}];canvas.setPointerCapture?.(pointer);draw();
+    strokeLength=0;stroke=[{lat:point.lat,lng:point.lng}];canvas.setPointerCapture?.(pointer);drawStroke();
   }
   function sample(event,force=false){
     if(!stroke || event.pointerId!==pointer)return;
@@ -130,7 +154,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
     // Ignore subpixel pointer jitter, without smoothing away real bends.
     if(!force && Math.hypot(event.clientX-lastScreen[0],event.clientY-lastScreen[1])<1)return;
     const last=stroke.at(-1);
-    if(last.lat!==point.lat || last.lng!==point.lng)stroke.push({lat:point.lat,lng:point.lng});
+    if(last.lat!==point.lat || last.lng!==point.lng){strokeLength+=routeDistance([last,point],options || {});stroke.push({lat:point.lat,lng:point.lng});}
     lastScreen=[event.clientX,event.clientY];
   }
   function moveStroke(event){
@@ -138,9 +162,10 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
     event.preventDefault();
     const samples=event.getCoalescedEvents?.();
     for(const item of samples?.length?samples:[event])sample(item);
-    draw();
+    if(stroke)scheduleStroke();else draw();
   }
   function finishStroke(commit){
+    clearPreview();
     if(!stroke)return;
     if(commit){
       if(stroke.length>=3 && !isClosedRoute(stroke) && nearStart(stroke.at(-1),stroke))stroke=closeRoute(stroke);
@@ -172,10 +197,10 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
   for(const [name,handler] of Object.entries(pointerEvents))canvas.addEventListener(name,handler);
   help.hidden=true;draw();
   return ()=>{
-    finishStroke(false);active=false;setTracing(false);
+    disposed=true;finishStroke(false);active=false;setTracing(false);
     if(doubleClickZoom)map.doubleClickZoom.enable();
     map.off('click',click);map.off('movestart zoomstart',viewChange);figure.removeEventListener('keydown',keydown);
     for(const [name,handler] of Object.entries(pointerEvents))canvas.removeEventListener(name,handler);
-    controls.remove();help.remove();
+    layers.remove();preview.remove();controls.remove();help.remove();
   };
 }

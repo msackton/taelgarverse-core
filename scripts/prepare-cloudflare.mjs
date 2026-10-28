@@ -67,7 +67,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
         entry.note={metadata:note.metadata,shard,sha256:sha(note.source)};
       } else {
         const hash=remoteAsset ? remoteAsset.key.slice('assets/'.length) : await hashFile(filename);
-        if((entry.mapImageInfo || entry.mapManifest) && original.sha256 && hash!==original.sha256)
+        if((entry.mapImageInfo || entry.mapManifest || entry.mapLayers) && original.sha256 && hash!==original.sha256)
           throw new Error('Map asset changed after validation: '+entry.id+'; prepare the snapshot again');
         const cached=path.join(output,'objects',hash);
         if (!remoteAsset && !fs.existsSync(cached)) {

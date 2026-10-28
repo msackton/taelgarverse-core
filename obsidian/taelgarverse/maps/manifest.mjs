@@ -3,6 +3,8 @@ import {TFile} from 'obsidian';
 import {parseMapBlock,baselineViewConfig} from '../../../src/map-block.mjs';
 import {validateManifest,resolveMapSource} from '../../../src/map-core.mjs';
 
+import {validateMapLayers,resolvedMapLayers} from '../../../src/map-layers.mjs';
+
 export async function loadObsidianBaseline(app,source,sourcePath) {
   const block=parseMapBlock(source);
   if(typeof block.source!=='string')throw new Error('Use a local manifest path; enclose [[wikilinks]] in quotes.');
@@ -11,6 +13,15 @@ export async function loadObsidianBaseline(app,source,sourcePath) {
   const manifestFile=app.metadataCache.getFirstLinkpathDest(target,sourcePath);
   if(!(manifestFile instanceof TFile) || !manifestFile.path.endsWith('.map.json'))throw new Error('Core .map.json manifest is missing: '+target);
   const metadata=validateManifest(JSON.parse(await app.vault.read(manifestFile)));
+  delete metadata.regionLayers;
+  const layerDocuments=[];
+  for(const relative of metadata.layers??[]){
+    const layerPath=path.posix.join(path.posix.dirname(manifestFile.path),relative),file=app.vault.getAbstractFileByPath(layerPath);
+    if(!(file instanceof TFile))throw new Error('Map layer file is missing: '+layerPath);
+    const text=await app.vault.read(file);
+    layerDocuments.push({path:layerPath,text,data:validateMapLayers(JSON.parse(text))});
+  }
+  if(layerDocuments.length)metadata.regionLayers=resolvedMapLayers(layerDocuments);
   const imagePath=path.posix.join(path.posix.dirname(manifestFile.path),metadata.image);
   // Image paths are exact and relative to the manifest, never basename guesses.
   const image=app.vault.getAbstractFileByPath(imagePath);
@@ -20,5 +31,5 @@ export async function loadObsidianBaseline(app,source,sourcePath) {
   if(bytes.length<33 || data.getUint32(0)!==0x89504e47 || data.getUint32(4)!==0x0d0a1a0a || data.getUint32(12)!==0x49484452)
     throw new Error('Map image must be a PNG.');
   const manifest=resolveMapSource(metadata,{width:data.getUint32(16),height:data.getUint32(20)});
-  return {block,manifest,manifestPath:manifestFile.path,config:baselineViewConfig(block,manifest,app.vault.getResourcePath(image))};
+  return {block,manifest,layerDocuments,manifestPath:manifestFile.path,config:baselineViewConfig(block,manifest,app.vault.getResourcePath(image))};
 }

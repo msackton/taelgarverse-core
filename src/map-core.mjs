@@ -1,6 +1,7 @@
 // Shared, host-independent coordinates and validation for manifest-based maps.
 // Saved geometry uses Photoshop canvas pixels. Only view configs use PNG-local pixels.
 import {LOCATOR_SCHEME,hexRangeBounds} from './map-locators.mjs';
+import {mapLayerPath} from './map-layers.mjs';
 import geometry from './map-geometry.json' with {type:'json'};
 import {axialPoint} from './map-hex-hierarchy.mjs';
 
@@ -79,6 +80,7 @@ export function validateManifest(value) {
   require(localPath(value.image) && /\.png$/i.test(value.image),'Manifest image must be a local relative PNG path');
   require(pair(value.sourceOffset) && value.sourceOffset.every(v=>Number.isSafeInteger(v) && v>=0 && v<=100000),
     'sourceOffset must contain two nonnegative integer Photoshop pixel coordinates');
+  require(value.layers===undefined || (Array.isArray(value.layers) && value.layers.length<=20 && value.layers.every(mapLayerPath) && new Set(value.layers).size===value.layers.length),'Manifest layers must be unique relative .map-layers.json paths');
   return value;
 }
 
@@ -119,12 +121,21 @@ export function validateMapDefinition(data,manifest) {
   for(const key of ['image','bounds','calibration','scale','unit','lat','long','defaultZoom'])require(data[key]===undefined,'Version 2 maps inherit '+key+' from the manifest or crop');
   require(data.grid===undefined || record(data.grid),'grid must be an object');
   for(const key of ['visible','showCoordinates'])require(data.grid?.[key]===undefined || typeof data.grid[key]==='boolean','grid.'+key+' must be boolean');
+  const toggles=data.toggleableLayers??[];
+  require(Array.isArray(toggles) && toggles.length<=2000 && toggles.every(v=>typeof v==='string' && v.length>0 && v.length<=1200) && new Set(toggles).size===toggles.length,'toggleableLayers must be an array of unique layer IDs or qualified keys');
+  const availableLayers=manifest.regionLayers??[],toggleKeys=new Set();
+  for(const selector of toggles){
+    const matches=availableLayers.filter(layer=>layer.id===selector || layer.key===selector);
+    require(matches.length===1,'Toggleable layer is missing or ambiguous: '+selector+'; use its vault/path.map-layers.json#layer-id key if needed');
+    toggleKeys.add(matches[0].key);
+  }
+  const regionLayers=availableLayers.map(layer=>({...layer,toggleable:toggleKeys.has(layer.key)}));
   const extent=sourceExtent(manifest),requested=data.crop===undefined?extent:resolveCrop(data.crop);
   const left=Math.max(requested.x,extent.x),top=Math.max(requested.y,extent.y);
   const right=Math.min(requested.x+requested.width,extent.x+extent.width),bottom=Math.min(requested.y+requested.height,extent.y+extent.height);
   require(right>left && bottom>top,'Crop does not intersect the exported image');
   const local=point=>point.map((v,i)=>v-manifest.sourceOffset[i]);
-  return {crop:{x:left-extent.x,y:top-extent.y,width:right-left,height:bottom-top},
+  return {...(manifest.regionLayers?.length?{regionLayers,sourceOffset:manifest.sourceOffset}:{}),crop:{x:left-extent.x,y:top-extent.y,width:right-left,height:bottom-top},
     grid:{...structuredClone(MAP_GRID),origin:local(MAP_GRID.origin),blockOrigin:local(MAP_GRID.blockOrigin),
       visible:data.grid?.visible??false,showCoordinates:data.grid?.showCoordinates??true},
     bounds:[[0,0],[manifest.height,manifest.width]],

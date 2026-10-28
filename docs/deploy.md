@@ -758,3 +758,12 @@ optional. `serve --no-ai` enforces baseline-only operation, and the ordinary
 viewer has a per-search AI toggle. Disabling queries does not remove the AI
 index or stop separately invoked uploads. Production search integration remains
 outside the experiment.
+
+
+## Local transparent map-layer exports
+
+For tracing an existing Photoshop layer in the Obsidian map editor, use
+`--only-layer /group/layer` with `scripts/map-export/export_core.py`, or
+`-OnlyLayer /group/layer -FullCanvas` with `scripts/test-map-export.ps1`.
+These commands write a local transparent PNG and its offset manifest; they do
+not publish content or deploy code. See [export instructions and prerequisites](map-baseline-progress.md#export-one-layer-on-transparency).

@@ -87,6 +87,18 @@
           "default": true
         }
       }
+    },
+    "toggleableLayers": {
+      "type": "array",
+      "default": [],
+      "maxItems": 2000,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1200
+      },
+      "description": "Explicit per-map opt-in for layer checkboxes. Use a unique layer ID, or vault/path.map-layers.json#layer-id for ambiguous IDs. Other layers retain their configured visibility without a toggle."
     }
   },
   "$defs": {

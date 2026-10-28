@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Shared Taelgar region layers",
+  "type": "object",
+  "required": [
+    "version",
+    "layers"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "layers": {
+      "type": "array",
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "regions"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "visible": {
+            "type": "boolean",
+            "default": true
+          },
+          "regions": {
+            "type": "array",
+            "maxItems": 1000,
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "name",
+                "points"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$"
+                },
+                "name": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "note": {
+                  "type": "string",
+                  "description": "Optional local vault note path."
+                },
+                "points": {
+                  "type": "array",
+                  "minItems": 3,
+                  "maxItems": 1000,
+                  "items": {
+                    "type": "array",
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "items": {
+                      "type": "number",
+                      "minimum": 0,
+                      "maximum": 100000
+                    }
+                  }
+                },
+                "color": {
+                  "type": "string",
+                  "pattern": "^#[0-9a-fA-F]{6}$",
+                  "default": "#795548"
+                },
+                "width": {
+                  "type": "number",
+                  "minimum": 1,
+                  "maximum": 8,
+                  "default": 2
+                },
+                "fillOpacity": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 0.5,
+                  "default": 0
+                },
+                "dashed": {
+                  "type": "boolean",
+                  "default": false
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$comment": "Runtime additionally validates unique IDs, distinct vertices, simple nonzero-area polygons, local note paths, and a 20000-vertex total per file. Points use original Photoshop X/Y; the first vertex is not repeated."
+}

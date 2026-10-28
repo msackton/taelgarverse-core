@@ -28,6 +28,16 @@
         "minimum": 0,
         "maximum": 100000
       }
+    },
+    "layers": {
+      "type": "array",
+      "maxItems": 20,
+      "uniqueItems": true,
+      "description": "Reusable region layer files, resolved exactly relative to this manifest.",
+      "items": {
+        "type": "string",
+        "pattern": "^(?!/)(?!.*(?:[:?#\\\\]|\\.\\.))[^\\u0000-\\u001f]+\\.map-layers\\.json$"
+      }
     }
   }
 }

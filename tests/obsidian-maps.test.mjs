@@ -54,7 +54,7 @@ function host(){
   const handler=()=>({enabled:()=>true,disable(){},enable(){}});
   const L={CRS:{Simple:{}},latLngBounds(points){return {pad(){return this;},getEast:()=>points[1][1],getWest:()=>points[0][1],getNorth:()=>points[1][0],getSouth:()=>points[0][0],getCenter:()=>({lat:50,lng:50})};},
     map(){maps++;return {invalidateSize(){},setMinZoom(){},setView(){},fitBounds(){},on(){},off(){},remove(){removed++;},doubleClickZoom:handler(),dragging:handler(),touchZoom:handler(),boxZoom:handler()};},
-    imageOverlay(){return {on(){return this;},addTo(){return this;}};},layerGroup(){return {addTo(){return this;},clearLayers(){}};}};
+    imageOverlay(){return {on(){return this;},addTo(){return this;}};},layerGroup(){return {addTo(){return this;},clearLayers(){},remove(){this.clearLayers();}};}};
   const cm=codeMirrorHost();
   const module={exports:{}},context={module,exports:module.exports,Buffer,TextDecoder,TextEncoder,structuredClone,crypto:globalThis.crypto,console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},
     ResizeObserver:class{observe(){}disconnect(){disconnected++;}},
@@ -81,6 +81,15 @@ test('Obsidian v2 loader resolves the manifest image exactly and decodes PNG dim
   const config=await h.obsidianMapConfig(h.app,block,'Places/Map.md',new Map());assert.equal(config.version,2);assert.equal(config.crop.x,100);assert.equal(config.measurement.xScale,.6);
   await assert.rejects(h.obsidianMapConfig(h.app,block+'coordinateFrame: old-frame\n','Places/Map.md',new Map()),/Old coordinateFrame/);
   manifest.sourceOffset=[-1,0];await assert.rejects(h.obsidianMapConfig(h.app,block,'Places/Map.md',new Map()),/sourceOffset/);manifest.sourceOffset=[1000,2000];
+  manifest.layers=['borders.map-layers.json'];
+  const layerFile=new h.TFile('assets/maps/borders.map-layers.json');
+  const layerData={version:1,layers:[{id:'realms',name:'Realms',regions:[{id:'one',name:'One',points:[[1000,2000],[1500,2000],[1200,2300]]}]}]};
+  h.app.vault.getAbstractFileByPath=target=>target===image.path?image:target===layerFile.path?layerFile:null;
+  h.app.vault.read=async file=>JSON.stringify(file===layerFile?layerData:manifest);
+  const withLayers=await h.obsidianMapConfig(h.app,block,'Places/Map.md',new Map());
+  assert.deepEqual(JSON.parse(JSON.stringify(withLayers.regionLayers[0].regions)),layerData.layers[0].regions);
+  assert.deepEqual(JSON.parse(JSON.stringify(withLayers.sourceOffset)),[1000,2000]);
+  manifest.layers=['missing.map-layers.json'];await assert.rejects(h.obsidianMapConfig(h.app,block,'Places/Map.md',new Map()),/layer file is missing/);delete manifest.layers;
   h.app.vault.readBinary=async()=>Buffer.from('changed');await assert.rejects(h.obsidianMapConfig(h.app,block,'Places/Map.md',new Map()),/PNG/);
 });
 

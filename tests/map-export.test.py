@@ -6,6 +6,7 @@ import sys
 import json
 import io
 import tempfile
+import subprocess
 from unittest.mock import patch
 from contextlib import redirect_stdout, redirect_stderr
 from PIL import Image
@@ -181,6 +182,90 @@ class ExportTests(unittest.TestCase):
                 document.width, document.height = 50001, 1
                 with self.assertRaisesRegex(ValueError, "supported image dimensions"):
                     exporter.export(root / "anything.psb", recipe, root / "oversize")
+
+    def test_single_layer_transparency_preserves_extent_alpha_and_opacity(self):
+        leaf = Layer("borders", (20, 40, 60, 128), (1, 1, 3, 3), 128)
+        group = Group("regions", [leaf])
+        leaf.visible = group.visible = False
+        document = Document([Layer("base", "red"), group, Layer("unrelated", "blue")])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.object(exporter.PSDImage, "open", return_value=document), redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()) as warnings:
+                manifest = exporter.export(root / "source.psb", root / "missing-recipe.json", root / "trace", only_layer="/regions/borders")
+                self.assertEqual(manifest["sourceOffset"], [0, 0])
+                with Image.open(root / "trace.png") as image:
+                    self.assertEqual(image.mode, "RGBA")
+                    self.assertEqual(image.size, (4, 4), "Do not trim the transparent canvas margins")
+                    self.assertEqual(image.getpixel((0, 0)), (0, 0, 0, 0))
+                    self.assertEqual(image.getpixel((1, 1)), (20, 40, 60, 64))
+                self.assertEqual(warnings.getvalue(), "", "Unselected layers need no recipe warnings in single-layer mode")
+                with patch.object(exporter, "pixel_bounds", return_value=[2, 1, 4, 4]):
+                    cropped = exporter.export(root / "source.psb", None, root / "crop-trace", only_layer="/regions/borders")
+                self.assertEqual(cropped["sourceOffset"], [2, 1])
+                with Image.open(root / "crop-trace.png") as image:
+                    self.assertEqual(image.size, (2, 3))
+                    self.assertEqual(image.getpixel((0, 0)), (20, 40, 60, 64))
+                    self.assertEqual(image.getpixel((1, 2))[3], 0)
+                with self.assertRaisesRegex(ValueError, "already exists"):
+                    exporter.export(root / "source.psb", None, root / "trace", only_layer="/regions/borders")
+                leaf.mask = True
+                with self.assertRaisesRegex(ValueError, "Unsupported mask"):
+                    exporter.export(root / "source.psb", None, root / "masked", only_layer="/regions/borders")
+                self.assertFalse((root / "masked.png").exists())
+
+    def test_single_layer_selection_plan_and_validation(self):
+        plan = subprocess.run([sys.executable, str(ROOT / "scripts/map-export/export_core.py"),
+                               "--only-layer", "/regions/borders", "--recipe", "missing.json", "--plan"],
+                              capture_output=True, text=True, check=True)
+        self.assertEqual(json.loads(plan.stdout), {"sourceRect": "full Photoshop canvas",
+                         "layers": {"/regions/borders": True}, "background": "transparent"})
+        for selected in ["", "no-slash", "/group/", "/group//leaf"]:
+            with self.assertRaises(ValueError):
+                exporter.export(None, None, None, only_layer=selected, plan=True)
+        for overrides in [{"include": ["/extra"]}, {"exclude": ["/extra"]}]:
+            with self.assertRaisesRegex(ValueError, "cannot be combined"):
+                exporter.export(None, None, None, only_layer="/regions/borders", plan=True, **overrides)
+        with tempfile.TemporaryDirectory() as directory:
+            for selected, message in [("/missing", "Selected layer is missing"), ("/group", "not the group")]:
+                with patch.object(exporter.PSDImage, "open", return_value=Document([Group("group", [])])):
+                    with self.assertRaisesRegex(ValueError, message):
+                        exporter.export("source.psb", None, Path(directory) / "trace", only_layer=selected)
+            self.assertEqual(list(Path(directory).iterdir()), [])
+
+    def test_cli_exports_a_real_saved_psd_layer_with_transparency(self):
+        from psd_tools import PSDImage
+        from psd_tools.api.layers import PixelLayer, Group as PSDGroup
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            document = PSDImage.new("RGBA", (8, 6))
+            PixelLayer.frompil(Image.new("RGBA", (8, 6), "red"), document, name="base")
+            group = PSDGroup.new(document, name="regions")
+            group.blend_mode = BlendMode.PASS_THROUGH
+            layer = PixelLayer.frompil(Image.new("RGBA", (2, 2), (20, 40, 60, 128)), group,
+                                       name="borders", left=3, top=2)
+            layer.opacity = 128
+            group.visible = layer.visible = False
+            document.save(root / "source.psd")
+            result = subprocess.run([sys.executable, str(ROOT / "scripts/map-export/export_core.py"),
+                                     "--source", str(root / "source.psd"), "--output", str(root / "trace"),
+                                     "--only-layer", "/regions/borders"], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            with Image.open(root / "trace.png") as image:
+                self.assertEqual(image.mode, "RGBA")
+                self.assertEqual(image.size, (8, 6))
+                self.assertEqual(image.getpixel((0, 0)), (0, 0, 0, 0))
+                self.assertEqual(image.getpixel((3, 2)), (20, 40, 60, 64))
+            self.assertEqual(json.loads((root / "trace.map.json").read_text())["sourceOffset"], [0, 0])
+            self.assertIn("Tracing X: 0, Y: 0, scale: 1", result.stdout)
+
+    def test_transparent_export_cleans_up_failed_writes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            with patch.object(exporter.PSDImage, "open", return_value=Document([Layer("line", "black")])), redirect_stdout(io.StringIO()):
+                with patch.object(Image.Image, "save", side_effect=OSError("disk full")):
+                    with self.assertRaisesRegex(OSError, "disk full"):
+                        exporter.export("source.psb", None, root / "trace", only_layer="/line")
+                self.assertEqual(list(root.iterdir()), [])
 
     def test_either_existing_output_is_preserved_before_reading_source(self):
         with tempfile.TemporaryDirectory() as directory:

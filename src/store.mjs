@@ -5,6 +5,7 @@ import {isInside,targetPath,titleCase} from './config.mjs';
 import {ContentStore,parseNote,ASSET_TYPES} from './content-store.mjs';
 import {NO_PUBLISH_MARKER,readFolderExclusions} from './folder-exclusions.mjs';
 import {validateManifest} from './map-core.mjs';
+import {validateMapLayers} from './map-layers.mjs';
 export * from './content-store.mjs';
 
 export class Store extends ContentStore {
@@ -25,16 +26,16 @@ export class Store extends ContentStore {
           continue;
         }
         const extension = path.extname(file.name).toLowerCase();
-        const mapManifest = file.name.endsWith('.map.json');
-        if (extension !== '.md' && !ASSET_TYPES.has(extension) && !mapManifest) continue;
+        const mapManifest = file.name.endsWith('.map.json'),mapLayers=file.name.endsWith('.map-layers.json');
+        if (extension !== '.md' && !ASSET_TYPES.has(extension) && !mapManifest && !mapLayers) continue;
         const entry = {id: relative, filename, target: targetPath(relative), extension, note: null};
-        if (mapManifest) {
+        if (mapManifest || mapLayers) {
           try {
             const bytes=fs.readFileSync(filename);
-            entry.mapManifest=validateManifest(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)));
+            entry[mapLayers?'mapLayers':'mapManifest']=(mapLayers?validateMapLayers:validateManifest)(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)));
             entry.sha256=createHash('sha256').update(bytes).digest('hex');
           }
-          catch (error) { entry.mapManifestError=error.message; }
+          catch (error) { entry[mapLayers?'mapLayersError':'mapManifestError']=error.message; }
         }
         if (extension === '.md') {
           try {

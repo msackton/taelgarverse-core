@@ -14,3 +14,19 @@
 .map-town-marker img { display:block; width:auto !important; height:var(--map-town-icon-height,18px) !important; max-width:none !important; max-height:none !important; pointer-events:none; user-select:none; }
 .map-town-marker-draft::after { content:''; position:absolute; inset:1px; border:2px dashed #126c9a; border-radius:3px; pointer-events:none; }
 .map-town-marker:focus-visible { outline:2px solid #126c9a; outline-offset:1px; }
+
+.map-region-editor { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; width:100%; min-width:0; margin:.5rem 0; padding:.6rem; border:1px solid var(--background-modifier-border,#aaa); }
+.map-region-editor label { display:inline-flex; align-items:center; gap:.3rem; }
+.map-region-editor input[type="text"] { max-width:15rem; }
+.map-region-editor input[type="number"] { width:4.5rem; }
+.map-region-editor select { max-width:22rem; }
+.map-region-editor [hidden] { display:none; }
+.map-region-status { flex-basis:100%; }
+.map-editing-region, .map-editing-region .leaflet-interactive { cursor:crosshair; }
+
+.map-tracing-controls { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; width:100%; min-width:0; margin:.5rem 0; padding:.6rem; border:1px solid var(--background-modifier-border,#aaa); }
+.map-tracing-controls label { display:inline-flex; align-items:center; gap:.3rem; }
+.map-tracing-controls input[type="number"] { width:7rem; }
+.map-tracing-controls input[type="file"] { max-width:20rem; }
+.map-tracing-controls small, .map-tracing-status { flex-basis:100%; }
+.map-tracing-controls [hidden] { display:none; }

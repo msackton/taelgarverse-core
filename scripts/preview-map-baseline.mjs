@@ -9,6 +9,7 @@ import {ROOT} from '../src/config.mjs';
 import {ContentStore,parseNote} from '../src/content-store.mjs';
 import {validateManifest,resolveMapSource,validateMapDefinition} from '../src/map-core.mjs';
 import {prepareMaps} from './build-maps.mjs';
+import {validateMapLayers,resolvedMapLayers} from '../src/map-layers.mjs';
 import sharp from 'sharp';
 
 const {values}=parseArgs({options:{export:{type:'string'},port:{type:'string'},'no-tiles':{type:'boolean',default:false}}});
@@ -16,6 +17,8 @@ if(!values.export)throw new Error('Pass --export <file prefix used with the expo
 const port=Number(values.port??'8878');if(!Number.isInteger(port) || port<1024 || port>65535)throw new Error('Invalid preview port');
 const prefix=path.resolve(values.export),directory=path.dirname(prefix),manifestFile=prefix+'.map.json';
 const metadata=validateManifest(JSON.parse(await fs.readFile(manifestFile,'utf8')));
+delete metadata.regionLayers;
+if(metadata.layers?.length)metadata.regionLayers=resolvedMapLayers(await Promise.all(metadata.layers.map(async relative=>({path:relative,data:validateMapLayers(JSON.parse(await fs.readFile(path.join(directory,relative),'utf8')))}))));
 const image=path.resolve(directory,metadata.image),input=await fs.readFile(image);
 const dimensions=await sharp(input,{limitInputPixels:250_000_000}).metadata();
 if(dimensions.format!=='png')throw new Error('Expected a PNG image');

@@ -52,10 +52,10 @@ test('invalid explicit calibration never falls back to a plausible but incorrect
   }
 });
 
-function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true}={}) {
-  let focus,paths=[],markers=[],polygons=[],labels=[],enabled=zoomEnabled;
+function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=false}={}) {
+  let focus,enabled=zoomEnabled;const frames=new Map();let nextFrame=0;
   class Element {
-    constructor(){this.children=[];this.listeners={};this.attributes={};this.hidden=false;this.disabled=false;this.classes=new Set();this.classList={toggle:(value,on)=>on?this.classes.add(value):this.classes.delete(value)};}
+    constructor(){this.children=[];this.listeners={};this.attributes={};this.hidden=false;this.disabled=false;this.classes=new Set();this.classList={contains:value=>this.classes.has(value),toggle:(value,on)=>on?this.classes.add(value):this.classes.delete(value)};}
     append(...children){this.children.push(...children);}
     setAttribute(key,value){this.attributes[key]=value;}
     addEventListener(name,handler){this.listeners[name]=handler;}
@@ -68,18 +68,24 @@ function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true}={}) {
     click(){if(!this.disabled)this.listeners.click?.();}
   }
   const doc={createElement:()=>new Element()},canvas=new Element(),caption=new Element(),figure=new Element();canvas.ownerDocument=doc;
+  if(animated)doc.defaultView={requestAnimationFrame:fn=>{frames.set(++nextFrame,fn);return nextFrame;},cancelAnimationFrame:id=>frames.delete(id)};
   figure.querySelector=()=>caption;
   const handler=(initial=true)=>{let enabled=initial;return {enabled:()=>enabled,enable(){enabled=true;},disable(){enabled=false;}};};
   const events={},map={on:(name,handler)=>{events[name]=handler;},off:name=>{delete events[name];},center:{lat:3,lng:4},getCenter(){return this.center;},
     mouseEventToLatLng:event=>({lng:event.clientX,lat:event.clientY}),dragging:handler(),touchZoom:handler(),boxZoom:handler(false),
     doubleClickZoom:{enabled:()=>enabled,enable:()=>{enabled=true;},disable:()=>{enabled=false;}}};
   if(screenScale)map.latLngToContainerPoint=point=>({x:point.lng*screenScale,y:point.lat*screenScale});
-  const group={addTo(){return this;},clearLayers(){paths=[];markers=[];polygons=[];labels=[];}};
-  const L={layerGroup:()=>group,divIcon:options=>options,marker:(point,options)=>({addTo(){labels.push({point,...options});}}),polygon:points=>({addTo(){polygons.push(structuredClone(points));}}),polyline:points=>({addTo(){paths.push(structuredClone(points));}}),circleMarker:point=>({addTo(){markers.push({...point});}})};
+  const groups=[];
+  const makeLayer=(kind,points,options={})=>({kind,points:structuredClone(points),options,
+    addTo(group){group.children.push(this);return this;},setLatLngs(points){this.updates=(this.updates??0)+1;this.points=structuredClone(points);},setLatLng(point){this.points={...point};}});
+  const L={layerGroup:()=>{const group={children:[],addTo(){groups.push(this);return this;},clearLayers(){this.children=[];},remove(){this.clearLayers();}};return group;},
+    divIcon:options=>options,marker:(point,options)=>makeLayer('label',point,options),polygon:points=>makeLayer('polygon',points),
+    polyline:points=>makeLayer('path',points),circleMarker:point=>makeLayer('marker',point)};
+  const items=kind=>groups.flatMap(group=>group.children).filter(item=>item.kind===kind);
   const bounds={contains:point=>point.lat>=0 && point.lng>=0 && point.lat<=100 && point.lng<=100};
   const dispose=addMeasurement(L,map,canvas,figure,calibrated?{xScale:scale,yScale:scale,unit:'miles'}:null,bounds);
   const controls=caption.children[0], [toggle,sketch,trace,close,undo,clear,summary]=controls.children,help=figure.children[0];
-  return {canvas,map,toggle,sketch,trace,close,undo,clear,summary,help,dispose,
+  return {canvas,map,toggle,sketch,trace,close,undo,clear,summary,help,dispose,groups,frames,flush:()=>{for(const [id,fn] of frames){frames.delete(id);fn();}},
     click:point=>events.click({latlng:point}),
     viewChange:()=>events['movestart zoomstart'](),
     pointer:(name,x,y,extra={})=>{
@@ -87,7 +93,7 @@ function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true}={}) {
       canvas.listeners[name](event);return event;
     },
     key:(key,target=canvas)=>{const event={key,target,preventDefault(){this.prevented=true;}};figure.listeners.keydown(event);return event;},
-    get focus(){return focus;},get paths(){return paths;},get polygons(){return polygons;},get markers(){return markers;},get labels(){return labels;},get zoomEnabled(){return enabled;}};
+    get focus(){return focus;},get paths(){return items('path').map(item=>item.points);},get polygons(){return items('polygon').map(item=>item.points);},get markers(){return items('marker').map(item=>item.points);},get labels(){return items('label').map(item=>({point:item.points,...item.options}));},get zoomEnabled(){return enabled;}};
 }
 
 test('closed outlines measure calibrated square miles, concavity and winding independently of map origin',()=>{
@@ -356,4 +362,28 @@ test('keyboard measurement uses the current center, preserves Leaflet controls a
   a.key('Backspace');assert.equal(a.markers.length,1);
   a.key('Escape',a.undo);assert.equal(a.zoomEnabled,false);assert.equal(a.focus,a.toggle);assert.equal(a.help.hidden,true);
   assert.equal(a.key('Enter').prevented,undefined);
+});
+
+
+test('measurement and sketching cannot start during persistent map editing',()=>{
+  const h=setup();h.canvas.classes.add('map-editing');h.toggle.click();h.sketch.click();
+  assert.equal(h.canvas.classes.has('map-measuring'),false);assert.match(h.summary.textContent,/Save or cancel/);
+  h.canvas.classes.delete('map-editing');h.toggle.click();assert.equal(h.canvas.classes.has('map-measuring'),true);h.dispose();
+});
+
+
+test('freehand batches display frames, reuses preview geometry, and preserves every sampled bend',()=>{
+  const h=setup({animated:true,scale:1});h.toggle.click();h.click({lat:10,lng:10});h.click({lat:10,lng:20});h.trace.click();
+  const completed=h.groups[0].children.slice();h.pointer('pointerdown',30,30);
+  const preview=h.groups[1].children[0];
+  h.pointer('pointermove',40,30);h.pointer('pointermove',40,40);h.pointer('pointermove',50,40);
+  assert.equal(h.frames.size,1);assert.equal(preview.updates,undefined);
+  h.flush();assert.equal(preview.updates,1);assert.deepEqual(h.groups[0].children,completed);
+  assert.equal(h.summary.textContent,'Total: 40 miles');assert.equal(h.groups[1].children[0],preview);
+  h.pointer('pointermove',50,50);h.pointer('pointerup',60,50);
+  assert.equal(h.frames.size,0,'pointerup flushes the final state synchronously');
+  assert.equal(h.summary.textContent,'Total: 60 miles');assert.equal(h.paths[1].length,6);
+  h.pointer('pointerdown',60,60);h.pointer('pointermove',70,60);assert.equal(h.frames.size,1);
+  h.viewChange();assert.equal(h.frames.size,0);assert.equal(h.paths.length,2,'a view change discards unfinished work');
+  h.pointer('pointerdown',60,60);h.pointer('pointermove',70,60);h.dispose();assert.equal(h.frames.size,0);assert.equal(h.paths.length,0);
 });

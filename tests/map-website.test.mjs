@@ -143,7 +143,10 @@ test('local preview isolates invalid maps and excludes unpublished note definiti
 
 test('publication rejects map assets changed after validation and before packaging',async t=>{
   const f=await fixture(t,{width:300});
-  for(const [name,file] of [['image',f.imageFile],['manifest',f.manifestFile]]){
+  const layerFile=path.join(f.directory,'assets/maps/borders.map-layers.json');
+  f.manifest.layers=['borders.map-layers.json'];await fs.writeFile(f.manifestFile,JSON.stringify(f.manifest));
+  await fs.writeFile(layerFile,JSON.stringify({version:1,layers:[]}));
+  for(const [name,file] of [['image',f.imageFile],['manifest',f.manifestFile],['layers',layerFile]]){
     const original=await fs.readFile(file);let changed=false;
     await assert.rejects(prepareContent(f.settings,path.join(f.directory,'.output-'+name),{commit:'a'.repeat(40),dirty:false},{},undefined,undefined,{
       log:message=>{if(message==='Packaging notes and assets…'){writeFileSync(file,Buffer.concat([original,Buffer.from('\n')]));changed=true;}},
@@ -154,6 +157,11 @@ test('publication rejects map assets changed after validation and before packagi
 
 test('prepared maps survive Node, compiled Worker and legacy snapshot rendering with fetchable assets',async t=>{
   const f=await fixture(t,{sourceOffset:[2100,3100]});
+  f.manifest.layers=['borders.map-layers.json'];
+  const layers={version:1,layers:[{id:'regions',name:'Regions',regions:[{id:'one',name:'One',note:'One.md',points:[[2100,3100],[2400,3100],[2300,3190]]}]}]};
+  await fs.writeFile(f.manifestFile,JSON.stringify(f.manifest));
+  await fs.writeFile(path.join(f.directory,'assets/maps/borders.map-layers.json'),JSON.stringify(layers));
+  await fs.writeFile(path.join(f.directory,'One.md'),'# One');
   const report=await prepareContent(f.settings,path.join(f.directory,'output'),{commit:'a'.repeat(40),dirty:false});
   const uploads=JSON.parse(await fs.readFile(report.manifestFile,'utf8'));
   const objects=new Map(await Promise.all(uploads.map(async item=>[item.key,await fs.readFile(item.file)])));
@@ -174,6 +182,11 @@ test('prepared maps survive Node, compiled Worker and legacy snapshot rendering 
     const page=await response.json(),maps=configs(page.html);assert.equal(maps.length,2);assert.equal(maps[0].version,2);
     const translated=baselineViewConfig(f.block,resolveMapSource(f.manifest,{width:2308,height:96}),'');
     assert.deepEqual(maps[0].crop,translated.crop);assert.deepEqual(maps[0].overlays,translated.overlays);
+    assert.deepEqual(maps[0].regionLayers[0].regions,layers.layers[0].regions);
+    assert.equal(maps[0].regionLayers[0].toggleable,false);
+    assert.deepEqual(maps[0].sourceOffset,[2100,3100]);
+    assert.match(Object.values(maps[0].regionLinks)[0],/^\/page\/one/);
+    const layerResponse=await request('/assets/assets/maps/borders.map-layers.json');assert.deepEqual(await layerResponse.json(),layers);
     assert.equal(maps[0].tile.baseUrl,maps[1].tile.baseUrl);assert.deepEqual(maps[0].measurement,{unit:'miles',hexMiles:24,xScale:.6,yScale:.6});
     if(expected)assert.deepEqual(maps,expected);else expected=maps;
     assert.deepEqual(Buffer.from(await (await request(maps[0].image)).arrayBuffer()),f.image);
@@ -185,4 +198,20 @@ test('prepared maps survive Node, compiled Worker and legacy snapshot rendering 
   t.after(()=>new Promise(resolve=>server.close(resolve)));
   const response=await fetch('http://127.0.0.1:'+server.address().port+'/api/page?page=Map');assert.equal(response.status,200);
   assert.deepEqual(configs((await response.json()).html),expected);
+});
+
+
+test('publication rejects missing, excluded, malformed or changed layer files',async t=>{
+  const f=await fixture(t);f.manifest.layers=['borders.map-layers.json'];
+  await fs.writeFile(f.manifestFile,JSON.stringify(f.manifest));
+  await assert.rejects(prepareMaps(f.store(),path.join(f.directory,'tiles')),/layer file missing or invalid/);
+  const file=path.join(f.directory,'assets/maps/borders.map-layers.json');
+  await fs.writeFile(file,JSON.stringify({version:1,layers:[{id:'bad',name:'Bad',regions:[{id:'x',name:'X',points:[[0,0],[1,1],[2,2]]}]}]}));
+  await assert.rejects(prepareMaps(f.store(),path.join(f.directory,'tiles')),/enclose/);
+  await fs.writeFile(file,JSON.stringify({version:1,layers:[]}));
+  const store=f.store();assert.ok(store.entries.some(e=>e.mapLayers));
+  await fs.mkdir(path.join(f.directory,'assets/maps/private'));await fs.writeFile(path.join(f.directory,'assets/maps/private/.nopublish'),'');
+  await fs.writeFile(path.join(f.directory,'assets/maps/private/borders.map-layers.json'),JSON.stringify({version:1,layers:[]}));
+  f.manifest.layers=['private/borders.map-layers.json'];await fs.writeFile(f.manifestFile,JSON.stringify(f.manifest));
+  await assert.rejects(prepareMaps(f.store(),path.join(f.directory,'tiles')),/layer file missing or invalid/);
 });
