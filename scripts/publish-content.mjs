@@ -21,6 +21,7 @@ import {uploadContent} from './upload-content.mjs';
 import {materializeWebsite} from './materialize-website.mjs';
 import {copyWorkingVault} from './website-working-vault.mjs';
 import {DATAVIEW_RELEASE} from '../src/dataview-node/bundle.mjs';
+import {Store} from '../src/store.mjs';
 export {validateMaterializationReport} from '../src/dataview-export.mjs';
 
 export const CHECKPOINT_KEY = 'published/current.json';
@@ -201,6 +202,13 @@ export async function publishContent(options, deps) {
 
 export function buildFingerprint(settings, options, config={}) {
   const hash = createHash('sha256');
+  // Referenced geometry can live in a Git-ignored authoring folder. Its bytes
+  // must still invalidate publication's unchanged-content checkpoint.
+  if(settings.vault_dir && existsSync(settings.vault_dir)){
+    const paths=new Store({...settings,source_dir:settings.vault_dir});
+    for(const [source,{sha256}] of paths.mapPathFiles)hash.update(JSON.stringify([source,sha256]));
+    for(const entry of paths.entries)if(entry.mapPathError)hash.update(JSON.stringify([entry.id,entry.note.metadata.mapPath,entry.mapPathError]));
+  }
   hash.update(JSON.stringify({excludedFolders:readFolderExclusions(settings.vault_dir)}));
   hash.update(JSON.stringify(readInteractionBundles(settings)));
   for (const [host,source] of Object.entries(readCampaignHomes(settings))) hash.update(JSON.stringify([host,source.replace(/\r\n/g,'\n')]));
@@ -230,7 +238,7 @@ export function buildFingerprint(settings, options, config={}) {
     new URL('../obsidian/taelgarverse/features/exporter.mjs', import.meta.url),
     new URL('../obsidian/taelgarverse/features/materializer.mjs',import.meta.url),
     new URL('./build-maps.mjs', import.meta.url), new URL('../src/maps.mjs', import.meta.url),
-    new URL('../src/map-distance.mjs', import.meta.url),
+    new URL('../src/map-distance.mjs', import.meta.url), new URL('../src/map-feature-path.mjs', import.meta.url), new URL('../src/map-path-files.mjs', import.meta.url),
     new URL('./prepare-cloudflare.mjs', import.meta.url), new URL('../src/store.mjs', import.meta.url),
     new URL('../src/content-store.mjs', import.meta.url), new URL('../src/bio-block.mjs', import.meta.url), new URL('../src/backlinks.mjs', import.meta.url),
     new URL('../src/campaign-interactions.mjs', import.meta.url), new URL('../src/session-interactions.mjs', import.meta.url),

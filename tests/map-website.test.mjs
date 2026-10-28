@@ -19,6 +19,8 @@ import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
 import {Engine} from '../src/engine.mjs';
 import {createServer} from '../src/server.mjs';
+import {copyWorkingVault} from '../scripts/website-working-vault.mjs';
+import {buildFingerprint} from '../scripts/publish-content.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 
 const sha=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -162,6 +164,12 @@ test('prepared maps survive Node, compiled Worker and legacy snapshot rendering 
   await fs.writeFile(f.manifestFile,JSON.stringify(f.manifest));
   await fs.writeFile(path.join(f.directory,'assets/maps/borders.map-layers.json'),JSON.stringify(layers));
   await fs.writeFile(path.join(f.directory,'One.md'),'# One');
+  const river={kind:'river',importance:'regional',points:[[2100,3140],[2200,3150],[2400,3140]]};
+  const riverSource='_maps/paths/river.map-path.json';
+  await fs.mkdir(path.join(f.directory,'_maps/paths'),{recursive:true});
+  await fs.writeFile(path.join(f.directory,riverSource),JSON.stringify({version:1,points:river.points}));
+  await fs.writeFile(path.join(f.directory,'River.md'),'---\nmapPath: '+JSON.stringify({kind:river.kind,importance:river.importance,source:riverSource})+'\n---\n# River');
+  await fs.writeFile(path.join(f.directory,'Secret road.md'),'---\nexcludePublish: all\nmapPath: '+JSON.stringify({...river,kind:'road'})+'\n---\n# Secret');
   const report=await prepareContent(f.settings,path.join(f.directory,'output'),{commit:'a'.repeat(40),dirty:false});
   const uploads=JSON.parse(await fs.readFile(report.manifestFile,'utf8'));
   const objects=new Map(await Promise.all(uploads.map(async item=>[item.key,await fs.readFile(item.file)])));
@@ -169,6 +177,9 @@ test('prepared maps survive Node, compiled Worker and legacy snapshot rendering 
   const index=JSON.parse(objects.get('revisions/'+report.revision+'/index.json'));
   const imageEntry=index.entries.find(entry=>entry.id==='assets/maps/core.png');
   assert.deepEqual(imageEntry.mapImageInfo,{format:'png',width:2308,height:96});
+  assert.equal(index.entries.some(entry=>entry.id===riverSource),false,'geometry is not a public asset');
+  assert.equal(index.entries.find(entry=>entry.id==='River.md').note.metadata.mapPath.points,undefined);
+  assert.deepEqual(index.entries.find(entry=>entry.id==='River.md').mapPathGeometry.points,river.points);
   assert.deepEqual(index.entries.find(entry=>entry.id.endsWith('.map.json')).mapManifest,f.manifest);
   class Bucket {
     constructor(legacy){this.objects=new Map([...objects].filter(([key])=>!legacy || !key.includes('/runtime/') && !key.endsWith('/runtime.json')));}
@@ -186,6 +197,10 @@ test('prepared maps survive Node, compiled Worker and legacy snapshot rendering 
     assert.equal(maps[0].regionLayers[0].toggleable,false);
     assert.deepEqual(maps[0].sourceOffset,[2100,3100]);
     assert.match(Object.values(maps[0].regionLinks)[0],/^\/page\/one/);
+    assert.equal(maps[0].mapPaths.length,1);assert.deepEqual(maps[0].mapPaths[0].points,river.points);
+    assert.equal(maps[0].mapPaths[0].importance,'regional');assert.match(maps[0].mapPaths[0].href,/^\/page\/river/);
+    assert.equal(maps[1].mapPaths.length,1,'crossing paths appear in multiple crops without endpoint filtering');
+    assert.equal((await request('/assets/'+riverSource)).status,404);
     const layerResponse=await request('/assets/assets/maps/borders.map-layers.json');assert.deepEqual(await layerResponse.json(),layers);
     assert.equal(maps[0].tile.baseUrl,maps[1].tile.baseUrl);assert.deepEqual(maps[0].measurement,{unit:'miles',hexMiles:24,xScale:.6,yScale:.6});
     if(expected)assert.deepEqual(maps,expected);else expected=maps;
@@ -214,4 +229,53 @@ test('publication rejects missing, excluded, malformed or changed layer files',a
   await fs.writeFile(path.join(f.directory,'assets/maps/private/borders.map-layers.json'),JSON.stringify({version:1,layers:[]}));
   f.manifest.layers=['private/borders.map-layers.json'];await fs.writeFile(f.manifestFile,JSON.stringify(f.manifest));
   await assert.rejects(prepareMaps(f.store(),path.join(f.directory,'tiles')),/layer file missing or invalid/);
+});
+
+
+test('website paths follow date, campaign and publication visibility, and malformed notes do not break maps',async t=>{
+  const f=await fixture(t,{width:300}),route={kind:'road',importance:'world',points:[[0,40],[200,40]]};
+  for(const [name,extra] of [['Road',''],['Future','created: 1800\n'],['Hidden','excludePublish: all\n'],['Campaign','excludePublish: [secret]\n']])
+    await fs.writeFile(path.join(f.directory,name+'.md'),'---\n'+extra+'mapPath: '+JSON.stringify(route)+'\n---\nBody');
+  await fs.writeFile(path.join(f.directory,'Broken.md'),'---\nmapPath: {kind: river, points: [bad]}\n---\n');
+  const store=f.store();await prepareMaps(store,path.join(f.directory,'tiles'));
+  const warnings=[],render=context=>configs(renderMap(JSON.stringify(f.block),{store,entry:store.lookup('Map').entry,warnings,date:context.date,context}))[0];
+  const old=render({date:'1700-01-01',campaigns:['secret']});assert.deepEqual(old.mapPaths.map(p=>p.id),['Road.md']);
+  const recent=render({date:'1900-01-01',campaigns:[]});assert.deepEqual(recent.mapPaths.map(p=>p.id).sort(),['Campaign.md','Future.md','Road.md']);
+  assert.deepEqual(old.sourceOffset,[0,0]);assert.ok(warnings.some(w=>/invalid mapPath.*Broken/.test(w)));
+  assert.equal(old.regionLayers,undefined,'note paths do not require a border layer file');
+});
+
+
+test('referenced path files survive the working copy; unreferenced private inputs stay out and geometry changes invalidate publication',async t=>{
+  const f=await fixture(t,{width:300}),source='_maps/paths/road.map-path.json',geometry={version:1,points:[[0,40],[200,40]]};
+  await fs.mkdir(path.join(f.directory,'_maps/paths'),{recursive:true});
+  await fs.writeFile(path.join(f.directory,source),JSON.stringify(geometry));
+  await fs.writeFile(path.join(f.directory,'_maps/paths/unreferenced.map-path.json'),JSON.stringify(geometry));
+  await fs.writeFile(path.join(f.directory,'Road.md'),'---\nmapPath: '+JSON.stringify({kind:'road',importance:'world',source})+'\n---\nBody');
+  const original=await fs.readFile(path.join(f.directory,'Road.md'),'utf8');
+  const working=await fs.mkdtemp(path.join(ROOT,'.cache','path-working-'));await fs.rmdir(working);
+  t.after(()=>fs.rm(working,{recursive:true,force:true}));await copyWorkingVault(f.directory,working);
+  assert.deepEqual(JSON.parse(await fs.readFile(path.join(working,source),'utf8')),geometry);
+  await assert.rejects(fs.access(path.join(working,'_maps/paths/unreferenced.map-path.json')),{code:'ENOENT'});
+  const store=new Store({...f.settings,source_dir:working});assert.deepEqual(store.lookup('Road').entry.mapPathGeometry,geometry);
+  assert.equal(store.entries.some(e=>e.id.endsWith('.map-path.json')),false);assert.equal(await fs.readFile(path.join(f.directory,'Road.md'),'utf8'),original);
+  const fingerprint=buildFingerprint(f.settings,{});
+  await fs.writeFile(path.join(f.directory,source),JSON.stringify({...geometry,points:[[0,40],[210,40]]}));
+  assert.notEqual(buildFingerprint(f.settings,{}),fingerprint,'even Git-ignored geometry must invalidate a build');
+  await assert.rejects(prepareContent(f.settings,path.join(f.directory,'output'),{commit:'a'.repeat(40),dirty:false},{},undefined,undefined,{
+    log:message=>{if(message==='Packaging notes and assets…')writeFileSync(path.join(f.directory,source),JSON.stringify(geometry));}
+  }),/Path geometry changed after validation/);
+});
+
+test('path references cannot bypass missing files, malformed geometry, symlinks or publication boundaries',async t=>{
+  const f=await fixture(t,{width:300}),source='_maps/paths/river.map-path.json';
+  await fs.mkdir(path.join(f.directory,'_maps/paths'),{recursive:true});
+  await fs.writeFile(path.join(f.directory,'River.md'),'---\nmapPath: '+JSON.stringify({kind:'river',source})+'\n---\n');
+  const prepare=()=>prepareContent(f.settings,path.join(f.directory,'output'),{commit:'a'.repeat(40),dirty:false});
+  await assert.rejects(prepare(),/geometry missing/);
+  await fs.writeFile(path.join(f.directory,source),JSON.stringify({version:9,points:[[0,0],[20,20]]}));await assert.rejects(prepare(),/invalid/);
+  const data=JSON.stringify({version:1,points:[[0,0],[20,20]]});await fs.writeFile(path.join(f.directory,source),data);
+  await fs.writeFile(path.join(f.directory,'_maps/.nopublish'),'');await assert.rejects(prepare(),/excluded/);await fs.unlink(path.join(f.directory,'_maps/.nopublish'));
+  await fs.unlink(path.join(f.directory,source));await fs.writeFile(path.join(f.directory,'other.json'),data);
+  await fs.symlink(path.join(f.directory,'other.json'),path.join(f.directory,source));await assert.rejects(prepare(),/excluded/);
 });

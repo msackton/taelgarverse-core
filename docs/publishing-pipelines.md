@@ -143,6 +143,11 @@ Both choices run these stages:
    Prune excluded folders before creating their destination or visiting children.
    A marker at the vault root produces an empty working copy. Explicit homepage,
    menu and session inputs still come from the original vault.
+   Explicit `mapPath.source` references additionally copy their `.map-path.json`
+   geometry inputs, including from underscore folders. No unrelated files from
+   those folders are copied. References cannot bypass `.nopublish` or symlinks.
+   Geometry is validated and compiled into note data, not exposed as an asset;
+   content hashes participate in the publication fingerprint.
 2. **Dataview.** Build an index from the remaining copied Markdown when using
    Node, or use the live Obsidian
    Dataview index. Evaluate plain DQL selected from website notes, skipping

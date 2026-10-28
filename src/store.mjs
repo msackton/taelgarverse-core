@@ -6,11 +6,13 @@ import {ContentStore,parseNote,ASSET_TYPES} from './content-store.mjs';
 import {NO_PUBLISH_MARKER,readFolderExclusions} from './folder-exclusions.mjs';
 import {validateManifest} from './map-core.mjs';
 import {validateMapLayers} from './map-layers.mjs';
+import {validateMapPath} from './map-feature-path.mjs';
+import {readMapPathFile} from './map-path-files.mjs';
 export * from './content-store.mjs';
 
 export class Store extends ContentStore {
   constructor(settings) {
-    const entries = [], warnings = [];
+    const entries = [], warnings = [],pathFiles=new Map();
     const excludedFolders = new Set(readFolderExclusions(settings.vault_dir));
     const walk = directory => {
       const folder = path.relative(settings.source_dir,directory).split(path.sep).join('/');
@@ -48,11 +50,19 @@ export class Store extends ContentStore {
           entry.title = [entry.note.metadata.title ? titleCase(entry.note.metadata.title) : '',
             titleCase(entry.note.metadata.name || entry.name.replace(/-/g, ' '))].filter(Boolean).join(' ');
           entry.slug = entry.target.slice(0, -3);
+          if(entry.note.metadata.mapPath?.source!==undefined){
+            try{
+              const definition=validateMapPath(entry.note.metadata.mapPath),source=definition.source;
+              const geometry=pathFiles.get(source)??readMapPathFile(settings.source_dir,source,{policyRoot:settings.vault_dir,excludedFolders:[...excludedFolders]});
+              pathFiles.set(source,geometry);entry.mapPathGeometry=geometry.data;
+            }catch(error){entry.mapPathError=error.message;}
+          }
         }
         entries.push(entry);
       }
     };
     walk(settings.source_dir);
     super(entries,warnings,settings);
+    this.mapPathFiles=pathFiles;
   }
 }

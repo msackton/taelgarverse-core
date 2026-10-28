@@ -8,6 +8,7 @@ import {validateManifest,resolveMapSource} from './map-core.mjs';
 import {baselineViewConfig} from './map-block.mjs';
 
 import {resolvedMapLayers} from './map-layers.mjs';
+import {resolveMapPath,pathIntersectsCrop} from './map-feature-path.mjs';
 
 const point = value => Array.isArray(value) && value.length === 2 && value.every(v => Number.isFinite(v) && Math.abs(v) <= 10_000_000);
 function number(value, fallback, name) {
@@ -87,7 +88,19 @@ export function parseMap(source, store, author, {verifyImage=true}={}) {
 
 export function renderMap(source, env) {
   try {
-    const {entry,config} = parseMap(source,env.store,env.entry);
+    const {entry,config,manifest} = parseMap(source,env.store,env.entry);
+    if(config.version===2){
+      const paths=[];
+      for(const target of env.store.entries??[]){
+        if(!target.note?.metadata?.mapPath || !availableInContext(target,env.context??{date:env.date,campaigns:[]},env.store.settings))continue;
+        let value;
+        try{if(target.mapPathError)throw new Error(target.mapPathError);value=resolveMapPath(target.note.metadata.mapPath,target.mapPathGeometry);}
+        catch{env.warnings.push('Map: invalid mapPath in '+target.id);continue;}
+        if(pathIntersectsCrop(value.points,config.crop,manifest.sourceOffset))
+          paths.push({...value,id:target.id,name:target.name??target.id,href:pageUrl(target.slug,env.date,env.context)});
+      }
+      if(paths.length){config.mapPaths=paths;config.sourceOffset=manifest.sourceOffset;}
+    }
     if(config.regionLayers){
       config.regionLinks={};
       for(const layer of config.regionLayers)for(const region of layer.regions){

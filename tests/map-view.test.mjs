@@ -15,7 +15,7 @@ function setup(value=config){
   Object.assign(canvas,{clientWidth:640,clientHeight:400});
   const maps=[],images=[],baselines=[],measurements=[];let observer;
   const bounds=points=>({points,pad(){return this;},getEast:()=>points[1][1],getWest:()=>points[0][1],getNorth:()=>points[1][0],getSouth:()=>points[0][0],getCenter:()=>({lat:(points[0][0]+points[1][0])/2,lng:(points[0][1]+points[1][1])/2})});
-  const L={CRS:{Simple:{}},latLngBounds:bounds,map:(canvas,options)=>{const map={options,invalidateSize(){},setMinZoom(value){this.minZoom=value;},fitBounds(value){this.fitted=value;},setView(){},setMaxBounds(value){this.maxBounds=value;},remove(){this.removed=true;}};maps.push(map);return map;},
+  const L={CRS:{Simple:{}},latLngBounds:bounds,map:(canvas,options)=>{const map={options,on(){},off(){},invalidateSize(){},setMinZoom(value){this.minZoom=value;},fitBounds(value){this.fitted=value;},setView(){},setMaxBounds(value){this.maxBounds=value;},remove(){this.removed=true;}};maps.push(map);return map;},
     imageOverlay:(url,bounds)=>{const image={url,bounds,element:document.createElement('img'),on(){return this;},addTo(){return this;},getElement(){return this.element;}};images.push(image);return image;}};
   const presentation=list=>(...args)=>{const item={args,disposed:false};list.push(item);return ()=>{item.disposed=true;};};
   const module={exports:{}};vm.runInNewContext(bundle.outputFiles[0].text,{module,exports:module.exports,console,

@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Taelgar note mapPath field",
+  "type": "object",
+  "required": [
+    "kind"
+  ],
+  "properties": {
+    "kind": {
+      "enum": [
+        "river",
+        "road"
+      ]
+    },
+    "importance": {
+      "enum": [
+        "world",
+        "regional",
+        "local",
+        "detail"
+      ],
+      "default": "local"
+    },
+    "points": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 10000,
+      "items": {
+        "type": "array",
+        "prefixItems": [
+          {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000
+          }
+        ],
+        "minItems": 2,
+        "maxItems": 2
+      },
+      "description": "Ordered original Photoshop [X,Y] pixels. Consecutive points must differ. No implicit closing segment. Legacy inline form; editor Save moves these into a geometry file."
+    },
+    "source": {
+      "type": "string",
+      "maxLength": 1024,
+      "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)\\.)[^:\\\\?#\\u0000-\\u001f\\u007f]+\\.map-path\\.json$",
+      "description": "Exact vault-root-relative geometry filename; no wikilinks, dot segments or URLs. Editor saves to _maps/paths/."
+    }
+  },
+  "oneOf": [
+    {
+      "required": [
+        "source"
+      ],
+      "not": {
+        "required": [
+          "points"
+        ]
+      }
+    },
+    {
+      "required": [
+        "points"
+      ],
+      "not": {
+        "required": [
+          "source"
+        ]
+      }
+    }
+  ]
+}

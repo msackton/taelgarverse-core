@@ -74,7 +74,9 @@ on the next preview refresh or content publication.
 The website working copy also skips underscore folders and `.nopublish` folders
 at every depth, including their media and descendants. They are not copied or
 indexed by Node Dataview. Explicit homepage, menu, and session inputs still read
-their configured files in the original vault.
+their configured files in the original vault. Explicit `mapPath.source` references
+are also copied as geometry inputs, including files under `_maps`; unrelated
+files in underscore folders stay excluded. `.nopublish` still applies.
 
 The publisher reads markers from the original vault even when preparing a
 materialized export that omits dotfiles. Marker additions and removals invalidate
@@ -821,7 +823,7 @@ contains format version, relative PNG filename, `sourceOffset` and optional
 dimensions are decoded. Old draft `coordinateFrame` blocks require conversion
 as described in [the baseline guide](map-baseline-progress.md#older-drafts). Blocks and hexes have no
 printed labels; hover/select/copy provides references. Use **Open map editor** in
-Obsidian for town placement and region border authoring. Embedded maps remain viewers. Retired `overlays`
+Obsidian for town placement, river/road paths and region border authoring. Embedded maps remain viewers. Retired `overlays`
 fields are ignored; masks, dimming and hide-content editing are removed. Publication validates the manifest/image
 pair and shares one tile pyramid across crops. See [map editor](map-editor.md)
 and [manifest delivery](maps.md#delivery-and-maintenance). Ordinary JSON files
@@ -839,6 +841,16 @@ frontmatter contains numeric Photoshop `x` and `y`, a fourth-level slash
 markers. Exact pixels are authoritative and independent of export crops.
 The plugin displays these notes as markers, excluding points outside the crop. Other note fields and prose are preserved. The website does not yet
 render these town markers. See [town placement](map-editor.md#place-towns).
+
+River and road notes instead use `mapPath`, containing a `kind` (`river` or
+`road`), an optional `importance` (the same tiers, default `local`), and `source`,
+an exact vault-root-relative `.map-path.json` filename. The geometry file contains
+`{version: 1, points: [[X,Y], ...]}` in original Photoshop coordinates. Legacy
+inline `points` is readable and moves to a geometry file on editor Save. These open paths render on
+both Obsidian and published version 2 maps. Website paths respect note
+date/campaign/POV visibility and publication exclusions. The editor can trace
+or edit them, writes the geometry file, and patches only that note field on Save; see [rivers and roads](map-editor.md#rivers-and-roads)
+and the [metadata schema](../schemas/map-path.schema.json).
 
 Other images may be made smaller during publication. See
 [image settings](deploy.md#image-settings).

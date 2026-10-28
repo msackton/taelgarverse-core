@@ -83,6 +83,12 @@ unchanged, and Obsidian can be closed. The original vault supplies header
 metadata and session inputs. See [publishing pipelines](publishing-pipelines.md).
 The copy skips underscore folders and folders containing `.nopublish`, including
 their entire subtrees, before reading or copying their contents.
+Explicit river/road `mapPath.source` geometry is the exception for underscore
+folders: only referenced `.map-path.json` inputs are copied, including files in
+`_maps/paths`. `.nopublish` and symlink exclusions still apply. The publisher
+validates these files, embeds geometry with the owning note, and checks for
+changes before packaging. Their content hashes invalidate the publication
+checkpoint even if the files are Git-ignored. They are not public asset downloads.
 
 Both previews compile [person campaign interactions](campaign-interactions.md)
 from recap Cast `met` membership in the original vault's `_sessions` directory,

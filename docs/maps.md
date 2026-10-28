@@ -210,6 +210,16 @@ on or off; closer zooms retain already visible features. Placement runs outside 
 and requires an explicit Save. Website town-marker delivery is not implemented.
 See [town placement and persistence](map-editor.md#place-towns).
 
+River and road notes can carry `mapPath: {kind, importance, source}`. The source
+is a vault-root-relative `.map-path.json` file containing `{version: 1, points}`;
+legacy inline `points` remains readable. Version 2
+maps render these ordered Photoshop-coordinate polylines in blue (river) or
+brown (road), clipped to the crop, with the same importance thresholds as towns.
+They have no implicit closing edge or layer toggles. Published paths include
+only notes available in the reader's date/campaign/POV context and link to their
+pages. The Obsidian editor supports point edits and freehand tracing, saving the
+geometry file and only the selected note's `mapPath` field; see [rivers and roads](map-editor.md#rivers-and-roads).
+
 For each segment, the renderer first undoes the display bounds' horizontal and
 vertical scaling to recover source-pixel differences. It multiplies those by
 `hexMiles / hexPixels` miles per source pixel, takes the planar distance,

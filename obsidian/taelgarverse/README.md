@@ -389,6 +389,16 @@ clickable markers; choose the note again to move its point or change its
 at progressively closer zooms. Other note contents
 are preserved. See [town placement](../../docs/map-editor.md#place-towns).
 
+Use **Draw or edit river / road** to choose a vault note and author a persistent
+path. Click vertices or enable **Trace river / road** for freehand drawing, set
+**Path importance**, then **Save path**. The note's `mapPath` stores kind,
+importance and a `source` reference; precise Photoshop coordinates live in a
+separate `.map-path.json` file under `_maps/paths`. Old inline paths migrate only
+on explicit Save. Saved paths appear in Obsidian
+and published version 2 maps with the same zoom thresholds as towns. See
+[rivers and roads](../../docs/map-editor.md#rivers-and-roads) for edits, undo,
+deletion, transparent tracing references, and publication behavior.
+
 Choose **Measure distance**, then add points or use **Trace path** to follow a
 river or road. Separate strokes do not add connecting segments. **Undo** removes
 the last point or stroke; **Clear** removes measurements and sketches. **Done measuring**
@@ -401,7 +411,7 @@ tiny edge loops; choose **Close shape** for larger overlaps. Multiple outlines
 have separate readings; outlines with no usable interior report that area is
 unavailable. All measurements are temporary. The plugin
 reads local images and makes no network requests. Measurements do not rewrite
-notes; town placement in the separate editor writes only on explicit Save.
+notes; town and path authoring in the separate editor writes only on explicit Save.
 Per-map `crop` accepts Photoshop pixels or inclusive hex endpoints and limits
 panning. Polygon masks and dim/hide overlays are no longer supported.
 See [map definitions and calibration](../../docs/maps.md).

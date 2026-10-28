@@ -11,6 +11,7 @@ const bundle=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse
     b.onResolve({filter:/map-view\.mjs$/},()=>({path:'test-renderer',external:true}));
     b.onResolve({filter:/\/tracing-image\.mjs$/},()=>({path:'test-tracing',external:true}));
     b.onResolve({filter:/\/regions\.mjs$/},()=>({path:'test-regions',external:true}));
+    b.onResolve({filter:/\/paths\.mjs$/},()=>({path:'test-paths',external:true}));
     b.onResolve({filter:/\/towns\.mjs$/},()=>({path:'test-towns',external:true}));
   }}]});
 const plain=value=>JSON.parse(JSON.stringify(value));
@@ -34,7 +35,7 @@ function host(){
       const row={config:JSON.parse(figure.dataset.map),figure,disposed:false};renders.push(row);
       const decoration=options?.decorate?.({config:row.config,canvas:figure.querySelector('.map-canvas')});
       return ()=>{row.disposed=true;decoration?.();};
-    }}:name==='test-tracing'?{mountTracingImage:()=>()=>{}}:name==='test-regions'?{mountRegionEditor:()=>()=>{}}:name==='test-towns'?{mountTownPlacement:options=>{placements.push(options);const dispose=()=>{};dispose.updateNote=()=>{};return dispose;}}:require(name)});
+    }}:name==='test-paths'?{mountNotePaths:()=>()=>{}}:name==='test-tracing'?{mountTracingImage:()=>()=>{}}:name==='test-regions'?{mountRegionEditor:()=>()=>{}}:name==='test-towns'?{mountTownPlacement:options=>{placements.push(options);const dispose=()=>{};dispose.updateNote=()=>{};return dispose;}}:require(name)});
   const api=module.exports,feature={app,active:true,editors:new Set(),maps:new Set()};
   return {api,app,feature,document,renders,placements,leaves,revealed,block,get note(){return note;},set delay(value){delay=value;}};
 }

@@ -27,6 +27,10 @@ export class MapEditorView extends ItemView {
       if(this.closed || sequence!==this.sequence || !this.feature.active)return;
       this.editor=mountMapEditor(this.contentEl,{...baseline,image:baseline.config.image,app:this.app,sourcePath:this.state.sourcePath,
         onLayersSaved:()=>{for(const child of this.feature.maps)void child.onload();},
+        onPathSaved:(file,path)=>{
+          for(const child of this.feature.maps)child.paths?.updateNote(file,path);
+          for(const view of this.feature.editors)view.editor?.paths?.updateNote(file,path);
+        },
         onSaved:(file,location)=>{
           for(const child of this.feature.maps)child.towns?.updateNote(file,location);
           for(const view of this.feature.editors)view.editor?.towns?.updateNote(file,location);

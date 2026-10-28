@@ -45,7 +45,7 @@ export function mountTracingImage({L,map,canvas,figure,manifest,loadImage=loadTr
   const origin=button('Align to canvas origin',()=>{x.value='0';y.value='0';scale.value='1';position();});
   const remove=button('Remove tracing image',()=>clear());
   const status=doc.createElement('span');status.className='map-tracing-status';status.setAttribute('role','status');controls.append(status);
-  const help=doc.createElement('small');help.textContent='Temporary reference only. X/Y locate the PNG’s top-left on the Photoshop canvas; scale is canvas pixels per PNG pixel. Draw region borders over it, then save the regions.';controls.append(help);
+  const help=doc.createElement('small');help.textContent='Temporary reference only. X/Y locate the PNG’s top-left on the Photoshop canvas; scale is canvas pixels per PNG pixel. Trace region borders, rivers or roads over it, then save your drawing.';controls.append(help);
   figure.querySelector('figcaption').append(controls);
   // The editor's basemap uses tilePane (200); reference (350) stays below
   // borders/drafts/grid in overlayPane (400) and never intercepts pointer input.

@@ -36,6 +36,12 @@ the existing hashed asset storage and JSON content type; tiles retain the
 existing derivative recipe and URLs. No new binding or storage migration is
 needed. Deploy code before publishing version 2 notes. See [map delivery](maps.md#delivery-and-maintenance).
 
+Local river/road storage update, not yet deployed: `mapPath.source` references
+resolve into validated `mapPathGeometry: {version: 1, points}` on note entries.
+Both snapshot formats retain that data; renderers include it only for available
+notes. Geometry files have no standalone asset route. No binding or storage
+migration is needed; deploy code and republish content to deliver referenced paths.
+
 | Piece | What it does |
 | --- | --- |
 | **Worker: `taelgarverse`** | The program that turns notes into web pages. It chooses what to show for the reader's selected campaign and date. |

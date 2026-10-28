@@ -58,11 +58,11 @@ export function mountRegionEditor({L,map,canvas,figure,manifest,manifestPath,lay
     for(const input of [layerName,regionName,note,color,width,fill,dashed,vertex]){input.parentElement.hidden=!draft;input.disabled=busy || deleting;}
     for(const b of [center,remove,undo,save,del,cancel]){b.hidden=!draft;b.disabled=busy || (deleting && b!==cancel);}
     del.hidden=!draft?.original;confirm.hidden=!deleting;confirm.disabled=busy;
-    canvas.classList.toggle('map-editing-region',!!draft);canvas.classList.toggle('map-editing',!!draft);
+    canvas.classList.toggle('map-editing-region',!!draft);canvas.classList.toggle('map-editing',!!draft || canvas.classList.contains('map-placing-town') || canvas.classList.contains('map-editing-path'));
   }
   function begin(editing){
     if(draft || busy || disposed)return;
-    if(canvas.classList.contains('map-editing') || canvas.classList.contains('map-measuring')){status.textContent='Finish town placement, measurement or sketching first.';return;}
+    if(canvas.classList.contains('map-editing') || canvas.classList.contains('map-measuring')){status.textContent='Finish the current map tool first.';return;}
     const item=choice(),original=editing?item?.layer.regions.find(r=>r.id===existing.value):null;
     if(editing && !original)return;
     draft={item,original,points:structuredClone(original?.points??[])};

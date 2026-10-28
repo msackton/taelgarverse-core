@@ -30,3 +30,11 @@
 .map-tracing-controls input[type="file"] { max-width:20rem; }
 .map-tracing-controls small, .map-tracing-status { flex-basis:100%; }
 .map-tracing-controls [hidden] { display:none; }
+.map-path-editor { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; width:100%; min-width:0; margin:.5rem 0; padding:.6rem; border:1px solid var(--background-modifier-border,#aaa); }
+.map-path-editor label { display:inline-flex; align-items:center; gap:.3rem; }
+.map-path-editor select { max-width:24rem; }
+.map-path-status { flex-basis:100%; }
+.map-path-editor [hidden] { display:none; }
+.map-path-editor button[aria-pressed="true"] { background:var(--interactive-accent,#286b86); color:var(--text-on-accent,#fff); }
+.map-editing-path, .map-editing-path .leaflet-interactive { cursor:crosshair; }
+.map-canvas.map-path-tracing { touch-action:none; }

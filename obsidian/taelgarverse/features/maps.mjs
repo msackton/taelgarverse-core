@@ -6,6 +6,7 @@ import {parseMapBlock,mapFences} from '../../../src/map-block.mjs';
 import {loadObsidianBaseline} from '../maps/manifest.mjs';
 import {MAP_EDITOR_VIEW,MapEditorView,openMapEditor} from '../maps/view.mjs';
 import {mountTownPlacement} from '../maps/towns.mjs';
+import {mountNotePaths} from '../maps/paths.mjs';
 
 export const legacyRenderers=['taelgar-map-tools','obsidian-leaflet-plugin','obsidian-leaflet'];
 export const hasLegacyRenderer=app=>legacyRenderers.some(id=>app.plugins?.enabledPlugins?.has(id));
@@ -42,7 +43,7 @@ class MapChild extends MarkdownRenderChild {
   constructor(plugin,source,container,context){super(container);this.plugin=plugin;this.source=source;this.context=context;this.disposed=false;plugin.maps.add(this);}
   async onload(){
     const sequence=this.sequence=(this.sequence??0)+1;
-    this.dispose?.();this.dispose=null;this.towns=null;
+    this.dispose?.();this.dispose=null;this.towns=null;this.paths=null;
     const element=this.containerEl,doc=element.ownerDocument;
     element.classList.add('taelgar-map-tools');
     try{
@@ -59,7 +60,8 @@ class MapChild extends MarkdownRenderChild {
       this.dispose=mountMap(figure,{openRegionNote:note=>this.plugin.app.workspace.openLinkText(note,this.context.sourcePath,false),decorate:baseline?context=>{
         this.towns=mountTownPlacement({...context,figure,manifest:baseline.manifest,app:this.plugin.app,sourcePath:this.context.sourcePath,
           onSaved:(file,location)=>{for(const child of this.plugin.maps)child.towns?.updateNote(file,location);}});
-        return this.towns;
+        this.paths=mountNotePaths({...context,figure,manifest:baseline.manifest,app:this.plugin.app,sourcePath:this.context.sourcePath});
+        const cleanup=()=>{this.paths();this.towns();};cleanup.update=next=>{this.paths.update(next);this.towns.update(next);};return cleanup;
       }:undefined});
       if(config.version===2){
         this.lineHint=this.context.getSectionInfo?.(element)?.lineStart;

@@ -93,7 +93,7 @@ export function mountTownPlacement({L,map,canvas,config,figure,manifest,app,sour
     symbolPreview.width=18*artwork.width/artwork.height;symbolPreview.height=18;
     center.disabled=cancel.disabled=busy;save.disabled=busy || !point;
     canvas.classList.toggle('map-placing-town',!!session);
-    canvas.classList.toggle('map-editing',!!session || busy || canvas.classList.contains('map-editing-region'));
+    canvas.classList.toggle('map-editing',!!session || busy || canvas.classList.contains('map-editing-region') || canvas.classList.contains('map-editing-path'));
   }
   function end(message=''){
     if(busy)return;session=null;point=null;text.textContent=message;state();draw();

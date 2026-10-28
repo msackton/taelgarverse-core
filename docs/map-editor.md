@@ -242,3 +242,100 @@ all 1,730 default tests and five local integration tests passed with access to
 the working vaults blocked; the Worker package check also passed. Live-vault
 checks are separately opt-in. No website deployment or content publication was
 performed.
+
+## Rivers and roads
+
+Choose **Draw or edit river / road** and select the feature's vault note. The
+picker searches all Markdown notes so it also works with existing `waterway`,
+`road`, or custom note classifications. A waterway/river note defaults to River;
+otherwise choose the appropriate **Path kind**. Opening a note with a saved
+`mapPath` loads that path and its importance.
+
+Click points along the feature, or enable **Trace river / road** and drag with a
+mouse, pen or finger. Tracing appends to the current endpoint; switch it off to
+pan or move individual points. Each drag is one Undo action. The preview updates
+once per display frame and retains accepted pointer samples (subpixel jitter is
+ignored). A cancelled gesture or zoom during a drag discards only that unfinished
+stroke. Zoom buttons remain available between strokes.
+
+Select a **Path vertex** and click to move it, choose **Remove path point**, or
+choose **Redraw path** to start over. **Undo path edit** restores the previous
+geometry, up to 100 edits. **Save path** saves the geometry file and patches only
+`mapPath` in the selected note; **Cancel path** or Escape discards the draft. Deletion requires **Delete
+saved path**, then **Confirm path deletion**. Open note buffers and concurrent
+edits use the same guarded save workflow as town positions. A failed save keeps
+the draft. Other map authoring and measurement tools cannot run concurrently.
+
+The note stays small, regardless of how many points are drawn:
+
+```yaml
+mapPath:
+  kind: river
+  importance: regional
+  source: "_maps/paths/example-river.map-path.json"
+```
+
+The referenced JSON file contains geometry only:
+
+```json
+{
+  "version": 1,
+  "points": [
+    [5681.25, 7601.5],
+    [5700, 7640],
+    [5750.75, 7660.25]
+  ]
+}
+```
+
+`kind` is `river` or `road`. `source` is an exact **vault-root-relative** filename,
+including `.map-path.json`, not a note-relative path or wikilink. New editor saves
+create `_maps/paths/<note-name>-<unique-id>.map-path.json`; subsequent saves reuse
+that file. Moving the note does not break its root-relative reference. The editor
+forks a new geometry file if another note also references the existing file.
+The path is reloaded when its geometry file changes.
+
+Points use **original Photoshop canvas pixels**, with X right and Y down,
+independent of this map's crop or PNG export offset. Paths need 2–10,000 points;
+consecutive duplicates are invalid. A path is an open polyline: crossings and
+deliberately drawn loops are allowed, but Save adds no closing edge. Each note
+owns one continuous path; use separate feature notes for separate branches.
+The editor preserves portions outside the current export, all coordinate
+precision, and one point pair per JSON line. It does not simplify the geometry.
+See the [note field schema](../schemas/map-path.schema.json) and
+[geometry schema](../schemas/map-path-geometry.schema.json).
+
+Existing inline `mapPath.points` still renders and opens in the editor. The next
+explicit Save moves the points to a geometry file and replaces them with `source`.
+A definition must contain either `points` or `source`, never both. Opening a map
+or cancelling a draft does not migrate anything.
+
+Save guards both the note field and geometry file against concurrent edits. If
+updating the note fails after changing an existing geometry file, a guarded
+rollback restores the previous geometry unless someone has edited it again.
+If attaching a newly created file fails, the error gives its recovery filename
+and retains the draft. **Delete saved path** removes the note reference and
+keeps the geometry file for recovery; unused files are not automatically deleted.
+
+**Path importance** uses exactly the settlement thresholds: World at all zooms,
+Regional at the readable 24-mile scale, Local (default) at the 9-mile scale, and
+Detail at the 3-mile scale. This works with grid lines hidden too. Drafts stay
+visible while editing. Rivers use blue strokes and roads brown strokes; the
+strokes retain their screen width during zoom.
+
+Saved paths appear in Obsidian embeds and the editor, clipped to each map crop.
+Hover for the note name or click to open it. No layer checkboxes are added.
+Transparent PNG references can be used beneath either drawing tool. Path geometry
+stays mounted through pan/zoom; only importance groups change visibility on zoom.
+
+Published version 2 maps also draw `mapPath` metadata and link to the feature's
+page. They include only notes available in the current date/campaign/POV context;
+excluded notes contribute no geometry. Invalid inline metadata is skipped with a render warning. Missing, malformed,
+excluded or changed geometry files block publication with the note/source named.
+The publisher copies explicitly referenced geometry from `_maps` and embeds its
+validated points with note data; it does not create public geometry download URLs.
+`.nopublish` boundaries and symlinks cannot be bypassed by a reference. Changes to
+geometry invalidate publication even if Git ignores that file. Publishing the
+changed vault notes and geometry updates website paths; building or
+releasing the plugin alone does not publish them. Legacy map blocks do not
+interpret original-canvas path coordinates.
