@@ -35,6 +35,8 @@ After `npm ci`, use one of these commands from core:
 | `npm test` | Runs the automated suite using frozen core fixtures; no vault or Obsidian required. |
 | `npm test -- --live-vault` | Explicitly checks configured live notes and the installed Dataview bundle against test references. Read-only; separate from CI. |
 
+Photoshop export is a separate local command. Install `scripts/map-export/requirements.txt`, then run `python scripts/map-export/export_core.py --source PATH/TO/MAP.psb --output PATH/PREFIX`. It writes `PREFIX.png` and `PREFIX.map.json` without publishing or installing anything. See [export setup and options](map-baseline-progress.md#reproduce-locally).
+
 Both previews use http://127.0.0.1:8765/. Add `--port 8766` if needed.
 Use `--vault PATH` or `--config FILE` to select local inputs without changing
 shared defaults. `--plugin` can be combined with `--full`. Quick preview uses

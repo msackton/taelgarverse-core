@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://taelgarverse.com/schemas/map-manifest.schema.json",
+  "title": "Photoshop map export",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "image",
+    "sourceOffset"
+  ],
+  "properties": {
+    "version": {
+      "const": 2
+    },
+    "image": {
+      "type": "string",
+      "description": "PNG path relative to this manifest; dimensions come from the PNG.",
+      "pattern": "^(?!/)(?!.*(?:[:?#\\\\]|\\.\\.))[^\\u0000-\\u001f]+\\.png$"
+    },
+    "sourceOffset": {
+      "type": "array",
+      "description": "Export top-left in Photoshop canvas pixels.",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 100000
+      }
+    }
+  }
+}

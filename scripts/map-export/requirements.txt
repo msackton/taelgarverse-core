@@ -1,0 +1,6 @@
+# Supported exporter environment: CPython 3.11, 64-bit.
+# Reproducible development environment; no runtime version lock.
+psd-tools==1.26.0
+Pillow==12.0.0
+numpy==2.3.4
+attrs==26.1.0
