@@ -819,10 +819,22 @@ or inclusive `topLeft`/`bottomRight` hex references, independent of the export. 
 contains only format version, relative PNG filename and `sourceOffset`; PNG
 dimensions are decoded. Old draft `coordinateFrame` blocks require conversion
 as described in [the baseline guide](map-baseline-progress.md#older-drafts). Blocks and hexes have no
-printed labels; hover/select/copy provides references. Retired `overlays`
+printed labels; hover/select/copy provides references. Use **Open map editor** in
+Obsidian for town placement. Embedded maps remain viewers. Retired `overlays`
 fields are ignored; masks, dimming and hide-content editing are removed. Publication validates the manifest/image
-pair and shares one tile pyramid across crops. See [manifest delivery](maps.md#delivery-and-maintenance). Ordinary JSON files
+pair and shares one tile pyramid across crops. See [map editor](map-editor.md)
+and [manifest delivery](maps.md#delivery-and-maintenance). Ordinary JSON files
 remain excluded; `.map.json` is the specific additional supported asset suffix.
+
+The development Obsidian plugin also offers **Place town** in the separate map editor.
+Choose an existing note with `typeOf: settlement`, click a position and
+explicitly save. Only settlement notes appear in the picker. Its `mapLocation`
+frontmatter contains numeric Photoshop `x` and `y`, a fourth-level slash
+`hex` reference, and an `importance` tier (`world`, `regional`, `local`, or
+`detail`). Local is the default; increasing map detail reveals less prominent
+markers. Exact pixels are authoritative and independent of export crops.
+The plugin displays these notes as markers, excluding points outside the crop. Other note fields and prose are preserved. The website does not yet
+render these town markers. See [town placement](map-editor.md#place-towns).
 
 Other images may be made smaller during publication. See
 [image settings](deploy.md#image-settings).

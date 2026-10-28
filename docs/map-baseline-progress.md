@@ -62,7 +62,7 @@ source: "[[assets/maps/taelgar-core.map.json]]"
 ````
 
 Optional `crop` and `grid` settings live in the note. Crops accept Photoshop
-pixels or inclusive hex endpoints; see [map delivery](maps.md#delivery-and-maintenance). The viewer
+pixels or inclusive hex endpoints; see [per-map crops](map-editor.md#per-map-crop). The viewer
 subtracts the export offset for display. A later export with different coverage
 preserves these positions; only the intersection with the available image is
 shown. A crop completely outside that image produces an error. Saved geometry
@@ -105,7 +105,8 @@ To inspect an export, pass its same file prefix to `--export`:
 node scripts/preview-map-baseline.mjs --export .cache/map-baseline/my-export
 ```
 
-The viewer defaults to port 8878 and offers navigation, measurement and the optional grid.
+The viewer defaults to port 8878. The separate editor runs in Obsidian; the
+former browser `--editor` harness is retired.
 
 ## Locator numbering and export bounds
 
@@ -185,7 +186,55 @@ manifests and frame-bearing blocks rather than guessing their coordinate system.
 
 ## Checks and rollout
 
-Run `npm test`, `.venv-map-lab/Scripts/python.exe tests/map-export.test.py`,
-and `node scripts/cloudflare.mjs check`. Publication checks use local R2/D1
-emulators with `npm test -- --integration`. Deploy website code before
-publishing version 2 map content; plugin installation and releases are separate.
+Town placement is available in the separate development Obsidian map editor: choose **Place
+town**, select a note, click and save. Its `mapLocation` stores exact Photoshop
+X/Y plus a depth-four reference. The plugin shows saved markers on compatible
+maps, using the saved `importance` tier to reveal them at appropriate zooms.
+World is always visible, Regional starts at the 24-mile grid scale, Local
+(default) at the first subdivision, and Detail at the second. Draft markers
+remain visible during placement. Website marker delivery remains separate work. See
+[town placement](map-editor.md#place-towns). The 2026-10-27 town update passes
+1,732 JavaScript tests, including atomic/live-buffer saves, cancel/conflict
+behavior and marker visibility. A browser-only demo verified placement and saved
+YAML without modifying real town notes. The Worker dry-run package check passed;
+the rebuilt plugin is installed in `D:\personal\taelgar`, with settings and the
+demo note unchanged. Reload Taelgarverse or restart Obsidian to activate it.
+
+Town markers now offer seven source symbols, defaulting to the burgundy square.
+The **Symbol** selector previews and saves `mapLocation.symbol`, with direct
+frontmatter editing also supported. Symbol-only edits keep the exact position
+and importance; missing or unknown values render as a filled square.
+Seven transparent
+native variants were extracted from `/points-of-interest/locations`; their
+source rectangles, hashes and regeneration command are recorded in
+[map-symbols](../public/images/map-symbols/README.md). Drafts outline the same
+symbol in blue. Placement, visibility and self-contained plugin checks pass
+(25 targeted tests); a browser demo verifies the selector, rendered artwork,
+note save and restored choice when reopening placement.
+
+The 2026-10-27 hierarchy update passes the full JavaScript suite, focused
+ownership/geometry tests, Python exporter tests and the Worker dry-run package
+check. Browser review verified all four subdivision levels, matching tile/PNG
+references and clipboard copying. The local plugin was rebuilt and installed
+into `D:\personal\taelgar`, preserving settings, the enabled-plugin list and the
+demo note. Reload the plugin or restart Obsidian to activate it.
+
+The current editor is a separate Obsidian tab; embeds retain rectangular crops
+and viewer controls. Polygon masks, dimming and hide-content controls are removed.
+Shared border/region layer authoring remains future work.
+
+Python tests cover layer selection, unknown-layer warnings, hidden source layers,
+unsupported composition, exact crop pixels, generic overrides and locator fixtures.
+JS tests cover town saves and pixel/hex crops, changing export coverage,
+grid references, Node/Worker publication, and Obsidian loading. The local 636×501
+sample at `[5605,7180]` was pixel-identical to the same region of the prior export.
+
+Run `npm test`, `.venv-map-lab/Scripts/python.exe tests/map-export.test.py`, and
+`node scripts/cloudflare.mjs check`. Publication checks use the local emulator:
+`node --test tests/publish-r2.integration.mjs`.
+
+Install locally with `npm run dev -- --plugin --vault D:/personal/taelgar`.
+Deploy website code before publishing new map content; plugin releases are
+independent. Production writes and pushes require the permissions in `AGENTS.md`.
+The user manages the vault export and test note. No production rollout is implied
+by these local changes or the development plugin install.

@@ -68,7 +68,17 @@ endpoints must share a depth and be ordered in Photoshop X/Y; their center
 rectangle is expanded by the rotated cell envelope. Legacy 6-mile dot references
 are retained only as exporter compatibility, never reinterpreted as slash paths.
 
-## Delivery
+## Editor and delivery
+
+The Obsidian map editor is a separate workspace tab using the full exported
+source. Embedded maps have viewer controls and an editor-opening button.
+Town placement and its importance/symbol controls live in the editor; Save
+patches only the town's guarded `mapLocation`, preserving other metadata and
+live editor text. Opening or viewing never writes a note. Existing source tabs
+are reused without resetting their town draft. Workspace restoration remembers
+the source; unsaved drafts are temporary. Shared line/region layer authoring is
+future work; it will not use the retired per-map mask system.
+See [editor details](map-editor.md).
 
 Website preparation resolves exact manifest/image paths, decodes the PNG, validates
 geometry and generates reusable full-image tile pyramids. Snapshot metadata keeps

@@ -1,0 +1,16 @@
+.taelgar-map-editor { display:flex; flex-direction:column; height:100%; min-height:360px; color:var(--text-normal,#26352f); }
+.taelgar-map-editor h2 { margin:0 0 .25rem; }
+.taelgar-map-editor .map-editor-help { margin:0 0 .5rem; }
+.map-editor-map { display:flex; flex-direction:column; flex:1; min-height:0; margin:0; }
+.map-editor-map .map-canvas { flex:1; min-height:240px; width:100%; height:auto; }
+.map-editor-map figcaption { flex:none; max-height:40%; overflow:auto; }
+.map-canvas.map-placing-town { cursor:crosshair; }
+.map-town-controls { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; flex-basis:100%; margin-top:.5rem; }
+.map-town-controls [hidden] { display:none !important; }
+.map-town-status { font-size:.9em; overflow-wrap:anywhere; }
+.map-town-symbol { display:inline-flex; align-items:center; gap:.4rem; }
+.map-town-symbol img { width:auto !important; height:18px !important; max-width:none !important; pointer-events:none; }
+.map-town-marker { display:flex; align-items:center; justify-content:center; background:transparent; border:0; }
+.map-town-marker img { display:block; width:auto !important; height:var(--map-town-icon-height,18px) !important; max-width:none !important; max-height:none !important; pointer-events:none; user-select:none; }
+.map-town-marker-draft::after { content:''; position:absolute; inset:1px; border:2px dashed #126c9a; border-radius:3px; pointer-events:none; }
+.map-town-marker:focus-visible { outline:2px solid #126c9a; outline-offset:1px; }

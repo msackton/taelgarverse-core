@@ -380,9 +380,14 @@ See [publishing pipelines](../../docs/publishing-pipelines.md).
 
 ## Measure maps
 
-Version 2 maps resolve local PNG/manifest pairs in original Photoshop coordinates.
-Per-map `crop` accepts pixels or inclusive hex endpoints and limits panning.
-The optional adaptive block/hex grid exposes references without printed labels.
+Development version 2 maps offer **Open map editor**, which opens a separate tab.
+Use **Place town** there: choose an existing note,
+click the map and **Save town position**. The note stores exact Photoshop pixels
+and a depth-four slash hex reference in `mapLocation`. Saved towns reappear as
+clickable markers; choose the note again to move its point or change its
+**Importance**. World, Regional, Local (default), and Detail tiers reveal markers
+at progressively closer zooms. Other note contents
+are preserved. See [town placement](../../docs/map-editor.md#place-towns).
 
 Choose **Measure distance**, then add points or use **Trace path** to follow a
 river or road. Separate strokes do not add connecting segments. **Undo** removes
@@ -395,7 +400,10 @@ keeping the larger enclosed region. Automatic measurement closure corrects only
 tiny edge loops; choose **Close shape** for larger overlaps. Multiple outlines
 have separate readings; outlines with no usable interior report that area is
 unavailable. All measurements are temporary. The plugin
-reads local images, makes no network requests, and does not rewrite notes.
+reads local images and makes no network requests. Measurements do not rewrite
+notes; town placement in the separate editor writes only on explicit Save.
+Per-map `crop` accepts Photoshop pixels or inclusive hex endpoints and limits
+panning. Polygon masks and dim/hide overlays are no longer supported.
 See [map definitions and calibration](../../docs/maps.md).
 
 Choose **Sketch** to draw temporary shapes without measurement readings. It

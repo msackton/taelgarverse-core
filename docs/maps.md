@@ -162,7 +162,8 @@ accept per-map rectangular crops in Photoshop pixels or inclusive hex endpoints.
 **Fit map**, zoom-out limits and pan bounds use that crop. Image/tile clipping
 stays attached during dragging and animated zoom; grid edges are clipped too.
 Polygon masks and dim/hide overlays are retired. Old `overlays` fields are ignored.
-Production rollout is separate; legacy blocks are unchanged.
+The separate [Obsidian editor](map-editor.md) authors town locations using the
+full exported image. Production rollout is separate; legacy blocks are unchanged.
 Baseline views fit in quarter zoom steps and use half-step zoom buttons.
 The source raster's slightly compressed horizontal hex spacing is measured and
 documented there. The user chose regular geometry with accepted drift. New exports
@@ -192,6 +193,17 @@ stable even where a child crosses its parent's outline. See
 [seven-child numbering](map-baseline-progress.md#seven-child-hex-families) for
 geometry, export bounds and the distinction between ownership and containment.
 Baseline maps default to maximum zoom 6 so the fourth level is reachable.
+
+The development Obsidian plugin offers **Place town** in its separate editor tab. It saves exact
+Photoshop X/Y and a depth-four reference in the town note's `mapLocation` field,
+then displays a clickable native Photoshop marker. The note's `symbol` selects
+one of seven extracted shapes, defaulting to `square`; the placement controls
+offer a **Symbol** selector with a preview. Its saved `importance` controls visibility:
+World at overview, Regional at the 24-mile grid scale, Local (default) at the
+first subdivision, and Detail at the second. Thresholds apply with grid lines
+on or off; closer zooms retain already visible features. Placement runs outside the read-only embeds
+and requires an explicit Save. Website town-marker delivery is not implemented.
+See [town placement and persistence](map-editor.md#place-towns).
 
 For each segment, the renderer first undoes the display bounds' horizontal and
 vertical scaling to recover source-pixel differences. It multiplies those by

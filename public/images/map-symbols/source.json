@@ -1,0 +1,109 @@
+{
+  "source": "taelgar-basemap.psb",
+  "sourceSha256": "4828acc34ac4d6a6e758316d795e84bb15100ff8654c06fe1189b187acc13862",
+  "sourceSize": [
+    14400,
+    14400
+  ],
+  "layer": "/points-of-interest/locations",
+  "symbols": {
+    "square": {
+      "image": "square.png",
+      "sourceRect": [
+        5196,
+        6867,
+        5223,
+        6896
+      ],
+      "size": [
+        27,
+        29
+      ],
+      "sha256": "5d97817feea9cc649ab9aeb5554f6ff6e2693cfd8789f023551ddd5b6f68e18a"
+    },
+    "open-square": {
+      "image": "open-square.png",
+      "sourceRect": [
+        9209,
+        4400,
+        9232,
+        4423
+      ],
+      "size": [
+        23,
+        23
+      ],
+      "sha256": "ca9345f51cd81e639bc695a1ddc9138f552d1fe492d742389a2db078d897f5d5"
+    },
+    "diagonal-square": {
+      "image": "diagonal-square.png",
+      "sourceRect": [
+        6868,
+        4789,
+        6911,
+        4832
+      ],
+      "size": [
+        43,
+        43
+      ],
+      "sha256": "2e05332886c950f6ecb3c16c07a52b75df15cc7738dcfe467bcf6b01c3742eec"
+    },
+    "crossed-square": {
+      "image": "crossed-square.png",
+      "sourceRect": [
+        6489,
+        8662,
+        6532,
+        8705
+      ],
+      "size": [
+        43,
+        43
+      ],
+      "sha256": "0fa865d20322160925aea11d4def7f4cb87e44dfa108d26ae0b71ff70b5639e4"
+    },
+    "dot": {
+      "image": "dot.png",
+      "sourceRect": [
+        5595,
+        6900,
+        5620,
+        6926
+      ],
+      "size": [
+        25,
+        26
+      ],
+      "sha256": "c2740feb2af0b890d706e4ffc25e5c0ee36b080520ed1876b062a7acb9bc462f"
+    },
+    "triangle": {
+      "image": "triangle.png",
+      "sourceRect": [
+        4444,
+        4304,
+        4464,
+        4325
+      ],
+      "size": [
+        20,
+        21
+      ],
+      "sha256": "158e3dd394851414b6f0cbc23eedb7d03b5dfbcb1bd2722d814333ee88ac03be"
+    },
+    "gate": {
+      "image": "gate.png",
+      "sourceRect": [
+        8865,
+        4380,
+        8885,
+        4396
+      ],
+      "size": [
+        20,
+        16
+      ],
+      "sha256": "50b81c1dd4777220a0810b8a68a7c50e48fc4f13bb15db4a8681aea3c8b7ea83"
+    }
+  }
+}

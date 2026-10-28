@@ -48,7 +48,10 @@ Both corners accept full hex addresses, such as `04.04.H.07`; missing suffixes
 mean `.A.01` or `.01`. To export a whole block, end at its `.I.24`.
 See [baseline setup](map-baseline-progress.md#reproduce-locally) for the pinned
 Python exporter, source prerequisites, limitations and checks. It does not
-publish content or install the plugin.
+publish content or install the plugin. Authoring opens in a separate Obsidian
+tab; the former browser `--editor` harness is retired.
+The development Obsidian bundle supports version 2 blocks and guarded town saves;
+see [editor workflow and release limitations](map-editor.md).
 
 Version 2 manifest maps now work through both normal website preview and full
 local publication. Keep the exported PNG and matching `.map.json` together in a

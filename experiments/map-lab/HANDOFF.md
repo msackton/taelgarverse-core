@@ -1,7 +1,7 @@
 # Taelgar map baseline handoff
 
 Current behavior and commands live in [the baseline guide](../../docs/map-baseline-progress.md),
-[the contract](../../docs/taelgar-map-baseline-spec.md).
+[the contract](../../docs/taelgar-map-baseline-spec.md), and [the editor guide](../../docs/map-editor.md).
 
 The production implementation uses a boolean layer recipe, native Photoshop
 pixels, and a three-field version 2 manifest. Notes save Photoshop canvas
