@@ -18,7 +18,8 @@ export function createServer(engine) {
   const imageCache = path.join(ROOT,'.cache/images');
   const imageUsages = collectImageUsages(engine.store,{homeSource:engine.home,campaignHomes:Object.fromEntries([...engine.campaignSites.byHost].map(([host,site])=>[host,site.note]))});
   let mapsReady;
-  const ready = () => mapsReady ??= prepareMaps(engine.store,mapCache).catch(error=>{mapsReady=undefined;throw error;});
+  const ready = () => mapsReady ??= prepareMaps(engine.store,mapCache,undefined,{strict:false,homeSource:engine.home,
+    campaignHomes:Object.fromEntries([...engine.campaignSites.byHost].map(([host,site])=>[host,site.note]))}).catch(error=>{mapsReady=undefined;throw error;});
   const server=http.createServer(async(req,res)=>{
     try {
       const request=new Request(new URL(req.url,'http://'+(req.headers.host || 'localhost')),{method:req.method,headers:req.headers});

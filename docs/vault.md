@@ -810,6 +810,20 @@ images or invalid definitions produce a map warning without breaking the article
 Markers, switchable overlays, and navigation between maps remain
 future work; the website does not execute Obsidian Leaflet plugin scripts.
 
+Version 2 `taelgar-map` blocks can instead reference a quoted `.map.json` wikilink
+in `source`. Keep the manifest and
+its relative PNG together under a publishable assets folder. Both the website
+and development plugin use the shared fixed 0.6 miles/pixel scale and the
+note's optional `crop` and `grid` settings. Crops use original Photoshop pixels
+or inclusive `topLeft`/`bottomRight` hex references, independent of the export. The manifest
+contains only format version, relative PNG filename and `sourceOffset`; PNG
+dimensions are decoded. Old draft `coordinateFrame` blocks require conversion
+as described in [the baseline guide](map-baseline-progress.md#older-drafts). Blocks and hexes have no
+printed labels; hover/select/copy provides references. Retired `overlays`
+fields are ignored; masks, dimming and hide-content editing are removed. Publication validates the manifest/image
+pair and shares one tile pyramid across crops. See [manifest delivery](maps.md#delivery-and-maintenance). Ordinary JSON files
+remain excluded; `.map.json` is the specific additional supported asset suffix.
+
 Other images may be made smaller during publication. See
 [image settings](deploy.md#image-settings).
 

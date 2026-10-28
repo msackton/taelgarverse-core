@@ -10,6 +10,7 @@ import {leadingBioBlock,hasPrecedingH1} from '../../../src/bio-block.mjs';
 import {scanFencedCodeBlocks,applyReplacements,prefixMarkdownLines} from '../../../src/markdown-fences.mjs';
 import {indexMarkdown,interactionsMarkdown} from '../../../src/static-markdown.mjs';
 import {DATAVIEW_EXPORT_VERSION} from '../../../src/dataview-export.mjs';
+import {parseMapBlock} from '../../../src/map-block.mjs';
 
 // The old static site retains its Dataview/CustomJS behavior. Native blocks are
 // resolved through the same models as the desktop features before that pass.
@@ -65,6 +66,7 @@ export class MaterializerFeature extends LegacyMaterializer {
         if(!block.closed)throw new Error('Unclosed '+block.language+' block.');
         let markdown;
         if(block.language==='taelgar-map') {
+          if(parseMapBlock(block.body).version===2)throw new Error('Version 2 manifest maps require the Taelgarverse renderer; static Leaflet conversion is unsupported.');
           const text=original.slice(block.start,block.end).replace(/^([ \t>]*[`~]{3,})taelgar-map\b/i,'$1leaflet');
           replacements.push({start:block.start,end:block.end,text});maps++;continue;
         } else {

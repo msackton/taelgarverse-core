@@ -56,7 +56,7 @@ function host(){
     map(){maps++;return {invalidateSize(){},setMinZoom(){},setView(){},fitBounds(){},on(){},off(){},remove(){removed++;},doubleClickZoom:handler(),dragging:handler(),touchZoom:handler(),boxZoom:handler()};},
     imageOverlay(){return {on(){return this;},addTo(){return this;}};},layerGroup(){return {addTo(){return this;},clearLayers(){}};}};
   const cm=codeMirrorHost();
-  const module={exports:{}},context={module,exports:module.exports,Buffer,TextDecoder,TextEncoder,console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},
+  const module={exports:{}},context={module,exports:module.exports,Buffer,TextDecoder,TextEncoder,structuredClone,crypto:globalThis.crypto,console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},
     ResizeObserver:class{observe(){}disconnect(){disconnected++;}},
     require:name=>name==='obsidian'?{Plugin,Component,ItemView:class{},PluginSettingTab:class{},Setting:class{},Notice:class{},MarkdownRenderChild,TFile}:name==='leaflet'?L:
       name==='@codemirror/view'?cm.view:name==='@codemirror/state'?cm.state:require(name)};
@@ -65,10 +65,24 @@ function host(){
   const app={workspace:{on(){return {};},onLayoutReady(fn){fn();},iterateAllLeaves(){}},
     metadataCache:{getFirstLinkpathDest:(image,source)=>{assert.equal(image,'local map.png');assert.equal(source,'Places/Map.md');return file;}},
     vault:{readBinary:async()=>{reads++;if(fail)throw new Error('read failed');if(resolve)return await new Promise(r=>{resolve=r;});return Uint8Array.from([1,2,3,4]).buffer;},getResourcePath:()=> 'app://local/assets/local%20map.png'}};
-  return {...module.exports,doc,app,file,get reads(){return reads;},set fail(value){fail=value;},
+  return {...module.exports,TFile,doc,app,file,get reads(){return reads;},set fail(value){fail=value;},
     defer(){resolve=true;},release(){resolve(Uint8Array.from([1,2,3,4]).buffer);},get counts(){return {maps,removed,disconnected};}};
 }
 const source='image: [[local map.png]]\nbounds: [[0,0],[100,200]]\nunit: miles\nscale: 0.5\n';
+
+test('Obsidian v2 loader resolves the manifest image exactly and decodes PNG dimensions and translates Photoshop coordinates',async()=>{
+  const h=host(),sharp=(await import('sharp')).default,bytes=await sharp({create:{width:600,height:400,channels:3,background:'white'}}).png().toBuffer();
+  const manifest={version:2,image:'core.png',sourceOffset:[1000,2000]};
+  const manifestFile=new h.TFile('assets/maps/core.map.json'),image=new h.TFile('assets/maps/core.png');
+  h.app.metadataCache.getFirstLinkpathDest=(target,sourcePath)=>{assert.equal(target,'assets/maps/core.map.json');assert.equal(sourcePath,'Places/Map.md');return manifestFile;};
+  h.app.vault.getAbstractFileByPath=target=>{assert.equal(target,'assets/maps/core.png');return image;};
+  h.app.vault.read=async()=>JSON.stringify(manifest);h.app.vault.readBinary=async()=>bytes;
+  const block='version: 2\nsource: "[[assets/maps/core.map.json]]"\ncrop: {x: 1100, y: 2100, width: 200, height: 200}\n';
+  const config=await h.obsidianMapConfig(h.app,block,'Places/Map.md',new Map());assert.equal(config.version,2);assert.equal(config.crop.x,100);assert.equal(config.measurement.xScale,.6);
+  await assert.rejects(h.obsidianMapConfig(h.app,block+'coordinateFrame: old-frame\n','Places/Map.md',new Map()),/Old coordinateFrame/);
+  manifest.sourceOffset=[-1,0];await assert.rejects(h.obsidianMapConfig(h.app,block,'Places/Map.md',new Map()),/sourceOffset/);manifest.sourceOffset=[1000,2000];
+  h.app.vault.readBinary=async()=>Buffer.from('changed');await assert.rejects(h.obsidianMapConfig(h.app,block,'Places/Map.md',new Map()),/PNG/);
+});
 
 test('Obsidian adapter resolves authored image links, hashes original bytes, caches per revision, and uses local resource URLs',async()=>{
   const h=host(),cache=new Map();

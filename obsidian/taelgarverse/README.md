@@ -380,6 +380,10 @@ See [publishing pipelines](../../docs/publishing-pipelines.md).
 
 ## Measure maps
 
+Version 2 maps resolve local PNG/manifest pairs in original Photoshop coordinates.
+Per-map `crop` accepts pixels or inclusive hex endpoints and limits panning.
+The optional adaptive block/hex grid exposes references without printed labels.
+
 Choose **Measure distance**, then add points or use **Trace path** to follow a
 river or road. Separate strokes do not add connecting segments. **Undo** removes
 the last point or stroke; **Clear** removes measurements and sketches. **Done measuring**

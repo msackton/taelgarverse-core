@@ -28,6 +28,14 @@ For preview, CI, publication, and account setup, see [Development and publicatio
 
 ## The pieces
 
+Development change, not yet deployed: version 2 maps carry validated
+`mapManifest` metadata (version 2, relative PNG path, Photoshop source offset)
+on manifest asset entries and `mapImageInfo` (PNG format, decoded width/height) on their image entries. Both `index.json` and
+compiled render metadata retain these fields. Original `.map.json` files use
+the existing hashed asset storage and JSON content type; tiles retain the
+existing derivative recipe and URLs. No new binding or storage migration is
+needed. Deploy code before publishing version 2 notes. See [map delivery](maps.md#delivery-and-maintenance).
+
 | Piece | What it does |
 | --- | --- |
 | **Worker: `taelgarverse`** | The program that turns notes into web pages. It chooses what to show for the reader's selected campaign and date. |

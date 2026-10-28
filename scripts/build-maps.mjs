@@ -3,6 +3,8 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import sharp from 'sharp';
 import {mapImages} from '../src/maps.mjs';
+import {resolveMapSource} from '../src/map-core.mjs';
+import {baselineViewConfig} from '../src/map-block.mjs';
 import {animatedPNG} from './optimize-images.mjs';
 
 const tileSize = 512, quality = 85;
@@ -57,16 +59,48 @@ async function pyramid(input, metadata, bounds, cacheDir, derivativeCache) {
   return {files,tile:{bounds,width,height,tileSize,minNativeZoom,maxNativeZoom,baseUrl:'/assets/map-tiles/'+key}};
 }
 
-export async function prepareMaps(store, cacheDir, derivativeCache) {
+export async function prepareMaps(store, cacheDir, derivativeCache, sources={}) {
   const generated = [];
-  for (const {entry,config} of mapImages(store)) {
+  const verified=new Map(),strict=sources.strict!==false;
+  for (const map of mapImages(store,{...sources,strict})) {
+    const {entry,manifest,manifestEntry,block}=map;
+    let {config}=map;
     const input = await fs.readFile(entry.filename);
-    if (!entry.sha256) entry.sha256 = createHash('sha256').update(input).digest('hex');
+    if (manifest || !entry.sha256) entry.sha256 = createHash('sha256').update(input).digest('hex');
+    let metadata;
+    if(manifest){
+      delete manifestEntry.mapValidationError;
+      try {
+        metadata=verified.get(entry.sha256);
+        if(!metadata){
+          // Force a full PNG decode, not just an IHDR read, before publishing a
+          // calibrated image. This also rejects truncated or corrupt pixel data.
+          const decoder=sharp(input,{limitInputPixels:250_000_000,failOn:'warning'});
+          metadata=await decoder.metadata();await decoder.stats();
+          verified.set(entry.sha256,metadata);
+        }
+        if(metadata.format!=='png' || (metadata.pages || 1)>1 || animatedPNG(input))
+          throw new Error('Decoded map image must be a static PNG');
+        entry.mapImageInfo={format:'png',width:metadata.width,height:metadata.height};
+      }catch(error){
+        manifestEntry.mapValidationError=error.message;
+        if(strict)throw new Error(manifestEntry.id+': '+error.message);
+        const warning=manifestEntry.id+': '+error.message;
+        if(!store.warnings.includes(warning))store.warnings.push(warning);
+        continue;
+      }
+      try { config=baselineViewConfig(block,resolveMapSource(manifest,entry.mapImageInfo),''); }
+      catch(error){
+        if(strict)throw new Error(manifestEntry.id+': '+error.message);
+        const warning=manifestEntry.id+': '+error.message;
+        if(!store.warnings.includes(warning))store.warnings.push(warning);
+        continue;
+      }
+    }
     // Bounds describe display coordinates, not the download or decoded size.
     // Keep arbitrary nonzero-origin bounds as image overlays.
     if (config.bounds[0].some(Boolean)) continue;
-    let metadata;
-    try { metadata = await sharp(input).metadata(); }
+    try { metadata ??= await sharp(input).metadata(); }
     catch (error) {
       if (!/unsupported image format|corrupt|invalid.*header|bad.*header|premature end/i.test(error.message)) throw error;
       const warning = 'Map tiles omitted for undecodable image: ' + entry.id;

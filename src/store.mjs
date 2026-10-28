@@ -1,8 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import {createHash} from 'node:crypto';
 import {isInside,targetPath,titleCase} from './config.mjs';
 import {ContentStore,parseNote,ASSET_TYPES} from './content-store.mjs';
 import {NO_PUBLISH_MARKER,readFolderExclusions} from './folder-exclusions.mjs';
+import {validateManifest} from './map-core.mjs';
 export * from './content-store.mjs';
 
 export class Store extends ContentStore {
@@ -23,8 +25,17 @@ export class Store extends ContentStore {
           continue;
         }
         const extension = path.extname(file.name).toLowerCase();
-        if (extension !== '.md' && !ASSET_TYPES.has(extension)) continue;
+        const mapManifest = file.name.endsWith('.map.json');
+        if (extension !== '.md' && !ASSET_TYPES.has(extension) && !mapManifest) continue;
         const entry = {id: relative, filename, target: targetPath(relative), extension, note: null};
+        if (mapManifest) {
+          try {
+            const bytes=fs.readFileSync(filename);
+            entry.mapManifest=validateManifest(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)));
+            entry.sha256=createHash('sha256').update(bytes).digest('hex');
+          }
+          catch (error) { entry.mapManifestError=error.message; }
+        }
         if (extension === '.md') {
           try {
             entry.note = parseNote(new TextDecoder('utf-8', {fatal: true}).decode(fs.readFileSync(filename)));

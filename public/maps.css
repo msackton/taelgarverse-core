@@ -17,4 +17,9 @@
 .article-main .leaflet-container img { max-width:none !important; max-height:none !important; margin:0; border-radius:0; }
 .article-main .leaflet-control-zoom a { text-decoration:none; color:#333; }
 .map-canvas:focus-visible { outline:3px solid #287c79; outline-offset:3px; }
+.map-grid-controls { display:inline-flex; align-items:center; flex-wrap:wrap; gap:.5rem; }
+.map-grid-controls label { display:inline-flex; align-items:center; gap:.2rem; cursor:pointer; }
+.map-grid-controls [hidden] { display:none; }
+.map-hex-coordinate { font-variant-numeric:tabular-nums; }
+.map-grid-detail { color:var(--muted,#526a63); font-size:.8rem; }
 @media (max-width:600px) { .map-canvas { height:min(var(--map-height,600px),65vh); } }

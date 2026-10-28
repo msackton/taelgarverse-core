@@ -2,6 +2,8 @@ import {Component,MarkdownRenderChild,TFile,Notice} from 'obsidian';
 import {createHash} from 'node:crypto';
 import {parseMap} from '../../../src/maps.mjs';
 import {mountMap} from '../../../src/browser/map-view.mjs';
+import {parseMapBlock} from '../../../src/map-block.mjs';
+import {loadObsidianBaseline} from '../maps/manifest.mjs';
 
 export const legacyRenderers=['taelgar-map-tools','obsidian-leaflet-plugin','obsidian-leaflet'];
 export const hasLegacyRenderer=app=>legacyRenderers.some(id=>app.plugins?.enabledPlugins?.has(id));
@@ -9,6 +11,7 @@ export const hasLegacyRenderer=app=>legacyRenderers.some(id=>app.plugins?.enable
 // Obsidian owns note availability. This adapter only renders the map block
 // Obsidian passes to it; it does not rewrite Markdown or publish content.
 export async function obsidianMapConfig(app,source,sourcePath,hashes) {
+  if(parseMapBlock(source).version===2)return (await loadObsidianBaseline(app,source,sourcePath)).config;
   let file,entry;
   const store={canonical:new Map(),lookup(image){
     file=app.metadataCache.getFirstLinkpathDest(image,sourcePath);
@@ -46,7 +49,7 @@ class MapChild extends MarkdownRenderChild {
       canvas.setAttribute('role','region');canvas.setAttribute('aria-label','Interactive Taelgar map');
       canvas.style.setProperty('--map-height',config.height);canvas.style.setProperty('--map-width',config.width);
       const caption=doc.createElement('figcaption'),status=doc.createElement('span');status.className='map-status';status.setAttribute('role','status');
-      const original=doc.createElement('a');original.href=config.image;original.textContent='Open map image';original.target='_blank';original.rel='noopener';
+      const original=doc.createElement('a');original.href=config.image;original.textContent=config.version===2?'Open full source image':'Open map image';original.target='_blank';original.rel='noopener';
       caption.append(status,original);figure.append(canvas,caption);element.replaceChildren(figure);
       this.dispose=mountMap(figure);
     }catch(error){

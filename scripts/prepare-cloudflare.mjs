@@ -53,9 +53,9 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const materialization=materialize ? await timed('Materializing Dataview queries',()=>materialize(store)) : undefined;
   const conversion=await timed('Converting website compatibility patterns',()=>convertWebsiteStore(store,{log}));
   if(writePreparedNotes)await saveWorkingNotes(store);
+  await timed('Preparing map tiles',()=>prepareMaps(store,path.join(ROOT,'.cache/maps'),derivativeCache,{homeSource,campaignHomes}));
   const usages=await timed('Discovering image sizes',()=>collectImageUsages(store,{homeSource,campaignHomes}));
   const images=await timed('Preparing responsive images',()=>prepareImages(store,path.join(ROOT,'.cache/images'),{...imageOptions,usages},undefined,imageProgress,derivativeCache));
-  await timed('Preparing map tiles',()=>prepareMaps(store,path.join(ROOT,'.cache/maps'),derivativeCache));
   const entries=await timed('Packaging notes and assets',async()=>{
     const entries=[];
     for (const original of store.entries) {
@@ -67,6 +67,8 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
         entry.note={metadata:note.metadata,shard,sha256:sha(note.source)};
       } else {
         const hash=remoteAsset ? remoteAsset.key.slice('assets/'.length) : await hashFile(filename);
+        if((entry.mapImageInfo || entry.mapManifest) && original.sha256 && hash!==original.sha256)
+          throw new Error('Map asset changed after validation: '+entry.id+'; prepare the snapshot again');
         const cached=path.join(output,'objects',hash);
         if (!remoteAsset && !fs.existsSync(cached)) {
           fs.mkdirSync(path.dirname(cached),{recursive:true});

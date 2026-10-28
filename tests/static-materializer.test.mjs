@@ -63,6 +63,13 @@ test('invalid native blocks remain visible in partial output with errors',async(
   assert.equal(result.report.counts.errors,1);assert.match(result.content,/invalid/);
 });
 
+test('static export retains v2 map definitions and reports unsupported crop/mask conversion',async()=>{
+  const {materializer,runtime}=feature(),source='```taelgar-map\nversion: 2\nsource: core.map.json\ncoordinateFrame: draft\ncrop: {x: 100, y: 100, width: 200, height: 200}\n```\n';
+  const result=await materializer.materializeMarkdown(source,{path:'Maps/Test.md',name:'Test.md'},runtime,materializer.loadCore(),{headerType:'none',blockTimeoutMs:1000});
+  assert.equal(result.report.counts.mapsConverted,0);assert.equal(result.report.counts.errors,1);assert.equal(result.content,source);
+  assert.match(result.report.issues[0].message,/static Leaflet conversion is unsupported/);
+});
+
 test('an authored title immediately before a native header is preserved, including CRLF source',async()=>{
   for(const headerType of ['website','static']){
     const {materializer,runtime}=feature();

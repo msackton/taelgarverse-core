@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Taelgar map block (development version 2)",
+  "type": "object",
+  "required": [
+    "version",
+    "source"
+  ],
+  "properties": {
+    "version": {
+      "const": 2
+    },
+    "id": {
+      "$ref": "#/$defs/id"
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024
+    },
+    "coordinateFrame": false,
+    "image": false,
+    "bounds": false,
+    "calibration": false,
+    "scale": false,
+    "unit": false,
+    "lat": false,
+    "long": false,
+    "defaultZoom": false,
+    "crop": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": [
+            "x",
+            "y",
+            "width",
+            "height"
+          ],
+          "properties": {
+            "x": {
+              "type": "number",
+              "minimum": 0
+            },
+            "y": {
+              "type": "number",
+              "minimum": 0
+            },
+            "width": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "height": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "topLeft",
+            "bottomRight"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "topLeft": {
+              "type": "string"
+            },
+            "bottomRight": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "grid": {
+      "type": "object",
+      "properties": {
+        "visible": {
+          "type": "boolean",
+          "default": false
+        },
+        "showCoordinates": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,127}$"
+    }
+  },
+  "$comment": "Runtime resolves hex references, intersects the crop with available image bounds, and rejects empty intersections. Retired overlays fields are ignored.",
+  "description": "Version 2 maps use a rectangular crop in Photoshop pixels or inclusive hex references. Crops limit viewing and panning."
+}

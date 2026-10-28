@@ -35,7 +35,29 @@ After `npm ci`, use one of these commands from core:
 | `npm test` | Runs the automated suite using frozen core fixtures; no vault or Obsidian required. |
 | `npm test -- --live-vault` | Explicitly checks configured live notes and the installed Dataview bundle against test references. Read-only; separate from CI. |
 
-Photoshop export is a separate local command. Install `scripts/map-export/requirements.txt`, then run `python scripts/map-export/export_core.py --source PATH/TO/MAP.psb --output PATH/PREFIX`. It writes `PREFIX.png` and `PREFIX.map.json` without publishing or installing anything. See [export setup and options](map-baseline-progress.md#reproduce-locally).
+The map baseline has a separate local review harness:
+`node scripts/preview-map-baseline.mjs --export .cache/map-baseline/my-export`.
+It serves only loopback at port 8878. `--export` takes the file prefix used by
+the exporter: the example loads `my-export.map.json` and its relative PNG.
+For a quick Windows export-and-preview trial, use
+`.\scripts\test-map-export.ps1 -TopLeft 16.11 -BottomRight 17.12 -IncludeLayer /points-of-interest/locations,/points-of-interest/roads -Preview`.
+It saves a fresh trial file pair and serves its preview on port 8881; `-Plan` computes
+the export settings without opening the PSB. `-Output PATH/PREFIX` chooses
+`PATH/PREFIX.png` and `PATH/PREFIX.map.json`. See [quick option testing](map-baseline-progress.md#quick-option-testing-on-windows).
+Both corners accept full hex addresses, such as `04.04.H.07`; missing suffixes
+mean `.A.01` or `.01`. To export a whole block, end at its `.I.24`.
+See [baseline setup](map-baseline-progress.md#reproduce-locally) for the pinned
+Python exporter, source prerequisites, limitations and checks. It does not
+publish content or install the plugin.
+
+Version 2 manifest maps now work through both normal website preview and full
+local publication. Keep the exported PNG and matching `.map.json` together in a
+publishable vault folder, reference the manifest in a `taelgar-map` fence, and
+use Photoshop pixels or hex endpoints for rectangular crops. Local preparation fully decodes
+the PNG before making tiles. Crop/grid settings remain in the note. See
+[map delivery](maps.md#delivery-and-maintenance). For rollout, deploy the updated
+website code first, then publish vault content; plugin installation or release
+is independent. Local `npm run dev -- --plugin --vault PATH` does not deploy or publish.
 
 Both previews use http://127.0.0.1:8765/. Add `--port 8766` if needed.
 Use `--vault PATH` or `--config FILE` to select local inputs without changing

@@ -1,9 +1,11 @@
 import path from 'node:path';
 import {parse} from 'yaml';
 import MarkdownIt from 'markdown-it';
-import {IMAGE_TYPES} from './content-store.mjs';
+import {IMAGE_TYPES,parseNote,publicationExclusions} from './content-store.mjs';
 import {escapeHtml} from './common.mjs';
 import {measurementOptions} from './map-distance.mjs';
+import {validateManifest,resolveMapSource} from './map-core.mjs';
+import {baselineViewConfig} from './map-block.mjs';
 
 const point = value => Array.isArray(value) && value.length === 2 && value.every(v => Number.isFinite(v) && Math.abs(v) <= 10_000_000);
 function number(value, fallback, name) {
@@ -18,13 +20,39 @@ function dimension(value, fallback) {
   return match[1] + (match[2] || 'px');
 }
 
-export function parseMap(source, store, author) {
+const exactEntry=(store,id)=>[...(store.canonical.get(id) || [])].find(entry=>entry.id===id);
+function baselineMap(data,store,author,verifyImage) {
+  if(typeof data.source!=='string')throw new Error('Use a local .map.json source; enclose [[wikilinks]] in quotes');
+  const target=data.source.trim().replace(/^!?\[\[|\]\]$/g,'').split('|')[0].trim();
+  if(!target || /[:?#\x00-\x1f\x7f\\]/.test(target) || target.startsWith('/'))throw new Error('Manifest source must be a local vault path');
+  const relative=path.posix.normalize(path.posix.join(path.posix.dirname(author.id),target));
+  if(relative==='..' || relative.startsWith('../'))throw new Error('Manifest source must stay inside the vault');
+  const source=exactEntry(store,relative) || exactEntry(store,target) || (!target.includes('/') && store.lookup(target).entry);
+  if(!source || source.note || !source.id.endsWith('.map.json'))throw new Error('Map manifest is missing or ambiguous: '+target);
+  if(source.mapManifestError)throw new Error('Invalid map manifest: '+source.mapManifestError);
+  const manifest=validateManifest(source.mapManifest);
+  const imagePath=path.posix.join(path.posix.dirname(source.id),manifest.image),entry=exactEntry(store,imagePath);
+  if(!entry || entry.note || entry.extension!=='.png')throw new Error('Core image is missing: '+imagePath);
+  if(verifyImage){
+    if(source.mapValidationError)throw new Error(source.mapValidationError);
+    if(entry.mapImageInfo?.format!=='png')throw new Error('Map image has not been prepared');
+  }
+  const image='/assets/'+entry.target.split('/').map(encodeURIComponent).join('/');
+  return {entry,manifest,manifestEntry:source,block:data,
+    config:verifyImage?baselineViewConfig(data,resolveMapSource(manifest,entry.mapImageInfo),image):null};
+}
+
+export function parseMap(source, store, author, {verifyImage=true}={}) {
   // Obsidian's unquoted wikilinks look like nested YAML sequences. Keep the
   // image field literal, including the triple brackets used by Sembara.
   source = source.replace(/^(\s*image:\s*)(!?(?:\[{2,})[^\n]*?\]{2,})\s*$/gm,
     (_,prefix,image) => prefix + JSON.stringify(image));
   const data = parse(source, {maxAliasCount:0});
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Expected a map definition');
+  if(data.version===2 || data.source!==undefined){
+    try{return baselineMap(data,store,author,verifyImage);}
+    catch(error){error.mapBaseline=true;throw error;}
+  }
   const bounds = data.bounds;
   if (!Array.isArray(bounds) || bounds.length !== 2 || !bounds.every(point) ||
       bounds[0].some((v,i) => v >= bounds[1][i])) throw new Error('Map bounds must contain two increasing coordinate pairs');
@@ -58,24 +86,32 @@ export function renderMap(source, env) {
     return '<figure class="leaflet-map" data-map="' + escapeHtml(JSON.stringify(config)) + '">' +
       '<div class="map-canvas" hidden role="region" aria-label="' + escapeHtml(label) + '" style="--map-height:' + config.height + ';--map-width:' + config.width + '"></div>' +
       '<figcaption><span class="map-status" role="status">Interactive map requires JavaScript. </span>' +
-      '<a href="' + escapeHtml(config.image) + '" target="_blank" rel="noopener">Open map image</a></figcaption></figure>\n';
+      '<a href="' + escapeHtml(config.image) + '" target="_blank" rel="noopener">'+(config.version===2?'Open full source image':'Open map image')+'</a></figcaption></figure>\n';
   } catch (error) {
     env.warnings.push('Leaflet map: ' + error.message);
     return '<div class="admonition warning"><p class="admonition-title">Map unavailable</p><p>' + escapeHtml(error.message) + '</p></div>\n';
   }
 }
 
-export function mapImages(store) {
+export function mapImages(store,{homeSource=null,campaignHomes={},strict=false}={}) {
   const result = [], seen = new Set(), markdown = new MarkdownIt();
-  for (const author of store.entries.filter(entry => entry.note)) {
+  const authors=store.entries.filter(entry=>entry.note);
+  if(homeSource!==null)authors.push({id:'_website/home.md',note:typeof homeSource==='string'?parseNote(homeSource):homeSource});
+  for(const [host,source] of Object.entries(campaignHomes))authors.push({id:'_website/'+host+'.md',note:typeof source==='string'?parseNote(source):source});
+  for (const author of authors) {
+    if(publicationExclusions(author.note.metadata).includes('all'))continue;
     for (const token of markdown.parse(author.note.body,{})) {
       if (token.type !== 'fence' || !/^(?:taelgar-map|leaflet)(?:\s|$)/i.test(token.info.trim())) continue;
       try {
-        const map = parseMap(token.content,store,author);
+        const map = parseMap(token.content,store,author,{verifyImage:false});
         map.entry.mapImage = true;
-        const key = map.entry.id + JSON.stringify(map.config.bounds);
+        // Validate every referenced manifest, even when two maps share an image.
+        const key = map.entry.id + JSON.stringify(map.block??map.config.bounds)+(map.manifestEntry?.id || '');
         if (!seen.has(key)) {seen.add(key);result.push(map);}
-      } catch { /* The renderer reports invalid definitions on their article. */ }
+      } catch(error) {
+        if(strict && error.mapBaseline)throw new Error(author.id+': '+error.message);
+        // The renderer reports invalid legacy definitions on their article.
+      }
     }
   }
   return result;

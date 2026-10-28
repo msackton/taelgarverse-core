@@ -80,7 +80,10 @@ calibration. BRAT distributes the plugin independently of the website.
 
 Each `leaflet` block owns its distance calibration in the vault. Both the website
 and Obsidian read it directly; there is no bundled table of Taelgar map scales.
-For example, the Sembara map includes:
+For example, the legacy Sembara map currently includes the following calibration.
+This records an older independent export, **not** the authoritative baseline scale.
+Do not copy its pixel spacing into the new core manifest; see the migration status
+below.
 
 ```yaml
 calibration:
@@ -112,28 +115,31 @@ coordinates, so use source-pixel calibration for accurate image measurement.
 Editing these values takes effect when Obsidian renders the block again, without
 rebuilding the plugin. The website receives changes through content publication.
 
-## Verification of the existing 24-mile hex scale
+## Legacy export registration and baseline development
 
 The existing Taelgar maps use **24 miles between opposite flat sides of a hex**.
 Their older `bounds` and `scale` fields are display settings and are not a reliable
 distance calibration. Some bounds stretch the image nonuniformly, and some
 exports resize or remove the original hex grid.
 
-The map blocks record the audited source dimensions, hashes, and hex pixel
-widths. The following table documents the original verification. The gridded
+The existing map blocks record source dimensions, hashes, and previously inferred
+hex pixel widths. The following table preserves the older image-registration
+evidence. The gridded
 `assets/world-map-regions-new.png` is the reference. In an unobstructed ocean
 sample (`x=6000..7000`, `y=1500..4000`), 245 horizontal grid edges spanning
 123 hexes fit a hex height of **20.166667 pixels**, with an edge-fit RMS residual
-of 0.091 pixels. The ruler uses the underlying `121/6` pixel spacing. Independently
-detected edges at source Y=1510.3214 and Y=3990.8793 span 123 hexes; their measured
-distance differs from 2,952 miles by less than 0.1 mile.
+of 0.091 pixels. That raster fit is historical evidence about an exported image;
+it must not override the authoritative **40 source pixels per 24-mile hex**.
+The legacy ruler still uses its block-authored `121/6` spacing until those notes
+are deliberately migrated. The source PSB inspection supersedes this as the
+physical scale for the new core map.
 
 Other exports were registered to the reference using matching landmarks, a
 robust affine fit, and rejection of inconsistent matches. Every fit supported
 a uniform source-pixel scale of 1, 1/2, or 2/3 relative to the reference, within
-0.06%; no geographic transform is used at runtime. These checks establish the
-image calibration, not surveying precision for individual clicks or drawn
-features. Median fit residuals are in reference-image pixels:
+0.06%; no geographic transform is used at runtime. These comparisons establish
+relationships between exported rasters, not an independent physical calibration.
+Median fit residuals are in reference-image pixels:
 
 | Image under `assets/` | Source pixels | Reference pixels per source pixel | Matching landmarks | Median residual |
 | --- | --- | --- | --- | --- |
@@ -149,22 +155,86 @@ features. Median fit residuals are in reference-image pixels:
 | `upper-istaros-region-map.png` | 2013 × 1693 | 1/2 | 363 | 0.174 |
 | `region-west-green-sea.png` | 1753 × 3220 | 1/2 | 147 | 0.222 |
 
+The new [baseline development preview](map-baseline-progress.md) uses a native
+core export, exactly **0.6 miles/pixel**, original Photoshop canvas coordinates and
+generated regular flat-top hexes. Both the website and development Obsidian plugin
+accept per-map rectangular crops in Photoshop pixels or inclusive hex endpoints.
+**Fit map**, zoom-out limits and pan bounds use that crop. Image/tile clipping
+stays attached during dragging and animated zoom; grid edges are clipped too.
+Polygon masks and dim/hide overlays are retired. Old `overlays` fields are ignored.
+Production rollout is separate; legacy blocks are unchanged.
+Baseline views fit in quarter zoom steps and use half-step zoom buttons.
+The source raster's slightly compressed horizontal hex spacing is measured and
+documented there. The user chose regular geometry with accepted drift. New exports
+use the verified `row.column.A–I.01–24` numbering and support inclusive hex-based
+export bounds. Missing letter/number mean A/01 at either corner. Older draft manifests and frame-bearing blocks need [explicit conversion](map-baseline-progress.md#older-drafts).
+
+With **Hex grid** enabled, verified baseline maps show block boundaries at overview
+zooms and individual hexes once they reach 18 CSS pixels tall. Zooming changes the
+displayed detail, not the coordinates or geographic scale. Block boundaries follow
+the global origin through crops. Hover, pin
+and copy operate on the displayed block or hex; pinned locations survive zooming.
+Blocks and hexes have no printed labels. Hover or click any block to read its
+coordinate in the controls below the map.
+Faint dashed block boundaries remain visible alongside either hex grid while
+more than one block is in view. They disappear when the visible crop fits within
+one block and return when panning or zooming exposes a neighboring block.
+Grid geometry refreshes after a pan or zoom ends; Leaflet moves the existing grid
+during the gesture. Grid and selection edges are clipped to the crop.
+
+Closer zoom resolves four levels of **seven-child families**: approximately
+9.07, 3.43, 1.30 and 0.49 miles across opposite edges. A reference such as
+`16.10.C.07/3251` appends one child digit per level; `0` is the center and `1`–`6`
+run clockwise from the surrounding child closest to map north. Leading zeros
+are significant. The immediate parent grid has heavier outlines; no grid has
+printed labels. Hover or pin to read and copy a reference. Logical ownership is
+stable even where a child crosses its parent's outline. See
+[seven-child numbering](map-baseline-progress.md#seven-child-hex-families) for
+geometry, export bounds and the distinction between ownership and containment.
+Baseline maps default to maximum zoom 6 so the fourth level is reachable.
+
 For each segment, the renderer first undoes the display bounds' horizontal and
 vertical scaling to recover source-pixel differences. It multiplies those by
 `hexMiles / hexPixels` miles per source pixel, takes the planar distance,
 and adds it to the route. The old authored `scale` is not applied again.
 
-Publication records original-image SHA-256 hashes; local map preparation and the
-Obsidian adapter hash the source bytes before rendering calibrated measurements.
+For legacy calibrated image blocks, publication records original-image SHA-256
+hashes; local preparation and Obsidian verify those hashes. Version 2 manifest
+maps use the fixed Photoshop pixel scale without a configured image hash.
 The same block therefore produces the same physical distance on both surfaces.
 
 ## Delivery and maintenance
+
+Version 2 maps reference a `.map.json` file in the vault. Only this JSON suffix is
+discovered as a map asset; ordinary JSON files are not automatically published.
+The source can be a quoted wikilink, an exact vault path, or a path relative to
+the note. Missing qualified paths never fall back to a matching basename. The
+manifest's PNG path resolves exactly relative to the manifest, and normal folder
+publication exclusions apply to both files.
+
+Preparation validates pixel or hex crop bounds and fully decodes the static
+PNG before tiling. The tiny version 2 manifest contains only `version`, `image`
+and `sourceOffset`; image dimensions come from the PNG. The shared Taelgar grid
+sets the scale to 0.6 miles/pixel. Rendering subtracts `sourceOffset` from saved
+geometry, so a different export extent preserves geographical positions. Crops
+are intersected with available coverage; a disjoint crop displays an error. Invalid referenced baselines
+fail publication preparation; quick local preview shows a map warning while
+other pages remain available. Notes excluded from all publication are ignored.
+The snapshot carries `mapManifest` and image `mapImageInfo`
+metadata into both regular and compiled Worker renderers; requests perform no
+filesystem reads. Original manifests are also available as JSON assets. Multiple
+crops share the full image's tile pyramid, and home/campaign-only maps participate
+in preparation. **Open full source image** explicitly opens the underlying PNG.
+
+Deploy the updated website code before publishing version 2 blocks. Install or
+release the Obsidian plugin separately. The old static materializer still does
+not convert version 2 blocks into legacy Leaflet syntax.
 
 The website and local Node preview generate 512-pixel WebP tiles at multiple
 zoom levels for map images with an original edge of at least 2,048 pixels or a
 file size of at least 1 MiB. Selection uses the actual image rather than its
 authored display bounds. Smaller images, animations, and maps with nonzero-origin
-bounds remain image overlays. Undecodable images remain available through their
+bounds remain image overlays. Undecodable legacy images remain available through their
 original URLs, with a preparation warning instead of a tile pyramid.
 
 The viewer requests tiles for the visible area and zoom level. Generated tile
@@ -174,8 +244,8 @@ revalidate. Tile generation preserves the original download and calibration.
 The Obsidian adapter continues to use local original images without generated
 tiles.
 
-Deploying core enables the cache policy for existing published tiles. Republish
-content to generate tiles for newly eligible maps; the existing viewer can read
+For legacy image blocks, deploying core enables the cache policy for existing
+published tiles. Republish content to generate tiles for newly eligible maps; the existing viewer can read
 the same tile metadata, so either deployment order works. These are separate
 release actions and neither is performed by local preparation or tests.
 

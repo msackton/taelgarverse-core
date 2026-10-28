@@ -5,7 +5,7 @@ Object.assign(themeFiles,{'indexes.css':'indexes.css','indexes.js':'generated/in
 Object.assign(themeFiles,{'homepage.css':'homepage.css','home-map.webp':'images/home-map.webp','site-logo.webp':'images/site-logo.webp'});
 Object.assign(themeFiles,{'interactions.css':'interactions.css','interactions.js':'generated/interactions.js'});
 export const contentTypes = {'.css':'text/css; charset=utf-8','.js':'text/javascript; charset=utf-8','.svg':'image/svg+xml','.png':'image/png','.jpg':'image/jpeg',
-  '.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.pdf':'application/pdf','.heic':'image/heic',
+  '.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.pdf':'application/pdf','.heic':'image/heic','.json':'application/json; charset=utf-8',
   '.mp3':'audio/mpeg','.m4a':'audio/mp4','.wav':'audio/wav','.ogg':'audio/ogg','.flac':'audio/flac'};
 
 export async function serveAsset(request,entry,read) {
