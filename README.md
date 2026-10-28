@@ -393,11 +393,13 @@ node scripts/benchmark.mjs
 ~~~
 
 Tests use synthetic notes, frozen tagged-vault samples and independent
-comparisons with the configured legacy CustomJS reference. They cover
+comparisons with versioned legacy CustomJS fixtures in core. They cover
 dates/lifecycle/locations, leadership parity, private and malformed comments,
 campaign filtering, links, Markdown extensions, assets, HTTP errors, and date
-isolation. Integration tests require the configured sibling vault. Fixtures are
-created and cleaned under ignored .cache/.
+isolation. Default tests and local emulator integration tests need no sibling
+vault. Temporary fixtures are created and cleaned under ignored .cache/.
+Use `npm test -- --live-vault` only when explicitly checking the configured
+working vault. See [test modes and fixture provenance](tests/README.md).
 
 The benchmark renders six real-vault requests without an HTML cache. It reports
 startup separately. REPEATS sets the default ten iterations. Save JSON with:

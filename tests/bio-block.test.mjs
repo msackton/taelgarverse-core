@@ -1,3 +1,4 @@
+import {testSettings} from './helpers/test-settings.mjs';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -5,7 +6,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {load} from 'cheerio';
 import {Engine} from '../src/engine.mjs';
-import {ROOT,loadSettings} from '../src/config.mjs';
+import {ROOT} from '../src/config.mjs';
 import {parseNote,authoredBody} from '../src/content-store.mjs';
 import {loadSnapshot} from '../src/snapshot.mjs';
 import {leadingBioBlock,hasPrecedingH1} from '../src/bio-block.mjs';
@@ -29,7 +30,7 @@ before(async()=>{
   for(const [name,source] of Object.entries(notes)){
     const file=path.join(directory,name);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,source);
   }
-  engine=new Engine({...loadSettings(),source_dir:directory,nav_source:null,home_source:null});
+  engine=new Engine({...testSettings(),source_dir:directory,nav_source:null,home_source:null});
   const revision='a'.repeat(64),shard={},entries=engine.store.entries.map(({filename,note,...entry})=>{
     if(!note)return entry;shard[entry.id]=note.source;
     return {...entry,note:{metadata:note.metadata,shard:'00',sha256:createHash('sha256').update(note.source).digest('hex')}};

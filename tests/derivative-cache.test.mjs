@@ -1,10 +1,11 @@
+import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import sharp from 'sharp';
-import {ROOT,isInside,loadSettings} from '../src/config.mjs';
+import {ROOT,isInside} from '../src/config.mjs';
 import {ContentStore,parseNote} from '../src/content-store.mjs';
 import {prepareImages} from '../scripts/build-images.mjs';
 import {prepareMaps} from '../scripts/build-maps.mjs';
@@ -82,7 +83,7 @@ test('cold machines reuse images and complete map pyramids without derivative fi
 
 test('packaging from R2 yields the same snapshot and uploads only metadata; lost references stop publication',async t=>{
   const {directory,source}=await fixture(t),storage=memoryStorage();
-  const settings={...loadSettings(),source_dir:source,home_source:null,nav_source:null};
+  const settings={...testSettings(),source_dir:source,home_source:null,nav_source:null};
   const version={commit:'a'.repeat(40),dirty:false};
   const logs=[];
   const first=await prepareContent(settings,path.join(directory,'package-first'),version,{concurrency:1},undefined,undefined,{log:message=>logs.push(message)});
@@ -110,7 +111,7 @@ test('packaging from R2 yields the same snapshot and uploads only metadata; lost
 
 test('failed asset transfer cannot advertise new recipes; stale and malformed cache hints are disposable',async t=>{
   const {directory,source}=await fixture(t),storage=memoryStorage();
-  const settings={...loadSettings(),source_dir:source,home_source:null,nav_source:null};
+  const settings={...testSettings(),source_dir:source,home_source:null,nav_source:null};
   const report=await prepareContent(settings,path.join(directory,'package'),{commit:'b'.repeat(40),dirty:false});
   const put=storage.putFile;storage.putFile=async()=>{throw Error('network failure');};
   await assert.rejects(uploadContent(report,storage),/network failure/);

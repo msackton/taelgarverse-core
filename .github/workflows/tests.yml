@@ -19,20 +19,6 @@ jobs:
         with:
           path: core
           persist-credentials: false
-      - name: Read public vault inputs used by compatibility tests
-        uses: actions/checkout@v6
-        with:
-          repository: tsackton/taelgar
-          path: taelgar
-          persist-credentials: false
-          sparse-checkout-cone-mode: false
-          sparse-checkout: |
-            **/*.md
-            /_scripts/customJS/
-            /_scripts/session_note_campaigns.json
-            /.obsidian/metadata.json
-            !/.agents/
-            !/assets/
       - uses: actions/setup-node@v6
         with:
           node-version: 24

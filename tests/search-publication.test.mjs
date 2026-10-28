@@ -1,8 +1,9 @@
+import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {ROOT,isInside,loadSettings} from '../src/config.mjs';
+import {ROOT,isInside} from '../src/config.mjs';
 import {ContentStore,parseNote,availableInContext,authoredBody} from '../src/content-store.mjs';
 import {targetPath,dateKey} from '../src/common.mjs';
 import {filterComments} from '../src/comments.mjs';
@@ -214,7 +215,7 @@ test('prepared search is revision-bound, stays out of R2 uploads, and tampering 
   fs.mkdirSync(path.join(ROOT,'.cache'),{recursive:true});const directory=fs.mkdtempSync(path.join(ROOT,'.cache','search-preparation-test-'));
   t.after(()=>{assert.ok(isInside(path.join(ROOT,'.cache'),fs.realpathSync(directory)));assert.ok(path.basename(directory).startsWith('search-preparation-test-'));fs.rmSync(directory,{recursive:true});});
   const source=path.join(directory,'source');fs.mkdirSync(source);fs.writeFileSync(path.join(source,'One.md'),'Public.\n%% private-fixture-marker %%');
-  const report=await prepareContent({...loadSettings(),source_dir:source,home_source:null,nav_source:null},path.join(directory,'output'),{commit:'a'.repeat(40),dirty:false});
+  const report=await prepareContent({...testSettings(),source_dir:source,home_source:null,nav_source:null},path.join(directory,'output'),{commit:'a'.repeat(40),dirty:false});
   const manifest=readPreparedSearch(report);assert.ok(manifest.documents.some(d=>d.text.includes('private-fixture-marker')));
   const index=fs.readFileSync(report.indexFile,'utf8');assert.equal(JSON.parse(index).settings.respect_pov_dates,false);assert.ok(!index.includes('private-fixture-marker'));assert.ok(!index.includes('searchFile'));
   const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));assert.ok(!uploads.some(item=>item.file===report.searchFile || item.key.endsWith('/search.json')));
@@ -302,6 +303,6 @@ test('compiler retains both POV modes and publication fingerprints track the sit
     const manifest=validateSearchManifest(compileSearch(storeFor(sources,settings)));
     assert.deepEqual(manifest.rules.map(rule=>rule.from),[10101]);
   }
-  const settings=loadSettings(),options={maxSize:2560,quality:82};
+  const settings=testSettings(),options={maxSize:2560,quality:82};
   assert.notEqual(buildFingerprint({...settings,respect_pov_dates:false},options),buildFingerprint({...settings,respect_pov_dates:true},options));
 });

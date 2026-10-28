@@ -1,3 +1,4 @@
+import {testSettings} from './helpers/test-settings.mjs';
 import test, {before, after} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,7 +8,7 @@ import sharp from 'sharp';
 import {Engine} from '../src/engine.mjs';
 import {initializeHeaders, renderHeader} from '../src/headers.mjs';
 import {createServer} from '../src/server.mjs';
-import {ROOT, loadSettings, isInside, validateDate} from '../src/config.mjs';
+import {ROOT,isInside,validateDate} from '../src/config.mjs';
 
 let engine, server, base, directory;
 const text = result => load(result.html,{},false).text().replace(/\s+/g,' ').trim();
@@ -42,7 +43,7 @@ before(async () => {
   const navSource = path.join(directory,'_website','navigation.md'), homeSource = path.join(directory,'_website','home.md');
   fs.copyFileSync(new URL('./fixtures/home.md',import.meta.url),homeSource);
   fs.writeFileSync(navSource,'- [Home](index.md)\n- People\n    - {glob: people/}\n- Places\n    - {glob: places/}\n- [Future](future.md)\n- [POV Year](pov-year.md)\n- [POV Plural](pov-plural.md)\n');
-  engine = new Engine({...loadSettings(),source_dir:directory,ignore_file:path.join(directory,'ignore.txt'),nav_source:navSource,home_source:homeSource,campaigns:['dufr','adma']});
+  engine = new Engine({...testSettings(),source_dir:directory,ignore_file:path.join(directory,'ignore.txt'),nav_source:navSource,home_source:homeSource,campaigns:['dufr','adma']});
   server = createServer(engine);
   await new Promise((resolve,reject) => { server.once('error',reject); server.listen(0,'127.0.0.1',resolve); });
   base = 'http://127.0.0.1:' + server.address().port;

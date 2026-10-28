@@ -1,8 +1,9 @@
+import {testSettings} from './helpers/test-settings.mjs';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {ROOT,loadSettings} from '../src/config.mjs';
+import {ROOT} from '../src/config.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {compileRuntime} from '../scripts/compile-runtime.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
@@ -79,7 +80,7 @@ before(async()=>{
   fs.writeFileSync(path.join(directory,'_website/home.md'),'# Welcome\n\nA home ![[Other]]');
   fs.writeFileSync(path.join(directory,'_website/frontier.md'),'---\ncampaigns: [dufr]\nenforcePoV: 1\n---\n# Frontier\n\n![[Other]]');
   fs.writeFileSync(path.join(directory,'_website/navigation.md'),'- [Home](index.md)\n- World\n    - {glob: .}\n');
-  settings={...loadSettings(),vault_dir:directory,source_dir:directory,home_source:path.join(directory,'_website/home.md'),nav_source:path.join(directory,'_website/navigation.md'),respect_pov_dates:true};
+  settings={...testSettings(),vault_dir:directory,source_dir:directory,home_source:path.join(directory,'_website/home.md'),nav_source:path.join(directory,'_website/navigation.md'),respect_pov_dates:true};
   report=await prepareContent(settings,path.join(directory,'output'),{commit:'a'.repeat(40),dirty:false});
   const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
   validatePublicationUploads(report.revision,uploads);

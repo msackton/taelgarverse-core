@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 2,
+  "campaigns": {
+    "addermarch": {
+      "name": "Addermarch",
+      "code": "adma",
+      "aliases": ["Addermarch Campaign", "ADMA"],
+      "partyPage": "Addermarch Mercenaries",
+      "sessionRoot": "addermarch",
+      "campaignRoot": "Campaigns/Addermarch Campaign",
+      "notePattern": "Addermarch - Session {session_padded}.md",
+      "defaultTemplate": "composable-session-note.md"
+    },
+    "dunmar-frontier": {
+      "name": "Dunmar Frontier",
+      "code": "dufr",
+      "aliases": ["Dunmari Frontier", "Dunmari Frontier Campaign", "Dunmar Frontier Campaign", "DuFr"],
+      "partyPage": "Dunmar Fellowship",
+      "sessionRoot": "dunmar-frontier",
+      "campaignRoot": "Campaigns/Dunmari Frontier Campaign",
+      "notePattern": "Session Notes/Dunmar Frontier - Session {session_padded}.md",
+      "defaultTemplate": "dunmar-frontier-template.md"
+    },
+    "cleenseau": {
+      "name": "Cleenseau",
+      "code": "clee",
+      "aliases": ["Cleenseau Campaign", "Clee"],
+      "partyPage": "Heroes of Cleenseau",
+      "sessionRoot": "cleenseau",
+      "campaignRoot": "Campaigns/Cleenseau Campaign",
+      "notePattern": "Sessions/Cleenseau - Session {session_padded}.md",
+      "defaultTemplate": "cleenseau-template.md"
+    },
+    "great-library": {
+      "name": "Great Library",
+      "code": "grli",
+      "aliases": ["Great Library Campaign", "GL", "gl"],
+      "partyPage": "Silver Tempests",
+      "sessionRoot": "great-library",
+      "campaignRoot": "Campaigns/Great Library Campaign",
+      "notePattern": "Session Notes/Great Library Session Notes - Arc {session}.md",
+      "defaultTemplate": "composable-session-note.md"
+    },
+    "mawar-adventures": {
+      "name": "Mawar Adventures",
+      "code": "mawar",
+      "aliases": ["Mawar"],
+      "sessionRoot": "mawar",
+      "campaignRoot": "Campaigns/Mawar Adventures",
+      "notePattern": "Episodes/Mawar Adventures Episode {session_padded}.md",
+      "defaultTemplate": "mawar-template.md"
+    },
+    "into-the-chasm": {
+      "name": "Into the Chasm",
+      "code": "itc",
+      "aliases": [],
+      "sessionRoot": "into-the-chasm",
+      "campaignRoot": "Campaigns/One Shots/Into the Chasm",
+      "notePattern": "Into the Chasm - Episode {session_padded}.md",
+      "defaultTemplate": "into-the-chasm-template.md"
+    },
+    "labyrinths-of-the-lost": {
+      "name": "Labyrinths of the Lost",
+      "code": "lablost",
+      "aliases": ["ll"],
+      "sessionRoot": "lablost",
+      "campaignRoot": "Campaigns/One Shots/Labyrinths of the Lost",
+      "notePattern": "Labyrinths of the Lost - Session {session}.md",
+      "defaultTemplate": "lablost-template.md"
+    },
+    "lost-in-the-feywild": {
+      "name": "Lost in the Feywild",
+      "code": "feywild",
+      "aliases": ["litf"],
+      "sessionRoot": "feywild",
+      "campaignRoot": "Campaigns/One Shots/Lost in the Feywild",
+      "notePattern": "Lost in the Feywild - Episode {session_padded}.md",
+      "defaultTemplate": "composable-session-note.md"
+    },
+    "dragonets": {
+      "name": "Dragonets",
+      "code": "dgnt",
+      "aliases": ["Dragonets Campaign"],
+      "sessionRoot": "dragonets",
+      "campaignRoot": "Campaigns/Dragonets",
+      "notePattern": "Session Notes/Dragonets - Session {session_padded}.md",
+      "defaultTemplate": "dragonets-template.md"
+    }
+  }
+}

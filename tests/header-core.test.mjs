@@ -1,10 +1,11 @@
+import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import {build} from 'esbuild';
-import {ROOT,loadSettings} from '../src/config.mjs';
+import {ROOT} from '../src/config.mjs';
 import {Engine} from '../src/engine.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {synthesizedNotes,synthesizedExamples} from './fixtures/header-synthesized-cases.mjs';
@@ -37,7 +38,7 @@ test('Node renders a vault that has metadata and campaign JSON but no legacy Cus
     fs.writeFileSync(path.join(directory,'.obsidian/metadata.json'),JSON.stringify(input.coreMeta));
     fs.writeFileSync(path.join(directory,'_scripts/session_note_campaigns.json'),JSON.stringify(input.registry));
     fs.writeFileSync(path.join(directory,'Person.md'),'---\ntags: [person]\nborn: 1700-01-01\n---\n```taelgar-header\n```\n\nAuthored biography.');
-    const engine=new Engine({...loadSettings(),vault_dir:directory,source_dir:directory,home_source:null,nav_source:null});
+    const engine=new Engine({...testSettings(),vault_dir:directory,source_dir:directory,home_source:null,nav_source:null});
     const page=engine.render('Person','1720-01-01');
     assert.match(page.html,/20 years old/);assert.match(page.html,/Authored biography/);
     assert.equal(fs.existsSync(path.join(directory,'_scripts/customJS')),false);

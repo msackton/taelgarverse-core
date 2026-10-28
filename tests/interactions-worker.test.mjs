@@ -1,9 +1,10 @@
+import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {parseHTML} from 'linkedom';
-import {ROOT,loadSettings,isInside} from '../src/config.mjs';
+import {ROOT,isInside} from '../src/config.mjs';
 import {Engine} from '../src/engine.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {buildFingerprint} from '../scripts/publish-content.mjs';
@@ -16,7 +17,7 @@ test('publication compiles session encounters without beat data, Worker matches 
   fs.mkdirSync(path.join(ROOT,'.cache'),{recursive:true});
   const directory=fs.mkdtempSync(path.join(ROOT,'.cache','interaction-worker-'));
   try {
-    const original=loadSettings(),vault=path.join(directory,'vault');fs.mkdirSync(vault);
+    const original=testSettings(),vault=path.join(directory,'vault');fs.mkdirSync(vault);
     fs.mkdirSync(path.join(vault,'_scripts'));
     fs.mkdirSync(path.join(vault,'.obsidian'));
     fs.copyFileSync(path.join(original.vault_dir,'.obsidian','metadata.json'),path.join(vault,'.obsidian','metadata.json'));

@@ -32,7 +32,8 @@ After `npm ci`, use one of these commands from core:
 | `npm run dev` | Reads the live vault without Obsidian. Restarts on vault/source changes; refresh the browser. Some Dataview content can be incomplete. |
 | `npm run dev -- --full` | Copies a working vault, materializes plain Dataview queries in Node, converts recognized legacy blocks, processes images/maps/search, loads local R2/D1, and starts the local Worker. No live publication. Rerun after editing notes. |
 | `npm run dev -- --plugin` | Builds and installs Taelgarverse in the configured vault. Tries to reload it in running Obsidian; otherwise asks for a restart. |
-| `npm test` | Runs the automated suite without running Obsidian. |
+| `npm test` | Runs the automated suite using frozen core fixtures; no vault or Obsidian required. |
+| `npm test -- --live-vault` | Explicitly checks configured live notes and the installed Dataview bundle against test references. Read-only; separate from CI. |
 
 Both previews use http://127.0.0.1:8765/. Add `--port 8766` if needed.
 Use `--vault PATH` or `--config FILE` to select local inputs without changing
@@ -120,9 +121,10 @@ release workflows. **Test and deploy website** runs on pushes to core's `main`.
 Both automatic triggers skip changes that only affect `.md` files anywhere in
 the repository; changes that include any other file still run. Explicit plugin
 releases continue to run the reusable tests regardless of changed paths.
-The test job checks out public vault Markdown and header metadata/scripts, excluding assets,
-then runs `npm test`, local R2/D1 integration checks, and the Worker packaging
-check. Testing requires no Obsidian or Cloudflare credentials. The website
+The test job checks out only core, then runs `npm test` against versioned fixtures,
+local R2/D1 integration checks, and the Worker packaging
+check. Testing requires no vault, Obsidian or Cloudflare credentials. See
+[test modes and fixtures](../tests/README.md) for optional live-vault checks. The website
 deployment job requires the tests to succeed; failures skip deployment and leave
 the current site running. Production pipelines are serialized. Deployment uploads
 Worker code and static website assets; it does not publish vault content to R2/D1.

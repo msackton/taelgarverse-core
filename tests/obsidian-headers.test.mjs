@@ -1,3 +1,4 @@
+import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,11 +8,11 @@ import {createRequire} from 'node:module';
 import {setTimeout as pause} from 'node:timers/promises';
 import {build} from 'esbuild';
 import {load} from 'cheerio';
-import {ROOT,loadSettings} from '../src/config.mjs';
+import {ROOT} from '../src/config.mjs';
 import {parseNote} from '../src/content-store.mjs';
 import {initializeHeaders,renderHeader} from '../src/headers.mjs';
 
-const require=createRequire(import.meta.url),settings=loadSettings();
+const require=createRequire(import.meta.url),settings=testSettings();
 const compiled=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/features/headers.mjs'],write:false,
   bundle:true,platform:'node',format:'cjs',external:['obsidian'],logLevel:'silent'});
 const sources=JSON.parse(fs.readFileSync(new URL('./fixtures/bio-blocks.json',import.meta.url),'utf8'));

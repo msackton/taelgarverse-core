@@ -1,3 +1,4 @@
+import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -5,7 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
 import {build} from 'esbuild';
-import {ROOT,loadSettings,isInside} from '../src/config.mjs';
+import {ROOT,isInside} from '../src/config.mjs';
 import {parseNote} from '../src/content-store.mjs';
 import {preparePublicationNote} from '../src/publication-markdown.mjs';
 import {filterComments} from '../src/comments.mjs';
@@ -196,7 +197,7 @@ test('desktop exporter rejects vault mismatches and source-vault output, and sto
 
 test('content preparation cleans and materializes before packaging without a legacy exporter installation',async t=>{
   const source='---\nheaderVersion: 1\ntags: [person]\n---\n# Saved header\n>[!info] Old\n\n## Remove\n```dataviewjs\nthrow 1;\n```\n\n## Results\n```dataview\nLIST FROM #person\n```\n';
-  const f=await fixture(t,{'Note.md':source,'Target.md':'# Target\n'}),settings=loadSettings();
+  const f=await fixture(t,{'Note.md':source,'Target.md':'# Target\n'}),settings=testSettings();
   for(const relative of ['.obsidian/metadata.json','_scripts/session_note_campaigns.json']) {
     await fs.mkdir(path.dirname(path.join(f.vault,relative)),{recursive:true});await fs.copyFile(path.join(settings.vault_dir,relative),path.join(f.vault,relative));
   }

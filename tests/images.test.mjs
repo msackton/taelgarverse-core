@@ -1,3 +1,4 @@
+import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -8,7 +9,7 @@ import {prepareImages,usedImageWidths} from '../scripts/build-images.mjs';
 import {collectImageUsages} from '../scripts/image-usage.mjs';
 import {ContentStore} from '../src/content-store.mjs';
 import {responsiveImages} from '../src/images.mjs';
-import {ROOT,loadSettings,isInside} from '../src/config.mjs';
+import {ROOT,isInside} from '../src/config.mjs';
 import {Engine} from '../src/engine.mjs';
 import {createServer} from '../src/server.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
@@ -165,7 +166,7 @@ test('usage planning finds alternative reference definitions, DM images, HTML, t
 test('Node and Worker serve small image variants with original downloads, ranges, cache validation and context filtering',async t=>{
   const {directory,entry} = await fixture(t), original = await fs.readFile(entry.filename);
   await fs.writeFile(path.join(directory,'Gallery.md'),'# Gallery\n\n> [!image|figure]\n> ![[portrait.jpg|200]]\n> *Shared caption.* %%DM Private caption.%%\n\n%%^Campaign:none%%\n![[portrait.jpg]]\n%%^End%%\n');
-  const settings = {...loadSettings(),source_dir:directory,nav_source:null,home_source:null};
+  const settings = {...testSettings(),source_dir:directory,nav_source:null,home_source:null};
   const engine = new Engine(settings), server = createServer(engine);
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
   t.after(()=>new Promise(resolve=>server.close(resolve)));

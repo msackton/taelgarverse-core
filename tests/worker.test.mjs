@@ -1,10 +1,11 @@
+import {testSettings} from './helpers/test-settings.mjs';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {load} from 'cheerio';
 import sharp from 'sharp';
-import {ROOT,loadSettings,isInside} from '../src/config.mjs';
+import {ROOT,isInside} from '../src/config.mjs';
 import {Engine} from '../src/engine.mjs';
 import {prepareContent as preparePublication} from '../scripts/prepare-cloudflare.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
@@ -64,7 +65,7 @@ before(async()=>{
   fs.writeFileSync(navSource,'- [Home](index.md)\n- People\n    - {glob: people/}\n- Places\n    - {glob: places/}\n');
   fs.copyFileSync(new URL('./fixtures/home.md',import.meta.url),homeSource);
   fs.writeFileSync(path.join(source,'_website','private.md'),'Unpublished website planning.');
-  const settings={...loadSettings(),respect_pov_dates:true,source_dir:source,ignore_file:path.join(source,'_ignore.txt'),nav_source:navSource,home_source:homeSource,campaigns:['dufr','adma']};
+  const settings={...testSettings(),respect_pov_dates:true,source_dir:source,ignore_file:path.join(source,'_ignore.txt'),nav_source:navSource,home_source:homeSource,campaigns:['dufr','adma']};
   report=await prepareContent(settings,path.join(directory,'package'));
   bucket=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
     {key:'published/current.json',file:report.pointerFile}]);

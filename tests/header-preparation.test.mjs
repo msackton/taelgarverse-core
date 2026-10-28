@@ -1,3 +1,4 @@
+import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -7,7 +8,7 @@ import YAML from 'yaml';
 import {load} from 'cheerio';
 import {HEADER_BLOCK,normalizeHeader} from '../src/bio-block.mjs';
 import {parseNote,authoredBody} from '../src/content-store.mjs';
-import {ROOT,loadSettings,isInside} from '../src/config.mjs';
+import {ROOT,isInside} from '../src/config.mjs';
 import {Engine} from '../src/engine.mjs';
 import {loadSnapshot} from '../src/snapshot.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
@@ -98,7 +99,7 @@ test('all 21 vault cases package to one format and render one complete header in
       const text=frontmatter+header+article,file=path.join(source,page.path);
       fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,text);originals.set(page.path,text);
     }
-    const settings={...loadSettings(),vault_dir:source,source_dir:source,nav_source:null,home_source:null,respect_pov_dates:false};
+    const settings={...testSettings(),vault_dir:source,source_dir:source,nav_source:null,home_source:null,respect_pov_dates:false};
     const report=await prepareContent(settings,output,{commit:'a'.repeat(40),dirty:false});
     const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
     const objects=new Map(uploads.map(item=>[item.key,item.file]));

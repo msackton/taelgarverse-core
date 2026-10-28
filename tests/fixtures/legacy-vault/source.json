@@ -1,0 +1,53 @@
+{
+  "repository": "tsackton/taelgar",
+  "ref": "main",
+  "commit": "80ad43bd2bcaf6b200217c4f8e8d426c28fce533",
+  "captured": "2026-10-27",
+  "normalization": "UTF-8 text with LF line endings",
+  "files": [
+    {
+      "path": ".obsidian/metadata.json",
+      "sha256": "057f57fd3563b9deb1f0a84910998d79fdf1fa4d17fcfb7daae1288ba0db88a1"
+    },
+    {
+      "path": "_scripts/customJS/affiliationManager.js",
+      "sha256": "ee3007fc290bfccd9e4eb99deb69a15ad37354851605a72189730775247a850b"
+    },
+    {
+      "path": "_scripts/customJS/dataUtil.js",
+      "sha256": "3e61822b2566ee7362b24d312cfa30aa96a92b2c35f233bc118046d63be6e0a4"
+    },
+    {
+      "path": "_scripts/customJS/eventManager.js",
+      "sha256": "5b206a5037494e67c67d0018d3bfdf701fdeb218dfb5907f5a8a6d7938779107"
+    },
+    {
+      "path": "_scripts/customJS/loadMetadata.js",
+      "sha256": "b312a6964d5e8ac79c9a0bd18edf0776b7c7bdd74687d78aa8f8ba668f33bf52"
+    },
+    {
+      "path": "_scripts/customJS/metadataUtils.js",
+      "sha256": "4330d6bff1ed2657f358c116cbaf971e3194b6b6c611cd981d2c1940474d18f1"
+    },
+    {
+      "path": "_scripts/customJS/nameManager.js",
+      "sha256": "819b5087dfe83caf1f9247d159600bc039d77e3f10bf3cbbf3609f7d6187abcd"
+    },
+    {
+      "path": "_scripts/customJS/outputs.js",
+      "sha256": "e76d0a80334ead0f2cba8f27ebe5518ad1bfbe99b2933ef6d7ccd57d932bb88b"
+    },
+    {
+      "path": "_scripts/customJS/tokenParser.js",
+      "sha256": "88c4b16ca3dd365a0b324ca8a3c4e41252d6df815e1b6d280cc7aafe27384fee"
+    },
+    {
+      "path": "_scripts/customJS/whereabouts.js",
+      "sha256": "9dbd2717fc64a6d839bbf4706d84ccb76ef18d94a277862ca75743421b16e043"
+    },
+    {
+      "path": "_scripts/session_note_campaigns.json",
+      "sha256": "5ff8284595ca5022ef976af7c586b57f92f0c01452b44683f642cda409613b52"
+    }
+  ]
+}

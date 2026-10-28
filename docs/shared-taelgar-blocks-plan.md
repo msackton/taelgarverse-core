@@ -87,9 +87,11 @@ leading block with their former standalone H1 removed.
 
 Before restructuring the header library, run `npm test`. For focused header
 checks, use `node --test "tests/header-*.test.mjs"`. `header-modules.test.mjs`
-retains comparisons with the original vault classes and needs the configured
-vault; the other header unit-test files use synthetic notes or frozen vault
-frontmatter and can run without a vault or Obsidian.
+compares against the original classes frozen in `tests/fixtures/legacy-vault`,
+with a pinned source commit and verified hashes. All default header tests use
+synthetic notes or frozen vault inputs and run without a vault or Obsidian.
+Live-note comparisons are opt-in with `npm test -- --live-vault`; see
+[test modes](../tests/README.md).
 
 - `header-dates`: date formats, DR arithmetic, partial-date conventions,
   inclusive lifecycle boundaries, frontmatter precedence, and age wording.

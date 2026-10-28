@@ -56,8 +56,8 @@ flowchart LR
 - **`taelgarverse-core`** owns rendering, routing, navigation behavior, browser assets, the
   publisher, the Taelgarverse Obsidian plugin source, and the maintained shared
   header core. The deployment job needs this repository and its dependencies;
-  it does not need a vault checkout or Obsidian. The preceding test job checks
-  out sparse public vault inputs, and must pass before deployment starts.
+  it does not need a vault checkout or Obsidian. The preceding test job uses
+  frozen core fixtures and must pass before deployment starts.
 - **`taelgarverse` / the older static publishing pipeline** are independent of
   this application. Their MkDocs output and materialized static headers are not
   inputs to the dynamic renderer.
@@ -158,8 +158,9 @@ selects an alternative to the local file, in that order of priority. Defaults
 still apply. Resolve each path relative to the file that supplies it, so a file
 in another directory cannot accidentally relocate inherited paths.
 
-`vault_dir` selects the original vault for content and metadata. Compatibility
-tests also read its trusted legacy scripts; production header logic lives in core.
+`vault_dir` selects the original vault for content and metadata. Default tests
+use frozen core fixtures; only explicit `--live-vault` checks read working-vault
+content. Production header logic lives in core.
 The optional `source_dir` selects different Markdown/media for exported previews;
 when omitted or null, it follows the resolved vault. The publisher's `--vault`
 overrides `vault_dir` before checking filesystem paths, then the export step
@@ -233,8 +234,8 @@ service applies the query date. Unexpected affiliation shapes fall back to a
 full scan. The core needs no app/Dataview shim, global calendar or CustomJS state.
 
 Header refactoring is guarded by synthetic unit tests, frozen examples of every
-vault `testcase` page, complex relationship histories, fixed outputs in both
-formats, and independent comparisons with the original vault classes. Fixture
+captured vault `testcase` page, complex relationship histories, fixed outputs in both
+formats, and independent comparisons with frozen copies of the original classes. Fixture
 updates and known pre-existing defects are described in the
 [refactoring test baseline](shared-taelgar-blocks-plan.md#refactoring-test-baseline).
 
@@ -386,7 +387,15 @@ Inline `taelgar-relationship` blocks share the feature lifecycle and graph cache
 | Snapshot schema or publication/availability policy | Update producer and consumers together; determine a compatible deployment order and whether existing snapshots must be republished. |
 | Search compiler, visibility rules, or index format | Republish content to compile/stage D1 before activation; retain active plus one previous good generation in R2/D1 and collect orphaned assets/text. See [search publication](search.md). |
 
-`node scripts/build-runtime.mjs` regenerates the local legacy reference at
+Default tests resolve `tests/fixtures/test-config.json` through
+`tests/helpers/test-settings.mjs`, bypassing personal config and environment
+overrides. Legacy source provenance and hashes live in
+`tests/fixtures/legacy-vault/source.json`. The runner never rebuilds that reference
+from a vault. `npm test -- --live-vault` selects only explicit live-note and
+installed-plugin checks; the ordinary and emulator suites need only core.
+See [test modes and fixtures](../tests/README.md).
+
+The explicit maintenance command `node scripts/build-runtime.mjs` regenerates the local legacy reference at
 `.generated/headers.mjs` and `src/icons.mjs`; it does **not** update the maintained
 header core or the committed legacy `src/worker-headers.mjs` reference.
 `build-worker-headers.mjs` is retained only for intentional legacy-reference
@@ -427,8 +436,8 @@ Agents must update the relevant core docs in the same change:
   changes to it are requested.
 
 For behavior changes, run the relevant tests in `tests/`; use `npm test` for shared
-rendering changes and `node scripts/cloudflare.mjs check` for the Worker package. Tests that build
-headers need the configured vault. Publisher storage changes also have the local
+rendering changes and `node scripts/cloudflare.mjs check` for the Worker package.
+Default tests use frozen repository inputs and need no working vault. Publisher storage changes also have the local
 `node --test tests/publish-r2.integration.mjs` check. Use `node scripts/smoke-worker.mjs` only against
 a Worker serving equivalent content/settings to the local reference. Documentation
 edits need link/example checks; they do not require publishing content.
