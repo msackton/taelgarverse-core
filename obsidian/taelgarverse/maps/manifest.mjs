@@ -1,3 +1,4 @@
+import {detailSources,validateDetailManifest,resolveDetailManifest} from '../../../src/map-details.mjs';
 import path from 'node:path';
 import {TFile} from 'obsidian';
 import {parseMapBlock,baselineViewConfig} from '../../../src/map-block.mjs';
@@ -30,6 +31,22 @@ export async function loadObsidianBaseline(app,source,sourcePath) {
   const data=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
   if(bytes.length<33 || data.getUint32(0)!==0x89504e47 || data.getUint32(4)!==0x0d0a1a0a || data.getUint32(12)!==0x49484452)
     throw new Error('Map image must be a PNG.');
+  const detailLayers=[];
+  for(const detailPath of detailSources(block.details))detailLayers.push(await loadObsidianDetail(app,detailPath));
+  if(detailLayers.length)metadata.detailLayers=detailLayers;
   const manifest=resolveMapSource(metadata,{width:data.getUint32(16),height:data.getUint32(20)});
   return {block,manifest,layerDocuments,manifestPath:manifestFile.path,config:baselineViewConfig(block,manifest,app.vault.getResourcePath(image))};
+}
+
+export async function loadObsidianDetail(app,manifestPath){
+  detailSources([manifestPath]);
+  const file=app.vault.getAbstractFileByPath(manifestPath);
+  if(!(file instanceof TFile))throw new Error('Regional manifest is missing: '+manifestPath);
+  const detail=validateDetailManifest(JSON.parse(await app.vault.read(file)));
+  const imagePath=path.posix.join(path.posix.dirname(file.path),detail.image),image=app.vault.getAbstractFileByPath(imagePath);
+  if(!(image instanceof TFile))throw new Error('Regional PNG is missing: '+imagePath);
+  const bytes=new Uint8Array(await app.vault.readBinary(image)),header=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+  if(bytes.length<33 || header.getUint32(0)!==0x89504e47 || header.getUint32(4)!==0x0d0a1a0a || header.getUint32(12)!==0x49484452)
+    throw new Error('Regional image must be a PNG');
+  return resolveDetailManifest(detail,{width:header.getUint32(16),height:header.getUint32(20)},app.vault.getResourcePath(image));
 }

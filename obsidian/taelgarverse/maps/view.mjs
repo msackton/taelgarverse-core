@@ -12,7 +12,7 @@ export class MapEditorView extends ItemView {
   getIcon(){return 'map';}
   getState(){return {...this.state};}
   async setState(state,result){
-    this.state={source:state?.source,sourcePath:state?.sourcePath??''};
+    this.state={source:state?.source,sourcePath:state?.sourcePath??'',...(state?.blockSource?{blockSource:state.blockSource}:{}),...(Number.isInteger(state?.blockLine)?{blockLine:state.blockLine}:{})};
     if(!this.closed)await this.render();
     await super.setState(state,result);
   }
@@ -23,9 +23,12 @@ export class MapEditorView extends ItemView {
     this.contentEl.textContent='Loading map…';
     try{
       if(typeof this.state.source!=='string')throw new Error('Open a version 2 map from a note to choose its source.');
-      const baseline=await loadObsidianBaseline(this.app,JSON.stringify({version:2,source:this.state.source}),this.state.sourcePath);
+      const baseline=await loadObsidianBaseline(this.app,this.state.blockSource??JSON.stringify({version:2,source:this.state.source}),this.state.sourcePath);
+      if(this.closed || sequence!==this.sequence || !this.feature.active)return;
+      const session=this.state.blockSource?{path:this.state.sourcePath,guard:captureMapBlock(await readMapNote(this.app,this.state.sourcePath),{source:this.state.blockSource,lineHint:this.state.blockLine})}:undefined;
       if(this.closed || sequence!==this.sequence || !this.feature.active)return;
       this.editor=mountMapEditor(this.contentEl,{...baseline,image:baseline.config.image,app:this.app,sourcePath:this.state.sourcePath,
+        session,onDetailSaved:(result,previous)=>{this.state.blockSource=result.source;this.state.blockLine=result.session.guard.lineHint;this.feature.refreshMap(this.state.sourcePath,result.block.id,result.source,previous);},
         onLayersSaved:()=>{for(const child of this.feature.maps)void child.onload();},
         onPathSaved:(file,path)=>{
           for(const child of this.feature.maps)child.paths?.updateNote(file,path);
@@ -45,9 +48,9 @@ export async function openMapEditor(feature,path,selection){
   const baseline=await loadObsidianBaseline(feature.app,guard.body,path);
   if(!feature.active)return;
   // Reuse an open source editor without resetting its in-progress town draft.
-  const existing=[...feature.editors].find(view=>view.state.source===baseline.manifestPath);
+  const existing=[...feature.editors].find(view=>view.state.source===baseline.manifestPath && view.state.sourcePath===path && view.state.blockSource===guard.body && view.state.blockLine===guard.lineHint);
   const leaf=existing?.leaf??feature.app.workspace.getLeaf('tab');
-  if(!existing)await leaf.setViewState({type:MAP_EDITOR_VIEW,active:true,state:{source:baseline.manifestPath,sourcePath:path}});
+  if(!existing)await leaf.setViewState({type:MAP_EDITOR_VIEW,active:true,state:{source:baseline.manifestPath,sourcePath:path,blockSource:guard.body,blockLine:guard.lineHint}});
   await feature.app.workspace.revealLeaf(leaf);
   return leaf.view;
 }

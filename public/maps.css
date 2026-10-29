@@ -34,3 +34,6 @@
 .map-editing .map-feature-paths polyline, .map-measuring .map-feature-paths polyline { pointer-events:none; }
 .map-region-overlay polygon { pointer-events:stroke; }
 .map-editing .map-region-overlay polygon, .map-measuring .map-region-overlay polygon { pointer-events:none; }
+.map-detail-controls { display:inline-flex; flex-wrap:wrap; align-items:center; gap:.5rem; }
+.map-detail-controls[hidden] { display:none; }
+.map-detail-controls select { max-width:18rem; }

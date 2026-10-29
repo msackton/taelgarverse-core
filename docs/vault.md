@@ -827,7 +827,7 @@ Obsidian for town placement, river/road paths and region border authoring. Embed
 fields are ignored; masks, dimming and hide-content editing are removed. Publication validates the manifest/image
 pair and shares one tile pyramid across crops. See [map editor](map-editor.md)
 and [manifest delivery](maps.md#delivery-and-maintenance). Ordinary JSON files
-remain excluded; `.map.json` and `.map-layers.json` are the additional supported
+remain excluded; `.map.json`, `.map-layers.json`, and `.map-detail.json` are the additional supported
 asset suffixes. See [shared region layers](map-layers.md) for the schema, visibility
 controls, publication behavior and authoring limits. Each map offers no region
 layer checkboxes unless its block opts in with `toggleableLayers: [layer-id]`.
@@ -930,3 +930,10 @@ the website code release path and a separate plugin release. The vault's
 `_scripts/customJS/` still belongs to the legacy materializer and compatibility
 tests, and changes there do not update the new header core. See the
 [release rules](architecture.md#change-and-release-rules).
+
+
+Regional artwork uses an explicit per-map `details` list of vault-root-relative
+`.map-detail.json` paths. Keep each manifest beside its full-canvas PNG in a
+publishable folder. The manifest anchors higher-resolution artwork to the existing
+world frame; it does not change note `location` or `mapPath` coordinates. See
+[regional artwork](map-editor.md#regional-artwork) for the schema and export workflow.

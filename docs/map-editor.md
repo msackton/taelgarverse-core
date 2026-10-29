@@ -3,9 +3,9 @@
 The development plugin opens map authoring in its own Obsidian tab. Choose
 **Open map editor** beneath a version 2 map, or put the cursor inside its fence
 and run **Taelgarverse: Open current map in editor**. The tab uses the full
-exported image, regardless of that note's crop. Opening the same source again
-reuses the editor and preserves its current town draft. Tabs remember their
-source across workspace restoration; unsaved town drafts are temporary.
+exported image, regardless of that note's crop. Opening the same originating map block again
+reuses its editor and preserves its current draft. Tabs remember their source and
+originating block across workspace restoration; unsaved drawing drafts are temporary.
 
 Embedded maps show towns, navigation, measurement and the optional grid.
 Town placement controls appear only in the editor. The editor authors town positions and persistent shared region borders. Polygon masking, dimming, and hide-content controls have been removed.
@@ -339,3 +339,115 @@ geometry invalidate publication even if Git ignores that file. Publishing the
 changed vault notes and geometry updates website paths; building or
 releasing the plugin alone does not publish them. Legacy map blocks do not
 interpret original-canvas path coordinates.
+
+## Regional artwork
+
+Use **Regional artwork** to create new, aligned artwork with more pixels than the
+world map. The editor keeps the world image underneath; towns, borders, paths,
+grid coordinates, and measurements continue to use original world coordinates.
+It does not warp existing independent maps into alignment.
+
+1. Open the editor from the map block that should show the artwork. Choose
+   **Select two corners**, then click opposite corners. Escape cancels selection.
+   Selection snaps to whole world pixels; use the X/Y/width/height fields to refine
+   it precisely. The entire template footprint must lie inside this source export.
+2. Set a region name, finished PNG filename, and **Artwork pixels per world
+   pixel** (integer 1–32, default 8). A 600 × 400 world-pixel footprint at 8×
+   creates a 4800 × 3200 PNG. Exports are limited to 16384 pixels per side and
+   64 million pixels total.
+3. Choose **Export tracing guide PNG** and **Export regional manifest** with the
+   same settings. These download `name-guide.png` and `name.map-detail.json`;
+   they do not write vault files or modify the note.
+4. Open the guide in Photoshop, keep it as a reference layer, and draw new
+   artwork above it. Preserve major geographic anchors. Hide the guide and export
+   the full canvas as `name.png`, retaining transparency as desired. Do not trim,
+   rotate, rescale, or move the canvas. Keep river/road and settlement overlays
+   out of the raster when you want them to remain editable.
+5. Put the finished PNG and its manifest together in a publishable vault folder,
+   such as `assets/maps/`. Enter the manifest's exact **vault-root-relative** path
+   (no wikilink) and choose **Add artwork to this map**. This explicitly saves the
+   attachment to the originating note block and previews it immediately.
+
+The block retains its crop, comments, and other fields. A missing `id` is assigned
+on the first attachment save. Save checks that the selected block has not changed
+and uses open editor buffers or atomic vault updates. A conflict leaves the note
+untouched. **Remove artwork from this map** removes only that block's reference;
+no PNG or manifest is deleted. Reopen the editor from the current note after
+manually changing its block. Old restored source-only editor tabs can export
+new templates, but must be reopened from a map block to save attachments.
+
+```yaml
+version: 2
+source: "[[assets/maps/taelgar-core.map.json]]"
+details:
+  - assets/maps/aveil.map-detail.json
+```
+
+Example `aveil.map-detail.json`, beside `aveil.png`:
+
+```json
+{
+  "version": 1,
+  "name": "Aveil",
+  "image": "aveil.png",
+  "worldBounds": {"x": 5100, "y": 7200, "width": 600, "height": 400},
+  "pixelSize": [4800, 3200],
+  "fadeZoom": [0, 2]
+}
+```
+
+`worldBounds` uses original world Photoshop pixels, regardless of the baseline
+export's `sourceOffset`. `pixelSize` is the expected full artwork canvas; X and Y
+must have the same scale. `fadeZoom` defaults to `[0, 2]`: no detail at zoom 0,
+50% opacity at zoom 1, full opacity at zoom 2. At zoom 0, one world pixel occupies
+one screen pixel; each zoom level doubles that scale. Choose levels reachable
+within the map's `maxZoom`. These are artwork reveal thresholds, independent of
+feature importance tiers.
+
+Both Obsidian and the website load each image near its reveal zoom when its
+footprint intersects the viewport, and release its overlay when out of view or
+zoomed out. The original world remains visible through transparent artwork and
+when a detail image fails to load. Artwork clips to the map crop and stays below
+tracing references and vector features. Later `details` entries draw above earlier
+ones in overlaps, regardless of download order. **Zoom to region** fits its visible
+footprint; **Fit map** returns to the map's crop. These navigation controls do not
+add layer toggles. No regional artwork appears unless the block explicitly lists
+it; up to 32 manifests can be attached to a map.
+
+This first version uses individual PNG overlays, with the size limits above;
+regional artwork does not get its own tile pyramid. Rectangles are unrotated and
+share the world coordinate frame. Editing a river or road at regional zoom still
+saves fractional world coordinates to its existing geometry file.
+
+### Export regional artwork from a saved Photoshop file
+
+The Python exporter can preserve an editor-generated template manifest while
+exporting one saved drawable layer with transparency:
+
+```sh
+python scripts/map-export/export_core.py \
+  --source /path/to/aveil.psd \
+  --only-layer /artwork/detail \
+  --regional-template /path/to/aveil.map-detail.json \
+  --output /path/to/export/aveil
+```
+
+This writes `aveil.png` and `aveil.map-detail.json`, checks that the Photoshop
+canvas exactly matches `pixelSize`, and retains the footprint and fade settings.
+Use a new output prefix: existing files are never overwritten. Omit hex endpoints
+for regional exports. The normal exporter restrictions still apply (RGB 8-bit,
+saved drawable pixels, supported blending and no embedded ICC profile). For
+multiple layers, supply an explicit `--recipe` instead of `--only-layer`; recipe
+composition uses a white background. Photoshop's native transparent full-canvas
+PNG export is also supported. See [export setup](map-baseline-progress.md).
+
+
+The Windows wrapper supports the same regional workflow with a source override:
+
+```powershell
+.\scripts\test-map-export.ps1 -Source C:\maps\aveil.psd -OnlyLayer '/artwork/detail' -RegionalTemplate C:\maps\aveil.map-detail.json -Output C:\maps\export\aveil
+```
+
+`-RegionalTemplate` implies full canvas; omit hex endpoints and `-Preview`.
+Preview the result over the world map in the editor. After replacing a PNG or
+editing a regional manifest outside the editor, reopen its map to reload it.

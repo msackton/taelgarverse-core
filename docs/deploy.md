@@ -773,3 +773,11 @@ For tracing an existing Photoshop layer in the Obsidian map editor, use
 `-OnlyLayer /group/layer -FullCanvas` with `scripts/test-map-export.ps1`.
 These commands write a local transparent PNG and its offset manifest; they do
 not publish content or deploy code. See [export instructions and prerequisites](map-baseline-progress.md#export-one-layer-on-transparency).
+
+
+Regional map artwork (`details` / `.map-detail.json`) requires supporting website
+code first, followed by a separate content publication for the new PNGs, manifests,
+and map blocks. Existing content without details needs no migration. Plugin
+installation/release remains separate. The local Photoshop exporter accepts
+`--regional-template` to retain an editor-generated world footprint; see
+[regional artwork export](map-editor.md#export-regional-artwork-from-a-saved-photoshop-file).

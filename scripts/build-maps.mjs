@@ -1,3 +1,4 @@
+import {resolveDetailManifest} from '../src/map-details.mjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -63,6 +64,25 @@ export async function prepareMaps(store, cacheDir, derivativeCache, sources={}) 
   const generated = [];
   const verified=new Map(),strict=sources.strict!==false;
   for (const map of mapImages(store,{...sources,strict})) {
+    try{
+      for(const {entry:art,manifestEntry:detailFile,detail} of map.details??[]){
+        const bytes=await fs.readFile(art.filename);
+        art.sha256=createHash('sha256').update(bytes).digest('hex');
+        let info=verified.get(art.sha256);
+        if(!info){
+          const decoder=sharp(bytes,{limitInputPixels:64_000_000,failOn:'warning'});
+          info=await decoder.metadata();await decoder.stats();verified.set(art.sha256,info);
+        }
+        if(info.format!=='png' || (info.pages||1)>1 || animatedPNG(bytes))throw new Error(detailFile.id+': regional artwork must be a static PNG');
+        resolveDetailManifest(detail,info,'');
+        art.mapImageInfo={format:'png',width:info.width,height:info.height};
+      }
+    }catch(error){
+      if(strict)throw error;
+      const warning='Regional artwork: '+error.message;
+      if(!store.warnings.includes(warning))store.warnings.push(warning);
+      continue;
+    }
     const {entry,manifest,manifestEntry,block}=map;
     let {config}=map;
     const input = await fs.readFile(entry.filename);

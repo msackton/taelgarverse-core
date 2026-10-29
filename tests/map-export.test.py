@@ -58,6 +58,29 @@ class Document(list):
 
 
 class ExportTests(unittest.TestCase):
+    def test_regional_export_preserves_footprint_and_transparent_full_canvas(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = {"version": 1, "name": "Regional", "image": "old.png", "worldBounds": {"x": 5100, "y": 7100, "width": 0.5, "height": 0.5}, "pixelSize": [4, 4], "fadeZoom": [0, 2]}
+            template_file = root / "template.map-detail.json"
+            template_file.write_text(json.dumps(template))
+            document = Document([Layer("art", "red", (1, 1, 3, 3))])
+            with patch.object(exporter.PSDImage, "open", return_value=document):
+                result = exporter.export("art.psd", None, root / "regional", only_layer="/art", regional_template=template_file)
+                self.assertEqual(result, {**template, "image": "regional.png"})
+                self.assertTrue((root / "regional.map-detail.json").exists())
+                self.assertFalse((root / "regional.map.json").exists())
+                with Image.open(root / "regional.png") as image:
+                    self.assertEqual(image.size, (4, 4))
+                    self.assertEqual(image.getpixel((0, 0)), (0, 0, 0, 0))
+                    self.assertEqual(image.getpixel((1, 1)), (255, 0, 0, 255))
+                with self.assertRaisesRegex(ValueError, "full canvas"):
+                    exporter.export("art.psd", None, root / "cropped", only_layer="/art", regional_template=template_file, top_left="16.11")
+                document.width = 5
+                with self.assertRaisesRegex(ValueError, "does not match"):
+                    exporter.export("art.psd", None, root / "resized", only_layer="/art", regional_template=template_file)
+                self.assertFalse((root / "resized.png").exists())
+
     def test_native_crop_opacity_and_stacking(self):
         document = Document([Layer("base", "red"), Layer("cover", "blue", (1, 1, 3, 3), 128), Layer("grid", "black")])
         layers = exporter.selected_layers(document, {"/base": True, "/cover": True, "/grid": False})

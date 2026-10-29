@@ -449,3 +449,10 @@ This feature uses Obsidian's existing image resource URLs. It does not create
 thumbnails or tiles, write to the vault, or download remote images in the
 background. Maps keep their own controls. Turn the setting off to remove the
 image controls and inline styling and close open viewers; map functionality is independent.
+
+
+Regional detail artwork is available through the map editor's **Regional artwork**
+controls: select a world footprint, download a tracing guide and manifest, draw
+aligned artwork in Photoshop, and explicitly attach its `.map-detail.json` to a
+map block. Details fade in with zoom beneath editable features. See the
+[regional artwork guide](../../docs/map-editor.md#regional-artwork).

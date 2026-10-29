@@ -81,7 +81,7 @@ export function mountNotePaths({L,map,canvas,figure,config,manifest,app,sourcePa
     save.disabled ||= points.length<2;del.hidden=!session || session.guard.raw===null;
     confirm.hidden=!deleting;confirm.disabled=busy;trace.setAttribute('aria-pressed',String(tracing));
     canvas.classList.toggle('map-editing-path',!!session || busy);
-    canvas.classList.toggle('map-editing',!!session || busy || canvas.classList.contains('map-placing-town') || canvas.classList.contains('map-editing-region'));
+    canvas.classList.toggle('map-editing',canvas.classList.contains('map-editing-detail') || !!session || busy || canvas.classList.contains('map-placing-town') || canvas.classList.contains('map-editing-region'));
   }
   function navigation(){
     canvas.classList.toggle('map-path-tracing',!!session && tracing);

@@ -1,3 +1,4 @@
+import {detailSources} from './map-details.mjs';
 // Shared, host-independent coordinates and validation for manifest-based maps.
 // Saved geometry uses Photoshop canvas pixels. Only view configs use PNG-local pixels.
 import {LOCATOR_SCHEME,hexRangeBounds} from './map-locators.mjs';
@@ -121,6 +122,7 @@ export function validateMapDefinition(data,manifest) {
   for(const key of ['image','bounds','calibration','scale','unit','lat','long','defaultZoom'])require(data[key]===undefined,'Version 2 maps inherit '+key+' from the manifest or crop');
   require(data.grid===undefined || record(data.grid),'grid must be an object');
   for(const key of ['visible','showCoordinates'])require(data.grid?.[key]===undefined || typeof data.grid[key]==='boolean','grid.'+key+' must be boolean');
+  detailSources(data.details);
   const toggles=data.toggleableLayers??[];
   require(Array.isArray(toggles) && toggles.length<=2000 && toggles.every(v=>typeof v==='string' && v.length>0 && v.length<=1200) && new Set(toggles).size===toggles.length,'toggleableLayers must be an array of unique layer IDs or qualified keys');
   const availableLayers=manifest.regionLayers??[],toggleKeys=new Set();
@@ -135,7 +137,7 @@ export function validateMapDefinition(data,manifest) {
   const right=Math.min(requested.x+requested.width,extent.x+extent.width),bottom=Math.min(requested.y+requested.height,extent.y+extent.height);
   require(right>left && bottom>top,'Crop does not intersect the exported image');
   const local=point=>point.map((v,i)=>v-manifest.sourceOffset[i]);
-  return {...(manifest.regionLayers?.length?{regionLayers,sourceOffset:manifest.sourceOffset}:{}),crop:{x:left-extent.x,y:top-extent.y,width:right-left,height:bottom-top},
+  return {...(data.details?.length?{detailLayers:manifest.detailLayers??[],sourceOffset:manifest.sourceOffset}:{}),...(manifest.regionLayers?.length?{regionLayers,sourceOffset:manifest.sourceOffset}:{}),crop:{x:left-extent.x,y:top-extent.y,width:right-left,height:bottom-top},
     grid:{...structuredClone(MAP_GRID),origin:local(MAP_GRID.origin),blockOrigin:local(MAP_GRID.blockOrigin),
       visible:data.grid?.visible??false,showCoordinates:data.grid?.showCoordinates??true},
     bounds:[[0,0],[manifest.height,manifest.width]],

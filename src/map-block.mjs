@@ -56,9 +56,9 @@ export function patchMapBlock(text,guard,draft,manifest,{newId=mapBlockId}={}) {
   const id=original.id || newId();
   if(mapFences(text).some(b=>b.start!==block.start && b.data?.id===id))throw new Error('Map block id is already used in this note.');
   const updated={...original,id};
-  for(const key of ['crop','grid','toggleableLayers']){if(draft[key]===undefined)delete updated[key];else updated[key]=draft[key];}
+  for(const key of ['crop','grid','toggleableLayers','details']){if(draft[key]===undefined)delete updated[key];else updated[key]=draft[key];}
   validateMapDefinition(updated,manifest);
-  for(const key of ['id','crop','grid','toggleableLayers']){
+  for(const key of ['id','crop','grid','toggleableLayers','details']){
     if(updated[key]===undefined)doc.delete(key);else doc.set(key,updateNode(doc,doc.get(key,true),updated[key]));
   }
   const newline=block.raw.includes('\r\n')?'\r\n':'\n';

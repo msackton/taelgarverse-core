@@ -38,3 +38,9 @@
 .map-path-editor button[aria-pressed="true"] { background:var(--interactive-accent,#286b86); color:var(--text-on-accent,#fff); }
 .map-editing-path, .map-editing-path .leaflet-interactive { cursor:crosshair; }
 .map-canvas.map-path-tracing { touch-action:none; }
+.map-detail-editor { display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; width:100%; min-width:0; margin:.5rem 0; padding:.6rem; border:1px solid var(--background-modifier-border,#aaa); }
+.map-detail-editor label { display:inline-flex; align-items:center; gap:.3rem; }
+.map-detail-editor input[type="number"] { width:6rem; }
+.map-detail-editor input[type="text"], .map-detail-editor select { max-width:24rem; }
+.map-detail-editor small, .map-detail-editor [role="status"] { flex-basis:100%; }
+.map-detail-editor [hidden] { display:none; }

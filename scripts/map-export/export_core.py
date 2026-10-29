@@ -1,6 +1,7 @@
 """Export a recipe on white, or one Photoshop layer on transparency, at native resolution."""
 import argparse
 import json
+import math
 from pathlib import Path
 import sys
 
@@ -112,7 +113,28 @@ def compose(rect, layers, *, transparent=False):
     return result
 
 
-def export(source, recipe_path, output, *, top_left=None, bottom_right=None, include=(), exclude=(), only_layer=None, plan=False):
+def regional_manifest(filename):
+    value = json.loads(Path(filename).read_text(encoding="utf-8"))
+    require(isinstance(value, dict) and value.get("version") == 1 and
+            set(value) <= {"version", "name", "image", "worldBounds", "pixelSize", "fadeZoom"},
+            "Expected a version 1 regional template manifest.")
+    require(isinstance(value.get("name"), str) and 0 < len(value["name"].strip()) <= 120,
+            "Regional template needs a name.")
+    rect, size, zoom = value.get("worldBounds"), value.get("pixelSize"), value.get("fadeZoom", [0, 2])
+    number = lambda n: type(n) in (int, float) and math.isfinite(n)
+    require(isinstance(rect, dict) and set(rect) == {"x", "y", "width", "height"} and
+            all(number(n) for n in rect.values()) and rect["x"] >= 0 and rect["y"] >= 0 and
+            rect["width"] > 0 and rect["height"] > 0 and rect["x"]+rect["width"] <= 100000 and rect["y"]+rect["height"] <= 100000,
+            "Invalid regional worldBounds.")
+    require(isinstance(size, list) and len(size) == 2 and all(type(n) is int and 0 < n <= 16384 for n in size) and size[0]*size[1] <= 64000000,
+            "Regional pixelSize exceeds 16384 per side or 64 million pixels.")
+    require(math.isclose(size[0]/rect["width"], size[1]/rect["height"], rel_tol=1e-6), "Regional aspect ratio does not match worldBounds.")
+    require(isinstance(zoom, list) and len(zoom) == 2 and all(number(n) and -10 <= n <= 10 for n in zoom) and zoom[0] < zoom[1],
+            "Invalid regional fadeZoom.")
+    return {**value, "fadeZoom": zoom}
+
+
+def export(source, recipe_path, output, *, top_left=None, bottom_right=None, include=(), exclude=(), only_layer=None, regional_template=None, plan=False):
     if only_layer is not None:
         require(not include and not exclude, "--only-layer cannot be combined with --include-layer or --exclude-layer.")
         # Selection is independent of the basemap recipe, including missing or
@@ -122,22 +144,26 @@ def export(source, recipe_path, output, *, top_left=None, bottom_right=None, inc
     else:
         recipe = json.loads(Path(recipe_path).read_text(encoding="utf-8"))
         decisions = layer_choices(recipe, include, exclude)
+    template = regional_manifest(regional_template) if regional_template is not None else None
+    require(template is None or (top_left is None and bottom_right is None), "Regional templates require the full canvas; omit hex bounds.")
     rect = pixel_bounds(top_left, bottom_right)
     if plan:
         print(json.dumps({"sourceRect": rect or "full Photoshop canvas", "layers": decisions,
-                          "background": "transparent" if only_layer is not None else "white"}, indent=2))
+                          "background": "transparent" if only_layer is not None else "white", **({"regionalTemplate": template} if template else {})}, indent=2))
         return
     require(source is not None and output is not None, "Pass --source and --output, or use --plan.")
     output = Path(output).resolve()
     require(output.name and not any(c in output.name for c in ':?#') and
             all(ord(c) >= 32 and ord(c) != 127 for c in output.name), "Choose a filename prefix without : ? # or control characters.")
     png = output.with_name(output.name + ".png")
-    metadata = output.with_name(output.name + ".map.json")
+    metadata = output.with_name(output.name + (".map-detail.json" if template else ".map.json"))
     for destination in (png, metadata):
         require(not destination.exists(), f"Output already exists: {destination}; choose a new prefix.")
     document = PSDImage.open(source, max_alloc_bytes=8*1024**3)
     require(0 < document.width <= 50000 and 0 < document.height <= 50000 and document.width*document.height <= 250_000_000,
             "Source exceeds supported image dimensions (50,000 per side / 250 million pixels).")
+    if template:
+        require([document.width, document.height] == template["pixelSize"], "Photoshop canvas does not match regional pixelSize; do not trim or resize the template.")
     Image.MAX_IMAGE_PIXELS = 250_000_000
     rect = rect or [0, 0, document.width, document.height]
     require(0 <= rect[0] < rect[2] <= document.width and 0 <= rect[1] < rect[3] <= document.height,
@@ -145,7 +171,7 @@ def export(source, recipe_path, output, *, top_left=None, bottom_right=None, inc
     layers = selected_layers(document, decisions, recipe["layers"], warn_unknown=only_layer is None)
     output.parent.mkdir(parents=True, exist_ok=True)
     image = compose(rect, layers, transparent=True) if only_layer is not None else compose(rect, layers)
-    manifest = {"version": 2, "image": png.name, "sourceOffset": rect[:2]}
+    manifest = {**template, "image": png.name} if template else {"version": 2, "image": png.name, "sourceOffset": rect[:2]}
     written = []
     try:
         # Exclusive creation protects existing files, including a concurrent export.
@@ -157,7 +183,7 @@ def export(source, recipe_path, output, *, top_left=None, bottom_right=None, inc
             written.append(metadata)
             stream.write(json.dumps(manifest, indent=2)+"\n")
         print(f"Exported {rect[2]-rect[0]} x {rect[3]-rect[1]} pixels\nPNG: {png}\nManifest: {metadata}")
-        if only_layer is not None:
+        if only_layer is not None and not template:
             print(f"Transparent tracing layer: {only_layer}\nTracing X: {rect[0]}, Y: {rect[1]}, scale: 1")
         return manifest
     except BaseException:
@@ -178,10 +204,11 @@ if __name__ == "__main__":
     parser.add_argument("--include-layer", action="append", default=[], metavar="/GROUP/LAYER")
     parser.add_argument("--exclude-layer", action="append", default=[], metavar="/GROUP/LAYER")
     parser.add_argument("--only-layer", metavar="/GROUP/LAYER", help="Export exactly one drawable layer as transparent RGBA; ignores the recipe, preserves canvas/crop extent and writes the offset manifest")
+    parser.add_argument("--regional-template", type=Path, help="Preserve an editor-exported .map-detail.json footprint; requires the original full template canvas")
     parser.add_argument("--plan", action="store_true", help="Print bounds and layer choices without opening Photoshop or writing files")
     args = parser.parse_args()
     try:
         export(args.source, args.recipe, args.output, top_left=args.top_left, bottom_right=args.bottom_right,
-               include=args.include_layer, exclude=args.exclude_layer, only_layer=args.only_layer, plan=args.plan)
+               include=args.include_layer, exclude=args.exclude_layer, only_layer=args.only_layer, regional_template=args.regional_template, plan=args.plan)
     except (ValueError, OSError) as error:
         parser.exit(1, f"Map export failed: {error}\n")

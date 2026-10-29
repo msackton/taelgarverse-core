@@ -1,3 +1,4 @@
+import {validateDetailManifest} from './map-details.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -28,16 +29,16 @@ export class Store extends ContentStore {
           continue;
         }
         const extension = path.extname(file.name).toLowerCase();
-        const mapManifest = file.name.endsWith('.map.json'),mapLayers=file.name.endsWith('.map-layers.json');
-        if (extension !== '.md' && !ASSET_TYPES.has(extension) && !mapManifest && !mapLayers) continue;
+        const mapManifest = file.name.endsWith('.map.json'),mapLayers=file.name.endsWith('.map-layers.json'),mapDetail=file.name.endsWith('.map-detail.json');
+        if (extension !== '.md' && !ASSET_TYPES.has(extension) && !mapManifest && !mapLayers && !mapDetail) continue;
         const entry = {id: relative, filename, target: targetPath(relative), extension, note: null};
-        if (mapManifest || mapLayers) {
+        if (mapManifest || mapLayers || mapDetail) {
           try {
             const bytes=fs.readFileSync(filename);
-            entry[mapLayers?'mapLayers':'mapManifest']=(mapLayers?validateMapLayers:validateManifest)(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)));
+            entry[mapDetail?'mapDetail':mapLayers?'mapLayers':'mapManifest']=(mapDetail?validateDetailManifest:mapLayers?validateMapLayers:validateManifest)(JSON.parse(new TextDecoder('utf-8',{fatal:true}).decode(bytes)));
             entry.sha256=createHash('sha256').update(bytes).digest('hex');
           }
-          catch (error) { entry[mapLayers?'mapLayersError':'mapManifestError']=error.message; }
+          catch (error) { entry[mapDetail?'mapDetailError':mapLayers?'mapLayersError':'mapManifestError']=error.message; }
         }
         if (extension === '.md') {
           try {

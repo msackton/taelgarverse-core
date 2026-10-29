@@ -9,6 +9,7 @@ const require=createRequire(import.meta.url);
 const bundle=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/maps/view.mjs'],bundle:true,write:false,
   format:'cjs',platform:'node',external:['obsidian'],plugins:[{name:'host',setup(b){
     b.onResolve({filter:/map-view\.mjs$/},()=>({path:'test-renderer',external:true}));
+    b.onResolve({filter:/\/detail-editor\.mjs$/},()=>({path:'test-details',external:true}));
     b.onResolve({filter:/\/tracing-image\.mjs$/},()=>({path:'test-tracing',external:true}));
     b.onResolve({filter:/\/regions\.mjs$/},()=>({path:'test-regions',external:true}));
     b.onResolve({filter:/\/paths\.mjs$/},()=>({path:'test-paths',external:true}));
@@ -35,16 +36,16 @@ function host(){
       const row={config:JSON.parse(figure.dataset.map),figure,disposed:false};renders.push(row);
       const decoration=options?.decorate?.({config:row.config,canvas:figure.querySelector('.map-canvas')});
       return ()=>{row.disposed=true;decoration?.();};
-    }}:name==='test-paths'?{mountNotePaths:()=>()=>{}}:name==='test-tracing'?{mountTracingImage:()=>()=>{}}:name==='test-regions'?{mountRegionEditor:()=>()=>{}}:name==='test-towns'?{mountTownPlacement:options=>{placements.push(options);const dispose=()=>{};dispose.updateNote=()=>{};return dispose;}}:require(name)});
+    }}:name==='test-details'?{mountDetailEditor:()=>()=>{}}:name==='test-paths'?{mountNotePaths:()=>()=>{}}:name==='test-tracing'?{mountTracingImage:()=>()=>{}}:name==='test-regions'?{mountRegionEditor:()=>()=>{}}:name==='test-towns'?{mountTownPlacement:options=>{placements.push(options);const dispose=()=>{};dispose.updateNote=()=>{};return dispose;}}:require(name)});
   const api=module.exports,feature={app,active:true,editors:new Set(),maps:new Set()};
-  return {api,app,feature,document,renders,placements,leaves,revealed,block,get note(){return note;},set delay(value){delay=value;}};
+  return {api,app,feature,document,renders,placements,leaves,revealed,block,get note(){return note;},set note(value){note=value;},set delay(value){delay=value;}};
 }
 
 test('opening a cropped embed creates a full-source editor tab without changing its note',async()=>{
   const h=host(),before=h.note;
   const view=await h.api.openMapEditor(h.feature,'Map.md',{source:JSON.stringify(h.block)});
   assert.equal(h.leaves.length,1);assert.equal(h.leaves[0].savedState.type,'taelgar-map-editor');
-  assert.deepEqual(plain(view.getState()),{source:'assets/core.map.json',sourcePath:'Map.md'});
+  assert.deepEqual(plain(view.getState()),{source:'assets/core.map.json',sourcePath:'Map.md',blockSource:JSON.stringify(h.block)+'\n',blockLine:2});
   assert.deepEqual(h.renders[0].config.crop,{x:0,y:0,width:1000,height:800});
   assert.equal(h.renders[0].config.overlays,undefined);
   assert.equal(h.placements[0].editable,true);
@@ -63,4 +64,14 @@ test('editor tabs restore their source and cancel asynchronous rendering after c
   const pending=view.setState(view.getState(),{});view.onClose();release();await pending;
   assert.equal(h.renders.length,1,'a closed tab cannot mount after an awaited source read');
   assert.equal(h.renders[0].disposed,true);
+});
+
+
+test('identical blocks in one note retain separate originating selections',async()=>{
+  const h=host();h.note+='\n\n'+h.note.slice(h.note.indexOf('```'));
+  const first=await h.api.openMapEditor(h.feature,'Map.md',{source:JSON.stringify(h.block),lineHint:3});
+  const second=await h.api.openMapEditor(h.feature,'Map.md',{source:JSON.stringify(h.block),lineHint:7});
+  assert.notEqual(first,second);assert.equal(h.renders.length,2);
+  assert.equal(first.getState().blockLine,2);assert.equal(second.getState().blockLine,6);
+  first.onClose();second.onClose();
 });

@@ -170,6 +170,12 @@ test('prepared maps survive Node, compiled Worker and legacy snapshot rendering 
   await fs.writeFile(path.join(f.directory,riverSource),JSON.stringify({version:1,points:river.points}));
   await fs.writeFile(path.join(f.directory,'River.md'),'---\nmapPath: '+JSON.stringify({kind:river.kind,importance:river.importance,source:riverSource})+'\n---\n# River');
   await fs.writeFile(path.join(f.directory,'Secret road.md'),'---\nexcludePublish: all\nmapPath: '+JSON.stringify({...river,kind:'road'})+'\n---\n# Secret');
+  const detail={version:1,name:'Detailed area',image:'detail.png',worldBounds:{x:2120,y:3110,width:100,height:60},pixelSize:[800,480],fadeZoom:[0,2]};
+  const detailPNG=await sharp({create:{width:800,height:480,channels:4,background:'#33669980'}}).png().toBuffer();
+  await fs.writeFile(path.join(f.directory,'assets/maps/detail.png'),detailPNG);
+  await fs.writeFile(path.join(f.directory,'assets/maps/detail.map-detail.json'),JSON.stringify(detail));
+  f.block.details=['assets/maps/detail.map-detail.json'];
+  await fs.writeFile(path.join(f.directory,'Map.md'),fence(f.block)+'\n\n'+fence({...f.block,id:'second',details:[],crop:{x:2250,y:3110,width:50,height:70}}));
   const report=await prepareContent(f.settings,path.join(f.directory,'output'),{commit:'a'.repeat(40),dirty:false});
   const uploads=JSON.parse(await fs.readFile(report.manifestFile,'utf8'));
   const objects=new Map(await Promise.all(uploads.map(async item=>[item.key,await fs.readFile(item.file)])));
@@ -196,6 +202,10 @@ test('prepared maps survive Node, compiled Worker and legacy snapshot rendering 
     assert.deepEqual(maps[0].regionLayers[0].regions,layers.layers[0].regions);
     assert.equal(maps[0].regionLayers[0].toggleable,false);
     assert.deepEqual(maps[0].sourceOffset,[2100,3100]);
+    assert.deepEqual(maps[0].detailLayers,[{...detail,image:'/assets/assets/maps/detail.png'}]);
+    assert.equal(maps[1].detailLayers,undefined,'separate map blocks opt in independently');
+    assert.deepEqual(Buffer.from(await (await request(maps[0].detailLayers[0].image)).arrayBuffer()),detailPNG);
+    assert.deepEqual(await (await request('/assets/assets/maps/detail.map-detail.json')).json(),detail);
     assert.match(Object.values(maps[0].regionLinks)[0],/^\/page\/one/);
     assert.equal(maps[0].mapPaths.length,1);assert.deepEqual(maps[0].mapPaths[0].points,river.points);
     assert.equal(maps[0].mapPaths[0].importance,'regional');assert.match(maps[0].mapPaths[0].href,/^\/page\/river/);
@@ -278,4 +288,26 @@ test('path references cannot bypass missing files, malformed geometry, symlinks 
   await fs.writeFile(path.join(f.directory,'_maps/.nopublish'),'');await assert.rejects(prepare(),/excluded/);await fs.unlink(path.join(f.directory,'_maps/.nopublish'));
   await fs.unlink(path.join(f.directory,source));await fs.writeFile(path.join(f.directory,'other.json'),data);
   await fs.symlink(path.join(f.directory,'other.json'),path.join(f.directory,source));await assert.rejects(prepare(),/excluded/);
+});
+
+
+test('regional publication validates full PNGs, dimensions, exact paths and exclusion boundaries',async t=>{
+  const f=await fixture(t,{width:300});
+  const detail={version:1,name:'Area',image:'detail.png',worldBounds:{x:20,y:10,width:100,height:60},pixelSize:[800,480]};
+  f.block.details=['assets/maps/detail.map-detail.json'];await fs.writeFile(path.join(f.directory,'Map.md'),fence(f.block));
+  const manifestFile=path.join(f.directory,f.block.details[0]),imageFile=path.join(f.directory,'assets/maps/detail.png');
+  await assert.rejects(prepareMaps(f.store(),path.join(f.directory,'tiles')),/Regional manifest missing/);
+  await fs.writeFile(manifestFile,JSON.stringify(detail));
+  await assert.rejects(prepareMaps(f.store(),path.join(f.directory,'tiles')),/Regional PNG is missing/);
+  await fs.writeFile(imageFile,await sharp({create:{width:801,height:480,channels:4,background:'transparent'}}).png().toBuffer());
+  await assert.rejects(prepareMaps(f.store(),path.join(f.directory,'tiles')),/dimensions do not match/);
+  const bytes=await sharp({create:{width:800,height:480,channels:4,background:'transparent'}}).png().toBuffer();
+  await fs.writeFile(imageFile,bytes.subarray(0,33));
+  await assert.rejects(prepareMaps(f.store(),path.join(f.directory,'tiles')));
+  await fs.writeFile(imageFile,bytes);await prepareMaps(f.store(),path.join(f.directory,'tiles'));
+  await fs.mkdir(path.join(f.directory,'assets/private'));
+  await fs.writeFile(path.join(f.directory,'assets/private/.nopublish'),'');
+  await fs.writeFile(path.join(f.directory,'assets/private/detail.map-detail.json'),JSON.stringify(detail));
+  f.block.details=['assets/private/detail.map-detail.json'];await fs.writeFile(path.join(f.directory,'Map.md'),fence(f.block));
+  await assert.rejects(prepareMaps(f.store(),path.join(f.directory,'tiles')),/Regional manifest missing/);
 });

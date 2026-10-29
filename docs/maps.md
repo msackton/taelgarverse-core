@@ -233,7 +233,8 @@ The same block therefore produces the same physical distance on both surfaces.
 ## Delivery and maintenance
 
 Version 2 maps reference a `.map.json` file in the vault. The store discovers
-`.map.json` manifests and `.map-layers.json` region assets; ordinary JSON files
+`.map.json` manifests, `.map-layers.json` region assets, and `.map-detail.json`
+regional artwork manifests; ordinary JSON files
 are not automatically published.
 The source can be a quoted wikilink, an exact vault path, or a path relative to
 the note. Missing qualified paths never fall back to a matching basename. The
@@ -313,3 +314,29 @@ Shared region borders now render in both hosts over PNGs or tiles, with names, o
 checkboxes (`toggleableLayers`, empty by default). They use Photoshop coordinates and
 clip to each map crop. See [region layers](map-layers.md) and
 [authoring](map-editor.md#region-borders).
+
+
+## Regional detail artwork
+
+Version 2 blocks can opt into separate, higher-resolution artwork with
+`details: [assets/maps/aveil.map-detail.json]`. These paths are exact and relative
+to the vault root. A version 1 detail manifest records a name, relative PNG path,
+world footprint, expected pixel dimensions and optional zoom fade thresholds.
+The world raster remains underneath; all geometry and measurements retain their
+world coordinates. PNGs load near their reveal zoom and visible footprint, clip
+to the block's crop, and render below vector features. There are no automatic
+layer checkboxes. Later listed artwork wins overlapping areas.
+
+See [regional artwork](map-editor.md#regional-artwork) for the complete format,
+editor guide/template export, Photoshop export command and limits. The website
+fully decodes each referenced static PNG during preparation, validates its exact
+canvas dimensions and aspect ratio, preserves the original PNG/alpha, and carries
+`mapDetail` and `mapImageInfo` through compiled and legacy snapshots. The PNG's
+public asset URL is resolved at render time. Referenced invalid or excluded
+artwork prevents publication; a runtime image-load failure leaves the world
+visible. Regional PNGs currently use lazy image overlays, not tile pyramids.
+
+Deploy code supporting details before publishing notes that use them, and install
+or release the plugin separately. Existing blocks without `details` keep their
+current behavior; existing snapshots need no migration. New regional manifests,
+PNGs, and block attachments require content publication to appear on the website.

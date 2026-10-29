@@ -17,12 +17,16 @@ Omitting BottomRight exports the single hex at TopLeft. Layer defaults come from
 Output is a file prefix: -Output maps/region writes maps/region.png and maps/region.map.json.
 OnlyLayer exports one drawable layer on transparency, ignoring recipe choices.
 FullCanvas omits hex bounds and retains the complete Photoshop canvas.
+Source chooses a different Photoshop document. RegionalTemplate implies full canvas,
+preserves its world footprint, and writes .map-detail.json instead of .map.json.
 #>
 [CmdletBinding()]
 param(
     [string]$TopLeft = '16.11',
     [string]$BottomRight,
     [string]$Output,
+    [string]$Source,
+    [string]$RegionalTemplate,
     [string[]]$IncludeLayer = @(),
     [string[]]$ExcludeLayer = @(),
     [string]$OnlyLayer,
@@ -35,11 +39,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 if ($Plan -and $Preview) { throw 'Use -Plan to inspect options or -Preview to export and view them.' }
-if ($FullCanvas -and ($PSBoundParameters.ContainsKey('TopLeft') -or $PSBoundParameters.ContainsKey('BottomRight'))) {
-    throw 'Use -FullCanvas or hex endpoints, not both.'
+if (($FullCanvas -or $RegionalTemplate) -and ($PSBoundParameters.ContainsKey('TopLeft') -or $PSBoundParameters.ContainsKey('BottomRight'))) {
+    throw 'Use -FullCanvas / -RegionalTemplate or hex endpoints, not both.'
 }
 if ($PSBoundParameters.ContainsKey('OnlyLayer') -and [string]::IsNullOrWhiteSpace($OnlyLayer)) { throw 'OnlyLayer requires a full /group/layer path.' }
 if ($OnlyLayer -and ($IncludeLayer.Count -or $ExcludeLayer.Count)) { throw 'OnlyLayer cannot be combined with IncludeLayer or ExcludeLayer.' }
+if ($RegionalTemplate -and $Preview) { throw 'Regional artwork is previewed over its world map in the map editor; omit -Preview.' }
 $mapRepoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $mapPython = Join-Path $mapRepoRoot '.venv-map-lab/Scripts/python.exe'
 if (-not (Test-Path -LiteralPath $mapPython)) {
@@ -50,7 +55,8 @@ $exportArgs = @(
     (Join-Path $mapRepoRoot 'scripts/map-export/export_core.py'),
     '--recipe', (Join-Path $mapRepoRoot 'scripts/map-export/taelgar-core.recipe.json')
 )
-if (-not $FullCanvas) { $exportArgs += @('--top-left', $TopLeft, '--bottom-right', $BottomRight) }
+if (-not ($FullCanvas -or $RegionalTemplate)) { $exportArgs += @('--top-left', $TopLeft, '--bottom-right', $BottomRight) }
+if ($RegionalTemplate) { $exportArgs += @('--regional-template', [IO.Path]::GetFullPath($RegionalTemplate)) }
 if ($OnlyLayer) { $exportArgs += @('--only-layer', $OnlyLayer) }
 foreach ($layer in $IncludeLayer) { $exportArgs += @('--include-layer', $layer) }
 foreach ($layer in $ExcludeLayer) { $exportArgs += @('--exclude-layer', $layer) }
@@ -69,7 +75,8 @@ if ($Preview) {
 }
 $trialName = 'trial-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0, 6)
 $mapOutput = if ($Output) { [IO.Path]::GetFullPath($Output) } else { Join-Path $mapRepoRoot ('.cache/map-baseline/' + $trialName) }
-$exportArgs += @('--source', (Join-Path $mapRepoRoot 'experiments/map-lab/aveil/source/taelgar-basemap.psb'), '--output', $mapOutput)
+$mapSource = if ($Source) { [IO.Path]::GetFullPath($Source) } else { Join-Path $mapRepoRoot 'experiments/map-lab/aveil/source/taelgar-basemap.psb' }
+$exportArgs += @('--source', $mapSource, '--output', $mapOutput)
 & $mapPython @exportArgs
 if ($LASTEXITCODE -ne 0) { throw 'Map export failed; see the error above.' }
 if ($Preview) {

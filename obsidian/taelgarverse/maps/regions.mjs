@@ -58,7 +58,7 @@ export function mountRegionEditor({L,map,canvas,figure,manifest,manifestPath,lay
     for(const input of [layerName,regionName,note,color,width,fill,dashed,vertex]){input.parentElement.hidden=!draft;input.disabled=busy || deleting;}
     for(const b of [center,remove,undo,save,del,cancel]){b.hidden=!draft;b.disabled=busy || (deleting && b!==cancel);}
     del.hidden=!draft?.original;confirm.hidden=!deleting;confirm.disabled=busy;
-    canvas.classList.toggle('map-editing-region',!!draft);canvas.classList.toggle('map-editing',!!draft || canvas.classList.contains('map-placing-town') || canvas.classList.contains('map-editing-path'));
+    canvas.classList.toggle('map-editing-region',!!draft);canvas.classList.toggle('map-editing',canvas.classList.contains('map-editing-detail') || !!draft || canvas.classList.contains('map-placing-town') || canvas.classList.contains('map-editing-path'));
   }
   function begin(editing){
     if(draft || busy || disposed)return;

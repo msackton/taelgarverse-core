@@ -1,3 +1,4 @@
+import {detailSources,validateDetailManifest,resolveDetailManifest} from './map-details.mjs';
 import path from 'node:path';
 import {parse} from 'yaml';
 import MarkdownIt from 'markdown-it';
@@ -47,8 +48,21 @@ function baselineMap(data,store,author,verifyImage) {
     if(source.mapValidationError)throw new Error(source.mapValidationError);
     if(entry.mapImageInfo?.format!=='png')throw new Error('Map image has not been prepared');
   }
+  const details=detailSources(data.details).map(id=>{
+    const file=exactEntry(store,id);
+    if(!file?.mapDetail || file.mapDetailError)throw new Error('Regional manifest missing or invalid: '+id);
+    const value=validateDetailManifest(file.mapDetail);
+    const imageId=path.posix.join(path.posix.dirname(id),value.image),art=exactEntry(store,imageId);
+    if(!art || art.note || art.extension!=='.png')throw new Error('Regional PNG is missing: '+imageId);
+    if(verifyImage){
+      if(art.mapImageInfo?.format!=='png')throw new Error('Regional image has not been prepared: '+imageId);
+      return {entry:art,manifestEntry:file,detail:resolveDetailManifest(value,art.mapImageInfo,'/assets/'+art.target.split('/').map(encodeURIComponent).join('/'))};
+    }
+    return {entry:art,manifestEntry:file,detail:value};
+  });
+  if(details.length)manifest.detailLayers=details.map(d=>d.detail);
   const image='/assets/'+entry.target.split('/').map(encodeURIComponent).join('/');
-  return {entry,manifest,manifestEntry:source,block:data,
+  return {entry,manifest,manifestEntry:source,block:data,details,
     config:verifyImage?baselineViewConfig(data,resolveMapSource(manifest,entry.mapImageInfo),image):null};
 }
 
@@ -136,6 +150,7 @@ export function mapImages(store,{homeSource=null,campaignHomes={},strict=false}=
       try {
         const map = parseMap(token.content,store,author,{verifyImage:false});
         map.entry.mapImage = true;
+        for(const detail of map.details??[])detail.entry.mapImage=true;
         // Validate every referenced manifest, even when two maps share an image.
         const key = map.entry.id + JSON.stringify(map.block??map.config.bounds)+(map.manifestEntry?.id || '');
         if (!seen.has(key)) {seen.add(key);result.push(map);}
