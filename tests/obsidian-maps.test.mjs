@@ -45,7 +45,7 @@ function host(){
     addSettingTab(){}
     registerView(){}
     addRibbonIcon(){}
-    addCommand(){}
+    addCommand(command){(this.commands??=[]).push(command);}
     registerEditorExtension(){}
     registerMarkdownPostProcessor(){}
     registerMarkdownCodeBlockProcessor(language,processor){(this.processors ??= new Map()).set(language,processor);if(['taelgar-map','leaflet'].includes(language)){this.language=language;this.processor=processor;}}
@@ -109,6 +109,8 @@ test('Taelgarverse keeps Images opt-in within the existing plugin and preserves 
   for(const enabled of [undefined,true]){
     const h=host(),plugin=new h.default();plugin.app=h.app;plugin.savedData={legacyLeafletBlocks:true,...(enabled===undefined?{}:{imageViewer:enabled})};
     await plugin.onload();assert.equal(plugin.settings.imageViewer,enabled===true);
+    assert.ok(plugin.commands.some(c=>c.id==='create-map-from-image' && typeof c.callback==='function'));
+    assert.ok(plugin.commands.some(c=>c.id==='create-map-from-photoshop' && typeof c.callback==='function'));
     assert.equal(plugin.images.enabled,enabled===true);assert.equal(plugin.settings.legacyLeafletBlocks,true);
     assert.equal(plugin.settings.calendarEnabled,false);assert.equal(plugin.calendar.enabled,false);
     assert.deepEqual([...plugin.processors.keys()],['taelgar-map','leaflet','taelgar-index','taelgar-header','taelgar-interactions','taelgar-relationship']);plugin.unload();

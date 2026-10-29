@@ -33,6 +33,7 @@ class Layer:
         self.clipping = False
         self.effects = []
         self.mask = False
+    def is_visible(self): return self.visible
     def is_group(self): return False
     def has_mask(self): return self.mask
     def has_vector_mask(self): return False
@@ -58,6 +59,38 @@ class Document(list):
 
 
 class ExportTests(unittest.TestCase):
+    def test_inventory_supported_visibility_and_source_guard(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); source=root/'world.psd'; source.write_bytes(b'fixture')
+            hidden=Layer('hidden','blue'); hidden.visible=False
+            unsupported=Layer('masked','red'); unsupported.mask=True
+            doc=Document([hidden,unsupported])
+            with patch.object(exporter.PSDImage,'open',return_value=doc):
+                result=exporter.inspect_source(source,root/'inventory.json')
+                self.assertEqual(result['source'],exporter.source_revision(source))
+                self.assertEqual(result['layers'][0],{'path':'/hidden','visible':False,'supported':True,'reason':None})
+                self.assertFalse(result['layers'][1]['supported'])
+                self.assertIn('Unsupported mask',result['layers'][1]['reason'])
+                with self.assertRaises(FileExistsError):exporter.inspect_source(source,root/'inventory.json')
+                source.write_bytes(b'changed source')
+                with self.assertRaisesRegex(ValueError,'source changed'):exporter.export(source,None,root/'map',only_layer='/hidden',expected_source=result['source'])
+                self.assertFalse((root/'map.png').exists())
+
+    def test_transparent_recipe_and_source_change_during_composition(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);source=root/'world.psd';source.write_bytes(b'fixture')
+            recipe=root/'recipe.json';recipe.write_text(json.dumps({'layers':{'/art':True}}))
+            doc=Document([Layer('art','red',(1,1,3,3))]);expected=exporter.source_revision(source)
+            with patch.object(exporter.PSDImage,'open',return_value=doc):
+                exporter.export(source,recipe,root/'map',transparent=True,expected_source=expected)
+                with Image.open(root/'map.png') as image:self.assertEqual(image.getpixel((0,0)),(0,0,0,0))
+                compose=exporter.compose
+                def changed(*args,**kwargs):
+                    source.write_bytes(b'new bytes');return compose(*args,**kwargs)
+                with patch.object(exporter,'compose',side_effect=changed):
+                    with self.assertRaisesRegex(ValueError,'source changed'):exporter.export(source,recipe,root/'changed',expected_source=expected)
+                self.assertFalse((root/'changed.png').exists())
+
     def test_regional_export_preserves_footprint_and_transparent_full_canvas(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -269,6 +302,13 @@ class ExportTests(unittest.TestCase):
             layer.opacity = 128
             group.visible = layer.visible = False
             document.save(root / "source.psd")
+            inspected = subprocess.run([sys.executable, str(ROOT / "scripts/map-export/export_core.py"),
+                                        "--source", str(root / "source.psd"), "--inventory-json", str(root / "inventory.json")], capture_output=True, text=True)
+            self.assertEqual(inspected.returncode, 0, inspected.stderr)
+            inventory = json.loads((root / "inventory.json").read_text())
+            self.assertEqual([row['path'] for row in inventory['layers']], ['/base','/regions/borders'])
+            self.assertFalse(inventory['layers'][1]['visible'])
+            self.assertTrue(all(row['supported'] for row in inventory['layers']))
             result = subprocess.run([sys.executable, str(ROOT / "scripts/map-export/export_core.py"),
                                      "--source", str(root / "source.psd"), "--output", str(root / "trace"),
                                      "--only-layer", "/regions/borders"], capture_output=True, text=True)

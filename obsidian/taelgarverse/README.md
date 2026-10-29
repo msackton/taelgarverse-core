@@ -380,6 +380,12 @@ See [publishing pipelines](../../docs/publishing-pipelines.md).
 
 ## Measure maps
 
+To start without an existing map, run **Taelgarverse: Create map from image**.
+Choose a static PNG in the vault or import one from your computer, set its original
+world offset, and create a new map note and manifest. The editor opens immediately.
+Use native world-scale imagery; higher-resolution regional artwork uses the
+separate detail workflow. See [creating a map](../../docs/map-editor.md#create-a-map-from-an-image).
+
 Development version 2 maps offer **Open map editor**, which opens a separate tab.
 Use **Place town** there: choose an existing note,
 click the map and **Save town position**. The note stores exact Photoshop pixels
@@ -409,8 +415,8 @@ area. **Close shape** repairs crossings, loops, and retraced overshoots by
 keeping the larger enclosed region. Automatic measurement closure corrects only
 tiny edge loops; choose **Close shape** for larger overlaps. Multiple outlines
 have separate readings; outlines with no usable interior report that area is
-unavailable. All measurements are temporary. The plugin
-reads local images and makes no network requests. Measurements do not rewrite
+unavailable. All measurements are temporary. Map viewing and measurement use local images without network requests.
+The optional Photoshop import can download source artwork through the Dropbox API. Measurements do not rewrite
 notes; town and path authoring in the separate editor writes only on explicit Save.
 Per-map `crop` accepts Photoshop pixels or inclusive hex endpoints and limits
 panning. Polygon masks and dim/hide overlays are no longer supported.
@@ -456,3 +462,10 @@ controls: select a world footprint, download a tracing guide and manifest, draw
 aligned artwork in Photoshop, and explicitly attach its `.map-detail.json` to a
 map block. Details fade in with zoom beneath editable features. See the
 [regional artwork guide](../../docs/map-editor.md#regional-artwork).
+
+
+**Create map from Photoshop file** runs the configured local Python exporter,
+loads local or Dropbox PSD/PSB layers, and creates a map with the correct world
+offset. Set the Python executable and exporter script path in Taelgarverse
+settings; Dropbox credentials stay outside the vault or in the current dialog.
+See [Photoshop setup](../../docs/map-editor.md#create-a-map-from-photoshop).

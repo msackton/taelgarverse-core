@@ -937,3 +937,17 @@ Regional artwork uses an explicit per-map `details` list of vault-root-relative
 publishable folder. The manifest anchors higher-resolution artwork to the existing
 world frame; it does not change note `location` or `mapPath` coordinates. See
 [regional artwork](map-editor.md#regional-artwork) for the schema and export workflow.
+
+
+The Obsidian **Create map from image** command creates a new `.map.json` and map
+note from a native-scale PNG, reusing a vault image or importing bytes from disk.
+Defaults are `assets/maps/` for imports and `Maps/` for notes; the chosen paths
+follow the normal publication rules. No content is published by creation. See
+[creating a map](map-editor.md#create-a-map-from-an-image) for alignment and limits.
+
+
+The desktop **Create map from Photoshop file** command also creates a PNG,
+version 2 manifest, and map note, using local or Dropbox PSD/PSB artwork through
+the configured Python exporter. Export offsets are retained automatically.
+[Configure the exporter and Dropbox access](map-editor.md#create-a-map-from-photoshop)
+outside vault content; PSDs, tokens and credential files are not map assets.

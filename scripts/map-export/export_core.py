@@ -2,6 +2,7 @@
 import argparse
 import json
 import math
+import signal
 from pathlib import Path
 import sys
 
@@ -9,6 +10,7 @@ from PIL import Image
 from psd_tools import PSDImage
 from psd_tools.constants import BlendMode, ColorMode, Resource
 from map_coordinates import pixel_bounds
+from dropbox_source import download_source
 
 
 def require(condition, message):
@@ -51,6 +53,25 @@ def inventory(document):
     return result
 
 
+def validate_selected_layer(name, paths):
+    # Validate the selected leaf AND its ancestors, regardless of saved visibility.
+    parent = name
+    while parent:
+        item = paths[parent]
+        require(not item.has_mask() and not item.clipping and not len(item.effects),
+                f"Unsupported mask, clipping, or effect on {parent}.")
+        require(item.fill_opacity == 255, f"Unsupported fill opacity on {parent}.")
+        if item.is_group():
+            require(item.blend_mode == BlendMode.PASS_THROUGH and item.opacity == 255 and not item.has_vector_mask(),
+                    f"Unsupported group compositing on {parent}.")
+        else:
+            require(item.blend_mode == BlendMode.NORMAL and item.kind in {"pixel", "shape", "smartobject", "type"},
+                    f"Unsupported layer kind or blending on {parent}.")
+            require(item.has_pixels(), f"Missing saved layer pixels on {parent}; resave in Photoshop.")
+            require(not item.has_vector_mask() or item.kind == "shape", f"Unsupported separate vector mask on {parent}.")
+        parent = parent.rsplit("/", 1)[0]
+
+
 def selected_layers(document, decisions, known_paths=None, *, warn_unknown=True):
     require(document.color_mode == ColorMode.RGB and document.depth == 8, "Exporter requires RGB, 8-bit source layers.")
     require(Resource.ICC_PROFILE not in document.image_resources, "ICC profiles require color conversion; export an untagged RGB source.")
@@ -69,22 +90,7 @@ def selected_layers(document, decisions, known_paths=None, *, warn_unknown=True)
         if not decisions.get(name, False):
             continue
         selected.append((name, layer))
-        # Validate the selected leaf AND its ancestors, regardless of saved visibility.
-        parent = name
-        while parent:
-            item = paths[parent]
-            require(not item.has_mask() and not item.clipping and not len(item.effects),
-                    f"Unsupported mask, clipping, or effect on {parent}.")
-            require(item.fill_opacity == 255, f"Unsupported fill opacity on {parent}.")
-            if item.is_group():
-                require(item.blend_mode == BlendMode.PASS_THROUGH and item.opacity == 255 and not item.has_vector_mask(),
-                        f"Unsupported group compositing on {parent}.")
-            else:
-                require(item.blend_mode == BlendMode.NORMAL and item.kind in {"pixel", "shape", "smartobject", "type"},
-                        f"Unsupported layer kind or blending on {parent}.")
-                require(item.has_pixels(), f"Missing saved layer pixels on {parent}; resave in Photoshop.")
-                require(not item.has_vector_mask() or item.kind == "shape", f"Unsupported separate vector mask on {parent}.")
-            parent = parent.rsplit("/", 1)[0]
+        validate_selected_layer(name, paths)
     return selected
 
 
@@ -113,6 +119,42 @@ def compose(rect, layers, *, transparent=False):
     return result
 
 
+def source_revision(source):
+    filename = Path(source).resolve()
+    stat = filename.stat()
+    return {"path": str(filename), "size": stat.st_size, "mtimeNs": str(stat.st_mtime_ns)}
+
+
+def check_source(source, expected):
+    if expected is not None and source_revision(source) != expected:
+        raise ValueError("Photoshop source changed since layer inspection; reload its layers before exporting.")
+
+
+def inspect_source(source, output):
+    before = source_revision(source)
+    document = PSDImage.open(source, max_alloc_bytes=8*1024**3)
+    require(0 < document.width <= 50000 and 0 < document.height <= 50000 and document.width*document.height <= 250_000_000,
+            "Source exceeds supported image dimensions (50,000 per side / 250 million pixels).")
+    selected_layers(document, {}, warn_unknown=False)  # Validate document mode/profile.
+    rows, paths = [], dict(inventory(document))
+    require(len(paths) <= 4096, "Photoshop source has too many layers (maximum 4096).")
+    for name, layer in paths.items():
+        if layer.is_group():
+            continue
+        reason = None
+        try:
+            validate_selected_layer(name, paths)
+        except ValueError as error:
+            reason = str(error)
+        rows.append({"path": name, "visible": bool(layer.is_visible()), "supported": reason is None, "reason": reason})
+    check_source(source, before)
+    result = {"version": 1, "source": before, "width": document.width, "height": document.height, "layers": rows}
+    with Path(output).open("x", encoding="utf-8") as stream:
+        stream.write(json.dumps(result, indent=2)+"\n")
+    print(f"Loaded {len(rows)} drawable layers ({document.width} x {document.height} pixels).", flush=True)
+    return result
+
+
 def regional_manifest(filename):
     value = json.loads(Path(filename).read_text(encoding="utf-8"))
     require(isinstance(value, dict) and value.get("version") == 1 and
@@ -134,7 +176,7 @@ def regional_manifest(filename):
     return {**value, "fadeZoom": zoom}
 
 
-def export(source, recipe_path, output, *, top_left=None, bottom_right=None, include=(), exclude=(), only_layer=None, regional_template=None, plan=False):
+def export(source, recipe_path, output, *, top_left=None, bottom_right=None, include=(), exclude=(), only_layer=None, regional_template=None, transparent=False, expected_source=None, plan=False):
     if only_layer is not None:
         require(not include and not exclude, "--only-layer cannot be combined with --include-layer or --exclude-layer.")
         # Selection is independent of the basemap recipe, including missing or
@@ -149,7 +191,7 @@ def export(source, recipe_path, output, *, top_left=None, bottom_right=None, inc
     rect = pixel_bounds(top_left, bottom_right)
     if plan:
         print(json.dumps({"sourceRect": rect or "full Photoshop canvas", "layers": decisions,
-                          "background": "transparent" if only_layer is not None else "white", **({"regionalTemplate": template} if template else {})}, indent=2))
+                          "background": "transparent" if only_layer is not None or transparent else "white", **({"regionalTemplate": template} if template else {})}, indent=2))
         return
     require(source is not None and output is not None, "Pass --source and --output, or use --plan.")
     output = Path(output).resolve()
@@ -159,6 +201,7 @@ def export(source, recipe_path, output, *, top_left=None, bottom_right=None, inc
     metadata = output.with_name(output.name + (".map-detail.json" if template else ".map.json"))
     for destination in (png, metadata):
         require(not destination.exists(), f"Output already exists: {destination}; choose a new prefix.")
+    check_source(source, expected_source)
     document = PSDImage.open(source, max_alloc_bytes=8*1024**3)
     require(0 < document.width <= 50000 and 0 < document.height <= 50000 and document.width*document.height <= 250_000_000,
             "Source exceeds supported image dimensions (50,000 per side / 250 million pixels).")
@@ -170,10 +213,11 @@ def export(source, recipe_path, output, *, top_left=None, bottom_right=None, inc
             "Requested complete hexes extend beyond the Photoshop canvas; choose smaller bounds.")
     layers = selected_layers(document, decisions, recipe["layers"], warn_unknown=only_layer is None)
     output.parent.mkdir(parents=True, exist_ok=True)
-    image = compose(rect, layers, transparent=True) if only_layer is not None else compose(rect, layers)
+    image = compose(rect, layers, transparent=True) if only_layer is not None or transparent else compose(rect, layers)
     manifest = {**template, "image": png.name} if template else {"version": 2, "image": png.name, "sourceOffset": rect[:2]}
     written = []
     try:
+        check_source(source, expected_source)
         # Exclusive creation protects existing files, including a concurrent export.
         # Write the manifest last; remove only files this attempt created on failure.
         with png.open("xb") as stream:
@@ -196,7 +240,16 @@ def export(source, recipe_path, output, *, top_left=None, bottom_right=None, inc
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", type=Path)
+    sources = parser.add_mutually_exclusive_group()
+    sources.add_argument("--source", type=Path)
+    sources.add_argument("--dropbox-path", help="Dropbox /path/file.psd, /path/file.psb or id: identifier; download via read-only API")
+    parser.add_argument("--dropbox-credentials", type=Path, help="Private JSON credential file outside the vault; tokens are never command arguments")
+    parser.add_argument("--dropbox-root", help="Optional Dropbox root namespace id")
+    parser.add_argument("--cache-dir", type=Path, default=Path.home()/".cache/taelgarverse/dropbox")
+    parser.add_argument("--max-download-gib", type=int, default=16)
+    parser.add_argument("--inventory-json", type=Path, help="Inspect drawable layers and save a new JSON inventory instead of exporting")
+    parser.add_argument("--expected-source", type=Path, help="Inventory whose source revision must still match before export")
+    parser.add_argument("--transparent", action="store_true", help="Compose selected recipe layers on transparency")
     parser.add_argument("--recipe", type=Path, default=Path(__file__).with_name("taelgar-core.recipe.json"))
     parser.add_argument("--output", type=Path, metavar="PREFIX", help="Write PREFIX.png and PREFIX.map.json; creates parent folders, never overwrites files")
     parser.add_argument("--top-left", help="First hex: 04.04, 04.04.H, 04.04.H.07, or 04.04.H.07.12")
@@ -207,8 +260,27 @@ if __name__ == "__main__":
     parser.add_argument("--regional-template", type=Path, help="Preserve an editor-exported .map-detail.json footprint; requires the original full template canvas")
     parser.add_argument("--plan", action="store_true", help="Print bounds and layer choices without opening Photoshop or writing files")
     args = parser.parse_args()
+    def interrupted(signum, frame):
+        raise KeyboardInterrupt()
+    signal.signal(signal.SIGTERM, interrupted)
     try:
-        export(args.source, args.recipe, args.output, top_left=args.top_left, bottom_right=args.bottom_right,
-               include=args.include_layer, exclude=args.exclude_layer, only_layer=args.only_layer, regional_template=args.regional_template, plan=args.plan)
-    except (ValueError, OSError) as error:
+        source = args.source
+        require(not (args.inventory_json and args.plan), "Use --inventory-json or --plan, not both.")
+        if args.dropbox_path and not args.plan:
+            source = download_source(args.dropbox_path, args.cache_dir, credentials_file=args.dropbox_credentials,
+                                     namespace=args.dropbox_root, max_bytes=args.max_download_gib*1024**3,
+                                     progress=lambda message: print(message, flush=True))
+        if args.inventory_json:
+            require(source is not None, "Choose a local or Dropbox Photoshop file.")
+            inspect_source(source, args.inventory_json)
+        else:
+            expected = None
+            if args.expected_source:
+                expected = json.loads(args.expected_source.read_text(encoding="utf-8"))["source"]
+            export(source, args.recipe, args.output, top_left=args.top_left, bottom_right=args.bottom_right,
+                   include=args.include_layer, exclude=args.exclude_layer, only_layer=args.only_layer,
+                   regional_template=args.regional_template, transparent=args.transparent, expected_source=expected, plan=args.plan)
+    except KeyboardInterrupt:
+        parser.exit(130, "Map export cancelled.\n")
+    except (ValueError, OSError, KeyError, TypeError) as error:
         parser.exit(1, f"Map export failed: {error}\n")

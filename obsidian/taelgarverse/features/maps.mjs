@@ -1,3 +1,5 @@
+import {openCreatePhotoshopMap} from '../maps/create-photoshop-map.mjs';
+import {openCreateMap} from '../maps/create-map.mjs';
 import {Component,MarkdownRenderChild,TFile,Notice} from 'obsidian';
 import {createHash} from 'node:crypto';
 import {parseMap} from '../../../src/maps.mjs';
@@ -83,6 +85,9 @@ export class MapsFeature extends Component {
     this.hashes=new Map();
     this.maps=new Set();
     this.editors=new Set();
+    this.creators=new Set();
+    this.plugin.addCommand({id:'create-map-from-image',name:'Create map from image',callback:()=>{if(this.active)openCreateMap(this);}});
+    this.plugin.addCommand({id:'create-map-from-photoshop',name:'Create map from Photoshop file',callback:()=>{if(this.active)openCreatePhotoshopMap(this);}});
     this.plugin.registerView(MAP_EDITOR_VIEW,leaf=>new MapEditorView(leaf,this));
     this.plugin.addCommand({id:'edit-current-map',name:'Open current map in editor',editorCheckCallback:(checking,editor,view)=>{
       const line=editor.getCursor().line,block=mapFences(editor.getValue()).find(b=>b.startLine-1<=line && b.endLine-1>=line && b.data?.version===2);
@@ -108,5 +113,5 @@ export class MapsFeature extends Component {
       if(data.id===id || (!data.id && normalized(child.source)===normalized(previous.body) && (unique || child.lineHint===previous.lineHint))){child.source=source;void child.onload();}
     }
   }
-  onunload(){this.active=false;for(const child of this.maps)child.unload();for(const editor of this.editors)editor.onClose();this.app.workspace.detachLeavesOfType?.(MAP_EDITOR_VIEW);this.hashes.clear();}
+  onunload(){this.active=false;for(const creator of this.creators)creator.close();for(const child of this.maps)child.unload();for(const editor of this.editors)editor.onClose();this.app.workspace.detachLeavesOfType?.(MAP_EDITOR_VIEW);this.hashes.clear();}
 }

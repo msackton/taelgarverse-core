@@ -20,6 +20,129 @@ source: "[[assets/maps/taelgar-core.map.json]]"
 ```
 ````
 
+## Create a map from an image
+
+Run **Taelgarverse: Create map from image** from the command palette. No existing
+map block or open note is required. Choose **Choose PNG from vault** or
+**Import PNG from computer**, review the new manifest and note paths, enter the
+world offset, then choose **Create map and open editor**.
+
+The command creates a version 2 `.map.json` manifest and a new Markdown note
+containing a `taelgar-map` block with a unique ID, then opens its map editor.
+An existing vault PNG is reused without modification. A computer import copies
+its original bytes into the vault, defaulting to `assets/maps/`; new map notes
+default to `Maps/`. Suggested filenames avoid existing files. You can change the
+output paths, but the manifest must be beside the PNG or in a parent folder.
+Missing parent folders are created. Nothing is written until you click Create.
+
+Use an image at **native Taelgar world scale**: one image pixel equals one world
+pixel (0.6 miles). For a full original Photoshop canvas, set **World offset X/Y**
+to `0, 0`. For a cropped export, use its original top-left Photoshop coordinates
+(the exporter calls this `sourceOffset`). The command does not infer registration
+or rescale an arbitrary map. Higher-resolution regional or local artwork belongs
+in the [regional artwork workflow](#regional-artwork).
+
+Only static PNGs are supported, up to 256 MiB, 50000 pixels per side and 250 million
+pixels total. PNG contents are decoded before creation. Existing notes, images,
+and manifests are never overwritten; a collision asks for another path. If a
+later write fails, the error lists any files already created for recovery.
+Closing before validation finishes cancels creation. Once writing has begun, it
+finishes the new map files, but closing the dialog prevents opening an editor.
+The command also opens newly created manifests before Obsidian finishes indexing
+them. The map note remains available under the chosen path for future reopening.
+
+## Create a map from Photoshop
+
+Run **Taelgarverse: Create map from Photoshop file** on desktop. No existing map
+is required. This runs the local Python exporter in a child process; Photoshop
+itself does not need to be installed or open.
+
+First, set up a local checkout of `taelgarverse-core` with Python 3.11 and the
+exporter's dependencies (see [exporter setup](map-baseline-progress.md#reproduce-locally)).
+In **Settings → Taelgarverse**, configure:
+
+- **Map exporter: Python executable:** the executable in your Python environment,
+  such as `/path/to/.venv-map/bin/python` or `C:\path\.venv-map\Scripts\python.exe`.
+  Supply an executable, without shell arguments.
+- **Map exporter: script path:** the absolute path to
+  `scripts/map-export/export_core.py` in that checkout. Keep the checkout current;
+  its adjacent modules and shared geometry file are required.
+- **Map exporter: Dropbox credential file:** optional; see below.
+
+The plugin release does not bundle Python or install dependencies automatically.
+
+Choose **Local Photoshop file** and paste its absolute PSD/PSB path, or choose
+**Dropbox API** and enter the Dropbox path. Click **Load Photoshop layers**.
+Review individual layer checkboxes (supported saved-visible layers are selected
+initially), optionally enter the first/last hex for a crop, choose a white or
+transparent background, and review the new PNG, manifest, and note paths.
+**Export, create map and open editor** exports the selected layers, copies the
+PNG into the vault, creates the manifest/note, and opens the map editor.
+
+The crop uses inclusive hex endpoints; blank endpoints export the full canvas,
+and a first hex alone exports that hex. World offset is carried from the export
+automatically. This creates a native-scale baseline map. For higher-resolution
+regional artwork use [regional templates](#regional-artwork) and the CLI's
+`--regional-template` option instead.
+
+The exporter supports saved RGB 8-bit drawable layers with normal blending,
+restricted group compositing, and no embedded ICC profile. Unsupported layers
+are disabled with an explanation; unsupported document modes/profiles stop loading.
+Masks, effects, arbitrary blending and color conversion are not reproduced.
+Flatten/rasterize such artwork into a supported source in Photoshop when needed.
+Changing the source requires loading its layers again. A file changed since
+inspection is rejected before export; a Dropbox export uses the downloaded
+revision inspected by the dialog.
+
+Cancel or close terminates the Python process and removes its private temporary
+export folder. Closing during final vault writes lets those writes finish, but
+does not open an editor. Existing vault files are never overwritten; partial
+vault creation reports retained files for recovery, just like image import.
+
+### Dropbox authentication and cache
+
+Use a Dropbox API app with **files.metadata.read** and **files.content.read**
+scopes. Its App Folder/Full Dropbox access must include the source file. Enter an
+account-relative path such as `/Maps/world.psb`, or a Dropbox `id:` identifier;
+shared-link URLs are not supported. Team accounts can supply a **Dropbox root
+namespace** when the file is outside their default home namespace.
+
+Either enter a short-lived access token in the dialog's password field (kept
+only for that dialog), or configure an absolute path to a private credential JSON
+file **outside the vault**. A refresh-token file looks like:
+
+```json
+{
+  "app_key": "YOUR_APP_KEY",
+  "refresh_token": "YOUR_OFFLINE_REFRESH_TOKEN",
+  "app_secret": "YOUR_APP_SECRET_IF_REQUIRED"
+}
+```
+
+Omit `app_secret` for a PKCE/public-client authorization that does not require it.
+Obtain an offline refresh token through your Dropbox app's OAuth flow. A file
+containing only `{"access_token":"YOUR_SHORT_LIVED_TOKEN"}` is also accepted,
+but that token will expire. Restrict the credential file to your OS account.
+The dialog token overrides file credentials. Tokens are passed to Python through
+its environment; only the credential **file path** is saved in plugin settings.
+Do not store the credential file or paste tokens in vault notes/settings paths.
+This integration cannot reuse the Dropbox connection in ChatGPT.
+
+Downloads stream to a private cache under the system temp directory,
+`taelgarverse-dropbox`, keyed by file identity and revision. Both fresh downloads
+and cache hits are checked against Dropbox's content hash. Metadata is fetched
+when loading layers; exporting that selection does not redownload the PSD/PSB.
+The plugin allows sources up to 16 GiB; decoded artwork retains the exporter's
+50000-pixel edge/250-million-pixel limit, and imported PNGs the 256 MiB limit.
+Large Photoshop files still require sufficient RAM for Python composition.
+
+Cached revisions remain for reuse and may consume significant disk space.
+Remove that cache folder when no Photoshop job is running to reclaim it; the
+next load downloads again. Interrupted downloads are discarded; an OS crash or
+forced process kill may leave a `.part` file that can also be removed then.
+The CLI has `--cache-dir` and `--max-download-gib` overrides. All Dropbox API
+operations here are read only: exported files are written locally, never uploaded.
+
 ## Per-map crop
 
 Add a rectangular `crop` to an individual map block. Either use Photoshop pixels:

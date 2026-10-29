@@ -44,3 +44,20 @@
 .map-detail-editor input[type="text"], .map-detail-editor select { max-width:24rem; }
 .map-detail-editor small, .map-detail-editor [role="status"] { flex-basis:100%; }
 .map-detail-editor [hidden] { display:none; }
+.map-create-dialog { display:flex; flex-direction:column; gap:.6rem; }
+.map-create-dialog label { display:flex; flex-direction:column; gap:.25rem; }
+.map-create-dialog input[type="text"] { width:100%; }
+.map-create-dialog p { margin:.25rem 0; }
+.map-create-dialog [hidden] { display:none; }
+.map-create-dialog [role="status"] { white-space:pre-wrap; overflow-wrap:anywhere; }
+
+.map-photoshop-dialog { max-height: 80vh; overflow-y: auto; }
+.map-photoshop-dialog > * { flex-shrink: 0; }
+.map-photoshop-layers { max-height: 260px; overflow-y: auto; border: 1px solid var(--background-modifier-border); padding: 8px; }
+.map-photoshop-layers label { display: flex; flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; margin: 6px 0; }
+.map-photoshop-layers input[type="checkbox"] { width: auto; }
+.map-photoshop-layers small { flex-basis: 100%; color: var(--text-muted); }
+.map-photoshop-status { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 140px; overflow-y: auto; }
+
+.map-create-dialog .map-create-checkbox { flex-direction: row; align-items: center; gap: .5rem; }
+.map-create-checkbox input { order: -1; }

@@ -11,7 +11,8 @@ export async function loadObsidianBaseline(app,source,sourcePath) {
   if(typeof block.source!=='string')throw new Error('Use a local manifest path; enclose [[wikilinks]] in quotes.');
   const target=block.source.trim().replace(/^!?\[\[|\]\]$/g,'').split('|')[0].trim();
   if(!target || /[:?#\x00-\x1f\\]/.test(target) || target.startsWith('/'))throw new Error('Manifest source must be a local vault path.');
-  const manifestFile=app.metadataCache.getFirstLinkpathDest(target,sourcePath);
+  // Newly created manifests can be opened before Obsidian indexes their links.
+  const manifestFile=app.metadataCache.getFirstLinkpathDest(target,sourcePath)??app.vault.getAbstractFileByPath(target);
   if(!(manifestFile instanceof TFile) || !manifestFile.path.endsWith('.map.json'))throw new Error('Core .map.json manifest is missing: '+target);
   const metadata=validateManifest(JSON.parse(await app.vault.read(manifestFile)));
   delete metadata.regionLayers;

@@ -15,6 +15,13 @@ class TaelgarverseSettings extends PluginSettingTab {
     this.containerEl.empty();
     this.plugin.relationships?.renderSettings(this.containerEl);
     this.plugin.calendar?.renderSettings(this.containerEl,()=>this.display());
+    for(const [key,name,description,placeholder] of [
+      ['photoshopPython','Map exporter: Python executable','Python environment with scripts/map-export/requirements.txt installed. Use an executable path, without shell arguments.','python3'],
+      ['photoshopExporter','Map exporter: script path','Absolute path to scripts/map-export/export_core.py in your local taelgarverse-core checkout.','/path/to/taelgarverse-core/scripts/map-export/export_core.py'],
+      ['photoshopDropboxCredentials','Map exporter: Dropbox credential file','Optional absolute path to a private JSON credential file outside the vault. Store credentials there, never in these settings.','/private/path/dropbox.json'],
+    ])new Setting(this.containerEl).setName(name).setDesc(description).addText(text=>text.setPlaceholder(placeholder).setValue(this.plugin.settings[key] || '').onChange(async value=>{
+      this.plugin.settings[key]=value.trim();await this.plugin.saveData(this.plugin.settings);
+    }));
     new Setting(this.containerEl).setName('Show header index popups')
       .setDesc('Show Members, Residents, and other index buttons below generated headers in Obsidian. Applies immediately; inline indexes and website popups are unchanged.')
       .addToggle(toggle=>toggle.setValue(this.plugin.settings.headerIndexPopups).onChange(async value=>{
