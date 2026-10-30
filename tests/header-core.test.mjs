@@ -37,7 +37,7 @@ test('Node renders a vault that has metadata and campaign JSON but no legacy Cus
     const {input}=headerFixture();
     fs.writeFileSync(path.join(directory,'.obsidian/metadata.json'),JSON.stringify(input.coreMeta));
     fs.writeFileSync(path.join(directory,'_scripts/session_note_campaigns.json'),JSON.stringify(input.registry));
-    fs.writeFileSync(path.join(directory,'Person.md'),'---\ntags: [person]\nborn: 1700-01-01\n---\n```taelgar-header\n```\n\nAuthored biography.');
+    fs.writeFileSync(path.join(directory,'Person.md'),'---\ntags: [person]\nborn: 1700-01-01\n---\n> [!taelgar-header]\n\nAuthored biography.');
     const engine=new Engine({...testSettings(),vault_dir:directory,source_dir:directory,home_source:null,nav_source:null});
     const page=engine.render('Person','1720-01-01');
     assert.match(page.html,/20 years old/);assert.match(page.html,/Authored biography/);

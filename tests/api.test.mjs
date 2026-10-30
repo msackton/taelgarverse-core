@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {load} from 'cheerio';
 import sharp from 'sharp';
+import {renderHeader as renderCoreHeader} from '../src/header-core/index.mjs';
 import {Engine} from '../src/engine.mjs';
 import {initializeHeaders, renderHeader} from '../src/headers.mjs';
 import {createServer} from '../src/server.mjs';
@@ -34,7 +35,7 @@ before(async () => {
     fs.mkdirSync(path.dirname(filename),{recursive:true});
     fs.writeFileSync(filename,'media fixture: ' + relative);
   }
-  fs.writeFileSync(path.join(directory,'Dynamic.md'),'---\ntags: [person]\nspecies: human\nname: Dynamic Person\nborn: 1700-01-01\n---\n<!-- taelgar:header -->\n\n# Body heading\n\nPrepared biography.\n\n```html\n<!-- taelgar:header -->\n```\n');
+  fs.writeFileSync(path.join(directory,'Dynamic.md'),'---\ntags: [person]\nspecies: human\nname: Dynamic Person\nborn: 1700-01-01\n---\n# Dynamic Person\n> [!taelgar-header]\n\n# Body heading\n\nPrepared biography.\n\n```html\n<!-- taelgar:header -->\n```\n');
   fs.writeFileSync(path.join(directory,'Session.md'),'---\ntags: [session-note]\ncampaign: Dunmar Frontier\nsessionNumber: 1\nDR: 1720-01-01\nDR_end: 1720-01-02\n---\n# Session\n');
   fs.writeFileSync(path.join(directory,'AdderSession.md'),'---\ntags: [session-note]\ncampaign: Addermarch\nsessionNumber: 1\nDR: 1720-01-01\nDR_end: 1720-01-02\n---\n# Session\n');
   fs.appendFileSync(path.join(directory,'People/Example.md'),'\n%%^Campaign:adma%%\nAddermarch-only text\n%%^End%%\n');
@@ -144,7 +145,7 @@ test('headers recalculate ages, locations, lifecycle and preserve body',() => {
   assert.doesNotMatch(early,/Stale header/); assert.match(early,/Fixture biography/);
 });
 
-test('prepared header markers insert a date-aware header and preserve following headings and literal examples',() => {
+test('native callouts insert a date-aware header and preserve following headings and literal examples',() => {
   for (const [date,age] of [['1720-01-01',20],['1730-01-01',30]]) {
     const result = render('Dynamic',date), $ = load(result.html,{},false);
     assert.equal($('h1#dynamic-person').length,1);
@@ -278,7 +279,7 @@ test('indexed leadership equals full-scan reference across dates',() => {
   const reference = initializeHeaders(input), entry = engine.store.resolve('Example');
   for (const date of ['1720-01-01','1730-01-01','1750-01-01']) {
     const request = {source:entry.note.source,name:entry.name,metadata:entry.note.metadata,date};
-    assert.equal(engine.renderHeader(engine.headers,request),renderHeader(reference,request));
+    assert.equal(renderCoreHeader(engine.headers,request),renderHeader(reference,request));
   }
   assert.match(text(render()),/Guardian/);
   assert.match(text(render('Example','1730-01-01')),/Protector/);

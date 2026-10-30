@@ -4,6 +4,25 @@ The unified desktop Taelgarverse plugin: generated note headers and indexes, loc
 calibrated distances, freehand tracing, enclosed areas, and an optional image viewer.
 Name Explorer and the materializer remain separate. Requires Obsidian 1.8.0+.
 
+## Saved header commands
+
+Use **Taelgarverse: Regenerate page header** or **Taelgarverse: Add header to
+current note**, assignable in Settings → Hotkeys. They rewrite only a recognized
+header range using current editor metadata, preserving frontmatter and article
+text. An empty `> [!taelgar-header]` callout is an explicit insertion flag.
+Writing skips untagged notes and notes with session-note, meta, background,
+source or story tags before detecting any headers; Add does not override this.
+Explicit callouts on those pages still render normally.
+
+The installed `header-tool.cjs` offers the same source rewrite for a single file
+or all eligible Markdown, outside Obsidian and without a core checkout. It
+previews by default with one status line per file; `--report FILE.json` saves
+the detailed JSON separately. `--errors` shows only problems, and `--check`
+performs a read-only exit-code check (0 current, 1 changes/problems). `--add`
+permits insertion and `--write` applies edits; `--check` and `--write` are exclusive.
+See [formats and boundaries](../../docs/vault.md#writing-or-adding-a-saved-header)
+and [CLI usage](../../docs/deploy.md#saved-header-commands).
+
 ## Session review prototype
 
 Enable **Settings → Taelgarverse → Enable session review**, then run
@@ -79,20 +98,28 @@ Website calendar rendering and materializer integration remain future work.
 
 ## Generated headers
 
-Version 0.3.0 adds generated bio blocks. Replace a note's
-saved title and information callout with an empty `taelgar-header` code fence
-immediately after frontmatter. It renders the same header information as a
-native Obsidian callout, using the bundled header rules; Dataview and CustomJS
-are not required. The block includes the generated H1, pronunciation and all
-other details. An authored H1 directly above the block replaces the generated
-title; blank lines are allowed between them. Pronunciation, information and
-index buttons still render. An H2 or an H1 separated by prose or another block
-does not suppress the title. Notes are never rewritten by the renderer.
+Use a top-level `taelgar-header` callout for generated information. The H1 and
+pronunciation are ordinary authored Markdown:
+
+```markdown
+# Fausto
+*(FOW-stoh)*
+> [!taelgar-header]
+> (human, Chardonian, b. 1714, d. 1749)
+```
+
+The callout body is saved fallback text. Rendering replaces only the callout,
+including any index controls, using the bundled header rules; Dataview and
+CustomJS are not required. Reading view and native Live Preview use the same
+handler. Source mode exposes the saved Markdown. Rendering never rewrites notes.
+Old `taelgar-header` code fences, HTML header markers and implicit
+`headerVersion` generation are unsupported. Use the saved-header commands above
+to convert recognized saved info headers. Empty legacy code fences require an
+explicit source conversion. Website publication performs its own migration on
+the working copy without changing the vault.
 Location links use Obsidian's own resolution, including when a campaign homepage
 and a location note share a name.
-In Live Preview, the bio has no code-block edit button or hover frame/background;
-its information callout keeps the normal callout styling. The fence remains
-editable in Source mode.
+The generated information keeps normal callout styling and native editing.
 Headers without index buttons use the note's normal spacing after the callout;
 headers with buttons use the button row's spacing.
 

@@ -17,7 +17,7 @@ import {validateDataviewRequest} from '../src/dataview-export.mjs';
 
 const require=createRequire(import.meta.url);
 const compiled=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/features/exporter.mjs'],write:false,
-  bundle:true,platform:'node',format:'cjs',external:['obsidian'],logLevel:'silent'});
+  bundle:true,platform:'node',format:'cjs',external:['obsidian','@codemirror/state','@codemirror/view'],logLevel:'silent'});
 
 async function fixture(t,sources={'Note.md':'```dataview\nLIST FROM #person\n```\n'}) {
   await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
@@ -45,7 +45,7 @@ async function fixture(t,sources={'Note.md':'```dataview\nLIST FROM #person\n```
   return {directory,vault,staging,calls,feature,app,store,options,run,sources};
 }
 
-test('Node cleans headers and JavaScript-only headings while preserving prose, examples and conditional delimiters',()=>{
+test('Node preserves headers and cleans JavaScript-only headings while preserving prose, examples and conditional delimiters',()=>{
   const source=['---','headerVersion: 2023.11.25','tags: [person]','---','# Old title','>[!info] Old info','',
     '## Remove parent','%%^Campaign:dufr%%','### Remove child','```dataviewjs','throw new Error("Never execute");','```','%%^End%%','',
     '## Retain prose','Keep this prose.','~~~dataviewjs','dv.paragraph("Remove only code");','~~~','',
@@ -55,8 +55,8 @@ test('Node cleans headers and JavaScript-only headings while preserving prose, e
     '> [!info] Query','> ```dataview','> LIST FROM #person','> ```',''].join('\n');
   const note=parseNote(source),result=preparePublicationNote(note);
   assert.equal(result.dataviewJsBlocksRemoved,3);assert.equal(result.sectionsRemoved,3);
-  assert.match(result.note.body,/^```taelgar-header\n```/);
-  assert.doesNotMatch(result.note.body,/Old title|Old info|Remove parent|Remove child|Setext section|Never execute/);
+  assert.match(result.note.body,/^# Old title\n>\[!info\] Old info/);
+  assert.doesNotMatch(result.note.body,/Remove parent|Remove child|Setext section|Never execute/);
   assert.match(result.note.body,/Retain prose\nKeep this prose/);assert.match(result.note.body,/Existing empty heading/);
   assert.match(result.note.body,/This example remains/);assert.match(result.note.body,/> LIST FROM #person/);
   assert.doesNotThrow(()=>filterComments(result.note.body,{date:'1750-01-01',campaigns:['dufr']}));
@@ -68,7 +68,7 @@ test('publication retains generated headers on versioned handouts without treati
   const prefix='---\nheaderVersion: 2023.11.25\ntags: [source]\n---\n';
   for(const body of ['\nDear friends,\n\nA letter.\n','\n## Research\n\nNotes.\n','\n````markdown\n```taelgar-header\n```\n````\n']) {
     const note=parseNote(prefix+body),prepared=preparePublicationNote(note).note;
-    assert.equal(prepared.source,prefix+'```taelgar-header\n```\n\n'+body.trimStart());
+    assert.equal(prepared.source,prefix+body);
     assert.equal(preparePublicationNote(prepared).note.source,prepared.source);
     assert.equal(note.source,prefix+body);
   }
@@ -84,7 +84,7 @@ test('the Taelgarverse desktop exporter only evaluates planned DQL; Node replace
   assert.deepEqual(f.calls,[{query:'LIST FROM #person\n',source:'Note.md'}]);
   assert.equal(result.counts.materialized,1);assert.equal(result.counts.errors,0);
   assert.match(f.store.entries[0].note.body,/> - Materialized \[\[Target\]\]\n\nAfter query/);
-  assert.doesNotMatch(f.store.entries[0].note.body,/JS only|throw 1|Old|dataview/);
+  assert.doesNotMatch(f.store.entries[0].note.body,/JS only|throw 1|dataview/);
   assert.equal(parseNote(f.store.entries[0].note.source).body,f.store.entries[0].note.body);
   for(const [file,source] of Object.entries(sources))assert.equal(await fs.readFile(path.join(f.vault,file),'utf8'),source);
   assert.equal(await fs.stat(path.join(f.staging,'vault')).catch(()=>null),null,'no copied vault or assets');
@@ -212,7 +212,8 @@ test('content preparation cleans and materializes before packaging without a leg
   const index=JSON.parse(await fs.readFile(prepared.indexFile,'utf8')),entry=index.entries.find(e=>e.id==='Note.md');
   const shardFile=path.join(path.dirname(prepared.indexFile),'notes',entry.note.shard+'.json');
   const packed=JSON.parse(await fs.readFile(shardFile,'utf8'))['Note.md'];
-  assert.match(packed,/```taelgar-header\n```/);assert.match(packed,/Materialized \[\[Target\]\]/);
-  assert.doesNotMatch(packed,/dataview|Saved header|## Remove/);
+  assert.match(packed,/# Note\n> \[!taelgar-header\]/);assert.match(packed,/Materialized \[\[Target\]\]/);
+  assert.doesNotMatch(packed,/Saved header/);assert.equal(prepared.headerConversion.counts.changed,1);
+  assert.doesNotMatch(packed,/dataview|## Remove/);
   assert.equal(await fs.readFile(path.join(f.vault,'Note.md'),'utf8'),source);
 });

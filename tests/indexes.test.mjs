@@ -229,7 +229,7 @@ function website(extraSources={},assets=[]) {
 
 test('website header popups and inline grids filter before counts and retain reader context',()=>{
   const engine=website({
-    'Places/Empty.md':"---\ntags: [place]\nindexes: [residents, settlements]\n---\n```taelgar-header\n```\n\nAuthored prose.",
+    'Places/Empty.md':"---\ntags: [place]\nindexes: [residents, settlements]\n---\n> [!taelgar-header]\n\nAuthored prose.",
   });
   const result=engine.render('Places/Realm.md','1720-01-01','custom',true,undefined,['dufr'],undefined,true);
   const $=load(result.html,{},false);
@@ -306,14 +306,14 @@ test('inline heading can be disabled without removing table columns, counts or e
 test('card metadata and invalid options are escaped without hiding the rest of the article',()=>{
   const result=indexGrid({label:'Residents',target:'<b>Place</b>',items:[{name:'<script>',description:'<img onerror=x>',details:'& detail'}],warnings:[]},()=>'<a>safe</a>');
   assert.doesNotMatch(result,/<img|<script|<b>/);assert.match(result,/&lt;img/);
-  const engine=website({'Invalid.md':'---\nindexes: {members: true}\n---\n```taelgar-header\n```\n\nStill readable.'});
+  const engine=website({'Invalid.md':'---\nindexes: {members: true}\n---\n> [!taelgar-header]\n\nStill readable.'});
   const rendered=engine.render('Invalid','1720-01-01','custom');
   assert.match(rendered.html,/indexes must be an array/);assert.match(rendered.html,/Still readable/);
 });
 
 test('website header buttons require the new header block, including when an ordinary title or legacy header has indexes',()=>{
   for (const body of ['# Realm\n\nAuthored prose.','<!-- taelgar:header -->\n\nAuthored prose.','# Realm\n>[!info]+ Information\n> Population 12,000\n\nAuthored prose.']) {
-    const source=indexSources()['Places/Realm.md'].replace('```taelgar-header\n```',body);
+    const source=indexSources()['Places/Realm.md'].replace('> [!taelgar-header]',body);
     for (const versioned of [false,true]) {
       const engine=website({'Places/Realm.md':versioned ? source.replace('---\n','---\nheaderVersion: 2023.11.25\n') : source});
       const result=engine.render('Places/Realm.md','1720-01-01','custom');

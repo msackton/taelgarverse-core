@@ -69,14 +69,14 @@ flowchart LR
 | `scripts/publish-content.mjs`, `scripts/materialize-website.mjs` | Git checkpoint, working vault copy, explicit DQL backend selection (Node default, optional Obsidian), compatibility conversion, image optimization, upload, then activation. No automatic engine fallback. |
 | `scripts/materialize-website-dataview.mjs`, `src/dataview-node/`, `scripts/website-working-vault.mjs` | Copy source inputs and original file timestamps, prune underscore/`.nopublish` subtrees before copying, index the remaining working vault, and evaluate DQL in Node using a pinned Dataview bundle. No desktop process. |
 | `src/dataview-node/bundle.mjs`, `scripts/cache-dataview.mjs` | Exact GitHub release pin, checksum verification, atomic local dependency-cache downloads, offline reuse and explicit bundle validation. The Node default never reads the vault's Dataview installation/settings. |
-| `scripts/convert-website.mjs`, `src/website-compatibility.mjs` | Separate conversion stage: normalize known headers and parse complete recognized DataviewJS table patterns into native blocks; report unmatched code before applying existing cleanup policy. |
+| `scripts/convert-website.mjs`, `src/website-compatibility.mjs` | Separate conversion stage: parse complete recognized DataviewJS table patterns into native blocks; report unmatched code before applying existing cleanup policy. |
 | `obsidian/taelgarverse/features/materializer.mjs`, `obsidian/taelgarverse/materializer/`, `scripts/materialize-static.mjs` | Old static-site export: native blocks become Markdown, taelgar-map becomes leaflet, and legacy DQL/DataviewJS/CustomJS behavior is preserved. See [publishing pipelines](publishing-pipelines.md). |
 | `scripts/export-dataview.mjs`, `src/dataview-export.mjs`, `obsidian/taelgarverse/features/exporter.mjs` | Versioned website DQL request service exposed through the new materializer. The Obsidian backend delegates selected closed DQL to Dataview without the Node chronology filter; static/website requests share the materializer lock. The plugin-root API remains a compatibility alias. |
 | `scripts/publication-progress.mjs` | Phase status, elapsed time, optional local timing records, and ten-second progress reminders around publishing operations; timers stop on success or failure. |
 | `scripts/upload-content.mjs`, `scripts/cloudflare-client.mjs` | Separate incremental asset and snapshot transfers, bounded retries, request pacing, and shared refreshable Cloudflare credentials. Used by full and manual publication. |
 | `scripts/dev.mjs`, `scripts/test.mjs`, `.github/workflows/tests.yml` | Public development/test entry points, live-vault watching, full local publication preview, plugin installation, and GitHub test/package gates. |
 | `.github/workflows/website.yml` | Reuse CI tests, then deploy Worker/static assets on `main`. Serialize production pipelines; deployment credentials are available only in the deployment step. See the one-time cutover in [Deploy](deploy.md#one-time-github-website-deployment-setup). |
-| `scripts/prepare-cloudflare.mjs`, `src/publication-markdown.mjs`, `src/markdown-fences.mjs` | Orchestrate DQL first, compatibility conversion and remaining JavaScript cleanup second, then package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. |
+| `scripts/prepare-cloudflare.mjs`, `scripts/convert-website-headers.mjs`, `src/publication-markdown.mjs`, `src/markdown-fences.mjs` | Orchestrate DQL, publication-only legacy header migration through the shared saved-header writer, compatibility conversion and remaining JavaScript cleanup, then package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. Source notes stay unchanged; runtime renderers accept only native header callouts. |
 | `scripts/compile-runtime.mjs`, `src/runtime-format.mjs` | Compile versioned lookups, availability, campaign contexts, navigation views, parsed notes and separate route manifests during publication. No HTML prerendering. |
 | `scripts/derivative-cache.mjs` | R2 recipe catalog for responsive images/map pyramids, output inventory validation, and publication of reusable records after successful asset uploads. Local/offline consumers retain filesystem generation. |
 | `scripts/build-images.mjs` | Responsive-image recipes, bounded parallel generation, cache-reuse counts, and deterministic asset registration. See [image delivery](images.md#publication-and-caching). |
@@ -92,7 +92,7 @@ flowchart LR
 | `src/page-cache.mjs` | Worker-only HTML response caching, keyed by publication/build identity and full URL; browser ETag revalidation. |
 | `src/crawler-policy.mjs`, `public/robots.txt`, `public/_headers` | Worker crawler rejection before content/cache access, static crawler exclusions, and no-index responses. Hosted behavior and limits belong in [Cloudflare](cloudflare.md#what-happens-when-someone-opens-a-page). |
 | `src/application.mjs` | Shared Fetch API router: homepage, articles, search HTML/JSON, contexts, navigation, assets, health. |
-| `src/render-engine.mjs` | Resolve context/page, generate header, filter comments, render Markdown and page shell. |
+| `src/render-engine.mjs` | Resolve context/page, generate explicit header callouts, filter comments, render Markdown and page shell. |
 | `src/article-layout.mjs` | Shell-only prose grouping and semantic media breakouts, retaining float contexts and embedded-note boundaries. |
 | `src/homepage.mjs`, `public/homepage.css`, `public/images/home-map.webp` | Homepage composition, entry buttons, responsive layout, and decorative map asset. Introductory content remains in the vault's `_website/home.md`. |
 | `src/contexts.mjs`, `src/navigation.mjs` | Session-derived dates and context-filtered navigation. |
@@ -114,8 +114,9 @@ flowchart LR
 | `scripts/prepare-obsidian-release.mjs` | Read published source provenance, report changes for agent review, prepare version/compatibility/notes files, and validate offline. No Git writes or publication; the uploader also validates the release-note version heading. |
 | `src/comments.mjs`, `src/markdown.mjs`, `src/dm.mjs` | Conditional prose, Obsidian syntax, link handling, Behind the Curtain notes. |
 | `src/engine.mjs`, `src/server.mjs` | Node initialization and HTTP adapter, using the same header core as the Worker. |
-| `src/header-core/` | Maintained dates, names, whereabouts, affiliations, templates, encounters and header output. `createHeaderSnapshot` freezes shared inputs; `createHeaderContext` creates request-local services; `renderBio` renders the complete header directly; `renderHeader` supports saved headers. |
-| `src/bio-block.mjs`, `obsidian/taelgarverse/features/headers.mjs` | Leading header-block recognition, pure publication normalization, and the Obsidian adapter. The host selects the date and resolves links; the shared core renders the title and a static native callout. |
+| `src/header-core/` | Maintained dates, names, whereabouts, affiliations, templates, encounters and header output. `createHeaderSnapshot` freezes shared inputs; `createHeaderContext` creates request-local services; `renderHeaderCallout` renders the information component in website or Obsidian mode. Full-bio and saved-header exports remain characterization helpers; application adapters no longer inject them. |
+| `src/header-callout.mjs`, `obsidian/taelgarverse/features/headers.mjs` | Top-level header-callout boundaries and one Obsidian postprocessor shared by Reading view and native Live Preview callouts (no competing header decoration). The host selects the date and resolves links; titles and pronunciation remain authored Markdown. See the [legacy review](header-callout-migration.md). |
+| `src/header-rewrite.mjs`, `src/header-tool.mjs`, `scripts/header-tool.mjs`, `obsidian/taelgarverse/header-tool.mjs` | Pure approved-format source rewriting with shared H1 naming/article rules, targeted editor commands, preview-first standalone/bulk tooling, and extraction of the embedded CLI into the installed plugin folder. Build/install keep the Node CLI self-contained without adding a BRAT runtime asset. See [saved header commands](deploy.md#saved-header-commands). |
 | `obsidian/taelgarverse/features/interactions.mjs`, `obsidian/taelgarverse/features/interaction-data.mjs` | Native vault metadata/link adapter, cached recap index, explicit interaction blocks, automatic Reading View footer and host-owned CodeMirror Live Preview widget. Known-to pages get a campaign picker; no note writes or website requests. |
 | `src/indexes.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/index-description.mjs`, `src/website-indexes.mjs`, `src/browser/index-popups.mjs` | Shared Residents, Settlements, Members, Rivers and Places queries, cards/table/popup markup, lead-image resolution, prose descriptions, website visibility adapter and popup lifecycle. The Obsidian headers feature supplies native resolution, refresh and links. See [generated indexes](vault.md#generated-indexes). |
 | `src/campaign-calendar.mjs`, `src/campaign-calendar-context.mjs`, `src/lunar.mjs`, `src/browser/campaign-calendar.mjs`, `public/calendar.css`, `obsidian/taelgarverse/features/calendar.mjs` | Opt-in campaign-date calendar with DR date/month helpers, lunar phases, and normal Obsidian campaign/custom-date settings. Disabled by default; the component owns its active listeners and date API. A metadata-only adapter reuses website Contexts and exposes the date API for headers, indexes and CustomJS. The DOM view shows campaign dots and daily moon illumination; lunar crossings use the adopted full-moon anchor and exact three-hour ticks. The legacy CustomJS hook is an uncommitted experimental-vault change; no website route exists yet. See [campaign calendar](vault.md#campaign-calendar-prototype). |
@@ -202,7 +203,7 @@ configuration tests in `tests/config.test.mjs`.
 ## Runtime boundaries
 
 Each render resolves a date/campaign and checks page availability before loading
-the body. It then regenerates the header, filters comments/conditional blocks,
+the body. It then renders explicit header callouts, filters comments/conditional blocks,
 and renders HTML. Search, navigation, and internal-link availability use the same
 metadata rule, including the reader's optional POV date restriction. The
 publisher stores the site default in the snapshot. The compiler retains both
@@ -282,7 +283,7 @@ The new website publisher copies source files into a request-owned working vault
 materializes supported plain DQL in Node by default or through the explicitly
 selected Taelgarverse Obsidian materializer's DQL mode, then runs compatibility conversion
 before any image discovery, backlinks, search or runtime compilation. The
-conversion recognizes complete supported JavaScript syntax without executing it.
+conversion recognizes complete supported JavaScript syntax without executing it; it does not rewrite headers.
 Native blocks remain dynamic at render time. Unrecognized DataviewJS follows the
 existing omission policy and is reported. Original notes are never rewritten.
 The Node backend downloads an exact pinned GitHub Dataview release on first DQL
@@ -320,7 +321,7 @@ text in the view; it does not render or expand embedded notes. Grid images use
 the existing `image` metadata field; publication includes those references in
 the responsive-image usage plan. Search/backlink compilation omits these generated rows;
 inline indexes retain the containing note as their source inside transclusions.
-Header buttons belong only to the new `taelgar-header` renderer, after its complete
+Header buttons belong only to the `taelgar-header` callout renderer, after its complete
 output and outside the information callout. No general heading postprocessor adds
 buttons to ordinary titles or saved headers.
 Obsidian shares the bio snapshot, invalidates it on vault metadata changes, and

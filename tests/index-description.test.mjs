@@ -8,7 +8,7 @@ import {cintraSource,cintraSentence} from './fixtures/index-descriptions.mjs';
 test('Cintra descriptions skip her generated header, private comment and image callout',()=>{
   assert.equal(firstDescriptionSentence(parseNote(cintraSource)),cintraSentence);
   const body=cintraSource.slice(cintraSource.indexOf('%% Private'));
-  for(const header of ['```taelgar-header\n```\n\n','<!-- taelgar:header -->\n\n']) {
+  for(const header of ['> [!taelgar-header]\n> Saved fallback.\n\n','> [!taelgar-header]\n\n']) {
     assert.equal(firstDescriptionSentence(parseNote(header+body)),cintraSentence);
   }
 });

@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
 import {build} from 'esbuild';
+import {codeMirrorHost} from './helpers/codemirror-host.mjs';
 import {ROOT} from '../src/config.mjs';
 import {headerFixture,fixtureForCase} from './helpers/header-fixture.mjs';
 import {indexNotes} from './fixtures/indexes.mjs';
@@ -11,10 +12,11 @@ import {renderCases} from './fixtures/header-cases.mjs';
 import {buildEvalCode,buildMaterializerRequest,parseArgs} from '../scripts/materialize-static.mjs';
 
 const require=createRequire(import.meta.url);
-const compiled=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/features/materializer.mjs'],write:false,bundle:true,platform:'node',format:'cjs',external:['obsidian'],logLevel:'silent'});
+const compiled=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/features/materializer.mjs'],write:false,bundle:true,platform:'node',format:'cjs',external:['obsidian','@codemirror/state','@codemirror/view'],logLevel:'silent'});
 function feature(fixture=headerFixture({baseNotes:indexNotes,date:'1720-01-01'})) {
+  const cm=codeMirrorHost();
   const module={exports:{}},globals={module,exports:module.exports,structuredClone,console,setTimeout,clearTimeout,TextEncoder,TextDecoder,
-    window:{setTimeout,clearTimeout},require:name=>name==='obsidian'?{Component:class{},MarkdownRenderChild:class{},Notice:class{}}:require(name)};
+    window:{setTimeout,clearTimeout},require:name=>name==='@codemirror/state'?cm.state:name==='@codemirror/view'?cm.view:name==='obsidian'?{Component:class{},MarkdownRenderChild:class{},Notice:class{}}:require(name)};
   vm.runInNewContext(compiled.outputFiles[0].text,globals);
   const pages=fixture.runtime.pages;
   const app={vault:{adapter:{getBasePath:()=>ROOT}},metadataCache:{getFirstLinkpathDest:target=>{
@@ -30,22 +32,22 @@ for(const headerType of ['website','static'])test('native headers match captured
     const fixture=fixtureForCase(example),{materializer,runtime}=feature(fixture);
     const metadata=fixture.metadata(example.path),basename=example.path.split('/').at(-1).slice(0,-3);
     const prefix='---\n'+Object.entries({...metadata,headerVersion:1}).map(([key,value])=>key+': '+JSON.stringify(value)).join('\n')+'\n---\n';
-    const source=prefix+'```taelgar-header\n```\n\nAuthored prose.\n';
+    const source=prefix+'# Authored title\n*(Authored pronunciation)*\n> [!taelgar-header]\n> Stale fallback.\n\nAuthored prose.\n';
     // Website is also the CLI default; only the explicit static case needs a flag.
     const args=parseArgs(['--vault',ROOT,'--date',example.date,...(headerType==='static'?['--header-type','static']:[])]);
     const config=materializer.normalizeConfig(buildMaterializerRequest(args).request.config);
     materializer.regenerateHeader=()=>assert.fail('native headers must not be regenerated a second time');
     const result=await materializer.materializeMarkdown(source,{path:example.path,name:basename+'.md',basename},runtime,materializer.loadCore(),config);
-    const expected=capturedHeaders[example.id][headerType].replace(/^---\n[\s\S]*?\n---\n/,'').trimEnd();
+    const expected=capturedHeaders[example.id][headerType].replace(/^---\n[\s\S]*?\n---\n/,'').replace(/^# [^\n]*\n/,'').replace(/^\*\([^\n]*\)\*\n/,'').replace(/^:speaker:[^\n]*\n/,'').trimEnd();
     assert.equal(result.report.counts.errors,0,example.id);
-    assert.equal(result.content,prefix+expected+'\n\nAuthored prose.\n',example.id+' / '+headerType);
+    assert.equal(result.content,prefix+'# Authored title\n*(Authored pronunciation)*\n'+expected+'\n\nAuthored prose.\n',example.id+' / '+headerType);
     assert.equal((result.content.match(/^# /gm)||[]).length,1,example.id);
   }
 });
 
 test('static materializer renders native headers/indexes, converts maps, and retains DQL/DataviewJS support',async()=>{
   const {materializer,runtime}=feature(),file={path:'Groups/Guild.md',name:'Guild.md',basename:'Guild'};
-  const source='---\nheaderVersion: 1\ntags: [group]\n---\n```taelgar-header\n```\n\n```taelgar-index\ntype: members\n```\n\n'+
+  const source='---\nheaderVersion: 1\ntags: [group]\n---\n# Guild\n> [!taelgar-header]\n\n```taelgar-index\ntype: members\n```\n\n'+
     '> ```taelgar-map\n> image: [[Map.png]]\n> ```\n\n```dataview\nLIST\n```\n\n```dataviewjs\ndv.paragraph("Legacy JS output");\n```\n';
   const config=materializer.normalizeConfig({headerType:'static',overrideDate:'1720-01-01'});
   materializer.regenerateHeader=()=>assert.fail('native header must not also run legacy regeneration');
@@ -56,11 +58,13 @@ test('static materializer renders native headers/indexes, converts maps, and ret
   assert.doesNotMatch(result.content,/taelgar-header|taelgar-index|taelgar-map|```dataview/);
 });
 
-test('invalid native blocks remain visible in partial output with errors',async()=>{
-  const {materializer,runtime}=feature(),source='```taelgar-header\ninvalid\n```\n';
-  materializer.regenerateHeader=()=>assert.fail('invalid native block must not be swallowed by a saved-header rewrite');
+test('static export leaves old header fences and saved headers alone even when headerType is enabled',async()=>{
+ const {materializer,runtime}=feature();
+ materializer.regenerateHeader=()=>assert.fail('legacy header regeneration must never run');
+ for(const source of ['```taelgar-header\ninvalid\n```\n','---\nheaderVersion: 1\ntags: [group]\n---\n# Old\n> Saved details\n']) {
   const result=await materializer.materializeMarkdown(source,{path:'Groups/Guild.md',name:'Guild.md'},runtime,materializer.loadCore(),{headerType:'static',blockTimeoutMs:1000});
-  assert.equal(result.report.counts.errors,1);assert.match(result.content,/invalid/);
+  assert.equal(result.report.counts.errors,0);assert.equal(result.content,source);
+ }
 });
 
 test('static export retains v2 map definitions and reports unsupported crop/mask conversion',async()=>{
@@ -73,7 +77,7 @@ test('static export retains v2 map definitions and reports unsupported crop/mask
 test('an authored title immediately before a native header is preserved, including CRLF source',async()=>{
   for(const headerType of ['website','static']){
     const {materializer,runtime}=feature();
-    const source='---\r\nheaderVersion: 1\r\ntags: [group]\r\n---\r\n# Saved name\r\n\r\n```taelgar-header\r\n```\r\n\r\nProse.\r\n';
+    const source='---\r\nheaderVersion: 1\r\ntags: [group]\r\n---\r\n# Saved name\r\n\r\n> [!taelgar-header]\r\n> Fallback.\r\n\r\nProse.\r\n';
     const result=await materializer.materializeMarkdown(source,{path:'Groups/Guild.md',name:'Guild.md',basename:'Guild'},runtime,materializer.loadCore(),{headerType,blockTimeoutMs:1000});
     assert.equal(result.report.counts.errors,0);assert.equal((result.content.match(/^# /gm)||[]).length,1);
     assert.match(result.content,/# Saved name\r\n/);assert.doesNotMatch(result.content,/# Guild|taelgar-header/);assert.match(result.content,/Prose\.\r\n/);

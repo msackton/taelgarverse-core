@@ -1,4 +1,4 @@
-// Cintra's opening structure: a saved header, private comment, image callout,
+// Cintra's opening structure: an authored title and generated callout, private comment, image callout,
 // then the authored biography. The caption must never become her description.
 export const cintraSource=`---
 headerVersion: 2023.11.25
@@ -9,7 +9,7 @@ affiliations: [Shakun Mystai]
 ---
 # Cintra
 *(SIN-truh)*
->[!info]+ Biographical Info
+>[!taelgar-header]
 > A Dunmari human (she/her)
 
 %% Private preparation notes. %%

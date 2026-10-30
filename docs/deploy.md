@@ -82,7 +82,9 @@ command after fixing the error; no production publication is needed.
 
 Content preparation copies the vault to a temporary working directory, evaluates
 supported DQL in Node, then runs a separate compatibility conversion. Known saved
-headers become `taelgar-header`; supported complete DataviewJS index patterns
+headers become an authored title, optional pronunciation and `taelgar-header`
+through the shared Node saved-header writer. Existing native callouts remain
+unchanged; this is not a vault source migration. Supported complete DataviewJS index patterns
 become `taelgar-index`. Unmatched closed JavaScript blocks retain the existing
 omission policy and appear in a conversion report. Images, backlinks, search and
 runtime compilation follow those two stages. Original notes and media stay
@@ -249,6 +251,16 @@ The updated core connects the search UI to that published D1 index.
 `--no-strict` means “continue if a Dataview query cannot be converted.” Read the
 warnings: those queries may appear as unavailable content on the website. Leave
 out `--no-strict` if you want any query problem to stop publication.
+
+Legacy header conversion runs automatically on the publication copy after DQL
+and before JavaScript cleanup. It uses the source regeneration formats, without
+adding headers to unmarked/ineligible notes or regenerating native callouts.
+Ambiguous saved headers and nonempty/unclosed legacy fences stop preparation,
+including with `--no-strict`. Inspect
+`.cache/cloudflare/header-conversion-report.json` for per-file results and
+before/after header text. The source vault is unchanged. The website renderer
+still requires native callouts; after deploying that renderer, republish content
+to restore converted headers without committing to a vault migration date.
 
 Node skips queries on pages marked `excludePublish: all` and in excluded folders.
 It indexes the copied Markdown for query inputs; underscore folders and folders
@@ -801,3 +813,73 @@ and [CLI options](map-baseline-progress.md#dropbox-sources-and-layer-inspection)
 Both layer loading and export use the desktop plugin's shared Python resolver
 and Windows launch-path normalization. A configured virtual-environment executable
 is preserved; executable names resolve to a native Windows `.exe` before launch.
+
+## Saved header commands
+
+The installed Taelgarverse plugin includes a standalone Node.js header tool. It
+needs Node.js 22.12+ and the vault; it needs neither this repository, an npm
+install, CustomJS/Dataview, nor a running Obsidian instance. Local installation
+copies it beside `main.js`; BRAT builds embed it in `main.js` and extract it on
+plugin load, retaining the usual three release assets.
+
+From the vault directory:
+
+```sh
+node .obsidian/plugins/taelgarverse/header-tool.cjs --file "People/Fausto.md"
+node .obsidian/plugins/taelgarverse/header-tool.cjs --file "People/Fausto.md" --add --write
+node .obsidian/plugins/taelgarverse/header-tool.cjs --all --report header-preview.json
+```
+
+The console shows one status line per file plus a short summary, without header
+contents or JSON. Without `--write`, statuses describe proposed changes and no
+notes are changed. Detailed JSON (including before/after header text) is saved
+only with an explicit `--report FILE.json`. `--write` applies eligible
+changes; `--add` explicitly allows inserting headers in unmarked notes. Without
+`--add`, a missing header is skipped. Empty `taelgar-header` callouts opt in
+without `--add`, subject to note eligibility. Untagged notes and notes tagged
+`session-note`, `meta`, `background`, `source` or `story` (including descendant
+tags) are skipped before header detection, in single-file and bulk modes.
+Neither `--add` nor an existing header overrides these exclusions. Repeated regeneration is idempotent.
+
+Use `--errors` to print only actual errors and ambiguous/unsupported headers.
+Expected eligibility skips and unmarked notes are hidden, as are ordinary pending
+changes and up-to-date files. A run with no problems produces no console output.
+The `--report` JSON remains complete even when console output is filtered.
+
+Use `--check` for a read-only exit-code check: `0` means no pending changes or
+problems; `1` means changes, errors or ambiguous/unsupported headers remain.
+Expected skips do not make a check fail. `--add` can be used with `--check` to
+include proposed insertions. `--check` cannot be combined with `--write`.
+
+```sh
+node .obsidian/plugins/taelgarverse/header-tool.cjs --all --check --errors --report header-check.json
+```
+
+With both flags, a run containing only ordinary pending changes is silent but
+returns `1`. `--errors` by itself filters output without enabling check mode;
+normal non-check runs still return `1` for actual errors.
+
+The H1 uses the same name/article formatter as the shared renderer. The tool
+reads required/type naming defaults from the vault's `metadata.json` and honors
+per-note `displayDefaults`, including an explicit empty `defArt`. This does not
+require CustomJS or the core repository. If the naming configuration is absent,
+built-in person/power/unknown article defaults and the normal name inference
+are used. Excluded/untagged notes are skipped before loading naming rules.
+
+The installed script infers its vault from its plugin directory. Use
+`--vault PATH` to choose another vault. For development from core, the equivalent
+entry point is `node scripts/header-tool.mjs --vault ../taelgar --file "People/Fausto.md"`.
+`--help` lists the options.
+
+`--all` visits local Markdown outside dot directories, `node_modules`, `_scripts`
+and `_sessions`. Unlike website publication it includes local unpublished/DM
+notes. It skips symlinks and reports unrecognized/ambiguous headers without
+editing them. Review the report before a bulk `--write`; `--all --add` deliberately
+also inserts headers into otherwise unmarked notes in that selection.
+
+The tool edits saved files; use the Obsidian commands for notes with unsaved
+editor changes. It plans the run before writing; any parse/path error prevents
+batch writes. Each replacement is atomic and checks that the saved source has
+not changed since planning. A save failure stops remaining writes, and the report
+records which files were actually written. These local edits do not publish,
+commit or push content. See [source semantics and summary formats](vault.md#writing-or-adding-a-saved-header).

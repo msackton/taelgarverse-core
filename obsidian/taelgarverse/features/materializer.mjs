@@ -3,10 +3,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {obsidianHeaders,bioDate,obsidianIndex} from './headers.mjs';
 import {obsidianInteractions,knownCampaigns,localInteractions} from './interaction-data.mjs';
-import {renderBio} from '../../../src/header-core/index.mjs';
+import {renderHeaderCallout} from '../../../src/header-core/index.mjs';
 import {parseIndex} from '../../../src/indexes.mjs';
 import {parseNote} from '../../../src/content-store.mjs';
-import {leadingBioBlock,hasPrecedingH1} from '../../../src/bio-block.mjs';
+import {scanHeaderCallouts} from '../../../src/header-callout.mjs';
 import {scanFencedCodeBlocks,applyReplacements,prefixMarkdownLines} from '../../../src/markdown-fences.mjs';
 import {indexMarkdown,interactionsMarkdown} from '../../../src/static-markdown.mjs';
 import {DATAVIEW_EXPORT_VERSION} from '../../../src/dataview-export.mjs';
@@ -55,13 +55,21 @@ export class MaterializerFeature extends LegacyMaterializer {
   }
 
   async materializeMarkdown(original,file,runtime,core,config) {
-    const replacements=[],issues=[];let nativeHeader=false,nativeBlocks=0,maps=0;
+    const replacements=[],issues=[];let nativeBlocks=0,maps=0;
     const metadata=parseNote(original).metadata;
     const frontmatter=/^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/.exec(original);
-    const bodyStart=frontmatter?.[0].length || 0,leading=leadingBioBlock(original.slice(bodyStart));
+    const bodyStart=frontmatter?.[0].length || 0;
+    for(const callout of scanHeaderCallouts(original.slice(bodyStart))) {
+      try {
+        const snapshot=await runtime.headers(),date=config.overrideDate || bioDate(metadata,globalThis,snapshot.fallback);
+        const text=renderHeaderCallout(snapshot.runtime,{name:file.basename || file.name.replace(/\.md$/i,''),metadata,date,
+          mode:config.headerType==='website'?'website':'obsidian'}).trimEnd()+'\n';
+        replacements.push({start:bodyStart+callout.start,end:bodyStart+callout.end,text});nativeBlocks++;
+      } catch(error) {issues.push({type:'error',line:original.slice(0,bodyStart+callout.start).split('\n').length,message:error.message});}
+    }
     for(const block of scanFencedCodeBlocks(original)) {
-      if(!['taelgar-header','taelgar-index','taelgar-interactions','taelgar-map'].includes(block.language))continue;
-      if(block.language==='taelgar-header')nativeHeader=true;
+      if(replacements.some(range=>block.start>=range.start && block.start<range.end))continue;
+      if(!['taelgar-index','taelgar-interactions','taelgar-map'].includes(block.language))continue;
       try {
         if(!block.closed)throw new Error('Unclosed '+block.language+' block.');
         let markdown;
@@ -71,13 +79,7 @@ export class MaterializerFeature extends LegacyMaterializer {
           replacements.push({start:block.start,end:block.end,text});maps++;continue;
         } else {
           const snapshot=await runtime.headers(),date=config.overrideDate || bioDate(metadata,globalThis,snapshot.fallback);
-          if(block.language==='taelgar-header') {
-            if(block.body.trim())throw new Error('Leave the taelgar-header block empty.');
-            const includeTitle=block.quoteDepth>0 || !hasPrecedingH1(original.slice(bodyStart),block.start-bodyStart);
-            const headerType=config.headerType==='website'?'website':'static';
-            markdown=renderBio(snapshot.runtime,{name:file.basename || file.name.replace(/\.md$/i,''),metadata,date,headerType,includeTitle});
-            nativeHeader=true;
-          } else if(block.language==='taelgar-index') {
+          if(block.language==='taelgar-index') {
             const options=parseIndex(block.body);
             markdown=options.show==='obsidian'?'':indexMarkdown(obsidianIndex(this.app,snapshot,options,file.path,date));
           } else {
@@ -87,13 +89,11 @@ export class MaterializerFeature extends LegacyMaterializer {
           }
           nativeBlocks++;
         }
-        const start=block.language==='taelgar-header' && leading && bodyStart+leading.end===block.end?bodyStart:block.start;
-        const title=start===bodyStart && block.language==='taelgar-header' ? leading?.title || '' : '';
-        replacements.push({start,end:block.end,text:title+prefixMarkdownLines(markdown.trimEnd(),block.quotePrefix)+'\n'});
+        replacements.push({start:block.start,end:block.end,text:prefixMarkdownLines(markdown.trimEnd(),block.quotePrefix)+'\n'});
       } catch(error) {issues.push({type:'error',line:block.startLine,message:error.message});}
     }
     const source=applyReplacements(original,replacements);
-    const result=await super.materializeMarkdown(source,file,runtime,core,nativeHeader?{...config,headerType:'none'}:config);
+    const result=await super.materializeMarkdown(source,file,runtime,core,{...config,headerType:'none'});
     result.report.counts.errors+=issues.length;result.report.issues.push(...issues);
     result.report.counts.taelgarBlocks=nativeBlocks;result.report.counts.mapsConverted=maps;
     result.changed=result.report.changed=result.content!==original;

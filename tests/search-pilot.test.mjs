@@ -26,7 +26,7 @@ function batchFor(sources,extra={}){
   const codec=tokenizer();try{return prepareCorpus({...fixture(sources),config:configFor(Object.keys(sources)),codec,...extra});}finally{codec.free();}
 }
 test('pilot exports only allowlisted prose with renderer visibility and no transitive embeds',()=>{
-  const sources={'Host.md':'---\nheaderVersion: 1\ntags: [place]\naliases: [Alias]\n---\n# Header\nGenerated header.\n\n# Authored\nPublic. ![[Child]]\n%% popup secret %%\n%%^Campaign:none%%DM block%%^End%%\n%%^Campaign:dufr%%Frontier body%%^End%%\n%%^Date:1740%%Future prose%%^End%%\n%%^Metadata:names:v1%%Admin hidden%%^End%%\n',
+  const sources={'Host.md':'---\nheaderVersion: 1\ntags: [place]\naliases: [Alias]\n---\n> [!taelgar-header]\n> Generated header.\n\n# Authored\nPublic. ![[Child]]\n%% popup secret %%\n%%^Campaign:none%%DM block%%^End%%\n%%^Campaign:dufr%%Frontier body%%^End%%\n%%^Date:1740%%Future prose%%^End%%\n%%^Metadata:names:v1%%Admin hidden%%^End%%\n',
     'Child.md':'Child body must not expand.'};
   const codec=tokenizer();try{
     const data=prepareCorpus({...fixture(sources),config:configFor(['Host.md']),codec,views:['public-all','public-none','dm-all']});

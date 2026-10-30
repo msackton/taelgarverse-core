@@ -1,5 +1,4 @@
 import {parse,parseExpressionAt} from 'acorn';
-import {HEADER_BLOCK,leadingBioBlock,normalizeHeader} from './bio-block.mjs';
 import {scanFencedCodeBlocks,applyReplacements,prefixMarkdownLines} from './markdown-fences.mjs';
 import {getPageType} from './header-core/metadata.mjs';
 
@@ -83,12 +82,7 @@ export function recognizeDataviewJs(source) {
 }
 
 export function convertWebsiteNote(note,{sourcePath='',resolveTarget}={}) {
-  const original=note;note=normalizeHeader(note);const changes=[],unconverted=[];
-  if(note.metadata.headerVersion && !leadingBioBlock(note.body)) {
-    const body=HEADER_BLOCK+'\n'+note.body.replace(/^(?:[ \t]*\r?\n)*/,'');
-    note={...note,body,source:note.source.slice(0,note.source.length-note.body.length)+body};
-  }
-  if(note.source!==original.source)changes.push({rule:'legacy-header',file:sourcePath,line:1});
+  const changes=[],unconverted=[];
   const replacements=[];
   for(const block of scanFencedCodeBlocks(note.body)) {
     if(block.language!=='dataviewjs' || !block.closed)continue;

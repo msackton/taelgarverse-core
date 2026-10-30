@@ -40,5 +40,5 @@ export const featureIndexNotes={
 export function indexSources(extraNotes={}) {
   return Object.fromEntries(Object.entries({...indexNotes,...extraNotes}).map(([path,metadata])=>[path,'---\n'+
     Object.entries(metadata).map(([key,value])=>key+': '+JSON.stringify(value)).join('\n')+'\n---\n'+
-    (metadata.indexes ? '```taelgar-header\n```' : '# '+path.split('/').at(-1).slice(0,-3))+'\n\nAuthored prose.']));
+    '# '+path.split('/').at(-1).slice(0,-3)+(metadata.indexes ? '\n\n> [!taelgar-header]' : '')+'\n\nAuthored prose.']));
 }

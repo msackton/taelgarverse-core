@@ -85,7 +85,7 @@ This creates local export files. It does not build or publish GitHub Pages,
 commit, push, or contact Cloudflare. Keep the existing downstream static-site
 build and its configuration. The CLI retains the older export flags and default
 `website` header format; `--header-type static` selects the plain static format.
-Both saved legacy headers and native `taelgar-header` blocks honor those formats:
+Native `taelgar-header` callouts honor those formats:
 `website` emits the GitHub Pages card layout and icon markup, while `static`
 emits an ordinary Markdown information callout. Native headers use the shared
 core and are not regenerated a second time through CustomJS.
@@ -99,13 +99,13 @@ materializer:
 
 | Input | Static export |
 | --- | --- |
-| `taelgar-header` | Complete shared-core header in the selected format: GitHub Pages cards/icons for `website` (CLI default), or a Markdown information callout for `static`. |
+| `taelgar-header` | Shared-core information component (without title/pronunciation) in the selected format: GitHub Pages cards/icons for `website` (CLI default), or a Markdown information callout for `static`. |
 | `taelgar-index` | Markdown table from the shared dated index model; grids have a table fallback. `show: obsidian` is omitted. |
 | `taelgar-interactions` | Campaign headings and ordinary Markdown event/source links. |
 | `taelgar-map` | Change only the fence language to `leaflet`; preserve configuration, quote prefixes and line endings. |
 | `dataview` | Existing Dataview Markdown evaluation. |
 | Supported `dataviewjs`, views and inline expressions | Existing capturing adapter and CustomJS behavior. Unsupported DOM-dependent scripts retain their existing reports. |
-| Saved legacy header | Existing CustomJS regeneration, unless a native header block owns the header. |
+| Saved legacy header, old header fence or HTML marker | Preserved as source; never recognized or regenerated as a native header. |
 
 Native blocks that fail remain in partial output and produce errors. Strict
 mode prevents writing partial exports. Output must be outside the vault, cannot
@@ -154,12 +154,16 @@ Both choices run these stages:
    `excludePublish: all`. Do not execute DataviewJS. Strict
    errors apply no partial replacements; `--no-strict` reports failures and
    keeps the failed query blocks.
-3. **Conversion.** Recognize known header layouts and complete supported
-   DataviewJS patterns. Write canonical native blocks to the prepared copy.
+3. **Headers.** Convert eligible leading saved `[!info]` headers, empty legacy
+   header fences and explicit HTML header markers through the shared saved-header
+   writer. Existing native callouts and their authored titles remain unchanged.
+   No Add operation runs. An ambiguous legacy boundary stops preparation with a
+   per-file report, independently of the DQL `--no-strict` setting.
+4. **Conversion.** Recognize complete supported DataviewJS patterns. Write canonical native blocks to the prepared copy.
    Then apply the existing unmatched-JavaScript/empty-heading cleanup policy.
-4. **Existing preparation.** Discover images, generate derivatives and maps,
+5. **Existing preparation.** Discover images, generate derivatives and maps,
    compile backlinks/search/runtime data, and package the revision as before.
-5. **Publication.** Only a normal, explicitly authorized publish run uploads and
+6. **Publication.** Only a normal, explicitly authorized publish run uploads and
    activates content. Build-only performs no R2/D1 reads or writes.
 
 Node query inputs therefore exclude underscore and marked folders. Obsidian's
@@ -277,7 +281,9 @@ reports; 76 rendered views per backend passed native-block rendering checks.
 
 After success, `.cache/publish/materialization-report.json` contains DQL results
 and errors; `conversion-report.json` contains every recognized rewrite and
-unmatched script location. The materialization report records `backend` and
+unmatched script location. `.cache/cloudflare/header-conversion-report.json`
+contains header changes, normal skips and problems, including after a header
+failure. The materialization report records `backend` and
 engine identity. Failed runs retain their working directory for
 inspection. Successful runs remove that temporary copy.
 
@@ -288,6 +294,8 @@ node scripts/convert-website.mjs --source .cache/my-working-vault
 ```
 
 It refuses the original vault. Its report is saved beside that working copy.
+This standalone command runs DataviewJS conversion/cleanup only; automatic
+legacy header migration belongs to the content-preparation pipeline.
 Shared header metadata, homepage/navigation and session inputs still come from
 the configured original vault. They are file inputs, not calls to Obsidian.
 
@@ -301,8 +309,6 @@ membership filters, different columns, or unknown calls prevent conversion.
 
 Current rules cover:
 
-- Familiar versioned saved headers, legacy header markers, and versioned
-  handouts without a saved title become a leading empty `taelgar-header`.
 - Supported current-membership tables become `taelgar-index` with `type: members`.
 - Supported location tables become Residents, Places or Settlements indexes.
   Literal targets are preserved; a current-note target stays implicit. Targets
@@ -323,3 +329,36 @@ while Obsidian evaluates those DQL blocks normally.
 Use the [Dataview comparison harness](../experiments/dataview/README.md) to extend
 the Node adapter against actual plugin results. Add conversion rules only with
 complete matching examples, near-miss rejection cases, and rendering checks.
+
+### Header callout transition
+
+Both website publication backends run `scripts/convert-website-headers.mjs`
+during content preparation. It calls the shared Node saved-header writer on the
+publication inputs; it never edits the original vault. Saved legacy headers,
+closed empty `taelgar-header` fences and leading `<!-- taelgar:header -->` /
+`<!-- taelgar-header -->` markers become an H1, optional pronunciation and a
+native callout. The H1 and saved summary follow the same approved formats and
+name/article defaults as the explicit regeneration command.
+
+Untagged notes and the excluded `session-note`, `meta`, `background`, `source`
+and `story` tag roots are skipped before header detection. Notes excluded from
+all publication are also skipped. Native callouts, including their authored
+title, pronunciation and fallback, remain unchanged. Unmarked notes do not gain
+headers. `headerVersion` alone does not opt a note in. Nonempty/unclosed legacy
+fences or ambiguous saved-header boundaries require review and stop the build;
+`--no-strict` only relaxes DQL handling.
+
+Node and Worker rendering still recognize only explicit native callouts. Legacy
+handling is confined to this preparation pass and the explicit source-rewrite
+tooling. Deploy the website code, then republish content to restore converted
+headers; a temporary regression against an older published revision is possible.
+No vault-wide source migration or vault commit is required for the header
+transition. An already-migrated vault continues to publish normally.
+
+For the old static website, select the **Taelgarverse** materializer via the
+wrapper override described above. Its `website` mode emits website information
+layout; `static` emits the Obsidian-style information callout. Both preserve
+surrounding authored title/pronunciation and prose. The original standalone
+vault materializer does not implement the new callout contract. Its legacy
+header-regeneration path is not a fallback in the Taelgarverse materializer.
+See [header conversion requirements](header-callout-migration.md) before rollout.

@@ -26,7 +26,7 @@ const initial={
   'Campaigns/Clee/Conditional.md':'---\ntags: [source]\n---\n%%^Campaign:other%%[[Person]]%%^End%%',
   'Campaigns/Clee/Later.md':'---\ntags: [source]\n---\n%%^Date:1750-01-02%%[[Person]]%%^End%%',
   'Campaigns/Clee/Secret.md':'---\ntags: [source]\n---\n# Secret\n%% A DM reference to [[Person]]. %%',
-  'Campaigns/Clee/Header.md':'---\nheaderVersion: 1\ntags: [person]\n---\n# Header [[Person]]\n\nBody without a link.',
+  'Campaigns/Clee/Header.md':'---\nheaderVersion: 1\ntags: [person]\n---\n# Header\n> [!taelgar-header]\n> [[Person]]\n\nBody without a link.',
   'Campaigns/Clee/_generated/narrative.md':'[[Person]]',
   '_sessions/cleenseau/cleenseau-001/cleaned/cleenseau-001-session-recap.md':recap('Clee','Person met the Cleenseau party.'),
   '_sessions/other/other-001/cleaned/other-001-session-recap.md':recap('Other','Person met the other party.'),
@@ -200,12 +200,14 @@ test('All preserves the heading and picker above consistent knowledge-only campa
   }finally{h.feature.unload();}
 });
 
-test('native backlink offsets preserve CRLF frontmatter and saved-header boundaries',async()=>{
+test('native backlink offsets preserve CRLF and authored links after generated callouts',async()=>{
   const h=host({notes:{'Campaigns/Clee/Windows.md':'---\r\nname: Windows letter\r\ntags: [source]\r\n---\r\n\r\n[[Person]]\r\n',
-    'Campaigns/Clee/Windows header.md':'---\r\nheaderVersion: 1\r\ntags: [person]\r\n---\r\n# Saved header [[Person]]\r\n\r\nBody.\r\n'}});
+    'Campaigns/Clee/Windows following.md':'---\r\nname: Following callout\r\ntags: [source]\r\n---\r\n# Heading\r\n> [!taelgar-header]\r\n> Fallback [[Person]]\r\n\r\nBody [[Person]].\r\n',
+    'Campaigns/Clee/Windows header.md':'---\r\nheaderVersion: 1\r\ntags: [person]\r\n---\r\n# Saved header\r\n> [!taelgar-header]\r\n> [[Person]]\r\n\r\nBody.\r\n'}});
   try{
     const snapshot=await h.obsidianInteractions(h.app),events=h.localInteractions(snapshot,'People/Person.md',registry.campaigns.cleenseau,'1748-01-02',h.app).group.events;
     assert.ok(events.some(event=>event.title==='Windows letter'));
+    assert.equal(events.filter(event=>event.title==='Following callout').length,1,'the authored reference after the callout retains its native offsets');
     assert.equal(events.some(event=>event.title==='Windows header'),false);
   }finally{h.feature.unload();}
 });

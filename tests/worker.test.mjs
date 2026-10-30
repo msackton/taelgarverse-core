@@ -54,7 +54,7 @@ before(async()=>{
   fs.writeFileSync(path.join(source,'AdderSession.md'),'---\ntags: [session-note]\ncampaign: adma\nDR: 1720-01-01\n---\nSession.\n');
   fs.writeFileSync(path.join(source,'Linked.md'),[
     '---', 'tags: [person]', 'name: Link Example', 'species: human', 'born: 1700-01-01',
-    'whereabouts:', '  - {type: home, location: CampaignHidden}', '---', '<!-- taelgar:header -->',
+    'whereabouts:', '  - {type: home, location: CampaignHidden}', '---', '# Link Example', '> [!taelgar-header]',
     '', '## Links', '', '[[Hidden|hidden label]] [[CampaignHidden|campaign label]]',
     '[[Unborn|birth label]] [[Unbuilt|creation label]] [[Future|active label]]', '',
     '%%DM [[CampaignHidden|popup campaign]] and [[Unborn|popup birth]].%%',

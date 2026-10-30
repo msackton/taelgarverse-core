@@ -3,7 +3,6 @@ import {CampaignSites} from './campaign-sites.mjs';
 import {Navigation} from './navigation.mjs';
 import {RenderEngine} from './render-engine.mjs';
 import {hydrateHeaderSnapshot} from './header-core/snapshot.mjs';
-import {renderHeader,renderBio} from './header-core/index.mjs';
 import {RenderError} from './common.mjs';
 import {loadSnapshot,SnapshotStore} from './snapshot.mjs';
 import {supportedRuntimeVersion,runtimeHash,assetPartition,validRuntimeDescriptor} from './runtime-format.mjs';
@@ -114,7 +113,7 @@ export class RuntimeSnapshot {
       const navigation=await this.navigation(store,compiledNavigation);
       const compactBacklinks=this.index.version===2 ? this.backlinkLoader(backlinks,store) : null;
       const headers=hydrateHeaderSnapshot(compiledHeaders,store.entries.filter(entry=>entry.note).map(entry=>({path:entry.id,metadata:entry.note.metadata})));
-      const engine=new RenderEngine({settings:this.index.settings,store,headers,renderHeader,renderBio,backlinkIndex:compactBacklinks ? null : backlinks.index,
+      const engine=new RenderEngine({settings:this.index.settings,store,headers,backlinkIndex:compactBacklinks ? null : backlinks.index,
         interactionIndex:data.interactions,loadTranscript:id=>store.getTranscript(id,data.interactions?.transcripts?.[id]),
         prepared:{contexts:this.contexts,campaignSites:CampaignSites.hydrate(data.sites),navigation,home:data.home,
           backlinkCampaigns:compactBacklinks?.campaigns || new Map(backlinks.campaigns),loadBacklinks:compactBacklinks?.load}});

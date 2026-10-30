@@ -16,27 +16,9 @@
 .taelgar-interactions .interaction-sources a { cursor:pointer; }
 .taelgar-interactions .interaction-reference-links a { cursor:pointer; }
 
-/* Keep pronunciation directly beneath the name instead of a paragraph gap. */
-.taelgar-bio.taelgar-bio--pronunciation h1 { margin-block-end:0; }
-.taelgar-bio--pronunciation h1 + p,
-.taelgar-bio--pronunciation .el-h1 + .el-p > p { margin-block-start:0; }
-
 /* Normalize the callout margin; the note flow and button rows supply spacing. */
 .taelgar-generated-bio > :last-child,
 .taelgar-generated-bio > :last-child > :is(.callout,blockquote) { margin-block-end:0; }
-
-/* Keep the generated bio's own callout, without Live Preview's code-block frame. */
-.markdown-source-view.mod-cm6 .cm-embed-block.cm-lang-taelgar-header,
-.markdown-source-view.mod-cm6 .cm-embed-block.cm-lang-taelgar-header:hover {
-  --embed-block-shadow-hover: none;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-  outline: none;
-}
-.markdown-source-view.mod-cm6 .cm-embed-block.cm-lang-taelgar-header > .embed-actions .edit-block-button {
-  display: none;
-}
 
 .markdown-source-view.mod-cm6 .cm-embed-block:has(.taelgar-index-host[hidden]) { display:none; }
 .taelgar-session-review { padding: 1rem; overflow: auto; }

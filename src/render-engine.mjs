@@ -11,7 +11,8 @@ import {releaseFooter} from './release-footer.mjs';
 import {responsiveImages} from './images.mjs';
 import {CampaignSites} from './campaign-sites.mjs';
 import {articleLayout} from './article-layout.mjs';
-import {leadingBioBlock,leadingHeaderMarker} from './bio-block.mjs';
+import {scanHeaderCallouts} from './header-callout.mjs';
+import {renderHeaderCallout} from './header-core/index.mjs';
 import {HeaderDataError} from './header-core/errors.mjs';
 import {compileInteractionIndex,campaignInteractions} from './campaign-interactions.mjs';
 import {interactionSummary,interactionView} from './interaction-view.mjs';
@@ -19,13 +20,11 @@ import {addHeaderIndexes,renderHeaderIndex,HEADER_INDEX_SLOT} from './website-in
 import {headerIndexesForMetadata} from './indexes.mjs';
 
 export class RenderEngine {
-  constructor({settings,store,headers,renderHeader,renderBio,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles,loadTranscript}) {
+  constructor({settings,store,headers,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles,loadTranscript}) {
     this.settings = settings;
     this.store = store;
     this.store.settings = settings;
     this.headers = headers;
-    this.renderHeader = renderHeader;
-    this.renderBio = renderBio;
     this.contexts = prepared?.contexts || new Contexts(this.store,this.headers.registry,settings);
     this.campaignSites = prepared?.campaignSites || new CampaignSites(campaignHomes,this.contexts);
     this.markdown = createMarkdown();
@@ -58,27 +57,17 @@ export class RenderEngine {
     const metadata = entry.note.metadata;
     const note = loadedNote || entry.note;
     let body = note.body;
-    const bio = Object.hasOwn(note,'bio') ? note.bio : leadingBioBlock(body);
-    // Explicit declarations also need a slot when invalid: the index adapter
-    // renders their error locally without interrupting the generated header.
-    const hasHeaderIndexSlot = bio && (metadata.indexes!==undefined || headerIndexesForMetadata(metadata).length>0);
-    if (bio?.error) throw new RenderError(422, bio.error);
-    // Prepared Markdown places this marker at the start of the body. A leading
-    // marker is explicit; examples inside code or prose are left alone.
-    const headerMarker = Object.hasOwn(note,'headerMarkerEnd') ? note.headerMarkerEnd ? [body.slice(0,note.headerMarkerEnd)] : null : leadingHeaderMarker(body);
-    if (bio || headerMarker || (metadata.headerVersion && metadata.tags)) {
+    const callouts=scanHeaderCallouts(body);
+    const hasHeaderIndexSlot=callouts.length>0 && (metadata.indexes!==undefined || headerIndexesForMetadata(metadata).length>0);
+    if(callouts.length) {
       try {
-        let generated;
-        if(bio && this.renderBio)generated=this.renderBio(this.headers,{name:entry.name,metadata,date,headerType:'website',includeTitle:!bio.title});
-        else {
-          const source = bio || headerMarker ? '---\n---\n' : note.source;
-          const header = parseNote(this.renderHeader(this.headers, {source, name: entry.name, metadata, date})).body;
-          generated = header;
+        let generated=renderHeaderCallout(this.headers,{name:entry.name,metadata,date,mode:'website'}).trimEnd();
+        let ordinal=callouts.length;
+        for(const callout of [...callouts].reverse()) {
+          // A note has one controls row even if the author repeats its header.
+          const controls=hasHeaderIndexSlot && --ordinal===0 ? '\n\n'+HEADER_INDEX_SLOT : '';
+          body=body.slice(0,callout.start)+generated+controls+'\n\n'+body.slice(callout.end);
         }
-        // The new header owns its controls. Place their slot after the complete
-        // generated header, outside its information box and before authored prose.
-        if (hasHeaderIndexSlot) generated=generated.trimEnd()+'\n\n'+HEADER_INDEX_SLOT;
-        body = bio || headerMarker ? (bio?.title || '') + generated.trimEnd() + '\n\n' + body.slice(bio?.end ?? headerMarker[0].length).replace(/^(?:[ \t]*\r?\n)*/, '') : generated;
       } catch (error) {
         if(error instanceof HeaderDataError)throw new RenderError(422,`Header generation failed: circular ${error.kind} chain.`);
         const wrapped = new RenderError(422, 'Header generation failed; check the note metadata and display rules');

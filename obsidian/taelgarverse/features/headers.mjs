@@ -1,5 +1,5 @@
-import {Component,MarkdownRenderChild,MarkdownRenderer} from 'obsidian';
-import {createHeaderSnapshot,renderBio} from '../../../src/header-core/index.mjs';
+import {Component,MarkdownRenderChild,MarkdownRenderer,Notice} from 'obsidian';
+import {createHeaderSnapshot,renderHeaderCallout} from '../../../src/header-core/index.mjs';
 import {Contexts} from '../../../src/contexts.mjs';
 import {escapeHtml} from '../../../src/common.mjs';
 import {headerIndexesForMetadata,parseIndex,queryIndex,indexHasResults,indexLabels} from '../../../src/indexes.mjs';
@@ -8,8 +8,8 @@ import {indexImageTarget} from '../../../src/index-images.mjs';
 import {IMAGE_TYPES,parseNote} from '../../../src/content-store.mjs';
 import {firstDescriptionSentence} from '../../../src/index-description.mjs';
 import {mountIndexPopups} from '../../../src/browser/index-popups.mjs';
-import {hasPrecedingH1} from '../../../src/bio-block.mjs';
-import {scanFencedCodeBlocks} from '../../../src/markdown-fences.mjs';
+import {headerSourceEligibility,rewriteHeader} from '../../../src/header-rewrite.mjs';
+import {installHeaderTool} from '../header-tool.mjs';
 
 export function bioDate(metadata, globals, fallback) {
   if (globals.customJS?.state?.overrideDate) return globals.customJS.state.overrideDate;
@@ -34,27 +34,9 @@ export async function obsidianHeaders(app) {
   return {runtime,fallback};
 }
 
-export function obsidianBio(snapshot,file,metadata,globals=globalThis,includeTitle=true) {
-  return renderBio(snapshot.runtime,{name:file.basename,
-    metadata,date:bioDate(metadata,globals,snapshot.fallback),headerType:'static',includeTitle});
-}
-
-async function bioHasTitle(app,file,context,element) {
-  const section=context.getSectionInfo?.(element);
-  if(section) {
-    const lines=section.text.split('\n');
-    if(/^ {0,3}(?:`{3,}|~{3,})taelgar-header[\t ]*\r?$/.test(lines[section.lineStart] || ''))
-      return hasPrecedingH1(lines.slice(0,section.lineStart).join('\n')+'\n');
-  }
-  // Section positions can be unavailable in Live Preview. A single native
-  // block in the source file is unambiguous even when its DOM is virtualized.
-  const source=await app.vault.cachedRead(file);
-  const blocks=scanFencedCodeBlocks(source).filter(block=>block.language==='taelgar-header');
-  if(section) {
-    const block=blocks.find(block=>block.startLine===section.lineStart+1);
-    if(block)return !block.quoteDepth && hasPrecedingH1(source,block.start);
-  }
-  return blocks.length===1 && !blocks[0].quoteDepth && hasPrecedingH1(source,blocks[0].start);
+export function obsidianBio(snapshot,file,metadata,globals=globalThis) {
+  return renderHeaderCallout(snapshot.runtime,{name:file.basename,
+    metadata,date:bioDate(metadata,globals,snapshot.fallback),mode:'obsidian'});
 }
 
 // Metadata changes replace the runtime snapshot, dropping its cached queries.
@@ -126,8 +108,8 @@ function headerIndexMarkup(feature,snapshot,metadata,sourcePath,date) {
 }
 
 class BioChild extends MarkdownRenderChild {
-  constructor(feature,source,container,context) {
-    super(container);this.feature=feature;this.source=source;this.context=context;this.sequence=0;this.disposed=false;
+  constructor(feature,source,container,context,measure=()=>{}) {
+    super(container);this.feature=feature;this.source=source;this.context=context;this.sequence=0;this.disposed=false;this.measure=measure;
   }
   onload() {
     this.feature.bios.add(this);
@@ -146,19 +128,17 @@ class BioChild extends MarkdownRenderChild {
     const sequence=++this.sequence,element=this.containerEl,app=this.feature.app;
     let rendering;
     try {
-      if(this.source.trim())throw new Error('Leave the taelgar-header block empty; its values come from frontmatter.');
       const snapshot=await this.feature.getSnapshot();
       if(this.disposed || sequence!==this.sequence)return;
       const file=app.vault.getAbstractFileByPath(this.context.sourcePath);
       if(!file)throw new Error('The source note is no longer available.');
       const metadata=app.metadataCache.getFileCache(file)?.frontmatter || {};
       this.date=JSON.stringify(bioDate(metadata,globalThis,snapshot.fallback));
-      const includeTitle=!await bioHasTitle(app,file,this.context,element);
       if(this.disposed || sequence!==this.sequence)return;
-      const markdown=obsidianBio(snapshot,file,metadata,globalThis,includeTitle);
+      const markdown=obsidianBio(snapshot,file,metadata,globalThis);
       // Render offscreen so a stale async render cannot replace a newer header.
       const output=element.ownerDocument.createElement('div');
-      output.className='taelgar-generated-bio'+(metadata.pronunciation ? ' taelgar-bio taelgar-bio--pronunciation' : '');
+      output.className='taelgar-generated-bio';
       rendering=this.addChild(new Component());
       await MarkdownRenderer.render(app,markdown,output,this.context.sourcePath,rendering);
       if(this.disposed || sequence!==this.sequence){this.removeChild(rendering);return;}
@@ -180,7 +160,7 @@ class BioChild extends MarkdownRenderChild {
       }
       this.disposeIndexes?.();this.disposeIndexes=disposeIndexes;
       if(this.rendered)this.removeChild(this.rendered);
-      this.rendered=rendering;element.replaceChildren(output);
+      this.rendered=rendering;element.replaceChildren(output);this.measure();
     } catch(error) {
       if(rendering)this.removeChild(rendering);
       if(this.disposed || sequence!==this.sequence)return;
@@ -189,7 +169,7 @@ class BioChild extends MarkdownRenderChild {
       element.textContent='Bio unavailable: '+error.message;
     }
   }
-  onunload() {this.disposed=true;this.sequence++;clearInterval(this.timer);this.disposeIndexes?.();this.feature.bios.delete(this);}
+  onunload() {this.disposed=true;this.sequence++;clearInterval(this.timer);this.disposeIndexes?.();this.containerEl.replaceChildren();this.feature.bios.delete(this);}
 }
 
 class IndexChild extends BioChild {
@@ -225,13 +205,47 @@ export class HeadersFeature extends Component {
       return child.render();
     }));
   }
+  async regeneratePageHeader(editor,file,{add=false,view}={}) {
+    try {
+      if(!file)throw new Error('Open a Markdown note first.');
+      const source=editor.getValue(),eligibility=headerSourceEligibility(source);
+      if(!eligibility.eligible){new Notice(eligibility.reason);return {status:'skipped',reason:eligibility.reason};}
+      let coreMeta;
+      try{coreMeta=JSON.parse(await this.app.vault.adapter.read((this.app.vault.configDir || '.obsidian')+'/metadata.json'));}
+      catch(error){if(error.code!=='ENOENT')throw error;}
+      if(coreMeta!==undefined && (!coreMeta || typeof coreMeta!=='object' || Array.isArray(coreMeta)))throw new Error('metadata.json must contain a mapping.');
+      if(editor.getValue()!==source || view && view.file?.path!==file.path) {
+        const reason='The note changed while preparing its header; run the command again.';
+        new Notice(reason);return {status:'skipped',reason};
+      }
+      const result=rewriteHeader(source,{filename:file.path,add,coreMeta});
+      if(result.status==='changed') {
+        editor.replaceRange(result.replacement,editor.offsetToPos(result.start),editor.offsetToPos(result.end));
+        new Notice('Page header '+result.kind+'.');
+      } else new Notice(result.reason || 'Page header is already up to date.');
+      return result;
+    } catch(error) {new Notice('Header unavailable: '+error.message);return {status:'error',reason:error.message};}
+  }
   onload() {
+    for(const [id,name,add] of [['regenerate-page-header','Regenerate page header',false],['add-page-header','Add header to current note',true]])
+      this.plugin.addCommand({id,name,editorCallback:(editor,view)=>this.regeneratePageHeader(editor,view.file,{add,view})});
+    this.toolReady=installHeaderTool(this.app,this.plugin.manifest).catch(error=>{new Notice('Header tool unavailable: '+error.message);});
     this.plugin.registerMarkdownCodeBlockProcessor('taelgar-index',(source,element,context)=>{
       context.addChild(new IndexChild(this,source,element,context));
     });
-    this.plugin.registerMarkdownCodeBlockProcessor('taelgar-header',(source,element,context)=>{
-      context.addChild(new BioChild(this,source,element,context));
-    });
+    // Obsidian also runs these processors inside its native Live Preview callout
+    // widget. Registering another CodeMirror replacement duplicates that widget.
+    this.plugin.registerMarkdownPostProcessor((element,context)=>{
+      if(element.closest?.('.taelgar-generated-bio'))return;
+      const selector='.callout[data-callout="taelgar-header"]';
+      const callouts=[...(element.matches?.(selector)?[element]:[]),...element.querySelectorAll(selector)];
+      for(const callout of callouts) {
+        if(callout.parentElement?.closest('.callout,blockquote,li,.taelgar-generated-bio'))continue;
+        const host=callout.ownerDocument.createElement('div');
+        callout.replaceWith(host);
+        context.addChild(new BioChild(this,'',host,context));
+      }
+    },100);
     const refresh=()=>{
       this.pending=null;this.snapshot=null;clearTimeout(this.timer);
       this.timer=setTimeout(()=>{for(const child of this.bios)child.render();},100);

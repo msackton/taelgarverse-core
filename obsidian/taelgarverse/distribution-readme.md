@@ -81,30 +81,38 @@ River/Place and Type Of; recursive containment is enabled by default.
 
 ## Generated headers
 
-Version 0.3.0 adds an empty `taelgar-header` code block that generates a note's
-complete header from frontmatter, using the shared Taelgarverse header rules:
+Use a top-level `taelgar-header` callout for generated information, with an
+authored title and optional pronunciation above it:
 
-````markdown
-```taelgar-header
+```markdown
+# Fausto
+*(FOW-stoh)*
+> [!taelgar-header]
+> (human, Chardonian, b. 1714, d. 1749)
 ```
-````
 
-Place it immediately after frontmatter, replacing the old generated title,
-pronunciation and information callout. Keep the frontmatter. The block includes
-the H1 title, so remove a separate H1 above it. Notes are not migrated automatically.
+The renderer replaces only the callout's information, including biographical
+details, dates, affiliations and location chains. It ignores the saved fallback
+contents and preserves authored title/pronunciation. Reading view and native
+Live Preview share the callout handler; Source mode exposes the saved Markdown.
+Headers refresh after metadata or calendar-date changes and show a clear error
+for circular relationships. Rendering never rewrites notes.
 
-Headers include pronunciation, biographical details, dates, affiliations and
-location chains. They refresh after metadata or calendar-date changes and show
-a clear error for circular relationships. In Live Preview, the header keeps its
-native callout styling without a code-block edit button or hover frame. Use
-Source mode to edit the fence.
+Old header code fences, HTML markers and implicit `headerVersion` generation
+are unsupported. Use **Regenerate page header** or **Add header to current note**,
+assignable to hotkeys, for explicit saved-header edits. An empty native callout
+opts into regeneration. The installed `header-tool.cjs` supports standalone
+single-file/bulk previews and writes, without a core checkout; Node is required.
+Use `--report` for JSON, `--errors` for problems and `--check` for a read-only
+exit-code check. Untagged notes and excluded tag types are skipped. Website
+publication converts legacy headers on its working copy without changing the vault.
 
 Header blocks require the Taelgar vault's `metadata.json` in its Obsidian
 configuration folder and `_scripts/session_note_campaigns.json`. Dataview and
 CustomJS are not required for these blocks; existing body queries still need
 their existing plugins. Dates follow an active CustomJS override, the note's
-`pageTargetDate`, Fantasy Calendar, or Taelgar's Calendarium calendar, in that
-order. Otherwise, they use the latest campaign session date, falling back to
+`pageTargetDate`, the campaign selected in Taelgarverse, Fantasy Calendar, or
+Taelgar's Calendarium calendar, in that order. Otherwise, they use the latest campaign session date, falling back to
 DR 1750-01-01.
 
 ## Campaign interactions

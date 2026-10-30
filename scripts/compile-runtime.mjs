@@ -5,7 +5,6 @@ import {Navigation} from '../src/navigation.mjs';
 import {buildBacklinkCampaigns} from '../src/backlinks.mjs';
 import {compileHeaderIndexes} from '../src/header-core/snapshot.mjs';
 import {compileSearchMetadata} from '../src/search-metadata.mjs';
-import {leadingBioBlock,leadingHeaderMarker} from '../src/bio-block.mjs';
 import {RUNTIME_VERSION,runtimeHash as hash,assetPartition} from '../src/runtime-format.mjs';
 
 
@@ -27,9 +26,7 @@ export function compileRuntime(index,sourceStore,{noteShardBytes=65536,backlinkS
     shard={};bytes=2;
   };
   for(const entry of sourceStore.bySlug.values()){
-    const {body,source,metadata}=entry.note,bio=leadingBioBlock(body),marker=leadingHeaderMarker(body);
-    const note={body,bio,headerMarkerEnd:marker?.[0].length || 0,
-      ...(!bio && !marker && metadata.headerVersion && metadata.tags ? {source} : {})};
+    const note={body:entry.note.body};
     const size=Buffer.byteLength(JSON.stringify([entry.id,note]));
     if(bytes+size>noteShardBytes)flush();
     Object.defineProperty(shard,entry.id,{value:note,enumerable:true,configurable:true});bytes+=size;

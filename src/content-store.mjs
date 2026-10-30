@@ -1,7 +1,7 @@
 import path from 'node:path';
 import {parse} from 'yaml';
 import {RenderError,dateKey} from './common.mjs';
-import {leadingBioBlock,leadingHeaderMarker} from './bio-block.mjs';
+import {withoutHeaderCallouts} from './header-callout.mjs';
 
 export const IMAGE_TYPES = new Set(['.png','.jpg','.jpeg','.gif','.webp','.heic']);
 export const AUDIO_TYPES = new Set(['.mp3','.m4a','.wav','.flac','.ogg']);
@@ -22,20 +22,9 @@ export function parseNote(source) {
   return {metadata, body: source.slice(match[0].length), source};
 }
 
-// Saved generated headers are not authored article content. This boundary
-// matches OutputHandler.regenerateHeader in the trusted CustomJS runtime.
+// Generated callout fallback text is not authored article content.
 export function authoredBody(note) {
-  const bio = leadingBioBlock(note.body);
-  if (bio) return note.body.slice(bio.end);
-  const marker = leadingHeaderMarker(note.body);
-  if (marker) return note.body.slice(marker[0].length);
-  if (!note.metadata.headerVersion || !note.metadata.tags) return note.body;
-  const lines = note.body.split('\n');
-  let end = lines.findIndex(line => line.trim() === '');
-  if (end < 0) end = lines.length;
-  const next = lines.findIndex((line,index) => index > end && line.trim() !== '');
-  if (next >= 0) end = next - 1;
-  return lines.slice(0,end).some(line => line.trim().startsWith('#')) ? lines.slice(end).join('\n') : note.body;
+  return withoutHeaderCallouts(note.body);
 }
 export function publicationExclusions(metadata) {
   const raw = metadata.excludePublish;

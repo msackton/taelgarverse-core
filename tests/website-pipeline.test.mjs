@@ -20,9 +20,9 @@ test('conversion recognizes complete legacy table syntax, never executes JS, and
   const original=parseNote('---\nheaderVersion: 1\ntags: [group]\n---\n# Saved\n>[!info] Old\n\n%%^Campaign:dufr%%\n> ```dataviewjs\n'+
     members.split('\n').map(l=>'> '+l).join('\n')+'\n> ```\n%%^End%%\n\nProse.\n');
   const result=convertWebsiteNote(original,{sourcePath:'Guild.md'});
-  assert.match(result.note.body,/^```taelgar-header\n```/);assert.match(result.note.body,/> ```taelgar-index\n> type: members\n> mode: table/);
+  assert.match(result.note.body,/^# Saved\n>\[!info\] Old/);assert.match(result.note.body,/> ```taelgar-index\n> type: members\n> mode: table/);
   assert.match(result.note.body,/%%\^Campaign:dufr%%/);assert.match(result.note.body,/%%\^End%%/);assert.match(result.note.body,/Prose\./);
-  assert.equal(result.changes.length,2);assert.equal(result.unconverted.length,0);
+  assert.equal(result.changes.length,1);assert.equal(result.unconverted.length,0);
   assert.equal(convertWebsiteNote(result.note).note.source,result.note.source);
   assert.match(original.body,/Saved/);
   assert.equal(recognizeDataviewJs(members.replaceAll('"',"'")).rule,'legacy-members');
@@ -66,8 +66,8 @@ test('Node stages run DQL on a copied raw vault before conversion and never rewr
   assert.equal(report.backend,'node');assert.equal(report.counts.materialized,1);
   const conversion=await convertWebsiteStore(store);await saveWorkingNotes(store);
   const output=await fs.readFile(path.join(working,'Guild.md'),'utf8');
-  assert.match(output,/\[\[Result\]\]/);assert.match(output,/taelgar-index/);assert.match(output,/taelgar-header/);
-  assert.doesNotMatch(output,/Saved header|dataviewjs|LIST FROM/);assert.equal(conversion.unconverted.length,0);
+  assert.match(output,/\[\[Result\]\]/);assert.match(output,/taelgar-index/);assert.match(output,/Saved header/);
+  assert.doesNotMatch(output,/dataviewjs|LIST FROM/);assert.equal(conversion.unconverted.length,0);
   assert.equal(await fs.readFile(path.join(vault,'Guild.md'),'utf8'),source);
   await assert.rejects(saveWorkingNotes(new Store({...settings,source_dir:vault})),/separate working vault/);
 });

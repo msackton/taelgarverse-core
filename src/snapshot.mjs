@@ -2,7 +2,7 @@ import {createHash} from 'node:crypto';
 import {ContentStore,parseNote} from './content-store.mjs';
 import {RenderError} from './common.mjs';
 import {RenderEngine} from './render-engine.mjs';
-import {createHeaderSnapshot,renderHeader,renderBio} from './header-core/index.mjs';
+import {createHeaderSnapshot} from './header-core/index.mjs';
 
 export class SnapshotStore extends ContentStore {
   constructor(index,bucket,lookups) {
@@ -53,7 +53,7 @@ export async function loadSnapshot(bucket,revision) {
   if (index.homeSource != null && typeof index.homeSource !== 'string') throw new RenderError(503,'Homepage content must be Markdown text');
   const store=new SnapshotStore(index,bucket);
   const headers=createHeaderSnapshot({pages:store.entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta:index.coreMeta,registry:index.registry});
-  const engine=new RenderEngine({settings:index.settings,store,headers,renderHeader,renderBio,navigationSource:index.navigationSource,
+  const engine=new RenderEngine({settings:index.settings,store,headers,navigationSource:index.navigationSource,
     homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null,interactionIndex:index.interactions,
     loadTranscript:id=>store.getTranscript(id,index.interactions?.transcripts?.[id])});
   return {engine,store,index};

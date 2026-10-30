@@ -5,6 +5,7 @@ import {createRequire} from 'node:module';
 import {setTimeout as pause} from 'node:timers/promises';
 import {build} from 'esbuild';
 import MarkdownIt from 'markdown-it';
+import {codeMirrorHost} from './helpers/codemirror-host.mjs';
 import {ROOT} from '../src/config.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {imageDOM} from './helpers/image-dom.mjs';
@@ -15,7 +16,7 @@ import {cintraSource,cintraSentence} from './fixtures/index-descriptions.mjs';
 
 const require=createRequire(import.meta.url);
 const compiled=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/features/headers.mjs'],write:false,
-  bundle:true,platform:'node',format:'cjs',external:['obsidian'],logLevel:'silent'});
+  bundle:true,platform:'node',format:'cjs',external:['obsidian','@codemirror/state','@codemirror/view'],logLevel:'silent'});
 
 function events(){const callbacks=new Map();return {
   on(name,callback){const list=callbacks.get(name) || new Set();list.add(callback);callbacks.set(name,list);return ()=>list.delete(callback);},
@@ -41,9 +42,10 @@ function host(settings={}) {
     for(const process of postprocessors)process(element,{sourcePath:'Places/Realm.md',addChild:child=>child.load()});
     if(deferred)await deferred;
   }};
+  const cm=codeMirrorHost();
   const module={exports:{}},globals={module,exports:module.exports,structuredClone,console,TextEncoder,TextDecoder,AbortController,setTimeout,clearTimeout,
     setInterval:callback=>{intervals.set(++next,callback);return next;},clearInterval:id=>intervals.delete(id),
-    require:name=>name==='obsidian'?{Component,MarkdownRenderChild,MarkdownRenderer}:require(name)};
+    require:name=>name==='@codemirror/state'?cm.state:name==='@codemirror/view'?cm.view:name==='obsidian'?{Component,MarkdownRenderChild,MarkdownRenderer}:require(name)};
   vm.runInNewContext(compiled.outputFiles[0].text,globals);
   const {input}=headerFixture(),metadata=new Map(Object.entries(structuredClone(indexNotes)).map(([path,metadata])=>[path,{...metadata,pageTargetDate:'1720-01-01'}]));
   const files=[...metadata.keys()].map(path=>({path,basename:path.split('/').at(-1).slice(0,-3)}));
@@ -56,13 +58,18 @@ function host(settings={}) {
       cachedRead:async file=>bodies.get(file.path) ?? indexSources(Object.fromEntries(metadata))[file.path].replace('Authored prose.',file.path==='People/Alice.md' ? "Alice's first authored sentence. A second sentence." : 'Authored prose.'),
       getResourcePath:file=>'app://local/'+file.path},
     workspace:{openLinkText:(...args)=>opened.push(args)}};
-  const plugin={app,settings,registerMarkdownCodeBlockProcessor:(type,processor)=>processors.set(type,processor),registerMarkdownPostProcessor:processor=>postprocessors.push(processor)};
+  const plugin={app,settings,addCommand:()=>{},registerMarkdownCodeBlockProcessor:(type,processor)=>processors.set(type,processor),registerMarkdownPostProcessor:processor=>postprocessors.push(processor),registerEditorExtension:()=>{}};
   const feature=new module.exports.HeadersFeature(plugin);feature.load();
   const context=sourcePath=>({sourcePath,addChild(child){child.load();this.child=child;}});
   return {...dom,...module.exports,app,feature,metadata,files,bodies,opened,intervals,cache,vault,globals,
     async block(source,sourcePath='Places/Realm.md',type='taelgar-index') {
       const element=document.createElement('div');document.body.append(element);
-      const ctx=context(sourcePath);processors.get(type)(source,element,ctx);await ctx.child.loading;
+      const ctx=context(sourcePath);
+      if(type==='taelgar-header') {
+        element.innerHTML='<div class="callout" data-callout="taelgar-header"><div class="callout-content">Fallback</div></div>';
+        for(const process of postprocessors)process(element,ctx);
+      } else processors.get(type)(source,element,ctx);
+      await ctx.child.loading;
       return {element,child:ctx.child};
     },
     async savedHeader(direct=false) {
@@ -170,7 +177,7 @@ test('disabled header popups preserve headers, inline indexes, and frontmatter',
     const before=JSON.stringify([...h.metadata]);
     for(const path of ['Places/Realm.md','Groups/Guild.md']) {
       const bio=await h.block('',path,'taelgar-header');
-      assert.ok(bio.element.querySelector('h1'));
+      assert.equal(bio.element.querySelector('h1'),null);
       assert.ok(bio.element.querySelector('blockquote'));
       assert.equal(bio.element.querySelector('.taelgar-index-buttons'),null);
     }
@@ -232,7 +239,7 @@ test('unloading during asynchronous bio rendering cannot mount stale index contr
   try {
     h.defer();const pending=h.block('','Places/Realm.md','taelgar-header');await pause(20);
     h.feature.unload();h.release();const {element}=await pending;
-    assert.equal(element.innerHTML,'');assert.equal(h.document.querySelector('dialog'),null);
+    assert.equal(element.textContent,'');assert.equal(element.querySelector('.taelgar-generated-bio,.taelgar-index-buttons'),null);assert.equal(h.document.querySelector('dialog'),null);
   } finally {h.feature.unload();}
 });
 

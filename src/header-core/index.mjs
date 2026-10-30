@@ -39,3 +39,12 @@ export function renderBio(snapshot,{name,metadata,date,headerType='static',inclu
   const body=headerType==='static'?output.generateHeader(name,copy,{includeTitle}):output.generateWebsiteHeader(name,copy,{includeTitle});
   return body+'\n';
 }
+
+// Native callouts own only the information component, never surrounding prose,
+// titles, pronunciation or saved-header/version compatibility rewrites.
+export function renderHeaderCallout(snapshot,{name,metadata,date,mode='obsidian'}) {
+  if(!['obsidian','website'].includes(mode))throw new Error('Unsupported header callout mode: '+mode);
+  const {output}=createHeaderContext(snapshot,{date});
+  const options={includeTitle:false,includePronunciation:false},copy=structuredClone(metadata);
+  return mode==='website' ? output.generateWebsiteHeader(name,copy,options) : output.generateHeader(name,copy,options);
+}

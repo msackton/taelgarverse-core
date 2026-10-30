@@ -1,5 +1,11 @@
 # Generated Taelgar bio block
 
+> Historical implementation/refactoring record. The code-fence syntax and
+> automatic saved-header normalization described below have been retired.
+> Current syntax is the [header callout](vault.md#generated-bio-block); see the
+> [legacy review](header-callout-migration.md) for the transition boundary.
+
+
 Add one `taelgar-header` block that displays the existing generated note header
 in Obsidian and on the website. Reuse the current header rules and appearance.
 

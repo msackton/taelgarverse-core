@@ -1,4 +1,5 @@
-import {ContentStore,authoredBody} from '../../../src/content-store.mjs';
+import {ContentStore} from '../../../src/content-store.mjs';
+import {scanHeaderCallouts} from '../../../src/header-callout.mjs';
 import {buildBacklinkCampaigns} from '../../../src/campaign-ownership.mjs';
 import {compileInteractionIndex,campaignIdentities,campaignInteractions,interactionDate,interactionReferenceType,sessionNoteFallbacks} from '../../../src/campaign-interactions.mjs';
 import {parseSessionRecap} from '../../../src/recap-parser.mjs';
@@ -50,18 +51,21 @@ export async function obsidianInteractions(app) {
   const incoming=new Map();
   await readFiles(references,async entry=>{
     const source=await app.vault.cachedRead(entry.file);
-    // Cache positions refer to the original text. Preserve CRLF while removing
-    // frontmatter/header slots so native link offsets remain exact on Windows.
+    // Cache positions refer to the original text. Mask generated regions rather
+    // than shortening the body, retaining exact native offsets after a callout.
     const frontmatter=/^---[ \t]*\r?\n[\s\S]*?\r?\n---[ \t]*(?:\r?\n|$)/.exec(source);
-    const body=authoredBody({metadata:entry.note.metadata,body:source.slice(frontmatter?.[0].length || 0)});
-    const start=source.length-body.length,cache=app.metadataCache.getFileCache(entry.file),targets=new Map();
+    const start=frontmatter?.[0].length || 0,body=source.slice(start),callouts=scanHeaderCallouts(body);
+    const cache=app.metadataCache.getFileCache(entry.file),targets=new Map();
     const seen=new Set();
     const links=[...(cache?.links || []),...(cache?.embeds || [])].filter(link=>{
       const from=link.position?.start?.offset,to=link.position?.end?.offset,key=from+':'+to;
       if(!(from>=start && to>from && to<=source.length) || seen.has(key) || (link.original && source.slice(from,to)!==link.original))return false;
+      if(callouts.some(callout=>from-start<callout.end && to-start>callout.start))return false;
       seen.add(key);return true;
     }).sort((a,b)=>b.position.start.offset-a.position.start.offset);
     let marked=body;
+    for(const callout of [...callouts].reverse())marked=marked.slice(0,callout.start)+
+      marked.slice(callout.start,callout.end).replace(/[^\r\n]/g,' ')+marked.slice(callout.end);
     for(const [i,link] of links.entries()) {
       const target=app.metadataCache.getFirstLinkpathDest(link.link.split('#')[0],entry.id)?.path;
       if(!byPath.has(target) || target===entry.id)continue;

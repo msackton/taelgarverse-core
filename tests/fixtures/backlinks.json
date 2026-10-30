@@ -18,6 +18,6 @@
   "Broken Reference.md": "# Broken Reference\n\n[[Backlink Target]]\n\n%% unterminated\n",
   "Literal Reference.md": "# Literal Reference\n\n`[[Backlink Target]]`\n\n```md\n[[Backlink Target]]\n[example](Backlink%20Target.md)\n```\n\n\\[\\[Backlink Target\\]\\]\n\n[External](https://example.com/page/backlink-target) [Anchor](#backlink-target)\n",
   "Embedded Reference.md": "# Embedded Reference\n\n![[Backlink Target]]\n",
-  "Stale Header.md": "---\nheaderVersion: 2023.11.25\ntags: [person]\n---\n# Stale Header\n[[Backlink Target]]\n\nArticle without an authored reference.\n",
-  "Prepared Header.md": "---\ntags: [person]\nwhereabouts: [{type: home, location: Backlink Target}]\n---\n<!-- taelgar:header -->\n\nArticle without an authored reference.\n"
+  "Stale Header.md": "---\nheaderVersion: 2023.11.25\ntags: [person]\n---\n# Stale Header\n> [!taelgar-header]\n> [[Backlink Target]]\n\nArticle without an authored reference.\n",
+  "Prepared Header.md": "---\ntags: [person]\nwhereabouts: [{type: home, location: Backlink Target}]\n---\n> [!taelgar-header]\n\nArticle without an authored reference.\n"
 }

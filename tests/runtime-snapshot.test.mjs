@@ -50,7 +50,7 @@ before(async()=>{
   fs.writeFileSync(path.join(directory,'.obsidian/metadata.json'),JSON.stringify(input.coreMeta));
   fs.writeFileSync(path.join(directory,'_scripts/session_note_campaigns.json'),JSON.stringify({campaigns:{frontier:{code:'dufr',name:'Frontier',campaignRoot:'Campaigns/Frontier'},adder:{code:'adma',name:'Adder'}}}));
   const notes={
-    'Person.md':'---\ntags: [person]\nborn: 1700-01-01\naliases: [Traveler]\n---\n```taelgar-header\n```\n\n# Person body\n\n[[Future]] [[Other]] [[Twin]]\n\n![[Other#Section]]\n\n%% hidden note %%\n%%^Campaign:dufr%%frontier paragraph%%^End%%',
+    'Person.md':'---\ntags: [person]\nborn: 1700-01-01\naliases: [Traveler]\n---\n> [!taelgar-header]\n\n# Person body\n\n[[Future]] [[Other]] [[Twin]]\n\n![[Other#Section]]\n\n%% hidden note %%\n%%^Campaign:dufr%%frontier paragraph%%^End%%',
     'Other.md':'---\naliases: [Twin]\n---\n## Section\n\nA nested paragraph. [[Person]] ![[Third]]\n\n%% secret nested %%',
     'Third.md':'---\naliases: [Twin]\n---\nNested leaf.',
     'Future.md':'---\nPOV: 1750s\ncreated: 1740\nexcludePublish: [adma]\n---\nFuture body.',
@@ -65,7 +65,7 @@ before(async()=>{
     'Settlement Table.md':'```taelgar-index\ntype: settlements\ntarget: Realm\nmode: table\n```',
     'Member Table.md':'```taelgar-index\ntype: members\ntarget: Guild\nmode: table\n```',
     'People/Cintra.md':cintraSource,
-    'Groups/Shakun Mystai.md':'---\ntags: [group]\n---\n```taelgar-header\n```',
+    'Groups/Shakun Mystai.md':'---\ntags: [group]\n---\n> [!taelgar-header]',
     'Cintra Grid.md':'```taelgar-index\ntype: members\ntarget: Shakun Mystai\n```',
     'Cintra Embed.md':'![[Cintra Grid]]',
   });

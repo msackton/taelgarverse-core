@@ -66,7 +66,7 @@ export class OutputHandler {
         return currentContents
     }
 
-    generateWebsiteHeader(fileName, metadata, {includeTitle=true}={}) {
+    generateWebsiteHeader(fileName, metadata, {includeTitle=true,includePronunciation=true}={}) {
         const {events, names, templates, dates} = this;
 
         let file = { name: fileName, frontmatter: metadata }
@@ -91,7 +91,7 @@ export class OutputHandler {
         }
         const hasBoxInfo = hasText(boxInfo)
 
-        if (metadata.pronunciation) {
+        if (includePronunciation && metadata.pronunciation) {
             let secondary = templates.formatDisplayString("<pronunciation>", file)
             if (secondary && secondary.length > 0) {
                 output += ":speaker:{ .middle } *(" + secondary + ")*  \n"
@@ -241,7 +241,7 @@ export class OutputHandler {
         return output
     }
 
-    generateHeader(fileName, metadata, {includeTitle=true}={}) {
+    generateHeader(fileName, metadata, {includeTitle=true,includePronunciation=true}={}) {
 
         const {events, names, templates, dates} = this;
 
@@ -254,7 +254,7 @@ export class OutputHandler {
         let output = includeTitle ? templates.formatDisplayString("# <name:tn>", file) + "\n" : ""
 
         let secondary = templates.formatDisplayString("<(*()pronunciation()*)>", file)
-        if (secondary && secondary.length > 0) {
+        if (includePronunciation && secondary && secondary.length > 0) {
             output += secondary + "\n"
         }
 

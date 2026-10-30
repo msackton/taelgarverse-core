@@ -22,12 +22,13 @@ export async function installObsidian(vault,{enable=false}={}){
   if(enable){
     try{if((await fs.lstat(communityFile)).isSymbolicLink())throw new Error('Refusing to overwrite an enabled-plugin-list symlink');}catch(error){if(error.code!=='ENOENT')throw error;}
   }
-  for(const file of releaseFiles){
+  const localFiles=[...releaseFiles,'header-tool.cjs'];
+  for(const file of localFiles){
     const destination=path.join(target,file);
     try{if((await fs.lstat(destination)).isSymbolicLink())throw new Error('Refusing to overwrite a plugin-file symlink');}catch(error){if(error.code!=='ENOENT')throw error;}
   }
   const source=await buildObsidian();
-  for(const file of releaseFiles)await fs.copyFile(path.join(source,file),path.join(target,file));
+  for(const file of localFiles)await fs.copyFile(path.join(source,file),path.join(target,file));
   if(enable){
     const enabled=community.filter(id=>id!=='taelgar-map-tools');
     if(!enabled.includes('taelgarverse'))enabled.push('taelgarverse');

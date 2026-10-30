@@ -4,11 +4,12 @@ import vm from 'node:vm';
 import {imageDOM} from './helpers/image-dom.mjs';
 import {createRequire} from 'node:module';
 import {build} from 'esbuild';
+import {codeMirrorHost} from './helpers/codemirror-host.mjs';
 import {ROOT} from '../src/config.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 const require=createRequire(import.meta.url);
 const compiled=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/features/relationships.mjs'],write:false,
-  bundle:true,platform:'node',format:'cjs',external:['obsidian'],logLevel:'silent'});
+  bundle:true,platform:'node',format:'cjs',external:['obsidian','@codemirror/state','@codemirror/view'],logLevel:'silent'});
 function emitter(){
   const events=new Map();return {on(name,fn){const list=events.get(name)??new Set();list.add(fn);events.set(name,list);return ()=>list.delete(fn);},
     trigger(name,...args){for(const fn of events.get(name)??[])fn(...args);},get count(){return [...events.values()].reduce((n,list)=>n+list.size,0);}};
@@ -21,9 +22,10 @@ function host(enabled=false,extraNotes={}){
     registerEvent(fn){this.disposers.push(fn);}
     unload(){this.onunload?.();for(const child of this.children)child.unload();for(const fn of this.disposers)fn();}
   }
+  const cm=codeMirrorHost();
   const module={exports:{}},timers=new Set(),globals={module,exports:module.exports,console,structuredClone,Buffer,setTimeout,clearTimeout,
     setInterval:fn=>{timers.add(fn);return fn;},clearInterval:fn=>timers.delete(fn),
-    require:name=>name==='obsidian'?{Component,MarkdownRenderChild:class extends Component{constructor(element){super();this.containerEl=element;}},ItemView:class{},Setting:class{}}:require(name)};
+    require:name=>name==='@codemirror/state'?cm.state:name==='@codemirror/view'?cm.view:name==='obsidian'?{Component,MarkdownRenderChild:class extends Component{constructor(element){super();this.containerEl=element;}},ItemView:class{},Setting:class{}}:require(name)};
   vm.runInNewContext(compiled.outputFiles[0].text,globals);
   const notes={'People/Alice.md':{tags:['person']},'People/Bob.md':{tags:['person']},'Places/Town.md':{tags:['place']},...extraNotes};
   const fixture=headerFixture({baseNotes:notes}),files=Object.entries(notes).map(([path,metadata])=>({path,metadata,stat:{mtime:1,size:10}}));

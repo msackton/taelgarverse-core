@@ -1,13 +1,13 @@
-Taelgarverse 0.9.2
+Taelgarverse 1.0.0
 
-- Bundle the Photoshop exporter, geometry, recipe, and support modules inside the plugin. BRAT updates now carry the exporter; no separate checkout or script download is required.
-- Support public Dropbox PSD/PSB shared links, including modern `/scl/fi/` and older `/s/` links. Paste a link to select Dropbox mode automatically. Downloads preserve the shared access key, stream to a local cache, and keep query strings out of output filenames.
-- Simplify Dropbox import to shared links only. Remove account paths, file IDs, API tokens, credential-file settings, refresh authentication, and namespace configuration. Links must permit downloads without signing in or entering a password.
+- **Breaking header syntax change:** generated headers now use a top-level `> [!taelgar-header]` callout. Keep the H1 and optional pronunciation as authored Markdown above it. Only the callout is generated; its saved contents are fallback text. Old `taelgar-header` code fences, HTML header markers and implicit `headerVersion` generation are no longer supported.
+- Add **Regenerate page header** and **Add header to current note** commands, assignable to hotkeys. An empty native callout opts a note into regeneration. Commands use current editor frontmatter, preserve the article and YAML, and write the approved compact summary. Titles follow the configured name and definite-article defaults.
+- Include a standalone `header-tool.cjs` in the installed plugin directory for single-note and bulk conversion outside Obsidian. Preview by default; use `--report` for detailed JSON, `--errors` for problem output, `--check` for exit-code checks, `--write` to save, and `--add` to opt unmarked notes in. Node is required; a core repository checkout is not.
+- Skip automatic header writing for untagged notes and session-note, meta, background, source and story tags, including descendant tags. Explicit native callouts still render on any note. Existing saved info headers can be converted by the commands; empty legacy fences need an explicit source edit. Review previews before bulk writes.
+- Use one native callout handler for Reading view and Live Preview, removing the competing header decoration that caused duplicate rendering. Keep generated fallback text out of backlinks and authored descriptions, with native source-link offsets preserved.
+- Add an optional desktop Session review prototype with transcript decisions, manual correction previews and an entity review queue. The feature is off by default. Review actions require the separately maintained vault Python helpers and their dependencies; these helpers are not included in the plugin release.
+- Improve Windows Python discovery and launch paths for session review and Photoshop import. Photoshop imports always use the bundled exporter; the external script override has been removed.
 
-Upgrading from 0.9.1: clear **Map exporter: script override (optional)** to use the bundled exporter. Keep your configured Python executable; a local 64-bit Python 3.11 environment with psd-tools, Pillow, numpy, and attrs is still required. Existing private credential files are no longer used and are not deleted. CLI users should replace `--dropbox-path` with `--dropbox-link` (or `--dropbox-link-env`).
+Requires desktop Obsidian 1.8.0 or newer, unchanged. Header conversion is an explicit source-writing action; dynamic rendering never edits notes. The Taelgarverse static materializer supports the new callout in website and static modes.
 
-The downloader checks Photoshop signatures and declared lengths, records local SHA-256 checksums, and revalidates cached downloads when Dropbox supplies HTTP validators. It does not use the former API revision/content-hash contract. Shared URLs are not saved in map notes or cache indexes.
-
-Automated tests cover shared-link transport and real PSD export, and browser checks use the bundled exporter. A live download of the full user PSB and an actual Obsidian/BRAT installation were not verified in this environment.
-
-Minimum Obsidian version remains 1.8.0; this plugin is desktop-only. See [setup and shared-link instructions](https://github.com/msackton/taelgarverse-core/blob/main/docs/map-editor.md#create-a-map-from-photoshop).
+Automated coverage includes source preservation, header eligibility and formats, standalone tooling, native callout lifecycles, shared website rendering, session review and map export. The release has not been visually verified through a fresh BRAT installation; automated checks do not establish compatibility with every Obsidian version at or above the declared minimum.

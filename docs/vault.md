@@ -131,7 +131,7 @@ The website reads the properties at the top of each note—the YAML section betw
 | --- | --- |
 | `name`, `title` | Displayed names and search labels. The website address comes from the filename and folder, so changing `name` does not change the address. |
 | `aliases` | Alternative names the website can use to find a linked note. Filenames and paths are checked first. |
-| `headerVersion`, `tags` | Whether and how the usual note header is generated. Existing type tags also supply the website's [search content-type filters](search.md#app-search). Keep these from the appropriate vault template. |
+| `tags` | Selects header display defaults and supplies the website's [search content-type filters](search.md#app-search). `headerVersion` is historical metadata and does not enable generation. |
 | `species`, `ancestry`, `typeOf`, `pronunciation` | Descriptions and pronunciation in the header. |
 | `displayDefaults`, `ddbLink` | Header formatting and a link to game mechanics. |
 | `born`, `created`, `died`, `destroyed`, `DR`, `DR_end` | Ages, lifespans, and event dates. |
@@ -145,58 +145,132 @@ age or location by hand.
 
 ## Generated bio block
 
-To render the existing note header from frontmatter, put this empty block
-immediately after the frontmatter, replacing the saved title and information
-callout:
+The native header is a top-level `taelgar-header` **callout**. Its saved body is
+fallback text; all three consumers generate its displayed information from
+frontmatter and related-note metadata:
 
-````markdown
-```taelgar-header
+```markdown
+---
+name: Fausto
+tags: [person]
+species: human
+---
+# Fausto
+*(FOW-stoh)*
+> [!taelgar-header]
+> Saved fallback information.
+
+Authored biography.
 ```
-````
 
-Keep the note's frontmatter, including `headerVersion` when present. The website
-uses the selected date and campaign as usual, with the same header styling.
-The block renders the complete header, including one H1 title, pronunciation,
-and the remaining details. To supply a custom title, put a Markdown H1 directly
-above the block; blank lines may separate them. That heading is preserved and
-the block omits its generated H1 while still rendering pronunciation, details,
-and index controls. Both `# Custom title` and a title underlined with `===`
-work. An H2 or an earlier H1 separated by prose or another block does not
-suppress the generated title. The Taelgarverse Obsidian development plugin uses
-the familiar native information callout with values filled in. Rendering does
-not modify the note.
-In Obsidian, pronunciation sits directly beneath the name without the normal
-heading-to-paragraph gap; this spacing applies only to generated bios with pronunciation.
-Generated bios use the note's normal spacing after the callout when there are no
-index buttons. When buttons are present, their row supplies the spacing.
-Existing saved headers and prepared HTML header markers remain supported;
-an older materializer's marker before the new block is removed on the website,
-while an adjacent authored H1 is retained.
-The block is omitted from note transclusions and authored search/backlink text.
-Node, Worker and the development plugin use the same maintained header core;
-the vault's legacy CustomJS scripts are not required to render these blocks.
-Circular location or organization chains show a header error instead of a
-partial header or a stack overflow.
+The title and pronunciation are ordinary authored Markdown. The handler replaces
+only the callout, wherever it occurs in the body; it never generates a title or
+pronunciation or replaces content above the callout. The proposed opt-in
+whole-header replacement is not implemented. Empty callouts are valid, and their
+fallback body may contain ordinary Markdown. Fallback content is never a header
+configuration language and is ignored by header generation.
 
-The block must be empty and at the start of the note body, optionally preceded
-by that authored H1. Examples inside other
-code fences stay literal. Replacing existing vault headers is a separate,
-explicit edit; enabling support does not migrate notes automatically.
+Node and the Worker use the website layout at the reader's selected date and
+campaign. Obsidian uses the native information-callout layout and the authoring
+date selected by the plugin/calendar. A Markdown postprocessor handles both Reading view and Obsidian's native Live
+Preview callout widget. The plugin does not add a competing CodeMirror header
+replacement. Obsidian owns selection/editing and reveals the saved source when
+editing the callout. Source mode always shows saved Markdown.
+Metadata and calendar changes refresh generated information without rewriting
+the file. The static materializer emits website or Obsidian-style Markdown for
+its configured export date, using `website` or `static` header type respectively.
 
-Content preparation normalizes old `<!-- taelgar:header -->` markers (including
-the `<!-- taelgar-header -->` spelling), detected versioned generated headers,
-and native fences into one leading empty `taelgar-header` fence, preserving an
-authored H1 immediately before an existing native fence.
-This runs in Node before content hashes, search, backlinks, or media discovery;
-it accepts raw notes or materializer exports without modifying the vault.
-Frontmatter and authored content are retained. Invalid explicit blocks stop
-preparation with the source path. The existing snapshot schema is unchanged.
-Deploy website support before publishing these newly normalized snapshots;
-the new renderer can read older R2 markers without a content migration.
+Only top-level callouts are recognized. Examples in code, nested blockquotes,
+and list items remain literal. Standard callout title/fold syntax is accepted
+as a marker, but the generated component owns its label and layout. The whole
+fallback callout is omitted from authored search and backlinks, and from
+website transclusions;
+surrounding titles, pronunciation and prose remain authored content. Related
+links still use the shared naming, location and affiliation rules. Circular
+relationships produce a clear header error.
+
+Rendering recognizes only native callouts. Old `taelgar-header` fences remain
+code, HTML markers and `headerVersion` do not trigger generation, and saved
+legacy headers remain static Markdown when rendered directly. Website content
+preparation separately converts recognized eligible legacy headers on its
+working copy, using the saved-header writer; existing native headers remain
+authored. The original vault need not be migrated to publish compatible content.
+See the [publication transition](publishing-pipelines.md#header-callout-transition)
+and [legacy review](header-callout-migration.md).
+
+### Writing or adding a saved header
+
+The Obsidian commands **Taelgarverse: Regenerate page header** and
+**Taelgarverse: Add header to current note** can be assigned in Settings → Hotkeys.
+They use the current editor text, including unsaved frontmatter, and make one
+undoable range replacement. The command writes the title, optional
+`*(pronunciation)*`, and a `taelgar-header` callout with a compact saved summary.
+This changes source Markdown; ordinary dynamic rendering still does not.
+
+Source-writing eligibility is checked **before any header detection**. A note
+must have at least one nonempty string in its frontmatter `tags`. Notes with a
+`session-note`, `meta`, `background`, `source` or `story` tag are always skipped,
+even if they also have an eligible entity tag, an existing header or an empty
+insertion flag, and even with Add / `--add`. Exclusions also cover descendant
+tags such as `source/letter`; comparison ignores case and an optional leading
+`#`. Skips preserve the file and explain the eligibility reason. The display
+renderer does not apply these restrictions: an explicitly authored
+`taelgar-header` callout still renders on any page.
+
+Regenerate recognizes an existing native callout or a familiar leading legacy
+`[!info]` header. An empty native callout opts a note into conversion without an
+Add operation. Add also handles notes without a header, replacing a recognizable
+leading title/pronunciation rather than duplicating it. Missing metadata fields
+are omitted. The H1 uses the shared `name:tn` naming format, including title +
+name composition, filename/session fallbacks, capitalization and definite articles.
+Required and type defaults come from the vault's configured `metadata.json`;
+per-note `displayDefaults` take precedence. An explicit `defArt: ""` suppresses
+the inferred/configured article. Saved summaries retain the fixed formats below.
+If the note changes while naming rules are loading, the editor command skips the
+write rather than overwriting newer edits.
+
+The writer preserves frontmatter bytes, BOM, existing newline style, and all
+content after the replaced callout. It accepts a leading H1/pronunciation prefix;
+unexpected comments, prose or images before a candidate callout are reported as
+ambiguous and left intact. Nested callouts, code examples and old header fences
+are not implicit conversion targets. These are migration commands; the display
+handler has no legacy syntax support.
+
+Saved summaries use these hardcoded formats; `displayDefaults.boxInfo` does not
+control them. All references are plain display text, not generated wikilinks.
+The dynamic rendered information still uses the shared display rules.
+
+| Type | Saved summary inside parentheses |
+| --- | --- |
+| Person | Species, ancestry, pronouns, known `ka X`, `b. YEAR`, `d. YEAR`, `lives in HOME` |
+| Power | Type, pronouns, `part of PRIMARY AFFILIATIONS` |
+| Place | Type, `in MAIN LOCATION / SECONDARY LOCATION` for any place type, including islands; both locations must be timeless and unambiguous; no population |
+| Object | Rarity, ancestry, subtype and type, separated by spaces |
+| Group | Ancestry/subtype/type separated by spaces, then `of PRIMARY AFFILIATIONS` |
+| Event | Type, direct `partOf`, date/date range from `DR` and `DR_end` |
+| Ancestry, creature, unknown | Type, direct `partOf` |
+
+Type uses `typeOfAlias` when present, otherwise `typeOf`. Pronouns use explicit
+`pronouns`, then the existing gender fallback. Person birth/death use years only;
+events preserve year/month/day precision, with identical endpoints shown once.
+Missing/unknown values disappear with their separators; unknown/sentinel dates
+and unknown ka never produce placeholders. Empty summaries leave an empty callout.
+
+Timeless home/location summaries require one unambiguous direct location with no
+`start`, `end` or `date` restriction. `primary` is treated as `home`; separate
+travel entries do not invalidate a timeless home. Competing, dated, unknown or
+malformed home records omit the location. Primary affiliations are included only
+when their entries have no such date restrictions. No calendar date is selected
+when writing a saved summary, and location chains are not expanded.
+
+The plugin also installs a self-contained `header-tool.cjs` in its own directory.
+See [standalone and bulk commands](deploy.md#saved-header-commands) for use outside
+Obsidian. Bulk conversion previews changes by default and is a separate operation
+from content publication.
 
 ## Generated indexes
 
-Enable popup buttons at the bottom of a `taelgar-header` block with an array in
+Enable popup buttons at the bottom of a `taelgar-header` callout with an array in
 frontmatter:
 
 ```yaml
@@ -211,7 +285,7 @@ one array. Repeated entries produce one button; unknown names and mappings
 such as `indexes: {members: true}` show an author-visible error.
 The button row sits below the complete generated header, outside its information
 callout. An ordinary Markdown title or saved header does not receive buttons;
-use the new `taelgar-header` block. Header buttons show only their label. A
+use the new `taelgar-header` callout. Header buttons show only their label. A
 first-match existence check hides empty buttons for the selected date and
 visibility context; it does not format or sort the full index. Opening a button
 calculates its rows, resolves images, and builds its card grid. Obsidian reuses
@@ -877,8 +951,9 @@ evaluates selected closed DQL blocks normally through Dataview, including those
 scans, and reports Dataview errors or per-query timeouts under the same
 strict/`--no-strict` policy as other queries.
 
-A separate Node conversion pass then normalizes known saved headers into
-`taelgar-header` and recognizes complete supported DataviewJS index patterns,
+A Node header preparation pass converts eligible legacy headers on the
+publication copy and preserves existing native headers. A separate conversion
+pass recognizes complete supported DataviewJS index patterns,
 rewriting them to `taelgar-index`. A recognized campaign-interactions view becomes
 `taelgar-interactions`. No JavaScript is executed. Native indexes use the reader's
 current context. The original vault notes remain unchanged.
@@ -891,7 +966,7 @@ HTML in the normal article body remains supported.
 
 The old static site keeps its original Obsidian materializer by default. An
 explicit override selects Taelgarverse's materializer, which renders
-native headers/indexes/interactions to static Markdown, changes `taelgar-map`
+native header callouts and index/interaction fences to static Markdown, changes `taelgar-map`
 fences to `leaflet`, and retains legacy Dataview, DataviewJS, supported inline
 expressions and CustomJS header behavior. See [publishing pipelines](publishing-pipelines.md).
 

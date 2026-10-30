@@ -140,10 +140,10 @@ test('expansion limits bound recursive fan-out and depth',()=>{
   assert.ok(deep.warnings.some(w=>w.startsWith('Note embed limit')));
 });
 
-test('saved and prepared generated headers are omitted; backlinks remain direct authored references',()=>{
+test('generated callouts are omitted; backlinks remain direct authored references',()=>{
   const app = engine({'Parent.md':'![[Legacy]]\n\n![[Prepared]]',
-    'Legacy.md':'---\nheaderVersion: old\ntags: [object]\n---\n# Stale header\n> Private stale details.\n\nLegacy body [[Target]].',
-    'Prepared.md':'<!-- taelgar:header -->\n\nPrepared body.', 'Target.md':'Target.'},{backlinks:true});
+    'Legacy.md':'---\nheaderVersion: old\ntags: [object]\n---\n> [!taelgar-header]\n> Private stale details.\n\nLegacy body [[Target]].',
+    'Prepared.md':'> [!taelgar-header]\n\nPrepared body.', 'Target.md':'Target.'},{backlinks:true});
   const result = render(app);
   assert.match(text(result),/Legacy body/); assert.match(text(result),/Prepared body/);
   assert.doesNotMatch(result.html,/Stale header|Private stale details|taelgar:header/);

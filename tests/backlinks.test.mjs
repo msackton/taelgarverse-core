@@ -136,12 +136,12 @@ test('compiled references agree with actual filtered Markdown, including cross-b
   }
 });
 
-test('the index strips saved and prepared header slots without dropping article content',() => {
+test('the index strips header callouts without dropping article content',() => {
   assert.doesNotMatch(authoredBody(store.resolve('Stale Header').note),/\[\[/);
-  assert.doesNotMatch(authoredBody(store.resolve('Prepared Header').note),/taelgar:header/);
+  assert.doesNotMatch(authoredBody(store.resolve('Prepared Header').note),/taelgar-header/);
   for (const source of ['# Old header\n[[Target]]\n\n\nBody [[Other]]', '\n# Body [[Other]]']) {
     const note = {metadata:{headerVersion:'1',tags:['person']},body:source};
-    assert.match(authoredBody(note),/Body \[\[Other\]\]/);
+    assert.equal(authoredBody(note),source,'legacy version metadata has no stripping behavior');
   }
 });
 

@@ -11,6 +11,11 @@ export const releaseFiles=['main.js','manifest.json','styles.css'];
 export async function readMapExporterBundle(){
   return Object.fromEntries(await Promise.all(exporterFiles.map(async name=>[name,await fs.readFile(path.join(root,name),'utf8')])));
 }
+export async function buildHeaderTool() {
+  const result=await build({absWorkingDir:root,entryPoints:['scripts/header-tool.mjs'],write:false,
+    bundle:true,platform:'node',format:'cjs',target:'es2022',legalComments:'inline',logLevel:'silent'});
+  return result.outputFiles[0].text;
+}
 export async function buildObsidian(output=path.join(root,'dist/obsidian/taelgarverse')){
   const manifest=JSON.parse(await fs.readFile(path.join(pluginSource,'manifest.json'),'utf8'));
   const versions=JSON.parse(await fs.readFile(path.join(pluginSource,'versions.json'),'utf8'));
@@ -18,9 +23,11 @@ export async function buildObsidian(output=path.join(root,'dist/obsidian/taelgar
     throw new Error('Keep the Taelgarverse manifest and versions.json in agreement; use an x.y.z release version');
   }
   await fs.mkdir(output,{recursive:true});
+  const headerTool=await buildHeaderTool();
+  await fs.writeFile(path.join(output,'header-tool.cjs'),headerTool,'utf8');
   await build({absWorkingDir:root,entryPoints:['obsidian/taelgarverse/main.mjs'],outfile:path.join(output,'main.js'),
     bundle:true,platform:'node',format:'cjs',target:'es2022',external:['obsidian','@codemirror/view','@codemirror/state'],legalComments:'inline',
-    define:{__TAELGAR_MAP_EXPORTER__:JSON.stringify(await readMapExporterBundle())},
+    define:{__TAELGAR_MAP_EXPORTER__:JSON.stringify(await readMapExporterBundle()),__TAELGAR_HEADER_TOOL__:JSON.stringify(headerTool)},
     footer:{js:'module.exports = module.exports.default;'},logLevel:'silent'});
   let leaflet=await fs.readFile(path.join(root,'node_modules/leaflet/dist/leaflet.css'),'utf8');
   for(const match of [...leaflet.matchAll(/url\(images\/([^)]+)\)/g)]){

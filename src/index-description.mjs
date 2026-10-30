@@ -50,6 +50,8 @@ export function firstDescriptionSentence(note,{date=null,campaigns=[],dm=false,s
     if(tokens[index].type!=='paragraph_open' || tokens[index].level!==0)continue;
     const inline=tokens[index+1];
     if(inline?.type!=='inline')continue;
+    // Pronunciation is authored beside the title now; it is not a prose lead.
+    if(/^\*\([^\r\n]+\)\*$/.test(inline.content.trim()))continue;
     const text=paragraphText(inline.children || []);
     if(!text)continue;
     return sentenceSegmenter ? sentenceSegmenter.segment(text)[Symbol.iterator]().next().value.segment.trim() : (text.match(/^.*?[.!?](?=\s|$)/)?.[0] || text).trim();

@@ -114,7 +114,7 @@ test('Taelgarverse keeps Images opt-in within the existing plugin and preserves 
     assert.equal(plugin.images.enabled,enabled===true);assert.equal(plugin.settings.legacyLeafletBlocks,true);
     assert.equal(plugin.settings.calendarEnabled,false);assert.equal(plugin.calendar.enabled,false);
     assert.equal(plugin.settings.sessionReviewEnabled,true);assert.equal(Object.hasOwn(plugin.settings,'photoshopExporter'),false);
-    assert.deepEqual([...plugin.processors.keys()],['taelgar-map','leaflet','taelgar-index','taelgar-header','taelgar-interactions','taelgar-relationship']);plugin.unload();
+    assert.deepEqual([...plugin.processors.keys()],['taelgar-map','leaflet','taelgar-index','taelgar-interactions','taelgar-relationship']);plugin.unload();
   }
 });
 
@@ -168,13 +168,13 @@ test('Taelgarverse leaves leaflet blocks alone by default and declines legacy ow
   for(const other of ['obsidian-leaflet-plugin','obsidian-leaflet','taelgar-map-tools']){
     const h=host(),plugin=new h.default();plugin.app=h.app;
     plugin.app.plugins={enabledPlugins:new Set([other])};
-    await plugin.onload();assert.deepEqual([...plugin.processors.keys()],['taelgar-map','taelgar-index','taelgar-header','taelgar-interactions','taelgar-relationship']);
+    await plugin.onload();assert.deepEqual([...plugin.processors.keys()],['taelgar-map','taelgar-index','taelgar-interactions','taelgar-relationship']);
     plugin.unload();
     plugin.savedData={legacyLeafletBlocks:true};await plugin.onload();
-    assert.deepEqual([...plugin.processors.keys()],['taelgar-map','taelgar-index','taelgar-header','taelgar-interactions','taelgar-relationship']);
+    assert.deepEqual([...plugin.processors.keys()],['taelgar-map','taelgar-index','taelgar-interactions','taelgar-relationship']);
   }
   const h=host(),plugin=new h.default();plugin.app=h.app;plugin.savedData={legacyLeafletBlocks:true};
-  await plugin.onload();assert.deepEqual([...plugin.processors.keys()],['taelgar-map','leaflet','taelgar-index','taelgar-header','taelgar-interactions','taelgar-relationship']);
+  await plugin.onload();assert.deepEqual([...plugin.processors.keys()],['taelgar-map','leaflet','taelgar-index','taelgar-interactions','taelgar-relationship']);
 });
 
 test('local upgrade retires Map Tools, coexists with Leaflet, and preserves plugin settings and old files',async t=>{
