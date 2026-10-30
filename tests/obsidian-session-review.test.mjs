@@ -35,12 +35,21 @@ function host({requestError,missingStdin=false,basePath='D:/test-vault',renderer
     });};return child;
   };
   const mockChildProcess={spawn(){throw new Error('Unexpected alternate spawn');},execFile(...args){localCalls++;return mockExecFile(...args);}};
+  // These are Windows renderer simulations even on Linux CI. The mocked
+  // launcher must resolve a mocked native Python, independent of the host PATH.
+  const pythonExecutable='D:\\test-python\\python.exe';
+  const rendererFs={...require('node:fs'),
+    statSync(file){assert.equal(file,pythonExecutable);return {isFile:()=>true,size:2};},
+    openSync(file){assert.equal(file,pythonExecutable);return 42;},
+    readSync(fd,buffer){assert.equal(fd,42);buffer.write('MZ');return 2;},
+    closeSync(fd){assert.equal(fd,42);},
+  };
   const module={exports:{}};
   const globals={module,exports:module.exports,console:{...console,error:(...args)=>diagnostics.push(args)},setTimeout,clearTimeout,setInterval,clearInterval,
-    process:renderer?{platform:'win32',type:'renderer',versions:{electron:'43.8.3',node:'24.22.0'},env:process.env}:process,
+    process:renderer?{platform:'win32',type:'renderer',versions:{electron:'43.8.3',node:'24.22.0'},env:{Path:'D:\\test-python'}}:process,
     window:{},
     require:name=>name==='obsidian'?{Component:class{},ItemView,Platform:{isDesktopApp:true},Setting:class{}}:
-      name==='node:child_process'?mockChildProcess:require(name)};
+      name==='node:child_process'?mockChildProcess:name==='node:fs'&&renderer?rendererFs:require(name)};
   vm.runInNewContext(compiled.outputFiles[0].text,globals);
   const app={vault:{adapter:{getBasePath:()=>basePath}},workspace:{}};
   const feature={app,enabled:true,plugin:{settings:{}},request:request=>module.exports.reviewRequest(basePath,undefined,request)},leaf={app,detach(){throw new Error('Unexpected detach');}};
@@ -96,7 +105,7 @@ test('missing Python shows an inline failure instead of a blank Obsidian view',a
 test('Windows renderer requests normalize launch paths and work without a remote bridge',async()=>{
   const h=host({renderer:true,basePath:'D:\\test-vault'});await h.view.open(h.root);
   assert.match(h.root.textContent,/Demo 1/);assert.equal(h.localCalls,1);assert.equal(h.requests,1);
-  assert.doesNotMatch(h.launch.file,/\\/);assert.equal(h.launch.cwd,'D:/test-vault');
+  assert.equal(h.launch.file,'D:/test-python/python.exe');assert.equal(h.launch.cwd,'D:/test-vault');
   h.view.onClose();
 });
 
