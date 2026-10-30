@@ -18,7 +18,6 @@ class TaelgarverseSettings extends PluginSettingTab {
     this.plugin.calendar?.renderSettings(this.containerEl,()=>this.display());
     for(const [key,name,description,placeholder] of [
       ['photoshopPython','Map exporter: Python executable','Python 3.11 environment with psd-tools, Pillow, numpy and attrs installed. Use an executable name or absolute path, without shell arguments. Windows resolves a native .exe before launching.','python3'],
-      ['photoshopExporter','Map exporter: script override (optional)','Leave blank to use the exporter bundled with this plugin. Advanced: absolute path to a custom export_core.py. Clear an old checkout path to use the bundled version.','Bundled exporter (default)'],
     ])new Setting(this.containerEl).setName(name).setDesc(description).addText(text=>text.setPlaceholder(placeholder).setValue(this.plugin.settings[key] || '').onChange(async value=>{
       this.plugin.settings[key]=value.trim();await this.plugin.saveData(this.plugin.settings);
     }));
@@ -60,6 +59,7 @@ export default class Taelgarverse extends Plugin {
   async onload(){
     this.settings={legacyLeafletBlocks:false,imageViewer:false,automaticInteractions:true,headerIndexPopups:true,calendarEnabled:false,relationshipsEnabled:false,calendarCampaign:'modern',...await this.loadData()};
     delete this.settings.photoshopDropboxCredentials; // Removed account-path integration.
+    delete this.settings.photoshopExporter; // Map creation always uses the bundled exporter.
     this.addSettingTab(new TaelgarverseSettings(this));
     // Features own their state and cleanup through Obsidian's Component lifecycle.
     this.addChild(new MapsFeature(this));

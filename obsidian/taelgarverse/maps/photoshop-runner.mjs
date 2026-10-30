@@ -48,12 +48,10 @@ async function readBounded(file,limit){
 }
 
 export class PhotoshopJob {
-  static async create({python,exporter='',onProgress=()=>{},bundle=bundledExporter}){
-    if(exporter && !path.isAbsolute(exporter))throw new Error('The optional exporter override must be an absolute script path.');
-    if(exporter && !(await fs.stat(exporter)).isFile())throw new Error('Python exporter override was not found. Clear the override to use the bundled exporter.');
+  static async create({python,onProgress=()=>{},bundle=bundledExporter}){
     const directory=await fs.mkdtemp(path.join(os.tmpdir(),'taelgar-map-'));
     try{
-      exporter=exporter || await unpackExporter(directory,bundle);
+      const exporter=await unpackExporter(directory,bundle);
       return new PhotoshopJob({python:python || (process.platform==='win32'?'python':'python3'),exporter,onProgress,directory});
     }catch(error){await fs.rm(directory,{recursive:true,force:true});throw error;}
   }
@@ -75,7 +73,7 @@ export class PhotoshopJob {
     const filename=path.join(this.directory,'inventory.json');
     await this.run([...args,'--inventory-json',filename],dropbox?{TAELGAR_DROPBOX_LINK:source}:{});
     const value=JSON.parse(await readBounded(filename,2*1024*1024));
-    if(value.version!==1 || !path.isAbsolute(value.source?.path??'') || !Array.isArray(value.layers) || value.layers.length>4096 || !Number.isInteger(value.width) || !Number.isInteger(value.height) || value.width<=0 || value.height<=0 || value.width>50000 || value.height>50000 || value.width*value.height>250000000 || value.layers.some(row=>typeof row.path!=='string' || !row.path.startsWith('/') || typeof row.visible!=='boolean' || typeof row.supported!=='boolean'))throw new Error('Invalid Photoshop layer inventory; update the plugin or its exporter override.');
+    if(value.version!==1 || !path.isAbsolute(value.source?.path??'') || !Array.isArray(value.layers) || value.layers.length>4096 || !Number.isInteger(value.width) || !Number.isInteger(value.height) || value.width<=0 || value.height<=0 || value.width>50000 || value.height>50000 || value.width*value.height>250000000 || value.layers.some(row=>typeof row.path!=='string' || !row.path.startsWith('/') || typeof row.visible!=='boolean' || typeof row.supported!=='boolean'))throw new Error('Invalid Photoshop layer inventory; update the plugin.');
     this.inventory=value;return value;
   }
   async export({layers,topLeft='',bottomRight='',transparent=false}){

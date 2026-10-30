@@ -14,7 +14,7 @@ export const bundledExporter=typeof __TAELGAR_MAP_EXPORTER__==='undefined'?null:
 
 export async function unpackExporter(directory,files=bundledExporter){
   if(!files || Object.keys(files).length!==exporterFiles.length || exporterFiles.some(name=>typeof files[name]!=='string'))
-    throw new Error('The bundled Photoshop exporter is missing or incomplete. Reinstall the plugin, or configure an exporter override.');
+    throw new Error('The bundled Photoshop exporter is missing or incomplete. Reinstall the plugin.');
   // Paths are fixed by the plugin, never supplied by notes or downloaded files.
   for(const name of exporterFiles){
     const target=path.join(directory,'exporter',name);

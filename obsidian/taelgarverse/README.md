@@ -478,8 +478,9 @@ map block. Details fade in with zoom beneath editable features. See the
 
 **Create map from Photoshop file** uses the exporter bundled in the plugin and
 loads local PSD/PSB files or public Dropbox shared-file links. Set only the local
-Python executable and install its dependencies; leave the optional script
-override blank. No separate checkout, Dropbox token, or API app is required.
+Python executable and install its dependencies. The exporter is always bundled;
+previously saved script overrides are ignored. No separate checkout, Dropbox
+token, or API app is required.
 See [Photoshop setup](../../docs/map-editor.md#create-a-map-from-photoshop).
 Layer loading and export share the session review hub's Python executable
 discovery and Windows launch-path normalization. Configure the Python environment

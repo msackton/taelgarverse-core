@@ -57,7 +57,7 @@ export function openCreatePhotoshopMap(feature){
       try{
         await this.job?.dispose();this.job=null;
         const settings=feature.plugin.settings,isDropbox=this.mode.value==='dropbox';
-        const job=await PhotoshopJob.create({python:settings.photoshopPython,exporter:settings.photoshopExporter,
+        const job=await PhotoshopJob.create({python:settings.photoshopPython,
           onProgress:text=>{if(!this.closed)this.status.textContent=text;}});
         this.job=job;if(this.closed){await job.dispose();return;}
         const inventory=await job.inspect({source:this.source.value,dropbox:isDropbox});

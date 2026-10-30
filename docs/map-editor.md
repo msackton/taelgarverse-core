@@ -71,10 +71,9 @@ python -m pip install psd-tools==1.26.0 Pillow==12.0.0 numpy==2.3.4 attrs==26.1.
 
 In **Settings → Taelgarverse**, set **Map exporter: Python executable** to that
 executable (for example `/path/to/.venv-map/bin/python` or
-`C:\path\.venv-map\Scripts\python.exe`), without shell arguments. Leave
-**Map exporter: script override (optional)** blank to use the bundled exporter.
-If you configured a checkout path in 0.9.1, clear it to switch to the bundled
-version. Advanced users can still specify an absolute custom exporter path.
+`C:\path\.venv-map\Scripts\python.exe`), without shell arguments. Map creation
+always uses the bundled exporter. The script override setting has been removed;
+previously saved checkout paths are ignored.
 The plugin does not bundle a Python interpreter or install packages automatically.
 
 Executable names and absolute paths are accepted. On Windows, layer loading and

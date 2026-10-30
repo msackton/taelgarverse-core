@@ -6,24 +6,32 @@ import path from 'node:path';
 import {EventEmitter} from 'node:events';
 import sharp from 'sharp';
 import {PhotoshopJob,runPython} from '../obsidian/taelgarverse/maps/photoshop-runner.mjs';
+import {exporterFiles} from '../obsidian/taelgarverse/maps/bundled-exporter.mjs';
+import {resolvePythonExecutable} from '../obsidian/taelgarverse/python-runtime.mjs';
 
 const png=await sharp({create:{width:4,height:4,channels:4,background:'transparent'}}).png().toBuffer();
-const fixture=`import fs from 'node:fs/promises';
-const args=process.argv.slice(2),get=flag=>args[args.indexOf(flag)+1],has=flag=>args.includes(flag);
-if(has('--inventory-json')){
- if(get('--source').includes('invalid')){await fs.writeFile(get('--inventory-json'),'{}');process.exit(0);}
- await fs.writeFile(get('--inventory-json'),JSON.stringify({version:1,width:4,height:4,source:{path:get('--source'),size:4,mtimeNs:'123'},layers:[{path:'/land',visible:true,supported:true},{path:'/masked',visible:true,supported:false,reason:'Unsupported mask'}]}));
-}else{
- const expected=JSON.parse(await fs.readFile(get('--expected-source')));if(get('--source')!==expected.source.path)process.exit(2);
- const recipe=JSON.parse(await fs.readFile(get('--recipe')));if(!recipe.layers['/land'] || recipe.layers['/masked'])process.exit(3);
- await fs.writeFile(get('--output')+'.png',Buffer.from('${png.toString('base64')}','base64'));
- await fs.writeFile(get('--output')+'.map.json',JSON.stringify({version:2,image:'map.png',sourceOffset:[5000,7000]}));
-}
+const fixture=`import json,sys,base64
+from pathlib import Path
+args=sys.argv[1:]
+def get(flag): return args[args.index(flag)+1]
+if '--inventory-json' in args:
+    if 'invalid' in get('--source'):
+        Path(get('--inventory-json')).write_text('{}',encoding='utf-8')
+        sys.exit(0)
+    value={'version':1,'width':4,'height':4,'source':{'path':get('--source'),'size':4,'mtimeNs':'123'},'layers':[{'path':'/land','visible':True,'supported':True},{'path':'/masked','visible':True,'supported':False,'reason':'Unsupported mask'}]}
+    Path(get('--inventory-json')).write_text(json.dumps(value),encoding='utf-8')
+else:
+    expected=json.loads(Path(get('--expected-source')).read_text(encoding='utf-8'))
+    if get('--source')!=expected['source']['path']: sys.exit(2)
+    recipe=json.loads(Path(get('--recipe')).read_text(encoding='utf-8'))
+    if not recipe['layers']['/land'] or recipe['layers']['/masked']: sys.exit(3)
+    Path(get('--output')+'.png').write_bytes(base64.b64decode('${png.toString('base64')}'))
+    Path(get('--output')+'.map.json').write_text(json.dumps({'version':2,'image':'map.png','sourceOffset':[5000,7000]}),encoding='utf-8')
 `;
 async function setup(t){
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'map-runner-test-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
- const exporter=path.join(root,'exporter with spaces.mjs');await fs.writeFile(exporter,fixture);
- return {root,options:{python:process.execPath,exporter},source:path.join(root,'source $(no shell); with spaces.psb')};
+ const bundle=Object.fromEntries(exporterFiles.map(name=>[name,name.endsWith('export_core.py')?fixture:'']));
+ return {root,options:{python:resolvePythonExecutable(),bundle},source:path.join(root,'source $(no shell); with spaces.psb')};
 }
 test('runner inspects and exports the inspected source, validates layers and retries only its own outputs',async t=>{
  const {options,source}=await setup(t),job=await PhotoshopJob.create(options);t.after(()=>job.dispose());
@@ -35,9 +43,8 @@ test('runner inspects and exports the inspected source, validates layers and ret
  const directory=job.directory;await job.dispose();await assert.rejects(fs.stat(directory),{code:'ENOENT'});
  await assert.rejects(job.export({layers:['/land']}),/Load Photoshop layers/);
 });
-test('runner rejects invalid inventory and requires an absolute configured exporter and local file',async t=>{
+test('runner rejects invalid inventory and requires an absolute local file',async t=>{
  const {options,root}=await setup(t);
- await assert.rejects(PhotoshopJob.create({exporter:'relative.py'}),/absolute/);
  const job=await PhotoshopJob.create(options);t.after(()=>job.dispose());
  await assert.rejects(job.inspect({source:'relative.psd'}),/absolute/);
  await assert.rejects(job.inspect({source:path.join(root,'invalid.psd')}),/Invalid Photoshop layer inventory/);
@@ -62,10 +69,10 @@ test('missing executable yields an actionable error',async()=>{
  await assert.rejects(runPython('/not-a-real-python-executable',[]),/Could not start Python/);
 });
 
-test('bundled exporter includes maintained sources, recipe and geometry and needs no script override',async t=>{
+test('bundled exporter includes maintained sources, recipe and geometry and ignores legacy script overrides',async t=>{
  const {readMapExporterBundle}=await import('../scripts/build-obsidian.mjs');
  const {exporterFiles,unpackExporter}=await import('../obsidian/taelgarverse/maps/bundled-exporter.mjs');
- const bundle=await readMapExporterBundle(),job=await PhotoshopJob.create({bundle});t.after(()=>job.dispose());
+ const bundle=await readMapExporterBundle(),job=await PhotoshopJob.create({bundle,exporter:'missing-old-checkout.py'});t.after(()=>job.dispose());
  assert.ok(job.exporter.startsWith(job.directory+path.sep));assert.ok(job.exporter.endsWith('export_core.py'));
  for(const name of exporterFiles)assert.equal(await fs.readFile(path.join(job.directory,'exporter',name),'utf8'),await fs.readFile(new URL('../'+name,import.meta.url),'utf8'));
  await assert.rejects(unpackExporter(job.directory,bundle),{code:'EEXIST'});
