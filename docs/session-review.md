@@ -139,18 +139,44 @@ fingerprints merely to make them appear current.
 
 ## Entity decisions
 
-The inventory has one row per identity, with uncertain/unreviewed decisions first.
-Divine entities have their own filter. Selecting an entity loads original polished
-UID passages; **Open original source** resolves the UID to the current Obsidian
-editor line at display time. Lines are not persisted as provenance. Candidate and
-matched pages open as normal vault files. Excluded candidates remain visible.
+Opening entity review hides the session index and shows one compact proposal at a
+time. **Needs review** contains entities without a decision and unreviewed excluded
+candidates. High-confidence AI entities default to accepted and are accessible in
+**All entities and exclusions**. This is a display policy: opening the queue does
+not write decisions or forge `humanReviewed`. Medium/low confidence, changed
+evidence and deferred records have no default. Explicit human decisions override
+the AI default. Later-identification flags remain visible.
 
-Accept, correct kind/label/note, retain candidates, defer, include, or exclude an
-entity. Explain a decision in the form; inspect changed note targets before
-applying. A person may have a clear identity and no page. No canon page is created.
-Merge selected identities into the selected stable ID, or split evidence between
-two explicit identities while retaining the continuing identity's ID. Invalid
-overlapping merge evidence is rejected for explicit reconciliation.
+Entity review accepts full-transcript calibration maps without a scene-map
+dependency and older maps that explicitly fingerprint a scene map. It preserves
+the saved evidence model; a missing or stale scene map still blocks an older map
+that depends on it. Both formats retain whole-turn UID, source, YAML and note
+validation.
+
+**Accept and next**, **Exclude and next**, **Include and next**, and **Keep excluded
+and next** save immediately through the guarded helper. A corrected vault link is
+inspected automatically before acceptance. Including an excluded candidate asks for
+its kind; the helper assigns a stable ID and retains its original evidence. A
+person can remain unlinked. **Skip for now** navigates without saving. Transcript
+evidence is expandable and loaded on demand; source editor line numbers are
+resolved from UIDs when opened, never saved as provenance.
+
+**Changes needed** saves a comment in `reviewState.requests`. **Export changes
+needed** writes `<stem>-entity-feedback-<map-hash>.json` beside the map, containing only
+unresolved change requests, qualified entity/exclusion references, reviewed record
+snapshots, exact current map byte hashes and reconciliation flags. It never starts
+an agent. Repeated exports use a numbered suffix to preserve earlier handoffs.
+Explicit later decisions clear the corresponding request. Exclusion
+references derive from label/source, not mutable array positions. Detailed kind,
+grouping or identity changes can be requested here without a large editing form.
+
+**Name transcribed incorrectly** selects an evidence UID, exact current words,
+optional suggested spelling and explanation. It queues a pending question in the
+existing portable transcript review Markdown, preserving its other questions and
+turn edits. A finalized transcript can be reopened for this bounded review. The
+entity decision and spoken text are unchanged by flagging. Agent guidance receives
+the entity origin and human feedback in the question's recommendation; a vault
+match alone does not establish what was spoken.
 
 Decisions and history currently live in optional `reviewState` inside the entity
 map, atomically with its entities. This is provisional review storage, not a final
@@ -170,14 +196,14 @@ matches elsewhere in the vault. Validation never supplies semantic review status
 Core owns the Obsidian feature and DOM views in
 `obsidian/taelgarverse/features/session-review.mjs`,
 native discovery in `obsidian/taelgarverse/features/session-review-index.mjs`,
-`src/browser/session-review.mjs`, and `src/browser/transcript-review.mjs`.
+`src/browser/session-review.mjs`, `src/browser/entity-review.mjs`, and `src/browser/transcript-review.mjs`.
 The vault owns the scene/entity readers, guarded decision API, portable transcript
 review, shared lock, and atomic/transactional writes. The desktop adapter reuses
 those helpers instead of implementing source alignment or persistence in JavaScript.
 Windows uses a session-specific kernel mutex and no-follow draft file opens;
 Unix uses the existing directory flock.
 
-Use core's `node --test tests/session-review-index.test.mjs tests/session-review.test.mjs tests/transcript-review.test.mjs`
+Use core's `node --test tests/session-review-index.test.mjs tests/session-review.test.mjs tests/entity-review.test.mjs tests/transcript-review.test.mjs`
 and plugin integration tests/build. In the vault, run the three scoped
 reduction/scene/entity suites plus `process-transcript`'s `test_desktop.py` and
 `test_review.py` with its scripts on `PYTHONPATH`. On Windows, use

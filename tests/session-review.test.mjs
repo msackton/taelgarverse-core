@@ -8,7 +8,7 @@ const fixture=()=>({token:{mapSha256:'map',inputDigest:'inputs',notes:[]},sessio
   reviewState:{history:[],excluded:[],deferred:[],invalidated:[],accepted:{},redirects:{}},notes:{},
   document:{entities:[{id:'e001',kind:'npc',label:'Uncertain guide',reason:'Candidate unresolved.',candidates:['People/Guide.md'],occurrences:[{source:ref}],review:{confidence:'medium',status:'unreviewed'}},
     {id:'e002',kind:'divine',label:'Named spirit',reason:'No individual page.',occurrences:[{source:ref}],review:{confidence:'high',status:'automatedReviewed'}}],
-    exclusions:[{label:'Ordinary coins',reason:'Routine treasure.',source:ref}]}});
+    exclusions:[{label:'Ordinary coins',reason:'Routine treasure.',source:ref}]},exclusionRecords:[{key:'exclusion:coins',label:'Ordinary coins',reason:'Routine treasure.',source:ref}]} );
 const settle=()=>new Promise(resolve=>setTimeout(resolve,5));
 function button(root,name){return [...root.querySelectorAll('button')].find(el=>el.textContent===name);}
 function setup(){
@@ -22,35 +22,35 @@ function setup(){
     if(request.command==='index')return {sessions:[{sessionYaml:'_sessions/demo/cleaned/demo-session.yaml',campaign:'Demo',number:1,stage:'reviewable',entities:2,pending:1,human:0}]};
     if(request.command==='inspect')return structuredClone(data);
     if(request.command==='evidence')return {passages:[{source:ref,owner:'Scene 1',text:'DM: The guide speaks.',path:'_sessions/demo/cleaned/demo-transcript.md',line:9}]};
-    if(request.command==='apply'){
+    if(request.command==='entityQueueDecision'){
       assert.deepEqual(request.token,data.token);
-      const row=data.document.entities.find(x=>x.id===request.entity);row.review.status='humanReviewed';data.reviewState.history.push({entity:row.id,action:request.action,reason:request.reason});
+      const row=data.document.entities.find(x=>'entity:'+x.id===request.key);row.review.status='humanReviewed';data.reviewState.history.push({entity:row.id,action:request.action});
       data.token.mapSha256+='next';return structuredClone(data);
     }
     throw new Error('Unexpected request');
   }});
   return {root,view,calls,opened};
 }
-test('session index opens an entity-first inventory; divine filter and excluded candidates stay visible',async()=>{
+test('session selection opens a compact queue and hides the session inventory',async()=>{
   const {root,view}=setup();await view.ready;
   button(root,'Demo 1').click();await settle();
-  assert.match(root.textContent,/Uncertain guide/);assert.match(root.textContent,/Named spirit/);
-  assert.match(root.textContent,/Excluded candidates \(1\)/);
+  assert.match(root.textContent,/Uncertain guide/);assert.match(root.textContent,/1 accepted by AI confidence/);
+  assert.ok([...root.querySelectorAll('div')].some(node=>node.hidden&&node.querySelector('table')));
   assert.doesNotMatch(root.textContent,/The guide speaks/);
-  button(root,'divine').click();await settle();
-  assert.match(root.textContent,/Named spirit/);assert.doesNotMatch(root.textContent,/Uncertain guide/);
+  button(root,'Skip for now').click();await settle();assert.match(root.textContent,/Ordinary coins/);
+  button(root,'Back to sessions').click();await settle();assert.ok(button(root,'Demo 1'));
   view.dispose();assert.equal(root.childNodes.length,0);
 });
 test('selected evidence opens original UID-resolved source and accepts only the selected entity',async()=>{
   const {root,view,calls,opened}=setup();await view.ready;
-  button(root,'Demo 1').click();await settle();button(root,'Uncertain guide').click();await settle();
+  button(root,'Demo 1').click();await settle();
+  const evidence=[...root.querySelectorAll('summary')].find(node=>node.textContent==='Transcript evidence').parentElement;
+  evidence.open=true;evidence.dispatchEvent(new root.ownerDocument.defaultView.Event('toggle'));await settle();
   assert.match(root.textContent,/The guide speaks/);
-  button(root,'Open original source').click();await settle();assert.deepEqual(opened,[['_sessions/demo/cleaned/demo-transcript.md',9]]);
-  const labels=[...root.querySelectorAll('label')];labels.find(x=>x.textContent.startsWith('Decision explanation')).querySelector('input').value='I reviewed this identity.';
-  button(root,'Accept').click();await settle();
-  const applied=calls.filter(x=>x.command==='apply');assert.equal(applied.length,1);assert.equal(applied[0].entity,'e001');
-  assert.equal(applied[0].reason,'I reviewed this identity.');assert.match(root.textContent,/humanReviewed/);
-  assert.equal(view.getState().entity,'e001');view.dispose();
+  button(root,'Open transcript passage').click();await settle();assert.deepEqual(opened,[['_sessions/demo/cleaned/demo-transcript.md',9]]);
+  button(root,'Accept and next').click();await settle();
+  const applied=calls.filter(x=>x.command==='entityQueueDecision');assert.equal(applied.length,1);assert.equal(applied[0].key,'entity:e001');
+  assert.equal(view.getState().entity,'exclusion:coins');view.dispose();
 });
 test('late index response cannot redraw an unloaded review view',async()=>{
   const {document}=parseHTML('<main></main>');const root=document.querySelector('main');let resolve;
@@ -69,9 +69,9 @@ test('restored session state waits for an explicit user action before loading it
 
 test('changing restored session state clears old decision controls before resuming',async()=>{
   const {root,view,calls}=setup();await view.ready;button(root,'Demo 1').click();await settle();
-  button(root,'Uncertain guide').click();await settle();assert.ok(button(root,'Accept'));
+  assert.ok(button(root,'Accept and next'));
   const count=calls.length;
   await view.restore({session:'_sessions/other/cleaned/other-session.yaml',stage:'entities'});
-  assert.equal(calls.length,count);assert.equal(button(root,'Accept'),undefined);
+  assert.equal(calls.length,count);assert.equal(button(root,'Accept and next'),undefined);
   assert.doesNotMatch(root.textContent,/Uncertain guide/);assert.match(root.textContent,/Saved selection restored/);view.dispose();
 });

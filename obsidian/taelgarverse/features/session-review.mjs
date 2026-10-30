@@ -119,6 +119,8 @@ export class SessionReviewFeature extends Component{
   get enabled(){return Platform.isDesktopApp&&this.plugin.settings.sessionReviewEnabled===true;}
   request(request){
     if(request.command==='index')return discoverSessionReviews(this.app.vault.adapter.getBasePath());
+    if(request.command==='entityNoteChoices')return Promise.resolve({paths:(this.app.vault.getMarkdownFiles?.()??[])
+      .map(file=>file.path).filter(file=>!/(^|\/)[_.]/.test(file)).sort((a,b)=>a.localeCompare(b))});
     if(request.command==='connectionInfo'){
       const result=inspectReviewSetup(this.plugin.settings.sessionReviewPython);
       trace(this,'setup '+JSON.stringify(result));return Promise.resolve(result);

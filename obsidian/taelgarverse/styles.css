@@ -48,3 +48,11 @@
 .taelgar-session-review pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 35rem; overflow: auto; user-select: text; }
 .taelgar-session-review details { margin-block: .7rem; }
 .taelgar-session-review [role=status] { position: sticky; top: 0; background: var(--background-primary); padding: .5rem; z-index: 1; }
+.taelgar-session-review [hidden] { display: none !important; }
+.entity-review-queue { max-width: 58rem; margin-inline: auto; }
+.entity-review-card { padding: 1.2rem; border: 1px solid var(--background-modifier-border); border-radius: .6rem; background: var(--background-secondary); }
+.entity-review-card h3 { margin-top: 0; }
+.entity-review-card details { padding-block: .4rem; }
+.entity-review-card summary { cursor: pointer; }
+.entity-queue-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-block: .8rem; }
+.entity-later-identity { font-weight: 600; color: var(--text-accent); }
