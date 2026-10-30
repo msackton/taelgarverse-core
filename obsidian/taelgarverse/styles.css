@@ -39,3 +39,12 @@
 }
 
 .markdown-source-view.mod-cm6 .cm-embed-block:has(.taelgar-index-host[hidden]) { display:none; }
+.taelgar-session-review { padding: 1rem; overflow: auto; }
+.taelgar-session-review table { width: 100%; margin-block: 1rem; border-collapse: collapse; }
+.taelgar-session-review td, .taelgar-session-review th { padding: .4rem; border-bottom: 1px solid var(--background-modifier-border); text-align: left; }
+.taelgar-session-review label { display: block; margin-block: .6rem; }
+.taelgar-session-review label input:not([type=checkbox]), .taelgar-session-review textarea { display: block; width: min(100%, 45rem); }
+.taelgar-session-review button { margin: .2rem; white-space: normal; height: auto; min-height: 2rem; }
+.taelgar-session-review pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 35rem; overflow: auto; user-select: text; }
+.taelgar-session-review details { margin-block: .7rem; }
+.taelgar-session-review [role=status] { position: sticky; top: 0; background: var(--background-primary); padding: .5rem; z-index: 1; }

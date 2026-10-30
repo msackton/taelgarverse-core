@@ -7,6 +7,7 @@ import {ExporterFeature} from './features/exporter.mjs';
 import {MaterializerFeature} from './features/materializer.mjs';
 import {RelationshipsFeature} from './features/relationships.mjs';
 import {CalendarFeature} from './features/calendar.mjs';
+import {SessionReviewFeature} from './features/session-review.mjs';
 import {DATAVIEW_EXPORT_VERSION} from '../../src/dataview-export.mjs';
 
 class TaelgarverseSettings extends PluginSettingTab {
@@ -16,11 +17,12 @@ class TaelgarverseSettings extends PluginSettingTab {
     this.plugin.relationships?.renderSettings(this.containerEl);
     this.plugin.calendar?.renderSettings(this.containerEl,()=>this.display());
     for(const [key,name,description,placeholder] of [
-      ['photoshopPython','Map exporter: Python executable','Python 3.11 environment with psd-tools, Pillow, numpy and attrs installed. Use an executable path, without shell arguments.','python3'],
+      ['photoshopPython','Map exporter: Python executable','Python 3.11 environment with psd-tools, Pillow, numpy and attrs installed. Use an executable name or absolute path, without shell arguments. Windows resolves a native .exe before launching.','python3'],
       ['photoshopExporter','Map exporter: script override (optional)','Leave blank to use the exporter bundled with this plugin. Advanced: absolute path to a custom export_core.py. Clear an old checkout path to use the bundled version.','Bundled exporter (default)'],
     ])new Setting(this.containerEl).setName(name).setDesc(description).addText(text=>text.setPlaceholder(placeholder).setValue(this.plugin.settings[key] || '').onChange(async value=>{
       this.plugin.settings[key]=value.trim();await this.plugin.saveData(this.plugin.settings);
     }));
+    this.plugin.sessionReview?.renderSettings(this.containerEl);
     new Setting(this.containerEl).setName('Show header index popups')
       .setDesc('Show Members, Residents, and other index buttons below generated headers in Obsidian. Applies immediately; inline indexes and website popups are unchanged.')
       .addToggle(toggle=>toggle.setValue(this.plugin.settings.headerIndexPopups).onChange(async value=>{
@@ -68,5 +70,6 @@ export default class Taelgarverse extends Plugin {
     this.materializer=this.addChild(new MaterializerFeature(this));
     this.calendar=this.addChild(new CalendarFeature(this));
     this.relationships=this.addChild(new RelationshipsFeature(this));
+    this.sessionReview=this.addChild(new SessionReviewFeature(this));
   }
 }

@@ -77,6 +77,12 @@ If you configured a checkout path in 0.9.1, clear it to switch to the bundled
 version. Advanced users can still specify an absolute custom exporter path.
 The plugin does not bundle a Python interpreter or install packages automatically.
 
+Executable names and absolute paths are accepted. On Windows, layer loading and
+export resolve a native `.exe`, skip non-executable Windows aliases, and normalize
+the executable and working directory to forward-slash paths before launching.
+This shares the session review hub's Python fix. An explicit environment path is
+recommended when the exporter dependencies are installed in a virtual environment.
+
 Choose **Local Photoshop file** and paste its absolute PSD/PSB path, or choose
 **Dropbox shared link** and paste a public file link. Pasting an HTTPS URL also
 switches to Dropbox mode automatically. Click **Load Photoshop layers**.

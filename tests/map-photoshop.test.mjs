@@ -48,13 +48,13 @@ test('subprocess uses literal arguments and environment-only links, redacts boun
   calls.push({python,args,options});const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();
   queueMicrotask(()=>{child.stderr.emit('data',Buffer.from('x'.repeat(10000)+'token-secret'));child.emit('close',1);});return child;
  };
- await assert.rejects(runPython('/python with spaces',['--source','$(bad);file.psd'],{spawnProcess,env:{TAELGAR_DROPBOX_LINK:'token-secret'},onProgress:text=>progress.push(text)}),error=>error.message.length<=8192 && error.message.includes('[redacted]') && !error.message.includes('token-secret'));
+ await assert.rejects(runPython(process.execPath,['--source','$(bad);file.psd'],{spawnProcess,env:{TAELGAR_DROPBOX_LINK:'token-secret'},onProgress:text=>progress.push(text)}),error=>error.message.length<=8192 && error.message.includes('[redacted]') && !error.message.includes('token-secret'));
  assert.equal(calls[0].options.shell,false);assert.equal(calls[0].options.env.TAELGAR_DROPBOX_LINK,'token-secret');assert.deepEqual(calls[0].args,['--source','$(bad);file.psd']);assert.ok(progress.every(text=>!text.includes('token-secret')));
 });
 test('cancellation waits for subprocess close before rejecting and never starts an already cancelled job',async()=>{
  const controller=new AbortController();let child,started=0,killed=false,closed=false;
  const spawnProcess=()=>{started++;child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();child.kill=()=>{killed=true;setTimeout(()=>{closed=true;child.emit('close',130);},10);};return child;};
- const pending=runPython('python',[],{signal:controller.signal,spawnProcess});controller.abort();
+ const pending=runPython(process.execPath,[],{signal:controller.signal,spawnProcess});controller.abort();
  await assert.rejects(pending,/cancelled/);assert.ok(killed && closed);
  await assert.rejects(runPython('python',[],{signal:controller.signal,spawnProcess}),/cancelled/);assert.equal(started,1);
 });
@@ -82,4 +82,24 @@ test('Dropbox shared links use environment-only URLs and do not pass API credent
  await assert.rejects(job.inspect({source:'/Maps/world.psb',dropbox:true}),/shared-file link/);
  await assert.rejects(job.inspect({source:'id:file',dropbox:true}),/shared-file link/);
  await job.inspect({source:link,dropbox:true});
+});
+
+test('layer inspection and export normalize Python launch paths while preserving literal exporter arguments',async()=>{
+ const calls=[],normalize=value=>process.platform==='win32'?value.replaceAll('\\','/'):value;
+ const spawnProcess=(python,args,options)=>{
+  calls.push({python,args,options});const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();
+  queueMicrotask(()=>child.emit('close',0));return child;
+ };
+ const exporter='D:\\Exporter checkout\\export_core.py',source='D:\\Artwork\\source $(literal);.psb';
+ for(const args of [[exporter,'--source',source,'--inventory-json','inventory.json'],[exporter,'--source',source,'--output','map']]){
+  await runPython(process.execPath,args,{spawnProcess});
+  const call=calls.at(-1);assert.equal(call.python,normalize(process.execPath));assert.equal(call.options.cwd,normalize(process.cwd()));
+  assert.deepEqual(call.args,args);assert.equal(call.options.shell,false);assert.equal(call.options.windowsHide,true);
+ }
+ assert.equal(calls.length,2);
+});
+
+test('an early launch error without stdout or stderr remains an actionable Python error',async()=>{
+ const spawnProcess=()=>{const child=new EventEmitter();queueMicrotask(()=>{child.emit('error',new Error('ENOENT'));child.emit('close',-2);});return child;};
+ await assert.rejects(runPython(process.execPath,[],{spawnProcess}),/Could not start Python/);
 });

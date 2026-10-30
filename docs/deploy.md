@@ -35,6 +35,13 @@ After `npm ci`, use one of these commands from core:
 | `npm test` | Runs the automated suite using frozen core fixtures; no vault or Obsidian required. |
 | `npm test -- --live-vault` | Explicitly checks configured live notes and the installed Dataview bundle against test references. Read-only; separate from CI. |
 
+The experimental desktop [Session review tab](session-review.md) additionally
+uses JavaScript for session discovery; its explicit review operations additionally
+require Python and the vault-owned transcript/entity helpers. Install it through
+the same local `--plugin --vault PATH` path, then enable Session review in the
+plugin settings. Transcript decisions and entity review are local vault writes;
+they do not deploy code or publish vault content.
+
 The map baseline has a separate local review harness:
 `node scripts/preview-map-baseline.mjs --export .cache/map-baseline/my-export`.
 It serves only loopback at port 8878. `--export` takes the file prefix used by
@@ -790,3 +797,7 @@ are still installed separately. Public Dropbox shared-file links need no API
 credentials. This local import workflow does not publish content or upload to
 Dropbox. See [setup and cache cleanup](map-editor.md#create-a-map-from-photoshop)
 and [CLI options](map-baseline-progress.md#dropbox-sources-and-layer-inspection).
+
+Both layer loading and export use the desktop plugin's shared Python resolver
+and Windows launch-path normalization. A configured virtual-environment executable
+is preserved; executable names resolve to a native Windows `.exe` before launch.

@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {unpackExporter,bundledExporter} from './bundled-exporter.mjs';
+import {resolvePythonExecutable,pythonLaunchPaths} from '../python-runtime.mjs';
 import {MAX_MAP_PNG_BYTES,mapPngInfo} from './create-map-files.mjs';
 
 const cancelled=()=>new Error('Photoshop export cancelled.');
@@ -11,12 +12,15 @@ const privateKeys=['TAELGAR_DROPBOX_LINK'];
 // No shell, no credentials in arguments, and bounded output even for very large PSDs.
 export function runPython(python,args,{signal,env=process.env,onProgress=()=>{},spawnProcess=spawn}={}){
   if(signal?.aborted)return Promise.reject(cancelled());
+  let launch;
+  try{launch=pythonLaunchPaths(resolvePythonExecutable(python,{env}),process.cwd());}
+  catch(error){return Promise.reject(new Error('Could not start Python. '+error.message));}
   return new Promise((resolve,reject)=>{
-    const child=spawnProcess(python,args,{shell:false,windowsHide:true,env,stdio:['ignore','pipe','pipe']});
+    const child=spawnProcess(launch.executable,args,{cwd:launch.cwd,shell:false,windowsHide:true,env,stdio:['ignore','pipe','pipe']});
     let tail='',timer,spawnError;
     const redact=value=>privateKeys.reduce((text,key)=>env[key]?text.split(env[key]).join('[redacted]'):text,value);
     const output=data=>{tail=(tail+data.toString()).slice(-8192);onProgress(redact(tail));};
-    child.stdout.on('data',output);child.stderr.on('data',output);
+    child.stdout?.on('data',output);child.stderr?.on('data',output);
     const abort=()=>{child.kill('SIGTERM');timer=setTimeout(()=>child.kill('SIGKILL'),2000);timer.unref?.();};
     signal?.addEventListener('abort',abort,{once:true});
     child.on('error',error=>{spawnError=error;});

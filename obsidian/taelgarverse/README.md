@@ -4,6 +4,18 @@ The unified desktop Taelgarverse plugin: generated note headers and indexes, loc
 calibrated distances, freehand tracing, enclosed areas, and an optional image viewer.
 Name Explorer and the materializer remain separate. Requires Obsidian 1.8.0+.
 
+## Session review prototype
+
+Enable **Settings → Taelgarverse → Enable session review**, then run
+**Taelgarverse: Open session review**. The desktop tab indexes session manifests,
+queued transcript fixes, and entity maps. It supports selected transcript
+decisions, passage search, bounded manual corrections, change previews, and explicit
+transcript completion, as well as entity
+acceptance/correction, deferral, exclusions, and deliberate merges/splits.
+Discovery runs natively without Python. Review operations require the vault-owned
+deterministic Python helpers and their dependencies. Changes require explicit
+user actions. See [setup and review behavior](../../docs/session-review.md).
+
 ## Relationship explorer
 
 Enable **Settings → Taelgarverse → Enable relationship explorer** and open it from the
@@ -469,3 +481,6 @@ loads local PSD/PSB files or public Dropbox shared-file links. Set only the loca
 Python executable and install its dependencies; leave the optional script
 override blank. No separate checkout, Dropbox token, or API app is required.
 See [Photoshop setup](../../docs/map-editor.md#create-a-map-from-photoshop).
+Layer loading and export share the session review hub's Python executable
+discovery and Windows launch-path normalization. Configure the Python environment
+containing the exporter dependencies; executable names and absolute paths are accepted.
