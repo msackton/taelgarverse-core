@@ -947,7 +947,7 @@ follow the normal publication rules. No content is published by creation. See
 
 
 The desktop **Create map from Photoshop file** command also creates a PNG,
-version 2 manifest, and map note, using local or Dropbox PSD/PSB artwork through
-the configured Python exporter. Export offsets are retained automatically.
-[Configure the exporter and Dropbox access](map-editor.md#create-a-map-from-photoshop)
-outside vault content; PSDs, tokens and credential files are not map assets.
+version 2 manifest, and map note, using local PSD/PSB artwork or public Dropbox shared links through
+the bundled exporter and a configured Python environment. Export offsets are retained automatically.
+[Configure Python and use shared links](map-editor.md#create-a-map-from-photoshop)
+outside vault content; PSD sources and shared URLs are not published map assets.

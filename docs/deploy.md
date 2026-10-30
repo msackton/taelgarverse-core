@@ -783,11 +783,10 @@ installation/release remains separate. The local Photoshop exporter accepts
 [regional artwork export](map-editor.md#export-regional-artwork-from-a-saved-photoshop-file).
 
 
-The desktop **Create map from Photoshop file** command invokes a configured local
-Python executable and checkout of `scripts/map-export/export_core.py`; plugin
-releases do not bundle Python. It can read PSD/PSB sources from Dropbox via
-`files.metadata.read` and `files.content.read`, with environment/session tokens
-or a private credential file outside the vault. This is a local export/import
-workflow and does not publish content or upload to Dropbox. See
-[setup, authentication and cache cleanup](map-editor.md#create-a-map-from-photoshop)
+The desktop **Create map from Photoshop file** command runs the exporter bundled
+inside the plugin's `main.js`, using a configured local Python environment.
+BRAT's normal three runtime assets are sufficient; Python and its dependencies
+are still installed separately. Public Dropbox shared-file links need no API
+credentials. This local import workflow does not publish content or upload to
+Dropbox. See [setup and cache cleanup](map-editor.md#create-a-map-from-photoshop)
 and [CLI options](map-baseline-progress.md#dropbox-sources-and-layer-inspection).

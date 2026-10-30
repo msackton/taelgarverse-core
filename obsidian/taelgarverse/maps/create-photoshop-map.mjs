@@ -9,18 +9,19 @@ export function openCreatePhotoshopMap(feature){
       const root=this.contentEl,doc=root.ownerDocument;root.classList.add('map-create-dialog','map-photoshop-dialog');
       const add=(tag,text)=>{const node=doc.createElement(tag);node.textContent=text;root.append(node);return node;};
       add('h2','Create map from Photoshop file');
-      add('p','Uses your configured local Python exporter. Choose local artwork or a Dropbox PSD/PSB, load its layers, then export a new map. Artwork must use the original Taelgar scale (0.6 miles per pixel).');
+      add('p','Uses the bundled exporter with your local Python environment. Choose a local PSD/PSB, or a public Dropbox link, then load its layers. Artwork must use the original Taelgar scale (0.6 miles per pixel).');
       const field=(name,type,value='')=>{const label=add('label',name),input=doc.createElement(type==='select'?'select':'input');if(type!=='select')input.type=type;if(type==='checkbox')label.classList.add('map-create-checkbox');input.value=value;input.setAttribute('aria-label',name);label.append(input);return input;};
       const button=(text,action)=>{const b=add('button',text);b.type='button';b.addEventListener('click',action);return b;};
       this.mode=field('Source','select');
-      for(const [value,text] of [['local','Local Photoshop file'],['dropbox','Dropbox API']]){const option=doc.createElement('option');option.value=value;option.textContent=text;this.mode.append(option);}
+      for(const [value,text] of [['local','Local Photoshop file'],['dropbox','Dropbox shared link']]){const option=doc.createElement('option');option.value=value;option.textContent=text;this.mode.append(option);}
       this.source=field('Photoshop file path','text');this.source.placeholder='/absolute/path/world.psb';
-      this.token=field('Dropbox access token (this dialog only)','password');this.token.autocomplete='off';this.token.spellcheck=false;
-      this.namespace=field('Dropbox root namespace (optional)','text');
-      this.dropboxHelp=add('p','Use an account-relative Dropbox path such as /Maps/world.psb or a file id:. Enter a short-lived token here, or configure a private credential JSON file in settings. Downloads use a verified local cache; Dropbox files are read only.');
-      const updateMode=()=>{const isDropbox=this.mode.value==='dropbox';for(const node of [this.token.parentElement,this.namespace.parentElement,this.dropboxHelp])node.hidden=!isDropbox;this.source.placeholder=isDropbox?'/Maps/world.psb':'/absolute/path/world.psb';this.invalidate();};
+      this.dropboxHelp=add('p','Paste a public Dropbox shared-file link to a PSD/PSB. No token or Dropbox app setup is needed. The link must allow downloads without signing in or a password. Downloads are read only and cached locally.');
+      const updateMode=()=>{
+        const isDropbox=this.mode.value==='dropbox';
+        this.dropboxHelp.hidden=!isDropbox;this.source.placeholder=isDropbox?'https://www.dropbox.com/scl/fi/…':'/absolute/path/world.psb';this.invalidate();
+      };
       this.mode.addEventListener('change',updateMode);
-      for(const input of [this.source,this.token,this.namespace])input.addEventListener('input',()=>this.invalidate());
+      this.source.addEventListener('input',()=>{if(/^https?:/i.test(this.source.value.trim()))this.mode.value='dropbox';updateMode();});
       updateMode();
       this.load=button('Load Photoshop layers',()=>void this.inspect());
       this.canvas=add('p','No Photoshop source loaded.');
@@ -57,10 +58,9 @@ export function openCreatePhotoshopMap(feature){
         await this.job?.dispose();this.job=null;
         const settings=feature.plugin.settings,isDropbox=this.mode.value==='dropbox';
         const job=await PhotoshopJob.create({python:settings.photoshopPython,exporter:settings.photoshopExporter,
-          credentialsFile:isDropbox?settings.photoshopDropboxCredentials:'',vaultRoot:this.app.vault.adapter.getBasePath?.(),
-          token:isDropbox?this.token.value:'',onProgress:text=>{if(!this.closed)this.status.textContent=text;}});
+          onProgress:text=>{if(!this.closed)this.status.textContent=text;}});
         this.job=job;if(this.closed){await job.dispose();return;}
-        const inventory=await job.inspect({source:this.source.value,dropbox:isDropbox,namespace:this.namespace.value});
+        const inventory=await job.inspect({source:this.source.value,dropbox:isDropbox});
         if(this.closed)return;
         this.inventory=inventory;this.canvas.textContent=`${inventory.width} × ${inventory.height} pixels · ${inventory.layers.length} drawable layers`;
         const doc=this.contentEl.ownerDocument;
@@ -69,7 +69,9 @@ export function openCreatePhotoshopMap(feature){
           if(!row.supported){const reason=doc.createElement('small');reason.textContent=row.reason || 'Unsupported compositing.';label.append(reason);}
           this.layerList.append(label);return {...row,input};
         });
-        const stem=this.source.value.split(/[\\/]/).pop().replace(/\.ps[db]$/i,'').replace(/[:*?"<>|#\x00-\x1f\x7f]/g,'-').replace(/^\.+|[. ]+$/g,'').trim() || 'New map';
+        let sourceName=this.source.value.trim();
+        if(isDropbox){try{sourceName=decodeURIComponent(new URL(sourceName).pathname);}catch{sourceName='New map';}}
+        const stem=sourceName.split(/[\\/]/).pop().replace(/\.ps[db]$/i,'').replace(/[:*?"<>|#\x00-\x1f\x7f]/g,'-').replace(/^\.+|[. ]+$/g,'').trim() || 'New map';
         const available=(prefix,suffix)=>{let value=prefix+suffix;for(let i=2;this.app.vault.getAbstractFileByPath(value);i++)value=prefix+'-'+i+suffix;return value;};
         this.image.value=available('assets/maps/'+stem,'.png');this.manifest.value=available(this.image.value.slice(0,-4),'.map.json');this.note.value=available('Maps/'+stem,'.md');
         this.status.textContent='Layers loaded. Review selection and output paths, then export.';
@@ -95,7 +97,7 @@ export function openCreatePhotoshopMap(feature){
       finally{if(!this.closed)this.setBusy(false);}
     }
     onClose(){
-      this.closed=true;feature.creators.delete(this);if(this.token)this.token.value='';
+      this.closed=true;feature.creators.delete(this);
       void this.job?.dispose().catch(()=>new Notice('Could not remove the temporary Photoshop export folder. It can be removed from the system temp directory.'));
       this.layers=[];this.inventory=null;this.contentEl.replaceChildren();
     }

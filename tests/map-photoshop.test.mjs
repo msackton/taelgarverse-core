@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {EventEmitter} from 'node:events';
 import sharp from 'sharp';
-import {PhotoshopJob,runPython,checkCredentialsFile} from '../obsidian/taelgarverse/maps/photoshop-runner.mjs';
+import {PhotoshopJob,runPython} from '../obsidian/taelgarverse/maps/photoshop-runner.mjs';
 
 const png=await sharp({create:{width:4,height:4,channels:4,background:'transparent'}}).png().toBuffer();
 const fixture=`import fs from 'node:fs/promises';
@@ -42,23 +42,14 @@ test('runner rejects invalid inventory and requires an absolute configured expor
  await assert.rejects(job.inspect({source:'relative.psd'}),/absolute/);
  await assert.rejects(job.inspect({source:path.join(root,'invalid.psd')}),/Invalid Photoshop layer inventory/);
 });
-test('credentials must stay outside the vault, including symlinks',async t=>{
- const {root}=await setup(t),vault=path.join(root,'vault'),outside=path.join(root,'private.json');await fs.mkdir(vault);await fs.writeFile(outside,'{}');await fs.writeFile(path.join(vault,'secret.json'),'{}');
- assert.equal(await checkCredentialsFile(outside,vault),outside);
- await assert.rejects(checkCredentialsFile('relative.json',vault),/absolute/);
- await assert.rejects(checkCredentialsFile(path.join(vault,'secret.json'),vault),/outside the vault/);
- const vaultLink=path.join(vault,'external.json');await fs.symlink(outside,vaultLink);await assert.rejects(checkCredentialsFile(vaultLink,vault),/outside the vault/);
- const link=path.join(root,'link.json');await fs.symlink(path.join(vault,'secret.json'),link);
- await assert.rejects(checkCredentialsFile(link,vault),/outside the vault/);
-});
-test('subprocess uses literal arguments and environment-only tokens, redacts bounded error output',async()=>{
+test('subprocess uses literal arguments and environment-only links, redacts bounded error output',async()=>{
  const calls=[],progress=[];
  const spawnProcess=(python,args,options)=>{
   calls.push({python,args,options});const child=new EventEmitter();child.stdout=new EventEmitter();child.stderr=new EventEmitter();
   queueMicrotask(()=>{child.stderr.emit('data',Buffer.from('x'.repeat(10000)+'token-secret'));child.emit('close',1);});return child;
  };
- await assert.rejects(runPython('/python with spaces',['--source','$(bad);file.psd'],{spawnProcess,env:{DROPBOX_ACCESS_TOKEN:'token-secret'},onProgress:text=>progress.push(text)}),error=>error.message.length<=8192 && error.message.includes('[redacted]') && !error.message.includes('token-secret'));
- assert.equal(calls[0].options.shell,false);assert.equal(calls[0].options.env.DROPBOX_ACCESS_TOKEN,'token-secret');assert.deepEqual(calls[0].args,['--source','$(bad);file.psd']);assert.ok(progress.every(text=>!text.includes('token-secret')));
+ await assert.rejects(runPython('/python with spaces',['--source','$(bad);file.psd'],{spawnProcess,env:{TAELGAR_DROPBOX_LINK:'token-secret'},onProgress:text=>progress.push(text)}),error=>error.message.length<=8192 && error.message.includes('[redacted]') && !error.message.includes('token-secret'));
+ assert.equal(calls[0].options.shell,false);assert.equal(calls[0].options.env.TAELGAR_DROPBOX_LINK,'token-secret');assert.deepEqual(calls[0].args,['--source','$(bad);file.psd']);assert.ok(progress.every(text=>!text.includes('token-secret')));
 });
 test('cancellation waits for subprocess close before rejecting and never starts an already cancelled job',async()=>{
  const controller=new AbortController();let child,started=0,killed=false,closed=false;
@@ -69,4 +60,26 @@ test('cancellation waits for subprocess close before rejecting and never starts 
 });
 test('missing executable yields an actionable error',async()=>{
  await assert.rejects(runPython('/not-a-real-python-executable',[]),/Could not start Python/);
+});
+
+test('bundled exporter includes maintained sources, recipe and geometry and needs no script override',async t=>{
+ const {readMapExporterBundle}=await import('../scripts/build-obsidian.mjs');
+ const {exporterFiles,unpackExporter}=await import('../obsidian/taelgarverse/maps/bundled-exporter.mjs');
+ const bundle=await readMapExporterBundle(),job=await PhotoshopJob.create({bundle});t.after(()=>job.dispose());
+ assert.ok(job.exporter.startsWith(job.directory+path.sep));assert.ok(job.exporter.endsWith('export_core.py'));
+ for(const name of exporterFiles)assert.equal(await fs.readFile(path.join(job.directory,'exporter',name),'utf8'),await fs.readFile(new URL('../'+name,import.meta.url),'utf8'));
+ await assert.rejects(unpackExporter(job.directory,bundle),{code:'EEXIST'});
+ await assert.rejects(PhotoshopJob.create({bundle:{...bundle,'../escape.py':'bad'}}),/incomplete/);
+ const directory=job.directory;await job.dispose();await assert.rejects(fs.stat(directory),{code:'ENOENT'});
+});
+test('Dropbox shared links use environment-only URLs and do not pass API credential arguments',async t=>{
+ const {options,root}=await setup(t),job=await PhotoshopJob.create(options);t.after(()=>job.dispose());
+ const link='https://www.dropbox.com/scl/fi/example/world.psb?rlkey=private-test-key&dl=0';
+ job.run=async(args,env)=>{
+  assert.ok(args.includes('--dropbox-link-env'));assert.ok(!args.includes(link));assert.ok(!args.includes('--dropbox-credentials'));assert.ok(!args.includes('--dropbox-root'));assert.equal(env.TAELGAR_DROPBOX_LINK,link);
+  await fs.writeFile(args[args.indexOf('--inventory-json')+1],JSON.stringify({version:1,width:4,height:4,source:{path:path.join(root,'cached.psb')},layers:[]}));
+ };
+ await assert.rejects(job.inspect({source:'/Maps/world.psb',dropbox:true}),/shared-file link/);
+ await assert.rejects(job.inspect({source:'id:file',dropbox:true}),/shared-file link/);
+ await job.inspect({source:link,dropbox:true});
 });

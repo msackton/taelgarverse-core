@@ -2,10 +2,11 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
+import {unpackExporter,bundledExporter} from './bundled-exporter.mjs';
 import {MAX_MAP_PNG_BYTES,mapPngInfo} from './create-map-files.mjs';
 
 const cancelled=()=>new Error('Photoshop export cancelled.');
-const privateKeys=['DROPBOX_ACCESS_TOKEN','DROPBOX_APP_KEY','DROPBOX_APP_SECRET','DROPBOX_REFRESH_TOKEN'];
+const privateKeys=['TAELGAR_DROPBOX_LINK'];
 
 // No shell, no credentials in arguments, and bounded output even for very large PSDs.
 export function runPython(python,args,{signal,env=process.env,onProgress=()=>{},spawnProcess=spawn}={}){
@@ -42,50 +43,35 @@ async function readBounded(file,limit){
   }finally{await handle.close();}
 }
 
-export async function checkCredentialsFile(filename,vaultRoot){
-  if(!filename)return '';
-  if(!path.isAbsolute(filename))throw new Error('Dropbox credential file must have an absolute path outside the vault.');
-  const real=await fs.realpath(filename);
-  if(vaultRoot){
-    const root=await fs.realpath(vaultRoot);
-    for(const candidate of [path.resolve(filename),real]){
-      const relative=path.relative(root,candidate);
-      if(!relative || (!relative.startsWith('..'+path.sep) && relative!=='..' && !path.isAbsolute(relative)))throw new Error('Move the Dropbox credential file outside the vault before using it.');
-    }
-  }
-  return real;
-}
-
 export class PhotoshopJob {
-  static async create({python,exporter,credentialsFile='',vaultRoot,token='',onProgress=()=>{}}){
-    if(!exporter || !path.isAbsolute(exporter))throw new Error('Set the absolute Python exporter script path in Taelgarverse settings first.');
-    if(!(await fs.stat(exporter)).isFile())throw new Error('Python exporter script was not found.');
-    const credentials=await checkCredentialsFile(credentialsFile,vaultRoot);
-    if(/[\r\n]/.test(token))throw new Error('Invalid Dropbox access token.');
+  static async create({python,exporter='',onProgress=()=>{},bundle=bundledExporter}){
+    if(exporter && !path.isAbsolute(exporter))throw new Error('The optional exporter override must be an absolute script path.');
+    if(exporter && !(await fs.stat(exporter)).isFile())throw new Error('Python exporter override was not found. Clear the override to use the bundled exporter.');
     const directory=await fs.mkdtemp(path.join(os.tmpdir(),'taelgar-map-'));
-    return new PhotoshopJob({python:python || (process.platform==='win32'?'python':'python3'),exporter,credentials,token,onProgress,directory});
+    try{
+      exporter=exporter || await unpackExporter(directory,bundle);
+      return new PhotoshopJob({python:python || (process.platform==='win32'?'python':'python3'),exporter,onProgress,directory});
+    }catch(error){await fs.rm(directory,{recursive:true,force:true});throw error;}
   }
   constructor(options){Object.assign(this,options);this.controller=new AbortController();this.pending=null;this.inventory=null;}
-  async run(args){
+  async run(args,extraEnv={}){
     if(this.controller.signal.aborted)throw cancelled();
     if(this.pending)throw new Error('A Photoshop operation is already running.');
-    const env={...process.env,PYTHONUNBUFFERED:'1'};
-    if(this.token)env.DROPBOX_ACCESS_TOKEN=this.token;
+    const env={...process.env,...extraEnv,PYTHONUNBUFFERED:'1'};
     const pending=runPython(this.python,[this.exporter,...args],{signal:this.controller.signal,env,onProgress:this.onProgress});
     this.pending=pending;
     try{await pending;}finally{this.pending=null;}
   }
-  async inspect({source,dropbox=false,namespace=''}){
+  async inspect({source,dropbox=false}){
     if(this.inventory)throw new Error('Create a new inspection to reload Photoshop layers.');
     source=source.trim();
-    if(!source || (!dropbox && !path.isAbsolute(source)))throw new Error('Enter an absolute local PSD/PSB path, or choose a Dropbox source.');
-    const args=dropbox?['--dropbox-path',source,'--cache-dir',path.join(os.tmpdir(),'taelgarverse-dropbox')]:['--source',source];
-    if(dropbox && this.credentials)args.push('--dropbox-credentials',this.credentials);
-    if(dropbox && namespace.trim())args.push('--dropbox-root',namespace.trim());
+    if(!source || (!dropbox && !path.isAbsolute(source)))throw new Error('Enter an absolute local PSD/PSB path, or choose a Dropbox shared link.');
+    if(dropbox && !/^https:\/\//i.test(source))throw new Error('Paste an HTTPS Dropbox shared-file link; account paths and file IDs are not supported.');
+    const args=dropbox?['--dropbox-link-env','--cache-dir',path.join(os.tmpdir(),'taelgarverse-dropbox')]:['--source',source];
     const filename=path.join(this.directory,'inventory.json');
-    await this.run([...args,'--inventory-json',filename]);
+    await this.run([...args,'--inventory-json',filename],dropbox?{TAELGAR_DROPBOX_LINK:source}:{});
     const value=JSON.parse(await readBounded(filename,2*1024*1024));
-    if(value.version!==1 || !path.isAbsolute(value.source?.path??'') || !Array.isArray(value.layers) || value.layers.length>4096 || !Number.isInteger(value.width) || !Number.isInteger(value.height) || value.width<=0 || value.height<=0 || value.width>50000 || value.height>50000 || value.width*value.height>250000000 || value.layers.some(row=>typeof row.path!=='string' || !row.path.startsWith('/') || typeof row.visible!=='boolean' || typeof row.supported!=='boolean'))throw new Error('Invalid Photoshop layer inventory; update the Python exporter checkout.');
+    if(value.version!==1 || !path.isAbsolute(value.source?.path??'') || !Array.isArray(value.layers) || value.layers.length>4096 || !Number.isInteger(value.width) || !Number.isInteger(value.height) || value.width<=0 || value.height<=0 || value.width>50000 || value.height>50000 || value.width*value.height>250000000 || value.layers.some(row=>typeof row.path!=='string' || !row.path.startsWith('/') || typeof row.visible!=='boolean' || typeof row.supported!=='boolean'))throw new Error('Invalid Photoshop layer inventory; update the plugin or its exporter override.');
     this.inventory=value;return value;
   }
   async export({layers,topLeft='',bottomRight='',transparent=false}){
@@ -113,7 +99,7 @@ export class PhotoshopJob {
   async dispose(){
     this.controller.abort();
     await this.pending?.catch(()=>{});
-    this.token='';this.inventory=null;
+    this.inventory=null;
     await fs.rm(this.directory,{recursive:true,force:true});
   }
 }

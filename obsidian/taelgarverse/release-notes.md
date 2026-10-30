@@ -1,12 +1,13 @@
-Taelgarverse 0.9.1
+Taelgarverse 0.9.2
 
-- Add **Create map from image**: choose a vault PNG or import one from your computer, set its world offset, and create a new map note and manifest with the editor ready to use. No existing map is required.
-- Add **Create map from Photoshop file** on desktop: load PSD/PSB layers, choose which supported layers to export, optionally crop to hexes or use transparency, then create and open the map with its world offset preserved.
-- Read Photoshop sources through the Dropbox API, with revision-pinned downloads, verified local caching, session-only access tokens or private refresh-token credential files. Dropbox files are never modified.
-- Open newly created map manifests immediately, before Obsidian finishes indexing them. Creation checks PNG contents and preserves existing vault files.
+- Bundle the Photoshop exporter, geometry, recipe, and support modules inside the plugin. BRAT updates now carry the exporter; no separate checkout or script download is required.
+- Support public Dropbox PSD/PSB shared links, including modern `/scl/fi/` and older `/s/` links. Paste a link to select Dropbox mode automatically. Downloads preserve the shared access key, stream to a local cache, and keep query strings out of output filenames.
+- Simplify Dropbox import to shared links only. Remove account paths, file IDs, API tokens, credential-file settings, refresh authentication, and namespace configuration. Links must permit downloads without signing in or entering a password.
 
-Photoshop setup: configure a local Python executable with the exporter's dependencies and the absolute path to `scripts/map-export/export_core.py` from an updated taelgarverse-core checkout. Python and the exporter are not bundled in the plugin. Dropbox credential files must stay outside the vault. See [setup instructions](https://github.com/msackton/taelgarverse-core/blob/main/docs/map-editor.md#create-a-map-from-photoshop).
+Upgrading from 0.9.1: clear **Map exporter: script override (optional)** to use the bundled exporter. Keep your configured Python executable; a local 64-bit Python 3.11 environment with psd-tools, Pillow, numpy, and attrs is still required. Existing private credential files are no longer used and are not deleted. CLI users should replace `--dropbox-path` with `--dropbox-link` (or `--dropbox-link-env`).
 
-Map creation expects native Taelgar world-scale artwork. Higher-resolution regional artwork continues to use regional templates. Photoshop export retains its RGB 8-bit and compositing restrictions; unsupported layers are explained in the dialog. Live Dropbox authentication and a real Obsidian/BRAT installation were not verified in this release environment; automated Dropbox tests and a browser harness with real Python export passed.
+The downloader checks Photoshop signatures and declared lengths, records local SHA-256 checksums, and revalidates cached downloads when Dropbox supplies HTTP validators. It does not use the former API revision/content-hash contract. Shared URLs are not saved in map notes or cache indexes.
 
-Minimum Obsidian version remains 1.8.0; this plugin is desktop-only.
+Automated tests cover shared-link transport and real PSD export, and browser checks use the bundled exporter. A live download of the full user PSB and an actual Obsidian/BRAT installation were not verified in this environment.
+
+Minimum Obsidian version remains 1.8.0; this plugin is desktop-only. See [setup and shared-link instructions](https://github.com/msackton/taelgarverse-core/blob/main/docs/map-editor.md#create-a-map-from-photoshop).

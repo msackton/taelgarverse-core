@@ -416,7 +416,7 @@ keeping the larger enclosed region. Automatic measurement closure corrects only
 tiny edge loops; choose **Close shape** for larger overlaps. Multiple outlines
 have separate readings; outlines with no usable interior report that area is
 unavailable. All measurements are temporary. Map viewing and measurement use local images without network requests.
-The optional Photoshop import can download source artwork through the Dropbox API. Measurements do not rewrite
+The optional Photoshop import can download source artwork from public Dropbox shared links. Measurements do not rewrite
 notes; town and path authoring in the separate editor writes only on explicit Save.
 Per-map `crop` accepts Photoshop pixels or inclusive hex endpoints and limits
 panning. Polygon masks and dim/hide overlays are no longer supported.
@@ -464,8 +464,8 @@ map block. Details fade in with zoom beneath editable features. See the
 [regional artwork guide](../../docs/map-editor.md#regional-artwork).
 
 
-**Create map from Photoshop file** runs the configured local Python exporter,
-loads local or Dropbox PSD/PSB layers, and creates a map with the correct world
-offset. Set the Python executable and exporter script path in Taelgarverse
-settings; Dropbox credentials stay outside the vault or in the current dialog.
+**Create map from Photoshop file** uses the exporter bundled in the plugin and
+loads local PSD/PSB files or public Dropbox shared-file links. Set only the local
+Python executable and install its dependencies; leave the optional script
+override blank. No separate checkout, Dropbox token, or API app is required.
 See [Photoshop setup](../../docs/map-editor.md#create-a-map-from-photoshop).

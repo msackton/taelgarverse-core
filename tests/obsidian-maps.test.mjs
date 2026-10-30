@@ -145,7 +145,7 @@ test('an Obsidian note closed during image hashing never mounts a stale map',asy
 
 test('Obsidian release bundle is self-contained except for the host API and has inline Leaflet icons',async()=>{
   const output=await buildObsidian(),main=await fs.readFile(path.join(output,'main.js'),'utf8');
-  assert.doesNotThrow(()=>new vm.Script(main));assert.match(main,/require\("obsidian"\)/);assert.match(main,/Trace path/);
+  assert.doesNotThrow(()=>new vm.Script(main));assert.match(main,/require\("obsidian"\)/);assert.match(main,/Trace path/);assert.match(main,/def download_link/);assert.match(main,/def pixel_bounds/);assert.match(main,/psd-tools==1\.26\.0/);
   const styles=await fs.readFile(path.join(output,'styles.css'),'utf8');assert.doesNotMatch(styles,/url\(images\//);assert.match(styles,/data:image\/png;base64/);
   const manifest=JSON.parse(await fs.readFile(path.join(output,'manifest.json'),'utf8'));
   assert.equal(manifest.id,'taelgarverse');

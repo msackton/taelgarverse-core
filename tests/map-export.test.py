@@ -7,6 +7,7 @@ import json
 import io
 import tempfile
 import subprocess
+import os
 from unittest.mock import patch
 from contextlib import redirect_stdout, redirect_stderr
 from PIL import Image
@@ -320,6 +321,44 @@ class ExportTests(unittest.TestCase):
                 self.assertEqual(image.getpixel((3, 2)), (20, 40, 60, 64))
             self.assertEqual(json.loads((root / "trace.map.json").read_text())["sourceOffset"], [0, 0])
             self.assertIn("Tracing X: 0, Y: 0, scale: 1", result.stdout)
+
+    def test_shared_link_cli_exports_saved_psd_without_api_or_external_credentials(self):
+        from psd_tools import PSDImage
+        from psd_tools.api.layers import PixelLayer
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); document=PSDImage.new('RGBA',(8,6))
+            PixelLayer.frompil(Image.new('RGBA',(2,2),'blue'),document,name='river',left=2,top=1)
+            document.save(root/'source.psd')
+            # Patch only HTTP transport; exercise the actual CLI, downloader and compositor.
+            runner = """
+import io, pathlib, runpy, sys
+from unittest.mock import patch
+source=pathlib.Path(sys.argv[1]); script=sys.argv[2]; arguments=sys.argv[3:]
+class Response(io.BytesIO):
+    status=200
+    def __init__(self):
+        body=source.read_bytes();super().__init__(body);self.headers={'Content-Length':str(len(body))}
+class Opener:
+    def open(self,request,timeout):
+        assert request.full_url=='https://www.dropbox.com/scl/fi/example/world.psb?rlkey=private-key&dl=1'
+        assert request.get_header('Authorization') is None
+        return Response()
+sys.argv=[script,*arguments]
+with patch('urllib.request.build_opener',return_value=Opener()):runpy.run_path(script,run_name='__main__')
+"""
+            script=ROOT/'scripts/map-export/export_core.py'
+            result=subprocess.run([sys.executable,'-c',runner,str(root/'source.psd'),str(script),
+                '--dropbox-link-env','--cache-dir',str(root/'cache'),'--only-layer','/river','--output',str(root/'map')],
+                capture_output=True,text=True,env={**os.environ,'PYTHONPATH':str(script.parent),
+                'TAELGAR_DROPBOX_LINK':'https://www.dropbox.com/scl/fi/example/world.psb?rlkey=private-key&st=tracking&dl=0'})
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertNotIn('private-key',result.stdout+result.stderr)
+            with Image.open(root/'map.png') as image:
+                self.assertEqual(image.size,(8,6));self.assertEqual(image.getpixel((0,0)),(0,0,0,0))
+                self.assertEqual(image.getpixel((2,1)),(0,0,255,255))
+            self.assertEqual(json.loads((root/'map.map.json').read_text())['sourceOffset'],[0,0])
+            removed=subprocess.run([sys.executable,str(script),'--dropbox-path','/world.psb','--plan'],capture_output=True,text=True)
+            self.assertEqual(removed.returncode,2);self.assertIn('unrecognized arguments',removed.stderr)
 
     def test_transparent_export_cleans_up_failed_writes(self):
         with tempfile.TemporaryDirectory() as directory:

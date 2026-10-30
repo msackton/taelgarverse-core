@@ -272,7 +272,7 @@ grid references, Node/Worker publication, and Obsidian loading. The local 636×5
 sample at `[5605,7180]` was pixel-identical to the same region of the prior export.
 
 Run `npm test`, `.venv-map-lab/Scripts/python.exe tests/map-export.test.py`,
-`.venv-map-lab/Scripts/python.exe tests/map-export-dropbox.test.py`, and
+`.venv-map-lab/Scripts/python.exe tests/map-export-links.test.py`, and
 `node scripts/cloudflare.mjs check`. Publication checks use the local emulator:
 `node --test tests/publish-r2.integration.mjs`.
 
@@ -312,15 +312,13 @@ viewport re-entry, and grid geometry at every hierarchy level.
 
 ## Dropbox sources and layer inspection
 
-The desktop plugin can run this exporter through
-[Create map from Photoshop](map-editor.md#create-a-map-from-photoshop). The same
-source support is available directly from the CLI. With a private credential
-file outside the vault:
+The desktop plugin [bundles this exporter](map-editor.md#create-a-map-from-photoshop)
+and uses a configured local Python environment. CLI users can also download a
+public Dropbox shared-file link without credentials:
 
 ```sh
 python scripts/map-export/export_core.py \
-  --dropbox-path /Maps/world.psb \
-  --dropbox-credentials /private/path/dropbox.json \
+  --dropbox-link 'https://www.dropbox.com/scl/fi/FILE_ID/world.psb?rlkey=SHARED_LINK_KEY&dl=0' \
   --cache-dir /private/cache/taelgarverse-dropbox \
   --output .cache/map-baseline/world
 ```
@@ -328,25 +326,25 @@ python scripts/map-export/export_core.py \
 This uses the existing core layer recipe. Add `--recipe my-layers.json`,
 `--only-layer /group/layer`, or `--transparent` for your desired selection and
 background. Existing `--top-left`, `--bottom-right`, and `--regional-template`
-options work with Dropbox sources too. `--source` and `--dropbox-path` are mutually
-exclusive. `--plan` performs no Dropbox request or credential lookup.
+options work with shared links too. `--source`, `--dropbox-link`, and
+`--dropbox-link-env` are mutually exclusive. The latter reads `TAELGAR_DROPBOX_LINK`
+from the process environment; the plugin uses it to keep shared access keys out
+of process arguments. `--plan` makes no download request.
 
-Authentication supports a private JSON file with `access_token`, or `app_key`
-and `refresh_token` (plus `app_secret` when required). Environment variables
-`DROPBOX_ACCESS_TOKEN`, `DROPBOX_APP_KEY`, `DROPBOX_REFRESH_TOKEN`, and
-`DROPBOX_APP_SECRET` can supply the same values and take precedence. Never pass
-tokens as CLI arguments. See [authentication setup](map-editor.md#dropbox-authentication-and-cache)
-for scopes and account paths. Use `--dropbox-root NAMESPACE_ID` for a nondefault
-root namespace. Sources must be PSD/PSB files; shared links are not accepted.
+Only public `/scl/fi/` or `/s/` PSD/PSB file links that allow downloads without
+sign-in/passwords are supported. Account paths, IDs, API credentials, refresh
+flows and root namespaces have been removed. See
+[shared links and caching](map-editor.md#dropbox-shared-links-and-cache).
 
-The CLI cache defaults to `~/.cache/taelgarverse/dropbox`; the plugin explicitly
-uses the system temp directory instead. `--max-download-gib` defaults to 16,
-with a maximum of 64. A download is pinned to its metadata revision, streamed to
-a temporary file, checked against Dropbox's content hash, then atomically cached.
-A cached revision is rehashed before reuse. The cache is not automatically pruned;
-remove unused revisions when no job is running. No Dropbox writes occur.
+The CLI cache defaults to `~/.cache/taelgarverse/dropbox`; the plugin uses the
+system temp directory. `--max-download-gib` defaults to 16, with a maximum of 64.
+Downloads are streamed, checked for a PSD/PSB signature and declared length,
+and cached atomically with a local SHA-256 checksum. Reuse requires valid cached
+bytes and a successful HTTP revalidation; links without HTTP validators download
+again on inspection. The shared-link service does not supply Dropbox API revision
+IDs/content hashes. The cache is not automatically pruned. No Dropbox writes occur.
 
-Inspect a local or Dropbox source without rendering:
+Inspect a local source (or substitute either shared-link option):
 
 ```sh
 python scripts/map-export/export_core.py \
@@ -354,14 +352,15 @@ python scripts/map-export/export_core.py \
   --inventory-json .cache/world-layers.json
 ```
 
-The new JSON file records canvas dimensions, drawable layer paths, saved
-visibility, supported-compositing status/reasons, and the local source's path,
-size, and nanosecond modification time. It never contains credentials. Pass
-`--expected-source .cache/world-layers.json` during export to reject a source
-changed since inspection. For Dropbox inspection, export from the cached local
-`source.path` in that inventory to use that exact downloaded revision. Inventories
-are created exclusively; choose another path or remove your old inventory to reload.
+The JSON records canvas dimensions, drawable layer paths, saved visibility,
+supported-compositing status/reasons, and the local source's path, size, and
+nanosecond modification time. Pass `--expected-source .cache/world-layers.json`
+during export to reject a file changed since inspection. For a shared-link
+inspection, use the inventory's cached `source.path` for export to retain those
+exact downloaded bytes. Inventories are created exclusively; choose a new path
+or remove the old inventory before reloading.
 
-Offline tests mock Dropbox metadata/download/token endpoints and cover refresh,
-revision mismatch, corrupt/short/oversized downloads, cancellation cleanup, cache
-verification, and error redaction. They do not require personal credentials.
+Offline tests cover link normalization, HTTPS redirect restrictions, absent
+authentication headers, cache revalidation/corruption, truncated/oversized
+responses, HTML instead of Photoshop data, and interruption cleanup. They never
+access a personal Dropbox file.

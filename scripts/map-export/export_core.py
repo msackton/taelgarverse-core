@@ -2,6 +2,7 @@
 import argparse
 import json
 import math
+import os
 import signal
 from pathlib import Path
 import sys
@@ -10,7 +11,7 @@ from PIL import Image
 from psd_tools import PSDImage
 from psd_tools.constants import BlendMode, ColorMode, Resource
 from map_coordinates import pixel_bounds
-from dropbox_source import download_source
+from dropbox_link import download_link
 
 
 def require(condition, message):
@@ -242,9 +243,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     sources = parser.add_mutually_exclusive_group()
     sources.add_argument("--source", type=Path)
-    sources.add_argument("--dropbox-path", help="Dropbox /path/file.psd, /path/file.psb or id: identifier; download via read-only API")
-    parser.add_argument("--dropbox-credentials", type=Path, help="Private JSON credential file outside the vault; tokens are never command arguments")
-    parser.add_argument("--dropbox-root", help="Optional Dropbox root namespace id")
+    sources.add_argument("--dropbox-link", help="Public HTTPS Dropbox /scl/fi/ or /s/ link to a PSD/PSB; no token required")
+    sources.add_argument("--dropbox-link-env", action="store_true", help="Read shared link from TAELGAR_DROPBOX_LINK instead of process arguments")
     parser.add_argument("--cache-dir", type=Path, default=Path.home()/".cache/taelgarverse/dropbox")
     parser.add_argument("--max-download-gib", type=int, default=16)
     parser.add_argument("--inventory-json", type=Path, help="Inspect drawable layers and save a new JSON inventory instead of exporting")
@@ -266,10 +266,10 @@ if __name__ == "__main__":
     try:
         source = args.source
         require(not (args.inventory_json and args.plan), "Use --inventory-json or --plan, not both.")
-        if args.dropbox_path and not args.plan:
-            source = download_source(args.dropbox_path, args.cache_dir, credentials_file=args.dropbox_credentials,
-                                     namespace=args.dropbox_root, max_bytes=args.max_download_gib*1024**3,
-                                     progress=lambda message: print(message, flush=True))
+        if (args.dropbox_link or args.dropbox_link_env) and not args.plan:
+            link = os.environ.get("TAELGAR_DROPBOX_LINK") if args.dropbox_link_env else args.dropbox_link
+            source = download_link(link, args.cache_dir, max_bytes=args.max_download_gib*1024**3,
+                                   progress=lambda message: print(message, flush=True))
         if args.inventory_json:
             require(source is not None, "Choose a local or Dropbox Photoshop file.")
             inspect_source(source, args.inventory_json)

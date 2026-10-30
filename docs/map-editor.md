@@ -57,22 +57,29 @@ Run **Taelgarverse: Create map from Photoshop file** on desktop. No existing map
 is required. This runs the local Python exporter in a child process; Photoshop
 itself does not need to be installed or open.
 
-First, set up a local checkout of `taelgarverse-core` with Python 3.11 and the
-exporter's dependencies (see [exporter setup](map-baseline-progress.md#reproduce-locally)).
-In **Settings → Taelgarverse**, configure:
+The exporter, geometry, recipe, and supporting Python modules are embedded in the
+plugin's `main.js`. BRAT installs/updates them with the plugin; no separate
+checkout or script download is needed. They are unpacked into the job's private
+temporary folder and removed when it closes.
 
-- **Map exporter: Python executable:** the executable in your Python environment,
-  such as `/path/to/.venv-map/bin/python` or `C:\path\.venv-map\Scripts\python.exe`.
-  Supply an executable, without shell arguments.
-- **Map exporter: script path:** the absolute path to
-  `scripts/map-export/export_core.py` in that checkout. Keep the checkout current;
-  its adjacent modules and shared geometry file are required.
-- **Map exporter: Dropbox credential file:** optional; see below.
+You still need a local 64-bit Python 3.11 environment and its dependencies. For a
+new environment, use the Python executable for that environment to install:
 
-The plugin release does not bundle Python or install dependencies automatically.
+```sh
+python -m pip install psd-tools==1.26.0 Pillow==12.0.0 numpy==2.3.4 attrs==26.1.0
+```
+
+In **Settings → Taelgarverse**, set **Map exporter: Python executable** to that
+executable (for example `/path/to/.venv-map/bin/python` or
+`C:\path\.venv-map\Scripts\python.exe`), without shell arguments. Leave
+**Map exporter: script override (optional)** blank to use the bundled exporter.
+If you configured a checkout path in 0.9.1, clear it to switch to the bundled
+version. Advanced users can still specify an absolute custom exporter path.
+The plugin does not bundle a Python interpreter or install packages automatically.
 
 Choose **Local Photoshop file** and paste its absolute PSD/PSB path, or choose
-**Dropbox API** and enter the Dropbox path. Click **Load Photoshop layers**.
+**Dropbox shared link** and paste a public file link. Pasting an HTTPS URL also
+switches to Dropbox mode automatically. Click **Load Photoshop layers**.
 Review individual layer checkboxes (supported saved-visible layers are selected
 initially), optionally enter the first/last hex for a crop, choose a white or
 transparent background, and review the new PNG, manifest, and note paths.
@@ -99,49 +106,44 @@ export folder. Closing during final vault writes lets those writes finish, but
 does not open an editor. Existing vault files are never overwritten; partial
 vault creation reports retained files for recovery, just like image import.
 
-### Dropbox authentication and cache
+### Dropbox shared links and cache
 
-Use a Dropbox API app with **files.metadata.read** and **files.content.read**
-scopes. Its App Folder/Full Dropbox access must include the source file. Enter an
-account-relative path such as `/Maps/world.psb`, or a Dropbox `id:` identifier;
-shared-link URLs are not supported. Team accounts can supply a **Dropbox root
-namespace** when the file is outside their default home namespace.
+Paste a standard HTTPS Dropbox file link such as:
 
-Either enter a short-lived access token in the dialog's password field (kept
-only for that dialog), or configure an absolute path to a private credential JSON
-file **outside the vault**. A refresh-token file looks like:
-
-```json
-{
-  "app_key": "YOUR_APP_KEY",
-  "refresh_token": "YOUR_OFFLINE_REFRESH_TOKEN",
-  "app_secret": "YOUR_APP_SECRET_IF_REQUIRED"
-}
+```text
+https://www.dropbox.com/scl/fi/FILE_ID/world.psb?rlkey=SHARED_LINK_KEY&dl=0
 ```
 
-Omit `app_secret` for a PKCE/public-client authorization that does not require it.
-Obtain an offline refresh token through your Dropbox app's OAuth flow. A file
-containing only `{"access_token":"YOUR_SHORT_LIVED_TOKEN"}` is also accepted,
-but that token will expire. Restrict the credential file to your OS account.
-The dialog token overrides file credentials. Tokens are passed to Python through
-its environment; only the credential **file path** is saved in plugin settings.
-Do not store the credential file or paste tokens in vault notes/settings paths.
-This integration cannot reuse the Dropbox connection in ChatGPT.
+Both modern `/scl/fi/` and older `/s/` file links work. The downloader preserves
+`rlkey`, removes tracking/preview parameters, and requests the original file with
+`dl=1`. Suggested output names come from the URL's filename, without query strings.
+The link must allow downloads without signing in or entering a password; folder
+links and access-restricted links are not supported. No Dropbox account, API app,
+token, credential file, or namespace configuration is needed. Account paths and
+`id:` identifiers have been removed. Old credential-path settings are ignored;
+private credential files created for the old integration are never read or deleted.
 
-Downloads stream to a private cache under the system temp directory,
-`taelgarverse-dropbox`, keyed by file identity and revision. Both fresh downloads
-and cache hits are checked against Dropbox's content hash. Metadata is fetched
-when loading layers; exporting that selection does not redownload the PSD/PSB.
-The plugin allows sources up to 16 GiB; decoded artwork retains the exporter's
-50000-pixel edge/250-million-pixel limit, and imported PNGs the 256 MiB limit.
-Large Photoshop files still require sufficient RAM for Python composition.
+Downloads stream to `taelgarverse-dropbox` under the system temp directory, with
+a 16 GiB limit, PSD/PSB signature checks, and declared-length validation. Redirects
+stay on HTTPS Dropbox download hosts. Shared URLs are passed to Python through
+its environment and are not saved in map notes or cache indexes.
 
-Cached revisions remain for reuse and may consume significant disk space.
-Remove that cache folder when no Photoshop job is running to reclaim it; the
-next load downloads again. Interrupted downloads are discarded; an OS crash or
-forced process kill may leave a `.part` file that can also be removed then.
-The CLI has `--cache-dir` and `--max-download-gib` overrides. All Dropbox API
-operations here are read only: exported files are written locally, never uploaded.
+Cached files have local SHA-256 checksums. On another load, the cached bytes are
+verified and the download is revalidated with HTTP ETag/Last-Modified headers
+when supplied by Dropbox. Without those validators, loading downloads again.
+Shared links do not provide the authenticated API's revision/content-hash
+contract. Once layers are inspected, export uses that exact local file and checks
+its size/modification time; it does not download again.
+
+Cached files remain for reuse and can consume significant disk space. Remove the
+cache folder when no Photoshop job is running to reclaim it. Interrupted downloads
+are discarded; a forced process kill or OS crash may leave a removable `.part`
+file. The CLI accepts `--cache-dir` and `--max-download-gib` overrides.
+Nothing is uploaded or modified in Dropbox.
+
+Decoded artwork retains the exporter's 50000-pixel edge/250-million-pixel limit;
+imported PNGs have a 256 MiB limit. Large PSD/PSB files require sufficient disk and
+RAM even though downloading is streamed.
 
 ## Per-map crop
 

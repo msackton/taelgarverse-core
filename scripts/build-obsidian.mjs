@@ -3,10 +3,14 @@ import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
 import {build} from 'esbuild';
 import {repositoryVersion} from './repository-version.mjs';
+import {exporterFiles} from '../obsidian/taelgarverse/maps/bundled-exporter.mjs';
 
 const root=fileURLToPath(new URL('../',import.meta.url));
 export const pluginSource=path.join(root,'obsidian/taelgarverse');
 export const releaseFiles=['main.js','manifest.json','styles.css'];
+export async function readMapExporterBundle(){
+  return Object.fromEntries(await Promise.all(exporterFiles.map(async name=>[name,await fs.readFile(path.join(root,name),'utf8')])));
+}
 export async function buildObsidian(output=path.join(root,'dist/obsidian/taelgarverse')){
   const manifest=JSON.parse(await fs.readFile(path.join(pluginSource,'manifest.json'),'utf8'));
   const versions=JSON.parse(await fs.readFile(path.join(pluginSource,'versions.json'),'utf8'));
@@ -16,6 +20,7 @@ export async function buildObsidian(output=path.join(root,'dist/obsidian/taelgar
   await fs.mkdir(output,{recursive:true});
   await build({absWorkingDir:root,entryPoints:['obsidian/taelgarverse/main.mjs'],outfile:path.join(output,'main.js'),
     bundle:true,platform:'node',format:'cjs',target:'es2022',external:['obsidian','@codemirror/view','@codemirror/state'],legalComments:'inline',
+    define:{__TAELGAR_MAP_EXPORTER__:JSON.stringify(await readMapExporterBundle())},
     footer:{js:'module.exports = module.exports.default;'},logLevel:'silent'});
   let leaflet=await fs.readFile(path.join(root,'node_modules/leaflet/dist/leaflet.css'),'utf8');
   for(const match of [...leaflet.matchAll(/url\(images\/([^)]+)\)/g)]){
