@@ -92,6 +92,17 @@ test('CLI loads vault naming defaults while allowing explicit per-note article o
   assert.match(report.files[0].reason,/Header ineligible/,'ineligible notes never need naming rules or header detection');
 });
 
+test('CLI previews headerVersion removal and writes it only with a successfully regenerated header',async t=>{
+  const root=await fixture(t),file=path.join(root,'Fausto.md'),original=source.replace('name: Fausto','headerVersion: old\nname: Fausto');
+  await fs.writeFile(file,original);
+  let report=await runHeaderTool(['--vault',root,'--file','Fausto.md','--check']);
+  assert.equal(report.counts.changed,1);assert.match(report.files[0].before,/headerVersion: old/);
+  assert.doesNotMatch(report.files[0].after,/headerVersion/);assert.equal(await fs.readFile(file,'utf8'),original);
+  report=await runHeaderTool(['--vault',root,'--file','Fausto.md','--write']);assert.equal(report.written,1);
+  const updated=await fs.readFile(file,'utf8');assert.doesNotMatch(updated,/headerVersion/);assert.match(updated,/tags: \[person\]/);
+  report=await runHeaderTool(['--vault',root,'--file','Fausto.md','--check']);assert.equal(headerToolExitCode(report),0);
+});
+
 test('bulk mode skips infrastructure and unmarked notes, reports ambiguity, and does not write a batch with parse errors',async t=>{
   const root=await fixture(t);
   for(const [file,body] of Object.entries({'Fausto.md':source,'Unmarked.md':'Authored.','Ambiguous.md':'Authored.\n\n> [!taelgar-header]\n',

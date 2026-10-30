@@ -339,6 +339,9 @@ closed empty `taelgar-header` fences and leading `<!-- taelgar:header -->` /
 `<!-- taelgar-header -->` markers become an H1, optional pronunciation and a
 native callout. The H1 and saved summary follow the same approved formats and
 name/article defaults as the explicit regeneration command.
+Successful legacy conversion also removes the obsolete top-level `headerVersion`
+property from the prepared copy, preserving the remaining YAML. Source notes
+and already-native headers remain unchanged by publication preparation.
 
 Untagged notes and the excluded `session-note`, `meta`, `background`, `source`
 and `story` tag roots are skipped before header detection. Notes excluded from

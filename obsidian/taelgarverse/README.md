@@ -8,11 +8,14 @@ Name Explorer and the materializer remain separate. Requires Obsidian 1.8.0+.
 
 Use **Taelgarverse: Regenerate page header** or **Taelgarverse: Add header to
 current note**, assignable in Settings → Hotkeys. They rewrite only a recognized
-header range using current editor metadata, preserving frontmatter and article
+header range using current editor metadata, preserving other frontmatter and article
 text. An empty `> [!taelgar-header]` callout is an explicit insertion flag.
 Writing skips untagged notes and notes with session-note, meta, background,
 source or story tags before detecting any headers; Add does not override this.
 Explicit callouts on those pages still render normally.
+Successful conversion, regeneration and Add remove the obsolete top-level
+`headerVersion` field in the same edit. Previews include that removal; skipped
+notes keep all frontmatter unchanged.
 
 The installed `header-tool.cjs` offers the same source rewrite for a single file
 or all eligible Markdown, outside Obsidian and without a core checkout. It

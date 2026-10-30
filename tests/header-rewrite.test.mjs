@@ -74,7 +74,7 @@ test('places prefer type aliases, omit population and include timeless secondary
 test('Irrla regeneration includes both unambiguous timeless locations and omits dated or competing secondary locations',()=>{
   const yaml='---\nheaderVersion: 2023.11.25\ntags: [place]\ntypeOf: island\ntypeOfAlias: large island\nname: Irrla\npronunciation: EAR-la\nwhereabouts:\n- {type: primary, location: Green Sea}\n- {type: secondary, location: Eastern Green Sea}\n---\n';
   const result=rewriteHeader(yaml+'# Irrla\n> [!taelgar-header]\n> Old fallback\n\nAuthored article.\n',{filename:'Irrla.md'});
-  assert.equal(result.source,yaml+'# Irrla\n*(EAR-la)*\n> [!taelgar-header]\n> (large island, in Green Sea / Eastern Green Sea)\n\nAuthored article.\n');
+  assert.equal(result.source,yaml.replace('headerVersion: 2023.11.25\n','')+'# Irrla\n*(EAR-la)*\n> [!taelgar-header]\n> (large island, in Green Sea / Eastern Green Sea)\n\nAuthored article.\n');
   const metadata={tags:['place'],typeOf:'island',whereabouts:[{type:'primary',location:'Green Sea'},{type:'secondary',location:'Eastern Green Sea'}]};
   for(const bound of ['start','end','date'])assert.equal(headerInfo({...metadata,whereabouts:[metadata.whereabouts[0],{...metadata.whereabouts[1],[bound]:1740}]}),
     '(island, in Green Sea)');
@@ -104,6 +104,58 @@ test('legacy conversion replaces precisely the header and retains YAML bytes and
   assert.equal(result.kind,'converted');assert.equal(result.status,'changed');
   assert.equal(result.source,yaml+'# Fausto\r\n*(FOW-stoh)*\r\n> [!taelgar-header]\r\n> (human, b. 1714)\r\n'+suffix);
   assert.equal(rewriteHeader(result.source,{filename:'People/Fausto.md'}).status,'unchanged');
+});
+
+test('successful conversion, regeneration and Add remove headerVersion in the same range edit',()=>{
+  const yaml='---\nname: Fausto # keep\nheaderVersion: 2023.11.25 # obsolete\ntags: [person]\nspecies: human\n---\n';
+  for(const [body,options,kind] of [
+    ['# Old\n> [!info]+ Bio\n> Old\n',{},'converted'],
+    ['# Fausto\n> [!taelgar-header]\n> (human)\n',{},'regenerated'],
+    ['',{add:true},'added'],
+  ]) {
+    const source=yaml+body+'\nAuthored prose.\n',result=rewriteHeader(source,{filename:'Fausto.md',...options});
+    assert.equal(result.status,'changed');assert.equal(result.kind,kind);
+    assert.equal(result.source,yaml.replace('headerVersion: 2023.11.25 # obsolete\n','')+'# Fausto\n> [!taelgar-header]\n> (human)\n\nAuthored prose.\n');
+    assert.equal(source.slice(0,result.start)+result.replacement+source.slice(result.end),result.source);
+    assert.match(result.before,/headerVersion:/);assert.doesNotMatch(result.after,/headerVersion:/);
+    assert.equal(rewriteHeader(result.source,{filename:'Fausto.md'}).status,'unchanged');
+  }
+});
+
+test('headerVersion removal preserves quoted keys, comments, BOM, CRLF and nested or literal occurrences',()=>{
+  const yaml='\uFEFF---\r\n# Keep this comment\r\n"headerVersion": "old" # obsolete\r\nname: Fausto # keep inline\r\ntags: [person]\r\nnotes: |\r\n  headerVersion: literal text\r\ndisplayDefaults:\r\n  headerVersion: nested\r\n---\r\n';
+  const suffix='\r\nArticle.\r\n\r\n```yaml\r\nheaderVersion: example\r\n```\r\n';
+  const result=rewriteHeader(yaml+'# Old\r\n> [!info]\r\n> Old\r\n'+suffix,{filename:'Fausto.md'});
+  assert.equal(result.source,yaml.replace('"headerVersion": "old" # obsolete\r\n','')+'# Fausto\r\n> [!taelgar-header]\r\n'+suffix);
+});
+
+test('headerVersion removal handles null, multiline and duplicate top-level values without changing other fields',()=>{
+  for(const field of ['headerVersion:\n','headerVersion: |\n  old\n  value\n','headerVersion: {old: value}\n','headerVersion: old\nheaderVersion: newer\n']) {
+    const yaml='---\n'+field+'# Keep next field comment\ntags: [person]\nname: Fausto\n---\n';
+    const result=rewriteHeader(yaml+'# Old\n> [!info]\n> Old\n',{filename:'Fausto.md'});
+    assert.equal(result.source,yaml.replace(field,'')+'# Fausto\n> [!taelgar-header]\n');
+  }
+});
+
+test('flow-style frontmatter removes only headerVersion and its separator',()=>{
+  for(const [yaml,expected] of [
+    ['{headerVersion: old, tags: [person], name: Fausto}','{ tags: [person], name: Fausto}'],
+    ['{tags: [person], headerVersion: old, name: Fausto}','{tags: [person] , name: Fausto}'],
+    ['{tags: [person], name: Fausto, headerVersion: old}','{tags: [person], name: Fausto }'],
+    ['{headerVersion: old, headerVersion: newer, tags: [person]}','{  tags: [person]}'],
+  ]) {
+    const result=rewriteHeader('---\n'+yaml+'\n---\n# Old\n> [!info]\n> Old\n',{filename:'Fausto.md'});
+    assert.equal(result.source,'---\n'+expected+'\n---\n# Fausto\n> [!taelgar-header]\n');
+  }
+});
+
+test('unsafe shared anchors and unmarked or ambiguous headers never remove headerVersion',()=>{
+  const yaml='---\nheaderVersion: &version old\nlintVersion: *version\ntags: [person]\n---\n';
+  assert.throws(()=>rewriteHeader(yaml+'# Old\n> [!info]\n> Old\n'),/Cannot remove headerVersion without affecting other frontmatter/);
+  for(const body of ['An unmarked note.\n','# Old\nAuthored prose.\n\n> [!info]\n> Keep.\n']) {
+    const result=rewriteHeader(yaml+body);
+    assert.equal(result.status,'skipped');assert.equal(result.source,undefined);
+  }
 });
 
 test('empty callouts opt in without --add and regeneration reads the supplied unsaved frontmatter',()=>{

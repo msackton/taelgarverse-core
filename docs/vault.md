@@ -229,8 +229,13 @@ the inferred/configured article. Saved summaries retain the fixed formats below.
 If the note changes while naming rules are loading, the editor command skips the
 write rather than overwriting newer edits.
 
-The writer preserves frontmatter bytes, BOM, existing newline style, and all
-content after the replaced callout. It accepts a leading H1/pronunciation prefix;
+Successful conversion, regeneration and Add remove the obsolete top-level
+`headerVersion` field. All other frontmatter bytes, BOM, existing newline style,
+and content after the replaced callout are preserved. Removal and header
+replacement form one undoable editor edit; previews include the YAML change.
+Nested keys or literal text named `headerVersion` remain intact. Skipped notes
+are unchanged. Shared YAML anchors/merges that make removal affect other fields
+are reported for review rather than rewritten. The writer accepts a leading H1/pronunciation prefix;
 unexpected comments, prose or images before a candidate callout are reported as
 ambiguous and left intact. Nested callouts, code examples and old header fences
 are not implicit conversion targets. These are migration commands; the display

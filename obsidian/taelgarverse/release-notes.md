@@ -1,13 +1,9 @@
-Taelgarverse 1.0.0
+Taelgarverse 1.0.1
 
-- **Breaking header syntax change:** generated headers now use a top-level `> [!taelgar-header]` callout. Keep the H1 and optional pronunciation as authored Markdown above it. Only the callout is generated; its saved contents are fallback text. Old `taelgar-header` code fences, HTML header markers and implicit `headerVersion` generation are no longer supported.
-- Add **Regenerate page header** and **Add header to current note** commands, assignable to hotkeys. An empty native callout opts a note into regeneration. Commands use current editor frontmatter, preserve the article and YAML, and write the approved compact summary. Titles follow the configured name and definite-article defaults.
-- Include a standalone `header-tool.cjs` in the installed plugin directory for single-note and bulk conversion outside Obsidian. Preview by default; use `--report` for detailed JSON, `--errors` for problem output, `--check` for exit-code checks, `--write` to save, and `--add` to opt unmarked notes in. Node is required; a core repository checkout is not.
-- Skip automatic header writing for untagged notes and session-note, meta, background, source and story tags, including descendant tags. Explicit native callouts still render on any note. Existing saved info headers can be converted by the commands; empty legacy fences need an explicit source edit. Review previews before bulk writes.
-- Use one native callout handler for Reading view and Live Preview, removing the competing header decoration that caused duplicate rendering. Keep generated fallback text out of backlinks and authored descriptions, with native source-link offsets preserved.
-- Add an optional desktop Session review prototype with transcript decisions, manual correction previews and an entity review queue. The feature is off by default. Review actions require the separately maintained vault Python helpers and their dependencies; these helpers are not included in the plugin release.
-- Improve Windows Python discovery and launch paths for session review and Photoshop import. Photoshop imports always use the bundled exporter; the external script override has been removed.
+- Remove the obsolete top-level `headerVersion` field when Regenerate page header, Add header to current note, or the standalone header tool successfully writes the new header format. Skipped notes remain unchanged.
+- Preserve the remaining YAML formatting, comments, field values, BOM, line endings and article text. Nested keys and literal text named `headerVersion` are retained; shared anchors or merges that make removal unsafe are reported for review.
+- Include the metadata removal in before/after previews and in the same single undoable Obsidian edit as the header replacement. Regeneration remains idempotent.
 
-Requires desktop Obsidian 1.8.0 or newer, unchanged. Header conversion is an explicit source-writing action; dynamic rendering never edits notes. The Taelgarverse static materializer supports the new callout in website and static modes.
+Desktop-only; the minimum Obsidian version remains 1.8.0. Rendering itself never edits notes. Reload the updated plugin before using its editor commands or installed standalone tool.
 
-Automated coverage includes source preservation, header eligibility and formats, standalone tooling, native callout lifecycles, shared website rendering, session review and map export. The release has not been visually verified through a fresh BRAT installation; automated checks do not establish compatibility with every Obsidian version at or above the declared minimum.
+Automated checks cover CLI preview/write behavior, source preservation, YAML edge cases, publication conversion and the editor's single range replacement. The local development installation and a read-only preview of the website's eligible vault notes were checked without rewriting source notes. A fresh BRAT UI installation has not been visually verified.

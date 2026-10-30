@@ -51,6 +51,8 @@ test('publication migrates legacy headers on its copy; Node, R2 and compiled Wor
    const original=yaml+header+'\nAuthored prose.\n';
    const migrated=migrateLegacyHeader(original,{filename:name+'.md',coreMeta:local.headers.coreMeta});
    assert.equal(packed.source,migrated.source || original);
+   if(name==='callout')assert.equal(packed.metadata.headerVersion,'2023.11.25','publication preserves existing native headers');
+   else assert.equal(packed.metadata.headerVersion,undefined,'publication conversions remove the legacy metadata field');
    assert.equal(await fs.readFile(path.join(vault,name+'.md'),'utf8'),original);
    assert.equal(await fs.readFile(path.join(working,name+'.md'),'utf8'),packed.source);
    local.store.resolve(name).note=parseNote(packed.source);

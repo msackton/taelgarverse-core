@@ -100,7 +100,8 @@ The conversion review should:
    explicit authored title/pronunciation when those are wanted in the note.
 3. Convert the intended information component to `taelgar-header`; remove its
    old Dataview view calls rather than storing executable legacy fallback text.
-   Preserve arbitrary authored prose, images, other callouts and frontmatter.
+   Remove obsolete top-level `headerVersion` on successful conversion; preserve
+   other frontmatter, arbitrary authored prose, images and other callouts.
 4. Include both notes and creation/regeneration templates in the reviewed scope.
    Keep unresolved/ambiguous cases in the report for human review.
 5. Compare Obsidian output, taelgar.org local/compiled rendering and static

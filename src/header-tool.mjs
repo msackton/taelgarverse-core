@@ -8,6 +8,7 @@ export const headerToolUsage=`Taelgarverse header tool
   node header-tool.cjs --all [--add] [--write] [--report FILE]
   --vault PATH overrides the vault inferred from the installed plugin directory.
   Without --write, show a preview and change no notes.
+  Successful header writes remove obsolete headerVersion; other frontmatter is preserved.
   --all scans Markdown outside dot directories, node_modules, _scripts and _sessions.
   Untagged notes and session-note/meta/background/source/story tags are skipped,
   including descendant tags, even with --add or an existing header.
