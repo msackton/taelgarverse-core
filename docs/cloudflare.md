@@ -398,7 +398,7 @@ provider/timeout fallback return the D1 results. No D1 binding or search route h
 been added to the production Worker. Neither index is updated by the production
 publisher. Uploading to either remains an explicit pilot command.
 
-User-directed AI access is being enabled separately from crawler access. The
-live edge rules exempt verified `AI Assistant` GET/HEAD requests; matching Worker
-and robots changes are prepared locally and require deployment. Training/search
+User-directed AI access is enabled separately from crawler access. The live
+edge rules and both deployed Worker guards exempt Cloudflare-verified
+`AI Assistant` GET/HEAD requests; robots directives permit supported assistants. Training/search
 crawlers remain blocked. See [bot protection](bot-protection.md) for rollout state.

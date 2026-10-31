@@ -59,7 +59,7 @@ The exploit-probe block, Bot Fight Mode, HTTPS redirects, and AI training/search
 blocks remain enabled. This is an exception within two rules, not a broad Skip
 that bypasses other security controls. Free Bot Fight Mode remains independent.
 
-Local changes prepared in both repositories give the Worker guards the same
+Changes deployed in both repositories give the Worker guards the same
 read-only exception through `request.cf.verifiedBotCategory`. User-Agent and
 HTTP headers alone never grant it. Robots directives permit `ChatGPT-User`,
 `Claude-User`, and `Perplexity-User`, with other agents disallowed; no-index
@@ -71,10 +71,18 @@ unit/runtime checks and Worker package dry-run passed. Character manager
 `npm run check` passed types, lint, all 1,022 tests, authored-data validation,
 and production build.
 
-**Worker changes are not deployed yet.** The existing deployed guards still
-reject these assistants until both repositories are released. Unknown or
-unverified assistants remain blocked. No real assistant-origin request has
-been tested from this environment. Rollback the edge exception by removing the
+**Both Worker changes are live.** After explicit push authorization, both main
+branches passed their deployment workflows:
+[website run](https://github.com/msackton/taelgarverse-core/actions/runs/41161582597)
+(commit `3776378`) and
+[character-manager run](https://github.com/msackton/taelgar-character-manager/actions/runs/41161566467)
+(commit `1681392`). Cloudflare API readback confirmed the new assistant policy,
+robots content, and expected commit in each deployed Worker. Website version
+`0ae3634a-a9cb-48b0-b689-edcc4986ebbb` reached 100% at 02:49 UTC October 31;
+character-manager version `9b0b775f-cacc-4f38-a0f7-aaee1d168ca9` reached 100%
+at 02:53 UTC (22:49 and 22:53 EDT October 30, respectively).
+Unknown or unverified assistants remain blocked. No real assistant-origin
+request has been tested from this environment. Rollback the edge exception by removing the
 `and not (... AI Assistant ...)` suffix from those two existing rules.
 
 ## Current work and rollout
