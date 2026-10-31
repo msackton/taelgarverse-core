@@ -5,6 +5,78 @@ as many bots as possible, including legitimate search engines, AI crawlers, and
 link-preview services. Search indexing is not required. Normal browser access
 must continue to work.
 
+## Live edge rollout — 2026-10-30
+
+The owner explicitly authorized Bot Fight Mode, edge crawler/exploit blocking,
+challenges for observed crawler proxy networks, and enforced HTTPS. Applied and
+read back through the Cloudflare API at approximately 22:13 UTC (18:13 EDT):
+
+- Bot Fight Mode: `fight_mode=true`; required JavaScript detection:
+  `enable_js=true`. Existing `ai_training=block` and `ai_search=block` were
+  preserved on readback. Other AI/content-crawler settings were unchanged.
+- Always Use HTTPS: `on` (previously `off`).
+- Created custom firewall entrypoint ruleset
+  `f6db2b5a192f4eb08c4337faf59bffa9`; none existed immediately before creation.
+  All three rules are enabled, in this order:
+  - `block_identified_automation`, ID `954fd57b3ab9482495da725ff05064a4`:
+    the expression in `bot-firewall-expression.txt`, with GET/HEAD health and
+    robots exemptions.
+  - `block_exploit_probes`, ID `7fa63bc6d6bd4cb892b3cb4876b2485e`:
+    paths ending in `.php` and explicit known credential/config file probes.
+  - `challenge_observed_proxy_crawlers`, ID
+    `26e0b45099764f55b518d2a92890b94b`: Managed Challenge for ASNs 214483
+    (RapidSeedbox) and 132203, limited to GET/HEAD `/` and `/page/` on
+    `taelgar.org`, `www.taelgar.org`, `cleenseau.taelgar.org`, and
+    `tim.taelgar.org`. Character-manager APIs, authentication routes, dice
+    streams, and assets are outside this custom challenge rule. Bot Fight Mode
+    still applies zone-wide and cannot be selectively bypassed on the free plan.
+
+No rate limits or hostname allowlist were installed. No application deployment,
+vault publication, DNS change, or remote push was performed. Zone rules do not
+cover `workers.dev` addresses. The legacy filter validation endpoint still
+returned 403, but ruleset creation and readback succeeded with all expressions.
+
+Verification limitation: the execution environment only permits Cloudflare API
+traffic, not public Taelgar hosts. Attempts at homepage, health, character-manager,
+bot rejection, exploit rejection, and HTTP redirect checks were denied by the
+outbound proxy before reaching the site. API readback verifies configuration;
+real browser login, editing, dice/WebSockets, and challenge behavior still need
+checking. Do not interpret the proxy denials as website failures.
+
+Rollback: disable the individual rule by its ID in the ruleset above; restore
+`fight_mode=false` and `enable_js=false` for the previous bot configuration;
+restore Always Use HTTPS to `off` only if its redirect causes a confirmed issue.
+Preserve unrelated settings and rules. Earlier statements below that edge writes
+were unavailable describe the October 24 inspection, not the current rollout.
+
+## User-directed AI access — 2026-10-30 EDT
+
+At the owner's request, the live `block_identified_automation` and
+`challenge_observed_proxy_crawlers` rules now exclude GET/HEAD requests with
+Cloudflare's trusted `cf.verified_bot_category` equal to `AI Assistant`.
+Applied and read back at 02:41 UTC October 31 (22:41 EDT October 30).
+The exploit-probe block, Bot Fight Mode, HTTPS redirects, and AI training/search
+blocks remain enabled. This is an exception within two rules, not a broad Skip
+that bypasses other security controls. Free Bot Fight Mode remains independent.
+
+Local changes prepared in both repositories give the Worker guards the same
+read-only exception through `request.cf.verifiedBotCategory`. User-Agent and
+HTTP headers alone never grant it. Robots directives permit `ChatGPT-User`,
+`Claude-User`, and `Perplexity-User`, with other agents disallowed; no-index
+response headers remain. Provider names in robots.txt are advisory, not identity
+verification. Authentication and authorization still run normally.
+
+Validation: core `npm test` passed all 1,789 tests; the seven focused crawler
+unit/runtime checks and Worker package dry-run passed. Character manager
+`npm run check` passed types, lint, all 1,022 tests, authored-data validation,
+and production build.
+
+**Worker changes are not deployed yet.** The existing deployed guards still
+reject these assistants until both repositories are released. Unknown or
+unverified assistants remain blocked. No real assistant-origin request has
+been tested from this environment. Rollback the edge exception by removing the
+`and not (... AI Assistant ...)` suffix from those two existing rules.
+
 ## Current work and rollout
 
 - `taelgarverse-core` commit `d511976` adds early Worker crawler rejection,

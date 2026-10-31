@@ -1,2 +1,7 @@
+User-agent: ChatGPT-User
+User-agent: Claude-User
+User-agent: Perplexity-User
+Allow: /
+
 User-agent: *
 Disallow: /

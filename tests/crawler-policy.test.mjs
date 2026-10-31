@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createWorker} from '../src/worker-handler.mjs';
-import {isCrawler,noIndex} from '../src/crawler-policy.mjs';
+import {isCrawler,noIndex,robots as robotsPolicy} from '../src/crawler-policy.mjs';
 import {coreRelease,publication,Bucket,PageCache} from './helpers/page-cache-fixture.mjs';
 
 const browser='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36';
@@ -46,7 +46,7 @@ test('trusted verified-bot signals reject browser-looking crawlers without trust
 test('robots exclusions are available to every crawler without content, including HEAD and method errors',async()=>{
   const worker=createWorker();
   const robots=await worker.fetch(request('/robots.txt','Googlebot/2.1'),untouched);
-  assert.equal(robots.status,200);assert.equal(await robots.text(),'User-agent: *\nDisallow: /\n');
+  assert.equal(robots.status,200);assert.equal(await robots.text(),robotsPolicy);
   assert.equal(robots.headers.get('X-Robots-Tag'),noIndex);
   const head=await worker.fetch(request('/robots.txt',null,{method:'HEAD'}),untouched);
   assert.equal(head.status,200);assert.equal(await head.text(),'');
@@ -86,4 +86,27 @@ test('health checks remain real and crawler blocking can be explicitly disabled'
   }
   const failed=await worker.fetch(request('/health','curl/8.0'),{BLOCK_CRAWLERS:'true',CONTENT:{get:async()=>{throw new Error('offline');}}});
   assert.equal(failed.status,500);assert.equal(failed.headers.get('X-Robots-Tag'),noIndex);
+});
+
+ test('only trusted AI Assistant classification permits user-directed reads',async()=>{
+  const worker=createWorker(coreRelease,{cache:null});
+  const {objects}=publication(),env={BLOCK_CRAWLERS:'true',CONTENT:new Bucket(objects)};
+  for(const agent of ['ChatGPT-User/1.0','Claude-User/1.0','Perplexity-User/1.0']){
+    for(const method of ['GET','HEAD']){
+      const incoming=request('/page/person',agent,{method});
+      Object.defineProperty(incoming,'cf',{value:{verifiedBotCategory:'AI Assistant'}});
+      assert.equal((await worker.fetch(incoming,env)).status,200);
+    }
+    assert.equal((await worker.fetch(request('/page/person',agent),untouched)).status,403);
+    const spoof=request('/page/person',agent,{headers:{'X-Verified-Bot-Category':'AI Assistant'}});
+    assert.equal((await worker.fetch(spoof,untouched)).status,403);
+    for(const category of ['AI Crawler','Search Engine Crawler']){
+      const incoming=request('/page/person',agent);
+      Object.defineProperty(incoming,'cf',{value:{verifiedBotCategory:category}});
+      assert.equal((await worker.fetch(incoming,untouched)).status,403);
+    }
+    const write=request('/page/person',agent,{method:'POST'});
+    Object.defineProperty(write,'cf',{value:{verifiedBotCategory:'AI Assistant'}});
+    assert.equal((await worker.fetch(write,untouched)).status,403);
+  }
 });

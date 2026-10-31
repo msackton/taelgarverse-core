@@ -1,11 +1,18 @@
 export const noIndex='noindex, nofollow, noarchive, nosnippet, noimageindex';
-const robots='User-agent: *\nDisallow: /\n';
+export const robots='User-agent: ChatGPT-User\nUser-agent: Claude-User\nUser-agent: Perplexity-User\nAllow: /\n\nUser-agent: *\nDisallow: /\n';
 
 // Intentionally includes search indexers and link-preview bots. Cloudflare's
 // verified classification is trusted metadata; request headers cannot supply it.
-const automatedAgent=/bot|crawl|spider|slurp|indexer|scraper|scanner|facebookexternalhit|meta-external|chatgpt-user|claude-user|anthropic-ai|cohere-ai|headlesschrome|phantomjs|python-requests|python-urllib|aiohttp|httpx\/|scrapy|curl\/|wget\/|go-http-client|libwww-perl|node-fetch|undici|axios\/|postmanruntime|zgrab|nuclei|censys|masscan|^node$/i;
+const automatedAgent=/bot|crawl|spider|slurp|indexer|scraper|scanner|facebookexternalhit|meta-external|chatgpt-user|claude-user|perplexity-user|anthropic-ai|cohere-ai|headlesschrome|phantomjs|python-requests|python-urllib|aiohttp|httpx\/|scrapy|curl\/|wget\/|go-http-client|libwww-perl|node-fetch|undici|axios\/|postmanruntime|zgrab|nuclei|censys|masscan|^node$/i;
+
+// Only Cloudflare-supplied classification grants this read-only exception.
+// A matching User-Agent or an HTTP header cannot establish assistant identity.
+export function isUserAssistant(request) {
+  return ['GET','HEAD'].includes(request.method) && request.cf?.verifiedBotCategory==='AI Assistant';
+}
 
 export function isCrawler(request) {
+  if(isUserAssistant(request))return false;
   const category=request.cf?.verifiedBotCategory;
   const verified=typeof category==='string' && category.trim()!=='' &&
     !['unknown','not computed','unverified'].includes(category.toLowerCase());

@@ -26,6 +26,14 @@ active on Cloudflare, but had no Worker domain attachment before this setup.
 
 For preview, CI, publication, and account setup, see [Development and publication workflows](deploy.md).
 
+On **2026-10-30**, Bot Fight Mode (with required JavaScript detection), Always
+Use HTTPS, and three custom WAF rules were enabled and verified by API readback.
+The rules block identified automation and exploit probes, and challenge HTML
+navigation from two observed crawler proxy ASNs. Public browser checks were
+blocked by the execution environment’s outbound policy. See the
+[bot protection rollout](bot-protection.md#live-edge-rollout--2026-10-30) for
+scope, rule IDs, verification limits, and rollback.
+
 ## The pieces
 
 Development change, not yet deployed: version 2 maps carry validated
@@ -389,3 +397,8 @@ AI Search permissions. `--no-ai` prevents AI requests; per-search disabling and
 provider/timeout fallback return the D1 results. No D1 binding or search route has
 been added to the production Worker. Neither index is updated by the production
 publisher. Uploading to either remains an explicit pilot command.
+
+User-directed AI access is being enabled separately from crawler access. The
+live edge rules exempt verified `AI Assistant` GET/HEAD requests; matching Worker
+and robots changes are prepared locally and require deployment. Training/search
+crawlers remain blocked. See [bot protection](bot-protection.md) for rollout state.
