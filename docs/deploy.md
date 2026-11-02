@@ -85,6 +85,13 @@ The old `materialize-static --dynamic-website` flag is rejected. Use
 selecting Obsidian DQL explicitly. Static export continues through
 `npm run materialize:static`; see [publishing pipelines](publishing-pipelines.md).
 
+Transcript rollback is no longer supported. Normal content retention ignores old
+transcript descriptors and removes obsolete transcript shards even from the
+active and previous revisions. Missing transcript shards do not prevent cleanup
+or rollback of the remaining content. This cleanup runs through the normal
+publication/maintenance path; a website code deployment alone does not delete R2
+objects.
+
 Content preparation copies the vault to a temporary working directory, evaluates
 supported DQL in Node, then runs a separate compatibility conversion. Known saved
 headers become an authored title, optional pronunciation and `taelgar-header`

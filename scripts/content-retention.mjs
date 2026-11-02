@@ -12,7 +12,9 @@ import {syncPublicationHosts} from './hostname-firewall.mjs';
 export const POINTER_KEY='published/current.json';
 const revisionPattern=/^[a-f0-9]{64}$/;
 const assetPattern=/^assets\/[a-f0-9]{64}$/;
-const snapshotPattern=/^revisions\/([a-f0-9]{64})\/(?:index\.json|runtime\.json|(?:notes|transcripts)\/[a-f0-9]{2}\.json|runtime\/(?:render|navigation|headers|backlinks|search-metadata|assets\/[a-f0-9]{2}|(?:notes|backlinks)\/[0-9]{4,})\.json)$/;
+const snapshotPattern=/^revisions\/([a-f0-9]{64})\/(?:index\.json|runtime\.json|notes\/[a-f0-9]{2}\.json|runtime\/(?:render|navigation|headers|backlinks|search-metadata|assets\/[a-f0-9]{2}|(?:notes|backlinks)\/[0-9]{4,})\.json)$/;
+// Retired objects are sweep candidates even inside active/previous revisions.
+const retiredTranscriptPattern=/^revisions\/[a-f0-9]{64}\/transcripts\/[a-f0-9]{2}\.json$/;
 
 export function validatePublicationUploads(revision,uploads){
   if(!revisionPattern.test(revision || '') || !Array.isArray(uploads) || !uploads.length || uploads.some(item=>{
@@ -182,10 +184,6 @@ export async function prunePublication(storage,index,pointer,{log=()=>{},dryRun=
         keep.add(prefix+'runtime.json');
         for(const descriptor of descriptors)keep.add(prefix+descriptor.file);
       }
-      for(const descriptor of Object.values(content.interactions?.transcripts || {})) {
-        if(!/^[a-f0-9]{2}$/.test(descriptor?.shard || ''))throw new Error('Invalid retained transcript shard');
-        keep.add(`revisions/${snapshot.revision}/transcripts/${descriptor.shard}.json`);
-      }
       if(snapshot.search && JSON.stringify(snapshot.search)!==JSON.stringify(content.search))throw new Error('Retained search descriptor does not match R2');
       if(content.search)await index.verify(snapshot.revision,content.search);
     }
@@ -196,7 +194,7 @@ export async function prunePublication(storage,index,pointer,{log=()=>{},dryRun=
     const present=new Set(objects.map(o=>o.key));
     for(const key of keep)if(!present.has(key))throw new Error('Retained R2 object is missing; cleanup stopped');
     const revisions=new Set(retained.map(s=>s.revision));
-    const removed=objects.filter(o=>{const match=o.key.match(snapshotPattern);return match?!revisions.has(match[1]):assetPattern.test(o.key) && !keep.has(o.key);});
+    const removed=objects.filter(o=>{const match=o.key.match(snapshotPattern);return retiredTranscriptPattern.test(o.key) || (match?!revisions.has(match[1]):assetPattern.test(o.key) && !keep.has(o.key));});
     const result={retained:[...revisions],deletedObjects:removed.length,deletedBytes:removed.reduce((sum,o)=>sum+(o.size || 0),0)};
     await assertCurrent();
     if(dryRun)return {...result,dryRun:true};

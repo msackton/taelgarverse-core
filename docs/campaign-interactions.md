@@ -115,10 +115,11 @@ qualify for fallback; frontmatter, plain names, and generated headers do not.
 The version-2 interaction projection stores one encounter per resolved met NPC
 per session, marked `scope: session`. No beat IDs, beat text, transcript
 bodies/descriptors, source ranges, Cast descriptions, or editorial bookkeeping
-are compiled. New publications create no transcript shards. Retention alone
-recognizes older descriptors to preserve active and rollback objects and safely collect old revisions. The website has no transcript
-route, loader, or shard writer; obsolete beat URLs return 404 without initializing
-article rendering.
+are compiled. New publications reject transcript uploads. Old transcript
+descriptors are ignored; normal retention removes obsolete transcript shards
+even from active and previous revisions. Transcript rollback is unsupported.
+The website has no transcript route, loader, or shard writer; obsolete beat URLs
+return 404 without initializing article rendering.
 
 Node, Obsidian, and the Worker share the session model. The Worker filters the
 compiled projection and uses indexed session metadata without fetching session

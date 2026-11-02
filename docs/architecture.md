@@ -222,9 +222,10 @@ text, and transcripts are ignored. The Worker requires no session-body reads. Ol
 retain authored headers and non-session campaign references. See [campaign interactions](campaign-interactions.md).
 
 Compiled runtime render data carries the same session interaction projections as
-the legacy index. Transcript serving and shard writing are retired. Retention
-recognizes old transcript descriptors only to preserve active/rollback snapshot
-objects and safely clean up older revisions; request handlers never load them.
+the legacy index. Transcript serving, shard writing and rollback compatibility
+are retired. Retention ignores old transcript descriptors and sweeps obsolete
+transcript shards even from active/previous revisions; missing transcript objects
+do not block cleanup or rollback of the remaining content.
 Older compiled publications without an
 interaction projection derive non-session references from the request's target
 backlink shard, keeping the shared engine immutable.
