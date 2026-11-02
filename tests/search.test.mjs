@@ -50,7 +50,7 @@ sqliteTest('compiled search filters and ranks in D1 without iterating the vault 
   assert.equal(found.results[0].title,'Golden Lantern');
   assert.ok(statements[1].sql.includes('JOIN tv_search_page_metadata'));
   assert.ok(!statements[1].params.some(value=>typeof value==='string' && value.includes('golden-lantern')));
-  assert.equal((await search(searchInput('excludedmarker'),context(['dufr']))).results.length,0);
+  assert.equal((await search(searchInput('excludedmarker'),context(['dufr']))).results.length,1);
   assert.equal((await search(searchInput('rankmarker'),context())).results.length,1);
 });
 test('queries quote literal FTS operators, support prefixes/phrases/Unicode and bound pagination before database access',()=>{
@@ -128,7 +128,7 @@ sqliteTest('production SQL ranks names, finds aliases/phrases/body prefixes, fil
   assert.equal((await find('"fox bronze"')).results.length,0);
   assert.equal((await find('rankmarker',context(),{limit:1})).results[0].page,'available');
   for(const [term,c,count] of [['privatemarker',context(),0],['privatemarker',context([],true),1],['frontiermarker',context(['dufr']),1],['frontiermarker',context(['adma']),0],
-    ['addermarker',context(['dufr','adma']),1],['futuremarker',context(),0],['futuremarker',context([],false,'1750-01-01'),1],['excludedmarker',context(['dufr']),0],['excludedmarker',context(),1]]){
+    ['addermarker',context(['dufr','adma']),1],['futuremarker',context(),0],['futuremarker',context([],false,'1750-01-01'),1],['excludedmarker',context(['dufr']),1],['excludedmarker',context(),1]]){
     const result=await find(term,c);assert.equal(result.results.length,count,term+JSON.stringify(c));
     for(const item of result.results){assert.ok(item.url.includes('date='+c.date));assert.ok(!item.excerpt.includes('privatemarker') || c.dm);}
   }

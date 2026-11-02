@@ -139,7 +139,7 @@ test('local preview isolates invalid maps and excludes unpublished note definiti
   assert.deepEqual(await prepareMaps(store,path.join(f.directory,'tiles'),undefined,{strict:false}),[]);
   const warnings=[],html=renderMap(JSON.stringify(f.block),{store,entry:store.lookup('Map').entry,warnings});
   assert.equal(configs(html).length,0);assert.match(html,/image format|PNG/);assert.equal(warnings.length,1);
-  await fs.writeFile(path.join(f.directory,'Map.md'),'---\nexcludePublish: all\n---\n'+fence({...f.block,source:'[[missing.map.json]]'}));
+  await fs.writeFile(path.join(f.directory,'Map.md'),'---\nnoPublish: true\n---\n'+fence({...f.block,source:'[[missing.map.json]]'}));
   assert.deepEqual(await prepareMaps(f.store(),path.join(f.directory,'tiles')),[]);
 });
 
@@ -169,7 +169,7 @@ test('prepared maps survive Node, compiled Worker and legacy snapshot rendering 
   await fs.mkdir(path.join(f.directory,'_maps/paths'),{recursive:true});
   await fs.writeFile(path.join(f.directory,riverSource),JSON.stringify({version:1,points:river.points}));
   await fs.writeFile(path.join(f.directory,'River.md'),'---\nmapPath: '+JSON.stringify({kind:river.kind,importance:river.importance,source:riverSource})+'\n---\n# River');
-  await fs.writeFile(path.join(f.directory,'Secret road.md'),'---\nexcludePublish: all\nmapPath: '+JSON.stringify({...river,kind:'road'})+'\n---\n# Secret');
+  await fs.writeFile(path.join(f.directory,'Secret road.md'),'---\nnoPublish: true\nmapPath: '+JSON.stringify({...river,kind:'road'})+'\n---\n# Secret');
   const detail={version:1,name:'Detailed area',image:'detail.png',worldBounds:{x:2120,y:3110,width:100,height:60},pixelSize:[800,480],fadeZoom:[0,2]};
   const detailPNG=await sharp({create:{width:800,height:480,channels:4,background:'#33669980'}}).png().toBuffer();
   await fs.writeFile(path.join(f.directory,'assets/maps/detail.png'),detailPNG);
@@ -244,7 +244,7 @@ test('publication rejects missing, excluded, malformed or changed layer files',a
 
 test('website paths follow date, campaign and publication visibility, and malformed notes do not break maps',async t=>{
   const f=await fixture(t,{width:300}),route={kind:'road',importance:'world',points:[[0,40],[200,40]]};
-  for(const [name,extra] of [['Road',''],['Future','created: 1800\n'],['Hidden','excludePublish: all\n'],['Campaign','excludePublish: [secret]\n']])
+  for(const [name,extra] of [['Road',''],['Future','created: 1800\n'],['Hidden','noPublish: true\n'],['Campaign','created: 1800\n']])
     await fs.writeFile(path.join(f.directory,name+'.md'),'---\n'+extra+'mapPath: '+JSON.stringify(route)+'\n---\nBody');
   await fs.writeFile(path.join(f.directory,'Broken.md'),'---\nmapPath: {kind: river, points: [bad]}\n---\n');
   const store=f.store();await prepareMaps(store,path.join(f.directory,'tiles'));

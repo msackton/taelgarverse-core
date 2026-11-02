@@ -207,7 +207,7 @@ configuration tests in `tests/config.test.mjs`.
 Each render resolves a date/campaign and checks page availability before loading
 the body. It then renders explicit header callouts, filters comments/conditional blocks,
 and renders HTML. Search, navigation, and internal-link availability use the same
-metadata rules for birth/creation, activity and campaign exclusions. Search applies
+metadata rules for birth/creation and activity. Search applies
 these rules before pagination. Date, campaign and DM choices stay request-local
 and never mutate the shared engine.
 These rules are specified in [vault usage](vault.md).
@@ -373,7 +373,7 @@ than requiring request-time YAML parsing. Backlink loading is asynchronous and
 request-local; the synchronous Node renderer still uses its full backlink index.
 Artifact hashes are verified on load,
 with shared pending reads and a bounded 16-object data cache. Navigation compiles
-named-context visibility by date and campaign; custom views are calculated on
+named-context visibility by date; custom views are calculated on
 demand in a bounded 32-view cache. Request context and active-page selection stay
 separate from shared visibility data. Node reads a filesystem snapshot at startup and must restart
 after vault, runtime, settings, homepage, or menu changes. Node responses remain

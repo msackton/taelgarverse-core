@@ -12,7 +12,7 @@
   "Before Reference.md": "# Before Reference\n\n%%^Date:1730b%%\n[[Backlink Target]]\n%%^End%%\n",
   "DM Reference.md": "# DM Reference\n\nParagraph. %%[[Backlink Target]]%%\n",
   "DM Block Reference.md": "# DM Block Reference\n\n%%^Campaign:none%%\n[[Backlink Target]]\n%%^End%%\n",
-  "Hidden Reference.md": "---\nexcludePublish: all\n---\n# Hidden Reference\n\n[[Backlink Target]]\n",
+  "Hidden Reference.md": "---\ncreated: 9999-01-01\n---\n# Hidden Reference\n\n[[Backlink Target]]\n",
   "Excluded Reference.md": "---\nexcludePublish: [dufr]\n---\n# Excluded Reference\n\n[[Backlink Target]]\n",
   "Future Reference.md": "---\ncreated: 1730-01-01\n---\n# Future Reference\n\n[[Backlink Target]]\n",
   "Broken Reference.md": "# Broken Reference\n\n[[Backlink Target]]\n\n%% unterminated\n",

@@ -2,7 +2,6 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {randomUUID} from 'node:crypto';
 import {setTimeout as pause} from 'node:timers/promises';
-import {publicationExclusions} from '../src/content-store.mjs';
 import {scanFencedCodeBlocks,applyReplacements,prefixMarkdownLines} from '../src/markdown-fences.mjs';
 import {DATAVIEW_EXPORT_VERSION,validateMaterializationReport} from '../src/dataview-export.mjs';
 
@@ -41,7 +40,7 @@ export async function exportDataview(store,{directory,vaultPath,obsidianCommand,
   const queries=[],blocks=new Map(),issues=[];
   const issue=(entry,block,message,kind='error')=>issues.push({file:entry.id,line:block.startLine,kind,message});
   for(const entry of store.entries) {
-    if(!entry.note || publicationExclusions(entry.note.metadata).includes('all'))continue;
+    if(!entry.note)continue;
     for(const block of scanFencedCodeBlocks(entry.note.body)) {
       if(block.language!=='dataview')continue;
       if(!block.closed){issue(entry,block,'Unclosed '+block.language+' fence.');continue;}

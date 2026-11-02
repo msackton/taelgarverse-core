@@ -1,4 +1,4 @@
-import {parseNote,publicationExclusions} from '../src/content-store.mjs';
+import {parseNote} from '../src/content-store.mjs';
 import {migrateLegacyHeader} from '../src/header-rewrite.mjs';
 
 // Convert publication inputs in memory. Only saveWorkingNotes may persist these
@@ -8,8 +8,7 @@ export function convertWebsiteHeaders(store,{coreMeta,log=()=>{}}={}) {
   for(const entry of store.entries)if(entry.note) {
     let result;
     try {
-      result=publicationExclusions(entry.note.metadata).includes('all') ? {status:'skipped',reason:'Excluded from publication.'} :
-        migrateLegacyHeader(entry.note.source,{filename:entry.id,coreMeta});
+      result=migrateLegacyHeader(entry.note.source,{filename:entry.id,coreMeta});
       if(result.status==='changed')plans.push({entry,note:parseNote(result.source)});
     } catch(error){result={status:'error',reason:error.message};}
     const {source,...details}=result;

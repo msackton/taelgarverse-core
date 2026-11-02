@@ -22,7 +22,6 @@ import {DerivativeCache} from './derivative-cache.mjs';
 import {compileRuntime} from './compile-runtime.mjs';
 import {withPublicationProgress} from './publication-progress.mjs';
 import {readMapPathFile} from '../src/map-path-files.mjs';
-import {publicationExclusions} from '../src/content-store.mjs';
 
 const sha = value=>createHash('sha256').update(value).digest('hex');
 const writeJSON = (file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value)+'\n');};
@@ -47,7 +46,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const shards=new Map(),uploads=[];
   const {store,homeSource,registry,campaignHomes}=await timed('Reading vault content',()=>{
     const store=new Store(settings);
-    for(const entry of store.entries)if(entry.mapPathError && !publicationExclusions(entry.note.metadata).includes('all'))
+    for(const entry of store.entries)if(entry.mapPathError)
       throw new Error(entry.id+': '+entry.mapPathError);
     const homeSource=settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null;
     const registry=JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'_scripts/session_note_campaigns.json'),'utf8'));

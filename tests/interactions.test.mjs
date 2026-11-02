@@ -86,12 +86,12 @@ test('session links prefer the registry path, preserve context, and omit ambiguo
   const ctx={...context('1720-01-05',['clee'],true),pov:true};
   const events=()=>campaignInteractions(index,store,store.resolve('Person'),ctx,campaigns)[0].events;
   assert.match(events()[0].sessionUrl,/session-12\.1\?date=1720-01-05&campaigns=clee&dm=1/);
-  store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.excludePublish=['clee'];
+  store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.created='9999-01-01';
   assert.match(events()[0].sessionUrl,/legacy\?/);
-  store.lookup('Campaigns/Clee/Legacy.md').entry.note.metadata.excludePublish=['clee'];
+  store.lookup('Campaigns/Clee/Legacy.md').entry.note.metadata.created='9999-01-01';
   assert.equal(events()[0].sessionUrl,null);assert.equal(events().length,1);
   const ambiguous=compileInteractionIndex(store,registry,null,[parseSessionRecap(recap)]);
-  for(const entry of store.bySlug.values())delete entry.note.metadata.excludePublish;
+  for(const entry of store.bySlug.values())delete entry.note.metadata.created;
   assert.equal(eventsFor(store,ambiguous)[0].sessionUrl,null);
 });
 
@@ -134,7 +134,7 @@ test('missing recaps fall back to explicit links in the official session note, w
   store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.tags.push('meta');
   assert.equal(events(context()).length,0,'meta also filters an existing fallback projection');
   store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.tags.pop();
-  store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.excludePublish=['clee'];
+  store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.created='9999-01-01';
   assert.equal(events(context()).length,0,'an unavailable official note does not switch to a legacy duplicate');
 });
 
@@ -185,7 +185,7 @@ test('only non-session campaign-folder backlinks supplement recap beats and pres
   assert.equal(references.length,1);assert.equal(references[0].title,'Handout');
   assert.equal(references[0].precision,'undated');assert.match(references[0].url,/campaigns\/clee\/handout/);
   assert.equal(eventsFor(store,index,context('1720-01-06',['clee'],true)).filter(event=>event.kind==='reference').length,3);
-  store.lookup('Campaigns/Clee/Handout.md').entry.note.metadata.excludePublish=['clee'];
+  store.lookup('Campaigns/Clee/Handout.md').entry.note.metadata.created='9999-01-01';
   assert.equal(eventsFor(store,index).some(event=>event.kind==='reference'),false);
   const legacy={...index,backlinkVersion:1};
   assert.equal(eventsFor(store,legacy,context('1720-01-06',['clee','mawar'],true)).some(event=>event.kind==='reference'),false);

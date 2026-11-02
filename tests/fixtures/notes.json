@@ -4,7 +4,7 @@
   "Places/Second Town.md": "# Second Town\n\nFixture place.\n",
   "Leader.md": "---\ntags: [person]\nname: Fixture Leader\nleaderOf:\n  - {place: Example, start: 1725-01-01, end: 1740-01-01, title: Protector}\naffiliations:\n  - {org: Example, type: member, start: 1700-01-01}\n---\n# Fixture Leader\n",
   "Earlier Leader.md": "---\ntags: [person]\nname: Earlier Leader\naffiliations:\n  - {org: Example, type: leader, start: 1700-01-01, end: 1724-12-31, title: Guardian}\n---\n# Earlier Leader\n",
-  "Hidden.md": "---\nexcludePublish: all\n---\nPrivate page.\n",
+  "Hidden.md": "---\nnoPublish: true\n---\nPrivate page.\n",
   "CampaignHidden.md": "---\nexcludePublish: [dufr]\n---\nPrivate page.\n",
   "Future.md": "---\nactiveYear: 1740\n---\nFuture page.\n",
   "Unborn.md": "---\ntags: [person]\nborn: 1730-04-02\n---\nUnborn biography.\n",

@@ -10,7 +10,7 @@ All campaigns selects every campaign in the registry, including campaigns whose
 current session date is unavailable. It also includes backlinks from campaign
 folders that have no registered preset. General world-reference backlinks remain
 available alongside campaign sources. Campaign blocks use the selected canonical
-codes. Date filters, publication exclusions, and Behind the Curtain remain
+codes. Date filters and Behind the Curtain remain
 independent checks; selecting all campaigns does not bypass them.
 
 The chosen date and campaigns persist through article links, backlinks, search,

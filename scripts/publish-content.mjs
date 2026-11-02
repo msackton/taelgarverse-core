@@ -212,7 +212,7 @@ export function buildFingerprint(settings, options, config={}) {
   hash.update(JSON.stringify({excludedFolders:readFolderExclusions(settings.vault_dir)}));
   hash.update(JSON.stringify(readInteractionBundles(settings)));
   for (const [host,source] of Object.entries(readCampaignHomes(settings))) hash.update(JSON.stringify([host,source.replace(/\r\n/g,'\n')]));
-  hash.update(JSON.stringify({version: 1, image: {maxSize: options.maxSize, quality: options.quality, ...IMAGE_VERSION},
+  hash.update(JSON.stringify({version: 2, image: {maxSize: options.maxSize, quality: options.quality, ...IMAGE_VERSION},
     materializer:options.materializer ?? 'node',strict: !options.noStrict, default_date: settings.default_date,searchDestination:{account:config.account_id,databases:config.d1_databases || []}}));
   const dataviewDirectory=options.materializer==='obsidian'?(settings.vault_dir?path.join(settings.vault_dir,'.obsidian/plugins/dataview'):null):options.dataviewDirectory;
   if(options.materializer!=='obsidian' && !dataviewDirectory)hash.update(JSON.stringify({dataview:DATAVIEW_RELEASE,settings:'dataview-defaults'}));

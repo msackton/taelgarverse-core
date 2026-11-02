@@ -1,5 +1,4 @@
 import {RenderError, dateKey, validateDate} from './common.mjs';
-import {excluded} from './content-store.mjs';
 
 const normalize = value => String(value ?? '').trim().toLowerCase();
 const asList = value => Array.isArray(value) ? value : value ? [value] : [];
@@ -39,7 +38,7 @@ export class Contexts {
       const metadata = entry.note?.metadata;
       if (!metadata || !asList(metadata.tags).includes('session-note')) continue;
       const code = identities.get(normalize(metadata.campaign));
-      if (!code || excluded(metadata,{campaigns:[code]})) continue;
+      if (!code) continue;
       const list = sessions.get(code) || [];
       list.push(entry); sessions.set(code,list);
     }

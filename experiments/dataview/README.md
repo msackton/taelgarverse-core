@@ -16,7 +16,7 @@ node experiments/dataview/harness.mjs node --run .cache/dataview-harness/example
 ```
 
 `prepare` uses the configured vault when `--vault` is omitted. It selects queries
-from website notes, honoring folder exclusions and `excludePublish: all`, but
+from website notes, honoring folder markers, `noPublish` and stub tags, but
 freezes **all** non-hidden vault Markdown for the Dataview index. That includes
 Worldbuilding and underscore folders. `--scope vault` also selects maintenance
 queries. Timeline detection currently recognizes the vault's `file.lists` queries

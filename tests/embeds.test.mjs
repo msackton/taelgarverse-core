@@ -65,7 +65,7 @@ test('block embeds and ordinary block links share anchors; literal syntax stays 
 test('embeds apply parent/child campaign, date, exclusion and Behind the Curtain rules',()=>{
   const app = engine({'Parent.md':'![[Child]]\n\n![[Hidden]] ![[Future]]\n\n%%^Campaign:adma%%\n![[March]]\n%%^End%%',
     'Child.md':'Shared.\n\n%%^Campaign:dufr%%\nFrontier-only.\n%%^End%%\n\n%%^Date:1740-01-01%%\nLater.\n%%^End%%\n\n%%DM Popup secret.%%\n\n%%^Campaign:none%%\nDM-only body.\n%%^End%%',
-    'Hidden.md':'---\nexcludePublish: all\n---\nAlways hidden.',
+    'Hidden.md':'---\ncreated: 9999-01-01\n---\nAlways hidden.',
     'Future.md':'---\ncreated: 1740-01-01\n---\nFuture visible.', 'March.md':'March-only.'});
   const early = render(app,'Parent',[],false,'1730-01-01');
   assert.match(text(early),/Shared/);
@@ -155,7 +155,7 @@ test('generated callouts are omitted; backlinks remain direct authored reference
 test('lazy loads are request-local and skip excluded, future and parent-filtered embeds',async()=>{
   const app = engine({'Parent.md':'![[Child]] ![[Hidden]] ![[Future]]\n\n%%^Campaign:dufr%%\n![[Campaign]]\n%%^End%%',
     'Child.md':'Public.\n\n%%^Campaign:dufr%%\nFrontier.\n%%^End%%',
-    'Hidden.md':'---\nexcludePublish: all\n---\nHidden.', 'Future.md':'---\ncreated: 1800-01-01\n---\nFuture.', 'Campaign.md':'Selected campaign.'},{lazy:true});
+    'Hidden.md':'---\ncreated: 9999-01-01\n---\nHidden.', 'Future.md':'---\ncreated: 1800-01-01\n---\nFuture.', 'Campaign.md':'Selected campaign.'},{lazy:true});
   const requests = [[],['dufr']].map(async campaigns=>{
     const calls = [];
     const result = await app.renderer.renderAsync('Parent','1750-01-01','custom',false,campaigns,async entry=>{calls.push(entry.id);return app.notes.get(entry.id);});

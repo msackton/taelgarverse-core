@@ -7,7 +7,7 @@ import vm from 'node:vm';
 import {createRequire} from 'node:module';
 import {build} from 'esbuild';
 import {ROOT,isInside} from '../src/config.mjs';
-import {parseNote} from '../src/content-store.mjs';
+import {parseNote,omitFromPublication} from '../src/content-store.mjs';
 import {preparePublicationNote} from '../src/publication-markdown.mjs';
 import {filterComments} from '../src/comments.mjs';
 import {exportDataview,dataviewEval} from '../scripts/export-dataview.mjs';
@@ -34,7 +34,7 @@ async function fixture(t,sources={'Note.md':'```dataview\nLIST FROM #person\n```
     calls.push({query,source});return '- Materialized [[Target]]\n';
   }}}}},vault:{adapter:{getBasePath:()=>vault},getAbstractFileByPath:file=>Object.hasOwn(sources,file)?{path:file,extension:'md'}:null}};
   const feature=new module.exports.ExporterFeature({app});
-  const store={entries:Object.entries(sources).map(([id,source])=>({id,note:preparePublicationNote(parseNote(source)).note}))};
+  const store={entries:Object.entries(sources).map(([id,source])=>({id,note:preparePublicationNote(parseNote(source)).note})).filter(entry=>!omitFromPublication(entry.note.metadata))};
   const run=async(command,args)=>{
     assert.equal(command,'test-obsidian');assert.equal(args[0],'vault=vault');assert.equal(args[1],'eval');
     assert.match(args[2],/app.plugins.plugins.taelgarverse/);
@@ -77,7 +77,7 @@ test('publication retains generated headers on versioned handouts without treati
 test('the Taelgarverse desktop exporter only evaluates planned DQL; Node replaces callout queries and leaves the vault untouched',async t=>{
   const sources={
     'Note.md':'---\nheaderVersion: 1\ntags: [person]\n---\n# Old\n>[!info] Header\n\n## JS only\n```dataviewjs\nthrow 1;\n```\n\n## Results\n> [!note] Query\n> ```dataview\n> LIST FROM #person\n> ```\n\nAfter query.\n',
-    'Excluded.md':'---\nexcludePublish: all\n---\n```dataview\nINVALID EXCLUDED QUERY\n```\n',
+    'Excluded.md':'---\nnoPublish: true\n---\n```dataview\nINVALID EXCLUDED QUERY\n```\n',
     'Example.md':'````markdown\n```dataview\nNOT A QUERY\n```\n````\n',
   };
   const f=await fixture(t,sources),result=await exportDataview(f.store,f.options,{run:f.run});
@@ -226,4 +226,11 @@ test('Obsidian DQL replacement keeps list and quote nesting around returned Mark
   assert.equal(f.calls.length,1);
   assert.equal(f.store.entries[0].note.body,'> - - Materialized [[Target]]\n');
   assert.equal(await fs.readFile(path.join(f.vault,'Note.md'),'utf8'),source);
+});
+
+test('retired excludePublish metadata no longer prevents DQL evaluation',async t=>{
+  const f=await fixture(t,{'Legacy.md':'---\nexcludePublish: all\n---\n```dataview\nLIST FROM #person\n```\n'});
+  const result=await exportDataview(f.store,f.options,{run:f.run});
+  assert.deepEqual(f.calls,[{query:'LIST FROM #person\n',source:'Legacy.md'}]);
+  assert.equal(result.counts.materialized,1);
 });

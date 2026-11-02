@@ -1,7 +1,7 @@
 import {Contexts} from './contexts.mjs';
 import {calendarSourcePath} from './campaign-calendar.mjs';
 
-// Both adapters use Contexts, including its latest-session ranking and exclusions.
+// Both adapters use Contexts, including its latest-session ranking.
 export function calendarContext(notes,registry,selected='modern',customDate) {
   notes=notes.filter(note=>calendarSourcePath(note.path));
   const entries=notes.map(note=>({id:note.path,slug:note.path,note:{metadata:note.metadata}}));

@@ -1,4 +1,4 @@
-import {authoredBody,availableFrom,availableInContext,parseNote,publicationExclusions} from '../src/content-store.mjs';
+import {authoredBody,availableFrom,availableInContext,parseNote} from '../src/content-store.mjs';
 import {filterComments} from '../src/comments.mjs';
 import {createMarkdown,renderMarkdown} from '../src/markdown.mjs';
 import {collectHtmlImageUsages} from '../src/images.mjs';
@@ -15,7 +15,6 @@ export function collectImageUsages(store,{homeSource=null,campaignHomes={},maxSt
   if (homeSource!==null) entries.push({id:'_website/home.md',target:'index.md',note:typeof homeSource==='string' ? parseNote(homeSource) : homeSource,website:true});
   for (const [host,source] of Object.entries(campaignHomes)) entries.push({id:'_website/'+host+'.md',target:'index.md',note:typeof source==='string' ? parseNote(source) : source,website:true});
   for (const entry of entries) {
-    if (publicationExclusions(entry.note.metadata).includes('all')) continue;
     const lead=indexImageEntry(store,entry.note.metadata.image,entry.id);
     const source = authoredBody(entry.note);
     const bodyImages=/\.(?:png|jpe?g|webp|gif|heic)\b|<img\b/i.test(source);

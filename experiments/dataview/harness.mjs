@@ -6,7 +6,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {build} from 'esbuild';
 import {ROOT,loadSettings,isInside} from '../../src/config.mjs';
-import {Store,publicationExclusions} from '../../src/store.mjs';
+import {Store} from '../../src/store.mjs';
 import {scanFencedCodeBlocks} from '../../src/markdown-fences.mjs';
 import {bundleIdentity,loadEngine,sha256} from './engine.mjs';
 import {cachedMetadata,createIndex,restoreIndexTables} from './index.mjs';
@@ -70,7 +70,7 @@ export async function prepare({vault,out,scope='website',dataview}={}) {
   await fs.mkdir(path.dirname(out),{recursive:true});await fs.mkdir(out);
   const {identity}=await bundleIdentity(dataview),files=await inventory(vault);
   let selected;
-  if(scope==='website')selected=new Set(new Store(settings).entries.filter(e=>e.note && !publicationExclusions(e.note.metadata).includes('all')).map(e=>e.id));
+  if(scope==='website')selected=new Set(new Store(settings).entries.filter(e=>e.note).map(e=>e.id));
   else if(scope==='vault')selected=new Set(files.filter(f=>f.source!==undefined).map(f=>f.path));
   else throw new Error('Scope must be website or vault.');
   const corpus=collectQueries(files,selected);

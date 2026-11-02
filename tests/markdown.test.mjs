@@ -47,7 +47,7 @@ test('unknown links warn; duplicate headings get distinct anchors',() => {
   assert.deepEqual(result.warnings,['Missing wikilink target: Unknown']);
 });
 
-test('page links follow campaign exclusions and date boundaries across link formats',() => {
+test('page links follow retired exclusions and date boundaries across link formats',() => {
   const source = [
     '[[Target|the old king]]', '[[Target#History|his history]]', '[[Sovereign|an alias]]',
     '[**formatted** label](../Places/Target.md#History)', '[exported](../places/target.md)',
@@ -56,8 +56,8 @@ test('page links follow campaign exclusions and date boundaries across link form
     '[reference][king]\n\n[king]: ../Places/Target.md',
   ].join('\n\n');
   for (const [metadata,campaigns,date,visible] of [
-    [{excludePublish:'all'},[],'1800-01-01',false],
-    [{excludePublish:'DUFR, itc'},['dufr'],'1730-01-01',false],
+    [{excludePublish:'all'},[],'1800-01-01',true],
+    [{excludePublish:'DUFR, itc'},['dufr'],'1730-01-01',true],
     [{excludePublish:['dufr']},['adma'],'1730-01-01',true],
     [{excludePublish:['dufr']},[],'1730-01-01',true],
     [{born:'1730-04-02'},[],'1730-04-01',false],
@@ -89,7 +89,7 @@ test('unlinked contents retain escaping and images; external, asset, heading and
     '[mail](mailto:test@example.com) [asset](/assets/assets/portrait.png) [[#History]]',
     '`[[Target]]`\n\n```md\n[Target](../Places/Target.md)\n```',
   ].join('\n\n');
-  const result = render(source,{metadata:{excludePublish:'all'}}), $ = load(result.html,{},false);
+  const result = render(source,{metadata:{created:9999}}), $ = load(result.html,{},false);
   assert.equal($('a[href^="/page/"]').length,0);
   assert.equal($('a').length,5);
   assert.equal($('img').length,1);

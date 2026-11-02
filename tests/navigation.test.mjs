@@ -10,7 +10,7 @@ const entries = [
   entry('places/region/region.md','The Region'),entry('places/region/town.md','Town'),
   entry('places/future.md','Future',{activeYear:1740}), entry('places/campaign.md','Campaign',{excludePublish:['one']}),
   entry('places/unborn.md','Unborn',{born:'1740-04-02'}),entry('places/unbuilt.md','Unbuilt',{created:'1740-04-02'}),
-  entry('places/hidden.md','Hidden',{excludePublish:'all'}),
+  entry('places/hidden.md','Hidden',{created:'9999-01-01'}),
   entry('extra/other.md','Other'),
 ];
 const source = '- [Home](index.md)\n- [People](people/people.md)\n    - {glob: people/, exclude: people.md}\n' +
@@ -52,10 +52,11 @@ test('sidebar opens only the current path, with active page and breadcrumbs',()=
   }
 });
 
-test('date and campaign visibility apply to lazy branches and remove missing leaves',()=>{
+test('date visibility applies to lazy branches; retired campaign exclusions are ignored',()=>{
   const nav = navigation(), places = nav.roots[2];
   const early = nav.branch({...context,campaigns:['one']},places.id);
-  assert.doesNotMatch(early.html,/>Future<|>Campaign<|>Unborn<|>Unbuilt<|>Hidden</);
+  assert.doesNotMatch(early.html,/>Future<|>Unborn<|>Unbuilt<|>Hidden</);
+  assert.match(early.html,/>Campaign</);
   const later = nav.branch({...context,date:'1750-01-01'},places.id);
   assert.match(later.html,/>Future</); assert.match(later.html,/>Campaign</);
   assert.match(later.html,/>Unborn</); assert.match(later.html,/>Unbuilt</);
@@ -89,4 +90,11 @@ test('section URLs remain stable as notes are added and current-page markers are
   assert.equal(before.roots[2].id,after.roots[2].id);
   const $ = load(after.sidebar(after.view(context,'people/people')),{},false);
   assert.equal($('[aria-current="page"]').length,1);
+});
+
+test('visibility caches share dates across campaigns while preserving request-local URLs',()=>{
+  const nav=navigation(),a=nav.view({...context,campaigns:['one']}),b=nav.view({...context,campaigns:['two'],dm:false});
+  assert.equal(nav.viewCache.size,1);assert.equal(a.visible,b.visible);
+  assert.match(nav.sidebar(a),/campaigns=one/);assert.doesNotMatch(nav.sidebar(a),/campaigns=two/);
+  assert.match(nav.sidebar(b),/campaigns=two/);assert.doesNotMatch(nav.sidebar(b),/dm=1/);
 });

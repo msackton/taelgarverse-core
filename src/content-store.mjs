@@ -34,15 +34,6 @@ export function hasStubTag(metadata) {
 export function omitFromPublication(metadata) {
   return metadata.noPublish === true || hasStubTag(metadata);
 }
-export function publicationExclusions(metadata) {
-  const raw = metadata.excludePublish;
-  const exclusions = (typeof raw === 'string' ? raw.split(',') : Array.isArray(raw) ? raw : []).map(x => String(x).trim().toLowerCase());
-  return exclusions;
-}
-export function excluded(metadata, settings) {
-  const exclusions=publicationExclusions(metadata);
-  return exclusions.includes('all') || settings.campaigns.some(c => exclusions.includes(c.toLowerCase()));
-}
 // Match CustomJS DateManager's start dates: numeric years start on January 1;
 // quoted years and year-month strings use the last day of the stated period.
 // Missing/unknown dates cannot establish that a subject is in the future.
@@ -65,12 +56,10 @@ export function availableFrom(entry) {
 }
 export function availableInContext(entry, context) {
   if (!entry?.note) return false;
-  const exclusions=entry.availability?.exclusions;
-  if (exclusions ? exclusions.includes('all') || context.campaigns.some(c=>exclusions.includes(c.toLowerCase())) : excluded(entry.note.metadata,{campaigns:context.campaigns})) return false;
   return availableFrom(entry)<=dateKey(context.date);
 }
 export function compileAvailability(entry) {
-  return {from:availableFrom(entry),exclusions:publicationExclusions(entry.note.metadata)};
+  return {from:availableFrom(entry)};
 }
 function addAlias(map, alias, entry) {
   if (!alias) return;

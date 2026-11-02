@@ -30,11 +30,11 @@ test('homepage gives authored title and introduction a dedicated layout, with co
   assert.equal($('link[href="/theme/homepage.css"]').length,1);
 });
 
-test('homepage buttons respect missing and context-excluded destinations',() => {
+test('homepage buttons respect missing and future destinations',() => {
   const restricted = {bySlug:new Map(store.bySlug)};
   restricted.bySlug.delete(slugs[0]);
   restricted.bySlug.set(slugs[1],{slug:slugs[1],note:{metadata:{created:'1740-01-01'}}});
-  restricted.bySlug.set(slugs[2],{slug:slugs[2],note:{metadata:{excludePublish:['adma']}}});
+  restricted.bySlug.set(slugs[2],{slug:slugs[2],note:{metadata:{created:'1740-01-01'}}});
   const early = load(homepage(home,context,restricted).html);
   assert.equal(early('.home-destinations a').length,0);
   assert.equal(early('.home-entry-unavailable').length,3);

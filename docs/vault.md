@@ -168,7 +168,7 @@ The website reads the properties at the top of each note—the YAML section betw
 | `born`, `created`, `died`, `destroyed`, `DR`, `DR_end` | Ages, lifespans, and event dates. |
 | `whereabouts`, `partOf`, `affiliations`, `leaderOf`, `campaignInfo` | Locations, relationships, leadership, and campaign events, using the selected date. |
 | `noPublish` | Boolean `true` omits the note from the publication package, like `status/stub`. |
-| `excludePublish`, `activeYear` | Whether the page is shown, as explained below. |
+| `activeYear` | Whether the page is shown, as explained below. |
 
 Related notes also matter: a location or affiliation may use another note's name
 and properties. The selected website date takes priority over `pageTargetDate`.
@@ -515,12 +515,12 @@ order as generated bios. Open indexes and header buttons refresh after metadata
 changes, renames, deletions, or calendar/override date changes. Repeated author-view
 queries reuse results for the same metadata snapshot, date and target; refreshing
 metadata discards those results. Obsidian's own
-note resolver and links are used; publication exclusions do not restrict the
+note resolver and links are used; publication packaging rules do not restrict the
 local vault view. The shared metadata and campaign registry files listed below
 are required when rendering indexes, as for bios.
 
 The website calculates results from the latest published metadata at request
-time. It applies the selected date and campaign exclusions
+time. It applies the selected date
 before generating cards or counts, and preserves the reader's context in links.
 Editing the vault requires content publication before the website sees the
 change. Index fences survive export and publication as definitions; results are
@@ -545,7 +545,7 @@ controls appear only while the calendar is enabled.
 
 Dates come from the website's `Contexts` implementation: rank session notes by
 play date, session number, DR date, and source path; use the latest session's full
-`DR_end` or `DR`. Publication exclusions apply to this date choice. Templates,
+`DR_end` or `DR`. Only notes included in the published store supply website dates. Templates,
 private/generated folders, Worldbuilding, and `.nopublish` folders are excluded
 before selecting sessions, as in the website's source store. A latest session
 without a usable date makes its campaign unavailable; the calendar does not
@@ -616,13 +616,12 @@ chooses the latest session by `realWorldDate`, then `sessionNumber`, then in-wor
 date, with the file path breaking any remaining tie. It uses that note's `DR_end`,
 or `DR` if there is no valid full `DR_end` date.
 
-A session excluded with `excludePublish: all` or that campaign's code is not used.
-If the latest remaining session has no full date, the campaign cannot be selected,
+Notes omitted by `noPublish`, stub tags or folder markers are not published.
+If the latest included session has no full date, the campaign cannot be selected,
 even if an older session has one. A flashback can move the campaign's date backward.
 
 Campaign names and codes come from `_scripts/session_note_campaigns.json`.
-For example, **Dunmar Frontier** uses the code **`dufr`** in comment markers and
-`excludePublish`. The note's `campaign` property can match the registered name,
+For example, **Dunmar Frontier** uses the code **`dufr`** in comment markers. The note's `campaign` property can match the registered name,
 code, ID, or alias.
 
 To change a campaign's date, correct its session note and republish. Existing
@@ -636,18 +635,15 @@ These properties hide a whole page:
 
 | Property | Effect |
 | --- | --- |
-| `excludePublish: all` | Hide the page in every view. |
-| `excludePublish: [dufr]` | Hide the page when Dunmar Frontier is selected, including in Custom. It can still appear in Modern or selections that omit Dunmar Frontier. |
 | `born` or `created` after the selected date | Hide the page until that date. If both are present, `born` is used. |
 | `activeYear` after the selected date | Hide the page until it becomes active. |
 
-`excludePublish` can also contain several campaign codes, as a YAML list or a
-comma-separated string. Codes are matched regardless of capitalization.
-This is a visibility rule, not a packaging exclusion: even `excludePublish: all`
-retains the note's Markdown and metadata in the publication snapshot, although
-it is omitted from search and cannot be opened as a page. Use `noPublish: true`,
-`status/stub` for stub notes, or a [folder marker](#exclude-a-folder) to omit
-content from packaging.
+`excludePublish` is retired and ignored, including in existing snapshots.
+Use `noPublish: true`, `status/stub` for stub notes, or a
+[folder marker](#exclude-a-folder) to omit content from packaging. Republishing
+rebuilds session contexts and search text that older publications may have
+excluded under the retired rule.
+
 Death or destruction does not hide a page; readers can still look up historical
 people, places, and objects.
 
@@ -666,7 +662,7 @@ hide the page. `activeYear` uses the start of the specified year.
 `POV` metadata does not affect website visibility. The retired `pov` URL
 parameter, `respect_pov_dates` setting, and microsite `enforcePoV` field are
 ignored, including in older published snapshots. Links and forms no longer
-propagate this parameter. Birth/creation, activity, campaign exclusions and
+propagate this parameter. Birth/creation, activity and
 comment visibility continue to apply.
 
 Hidden pages disappear from search and navigation. Links to them keep their text
@@ -962,7 +958,7 @@ an exact vault-root-relative `.map-path.json` filename. The geometry file contai
 `{version: 1, points: [[X,Y], ...]}` in original Photoshop coordinates. Legacy
 inline `points` is readable and moves to a geometry file on editor Save. These open paths render on
 both Obsidian and published version 2 maps. Website paths respect note
-date/campaign visibility and publication exclusions. The editor can trace
+date visibility and publication packaging rules. The editor can trace
 or edit them, writes the geometry file, and patches only that note field on Save; see [rivers and roads](map-editor.md#rivers-and-roads)
 and the [metadata schema](../schemas/map-path.schema.json).
 
@@ -981,8 +977,8 @@ cache and uses built-in settings; it does not depend on the vault's Dataview
 installation. `--dataview-directory` explicitly selects another verified bundle
 and its optional saved settings. See [dependency caching](publishing-pipelines.md#taelgarorg).
 Those query results are static until republication; changing the website's
-campaign or date does not rerun DQL. Queries on pages marked
-`excludePublish: all` are not evaluated. Node indexes the remaining working copy,
+campaign or date does not rerun DQL. Notes omitted by `noPublish`, stub tags or
+folder markers are removed before query planning. Node indexes the remaining working copy,
 excluding underscore folders and any subtree marked `.nopublish`. The optional
 Obsidian backend uses its live vault index, which can include those folders;
 queries depending on excluded notes can therefore differ between backends.

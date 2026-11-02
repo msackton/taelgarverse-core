@@ -1,6 +1,5 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import {publicationExclusions} from '../src/content-store.mjs';
 import {scanFencedCodeBlocks,applyReplacements,prefixMarkdownLines} from '../src/markdown-fences.mjs';
 import {filesystemDataview} from '../src/dataview-node/filesystem.mjs';
 
@@ -8,7 +7,7 @@ export async function materializeWebsiteDataview(store,{directory,dataviewDirect
     {log=()=>{},createRuntime=filesystemDataview}={}) {
   const queries=[],issues=[];
   for(const entry of store.entries) {
-    if(!entry.note || publicationExclusions(entry.note.metadata).includes('all'))continue;
+    if(!entry.note)continue;
     for(const block of scanFencedCodeBlocks(entry.note.body)) {
       if(block.language!=='dataview')continue;
       if(!block.closed){issues.push({file:entry.id,line:block.startLine,kind:'error',message:'Unclosed Dataview fence.'});continue;}

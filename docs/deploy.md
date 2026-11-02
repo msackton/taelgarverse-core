@@ -143,7 +143,7 @@ staging upgrades D1 transactionally to schema 4, maintaining immutable, revision
 page metadata without discarding existing ready generations. Activation still
 follows R2 upload and D1 verification. Previous-content rollback remains
 available. Deploy the updated Worker before publishing schema 4. Older website
-code rejects schema 4 or queries its removed POV column, so full-text search
+code rejects schema 4 or queries its removed visibility columns, so full-text search
 uses its page-name fallback after a code rollback. Keep the updated Worker when
 rolling back content; no database migration is needed for that path.
 
@@ -275,7 +275,9 @@ before/after header text. The source vault is unchanged. The website renderer
 still requires native callouts; after deploying that renderer, republish content
 to restore converted headers without committing to a vault migration date.
 
-Node skips queries on pages marked `excludePublish: all` and in excluded folders.
+Node selects queries only from included notes; `noPublish`, stub tags and folder
+markers remove notes before query planning. The retired `excludePublish` field
+has no effect.
 It indexes the copied Markdown for query inputs; underscore folders and folders
 marked `.nopublish` are absent from that copy and index. It executes DQL only. Query errors appear in
 `.cache/publish/materialization-report.json`; recognized conversions and

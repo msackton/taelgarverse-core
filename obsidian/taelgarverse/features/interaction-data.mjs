@@ -22,9 +22,8 @@ export async function obsidianInteractions(app) {
   const registry=JSON.parse(await app.vault.adapter.read('_scripts/session_note_campaigns.json'));
   const files=app.vault.getMarkdownFiles().filter(file=>!file.path.split('/').some(part=>part.startsWith('.'))).sort((a,b)=>a.path.localeCompare(b.path));
   const byPath=new Map(),entries=files.filter(file=>!file.path.split('/').some(part=>part.startsWith('_'))).map(file=>{
-    // Obsidian owns local access. Website publication exclusions must not hide
-    // the author's local notes, and knownTo pages need not carry a person tag.
-    const metadata={...(app.metadataCache.getFileCache(file)?.frontmatter || {})};delete metadata.excludePublish;
+    // Obsidian indexes the author's local notes; knownTo pages need not carry a person tag.
+    const metadata={...(app.metadataCache.getFileCache(file)?.frontmatter || {})};
     if(hasKnownTo(metadata))metadata.tags=[...new Set([...list(metadata.tags),'person'])];
     const entry={id:file.path,slug:file.path,target:file.path,name:file.basename,title:metadata.name || file.basename,note:{metadata},file};
     byPath.set(file.path,entry);return entry;

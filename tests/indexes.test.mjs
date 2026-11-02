@@ -337,8 +337,8 @@ test('residents tables show Person, Info, dated last-known location, and Home wh
   const changed=engine.render('Table','1741-01-01','custom',false,undefined,['dufr']);
   assert.equal(load(changed.html)('tbody tr').first().find('td').eq(2).text(),'Inn, Town (January 1st, 1741)');
   assert.equal(load(changed.html)('tbody tr').first().find('td').last().text(),'Inn');
-  engine.store.resolve('Places/Other Realm.md').note.metadata.excludePublish='all';
-  engine.store.resolve('Places/Inn.md').note.metadata.excludePublish='all';
+  engine.store.resolve('Places/Other Realm.md').note.metadata.born=9999;
+  engine.store.resolve('Places/Inn.md').note.metadata.born=9999;
   const filtered=engine.render('Table','1720-01-01','custom',false,undefined,['dufr']);
   assert.doesNotMatch(filtered.html,/Other Realm|other-realm/);assert.match(filtered.html,/Unknown/);
   assert.equal(load(filtered.html)('tbody tr').first().find('td').last().text(),'Unknown');
@@ -370,7 +370,7 @@ test('website member tables use the requested templates with contextual links, v
   assert.doesNotMatch(load(popupContent)('.taelgar-index-card').first().text(),/Current Location:/);
   assert.doesNotMatch(load(popupContent)('.taelgar-index-card').first().text(),/Home:/);
   assert.match(load(render('1721-01-01').html)('tbody tr').first().find('td').eq(2).text(),/January 1st, 1721/);
-  for(const path of ['Places/Other Realm.md','Ancestries/Townfolk.md','Creatures/Humans.md'])engine.store.resolve(path).note.metadata.excludePublish='all';
+  for(const path of ['Places/Other Realm.md','Ancestries/Townfolk.md','Creatures/Humans.md'])engine.store.resolve(path).note.metadata.born=9999;
   const hidden=render();assert.doesNotMatch(hidden.html,/Other Realm|other-realm|Townfolk|townfolk|human|Humans/);
   assert.match(hidden.html,/Unknown Unknown/);assert.match(hidden.html,/Unknown \(January 1st, 1720\)/);
   assert.doesNotMatch(searchText(result.html),/Alice|she\/her|Townfolk|Other Realm/);
@@ -404,7 +404,7 @@ test('settlement tables use Place, Region, Type Of and Population, shared displa
   assert.doesNotMatch(later('tbody').text(),/Town/,'a settlement in a different region leaves the query at that date');
   const popup=load(engine.renderIndex('Places/Realm.md','settlements','1720-01-01','custom'),{},false);
   assert.match(popup('.taelgar-index-card').filter((_,el)=>popup(el).find('a[href*="places/z-first"]').length).text(),/Z-first \(ZED\)/);
-  engine.store.resolve('Places/Alpha.md').note.metadata.excludePublish='all';
+  engine.store.resolve('Places/Alpha.md').note.metadata.born=9999;
   const hidden=engine.render('Settlements','1720-01-01','custom');
   assert.doesNotMatch(hidden.html,/Alpha|\/alpha/);assert.match(hidden.html,/Z-first.*Unknown/s);
   assert.doesNotMatch(searchText(result.html),/Z-first|sparse|2,500/);
@@ -457,13 +457,13 @@ test('lazy index API filters each reader context, accepts only enabled types, an
   assert.equal(locked.status,200);const lockedHTML=await locked.text();
   assert.match(lockedHTML,/Alice Example/);assert.doesNotMatch(lockedHTML,/Campaign Secret/);
   assert.match(lockedHTML,/date=1720-01-01/);
-  engine.store.resolve('Places/Realm.md').note.metadata.excludePublish='all';
+  engine.store.resolve('Places/Realm.md').note.metadata.born=9999;
   assert.equal((await handleRequest(new Request(url),engine)).status,404);
 });
 
 
 test('rivers include lakes and waterways with watershed secondary locations, recursive and dated scope',()=>{
-  const {runtime}=fixture(featureIndexNotes),options={type:'rivers',target:'Basin'},context={date:'1720-01-01',visible:page=>page.metadata.excludePublish!=='all'};
+  const {runtime}=fixture(featureIndexNotes),options={type:'rivers',target:'Basin'},context={date:'1720-01-01',visible:page=>page.metadata.born!==9999};
   assert.deepEqual(headerIndexes(['rivers','places','rivers']),['rivers','places']);
   for(const type of ['rivers','places'])assert.equal(parseIndex('type: '+type).recursive,true);
   const rivers=queryIndex(runtime,options,context);
@@ -482,11 +482,11 @@ test('lakes honor location aliases, secondary membership, creation dates and vis
     'Places/Nested Lake.md':{tags:['place'],typeOf:'lake',whereabouts:'Lake'},
     'Places/Ruined Lake.md':{tags:['place'],typeOf:'lake',destroyed:1710,whereabouts:'Basin'},
     'Places/Future Lake.md':{tags:['place'],typeOf:'lake',created:1760,whereabouts:'Basin'},
-    'Places/Hidden Lake.md':{tags:['place'],typeOf:'lake',excludePublish:'all',whereabouts:'Basin'},
+    'Places/Hidden Lake.md':{tags:['place'],typeOf:'lake',born:9999,whereabouts:'Basin'},
     'Places/Sea.md':{tags:['place'],typeOf:'marine feature',typeOfAlias:'sea',whereabouts:'Basin'},
     'Places/Lake Named Sea.md':{tags:['place'],typeOf:'marine feature',typeOfAlias:'lake',whereabouts:'Basin'},
   };
-  const {runtime}=fixture(extra),options={type:'rivers',target:'Drainage Basin'},context={date:'1720-01-01',visible:page=>page.metadata.excludePublish!=='all'};
+  const {runtime}=fixture(extra),options={type:'rivers',target:'Drainage Basin'},context={date:'1720-01-01',visible:page=>page.metadata.born!==9999};
   const result=paths(queryIndex(runtime,options,context));
   for(const name of ['Lake','Secondary Lake','Nested Lake','Ruined Lake'])assert.ok(result.includes('Places/'+name+'.md'),name);
   for(const name of ['Future Lake','Hidden Lake','Sea','Lake Named Sea'])assert.ok(!result.includes('Places/'+name+'.md'),name);
@@ -496,7 +496,7 @@ test('lakes honor location aliases, secondary membership, creation dates and vis
 });
 
 test('places include only contained place notes, including town quarters and their buildings',()=>{
-  const {runtime}=fixture(featureIndexNotes),context={date:'1720-01-01',visible:page=>page.metadata.excludePublish!=='all'};
+  const {runtime}=fixture(featureIndexNotes),context={date:'1720-01-01',visible:page=>page.metadata.born!==9999};
   const places=queryIndex(runtime,{type:'places',target:'Old Town'},context);
   assert.deepEqual(paths(places),['Places/Quarter.md','Places/Inn.md','Places/Shop.md','Places/Temple.md']);
   assert.deepEqual(paths(queryIndex(runtime,{type:'places',target:'Town',recursive:false},context)),['Places/Quarter.md','Places/Inn.md','Places/Temple.md']);
@@ -514,10 +514,10 @@ test('Places built and natural filters use canonical types and traverse ancestor
     'Places/Market.md':{tags:['place'],typeOf:'building',typeOfAlias:'forest',whereabouts:'Town'},
     'Places/Unknown.md':{tags:['place'],whereabouts:'Town'},
     'Places/Portal.md':{tags:['place'],typeOf:'planar link',whereabouts:'Town'},
-    'Places/Hidden Forest.md':{tags:['place'],typeOf:'forest',excludePublish:'all',whereabouts:'Town'},
+    'Places/Hidden Forest.md':{tags:['place'],typeOf:'forest',born:9999,whereabouts:'Town'},
     'Places/Future Forest.md':{tags:['place'],typeOf:'forest',created:1760,whereabouts:'Town'},
   });
-  const options={type:'places',target:'Town'},context={date:'1720-01-01',visible:page=>page.metadata.excludePublish!=='all'};
+  const options={type:'places',target:'Town'},context={date:'1720-01-01',visible:page=>page.metadata.born!==9999};
   const all=paths(queryIndex(runtime,options,context)),built=paths(queryIndex(runtime,{...options,placeType:'built'},context)),natural=paths(queryIndex(runtime,{...options,placeType:'natural'},context));
   assert.deepEqual(new Set(built),new Set(['Quarter','Inn','Shop','Temple','Shrine','Bridge','Market'].map(name=>'Places/'+name+'.md')));
   assert.deepEqual(new Set(natural),new Set(['Wood','Hill','Pond'].map(name=>'Places/'+name+'.md')));
@@ -534,7 +534,7 @@ test('Places built and natural filters use canonical types and traverse ancestor
 test('website Places filters apply independently in grids and tables with contextual links',()=>{
   const engine=website({...indexSources(featureIndexNotes),
     'Places/Wood.md':'---\ntags: [place]\ntypeOf: forest\nwhereabouts: Quarter\n---',
-    'Places/Hidden Wood.md':'---\ntags: [place]\ntypeOf: forest\nwhereabouts: Town\nexcludePublish: all\n---',
+    'Places/Hidden Wood.md':'---\ntags: [place]\ntypeOf: forest\nwhereabouts: Town\nborn: 9999\n---',
     'Places/Future Wood.md':'---\ntags: [place]\ntypeOf: forest\nwhereabouts: Town\ncreated: 1760\n---',
     'Built.md':'```taelgar-index\ntype: places\ntarget: Town\nplaceType: built\nmode: table\n```',
     'Natural.md':'```taelgar-index\ntype: places\ntarget: Town\nplaceType: natural\n```',

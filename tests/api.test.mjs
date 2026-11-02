@@ -174,18 +174,18 @@ for (const page of ['Hidden','Secret','Hidden World','Hidden Nested','../README'
   test('unavailable page: ' + page,() => assert.throws(() => render(page),{status:404}));
 }
 
-test('publication retains exclusions, formerly ignored paths, excluded tags and underscore-prefixed files',() => {
-  assert.equal(engine.store.resolve('Hidden').note.metadata.excludePublish,'all');
+test('publication omits noPublish notes and retains formerly ignored paths and tags',() => {
+  assert.throws(()=>engine.store.resolve('Hidden'),{status:404});
   for (const page of ['CampaignHidden','Invisible','Drawing','_Loose']) assert.ok(render(page).html,page);
-  assert.throws(()=>engine.render('CampaignHidden',undefined,'dunmar-frontier'),{status:404});
+  assert.ok(engine.render('CampaignHidden',undefined,'dunmar-frontier').html);
   assert.ok(engine.render('CampaignHidden',undefined,'addermarch').html);
 });
 
-test('website and API apply exclusions and birth/creation dates consistently, including Behind the Curtain',async()=>{
+test('website and API ignore excludePublish and enforce packaging and birth/creation dates',async()=>{
   for (const dm of ['0','1']) {
     for (const [page,query,status] of [
       ['Hidden','context=modern',404], ['Hidden','date=1800-01-01',404],
-      ['CampaignHidden','context=dunmar-frontier',404], ['CampaignHidden','context=addermarch',200],
+      ['CampaignHidden','context=dunmar-frontier',200], ['CampaignHidden','context=addermarch',200],
       ['CampaignHidden','context=modern',200], ['CampaignHidden','date=1730-01-01',200],
       ['Unborn','date=1730-04-01',404], ['Unborn','date=1730-04-02',200],
       ['Unbuilt','date=1730-04-01',404], ['Unbuilt','date=1730-04-02',200],
@@ -522,7 +522,7 @@ test('Custom campaigns filter article blocks and persist through article, search
   for (const query of ['context=modern&campaigns=all','context=custom&campaigns=unknown','context=dunmar-frontier&campaigns=adma']) {
     assert.equal((await fetch(base+'/api/page?page=Example&'+query)).status,400);
   }
-  assert.equal((await fetch(base+'/api/page?page=CampaignHidden&date=1720-01-02&campaigns=all')).status,404);
+  assert.equal((await fetch(base+'/api/page?page=CampaignHidden&date=1720-01-02&campaigns=all')).status,200);
   const links=await(await fetch(base+'/api/page?page=Backlink%20Source&date=1720-01-02&campaigns=all')).json();
   const $=load(links.html,{},false);
   for (const link of $('a[href^="/page/"]').toArray()) assert.equal(new URL($(link).attr('href'),'https://example.test').searchParams.get('campaigns'),'all');

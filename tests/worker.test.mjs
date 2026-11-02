@@ -223,13 +223,13 @@ test('packaged snapshot has no machine paths or raw note bodies in the metadata 
   const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
   assert.equal(index.entries.filter(e=>e.note).length,engine.store.bySlug.size);
   const ids=new Set(index.entries.map(e=>e.id));
-  for (const id of ['Hidden.md','CampaignHidden.md','Unborn.md','Unbuilt.md','Ignored/Invisible.md','Drawing.md','_Loose.md','assets/dm-map.png','assets/dm-reference/map.png','assets/_portrait.png']) {
+  for (const id of ['CampaignHidden.md','Unborn.md','Unbuilt.md','Ignored/Invisible.md','Drawing.md','_Loose.md','assets/dm-map.png','assets/dm-reference/map.png','assets/_portrait.png']) {
     assert.ok(ids.has(id),id);
   }
   for (const id of ['_dm_notes/Secret.md','Worldbuilding/Hidden World.md','Nested/worldbuilding/Hidden World.md','Nested/_private/Hidden Nested.md','assets/worldbuilding/hidden.png','assets/_internal/hidden.png','assets/dm/map.png','assets/dm/nested/secret.png','asset/dm/map.png']) {
     assert.equal(ids.has(id),false,id);
   }
-  assert.equal(index.entries.find(e=>e.id==='Hidden.md').note.metadata.excludePublish,'all');
+  assert.ok(!index.entries.some(e=>e.id==='Hidden.md'));
   assert.doesNotMatch(JSON.stringify(index),/source_dir|runtime_dir|vault_dir|Fixture biography|private ordinary comment/);
   assert.equal(index.entries.every(e=>!('filename' in e)),true);
 });
@@ -241,7 +241,7 @@ test('Worker rejects unavailable pages before reading any note body and permits 
   const fetch=path=>app.fetch(new Request('https://example.test'+path),environment);
   for (const [page,query] of [
     ['Hidden','context=modern'],['Hidden','date=1800-01-01'],
-    ['CampaignHidden','context=dunmar-frontier'],['Unborn','date=1730-04-01'],['Unbuilt','date=1730-04-01'],
+    ['Unborn','date=1730-04-01'],['Unbuilt','date=1730-04-01'],
 
   ]) {
     for (const dm of ['0','1']) for (const route of ['/api/page?page='+page+'&','/page/'+page+'?']) {
@@ -252,7 +252,7 @@ test('Worker rejects unavailable pages before reading any note body and permits 
   }
   assert.equal([...isolated.calls.keys()].some(key=>key.includes('/notes/')),false);
   for (const [page,query] of [
-    ['CampaignHidden','context=modern'],['CampaignHidden','context=addermarch'],
+    ['CampaignHidden','context=dunmar-frontier'],['CampaignHidden','context=modern'],['CampaignHidden','context=addermarch'],
     ['Unborn','date=1730-04-02'],['Unbuilt','date=1730-04-02'],['Invisible','context=modern'],['Drawing','context=modern'],
     ['POV%20Year','date=1740-01-01'],['POV%20Plural','date=1740-01-01'],
   ]) assert.equal((await fetch('/api/page?page='+page+'&'+query)).status,200,page);
@@ -286,7 +286,7 @@ test('published website Markdown renders like Node without exposing website file
     assert.equal($('main a[href="https://example.org/"]').length,1);
     assert.equal($('main').text().includes('Private homepage note'),query.includes('dm=1'));
     assert.equal($('main').text().includes('Addermarch homepage content'),query.includes('addermarch') || query.includes('campaigns=all'));
-    assert.equal($('main a').filter((_,a)=>$(a).text()==='Conditional link').length,query.includes('dunmar-frontier') || query.includes('campaigns=all') ? 0 : 1);
+    assert.equal($('main a').filter((_,a)=>$(a).text()==='Conditional link').length,1);
   }));
   assert.equal([...storage.calls.keys()].some(key=>key.includes('/notes/')),false);
   assert.equal((await request('/page/_website/home')).status,404);
@@ -353,13 +353,13 @@ test('Worker filters article, generated header and DM links from metadata withou
     {key:'published/current.json',file:report.pointerFile}]);
   const app=createWorker(), environment={...env,CONTENT:isolated};
   for (const [query,campaignVisible,bornVisible,activeVisible] of [
-    ['context=dunmar-frontier',false,false,false],
+    ['context=dunmar-frontier',true,false,false],
     ['context=addermarch',true,false,false],
     ['date=1730-04-01',true,false,false],
     ['date=1730-04-02',true,true,false],
     ['date=1740-01-01',true,true,true],
     ['context=modern',true,false,false],
-    ['context=dunmar-frontier',false,false,false],
+    ['context=dunmar-frontier',true,false,false],
   ]) for (const dm of [false,true]) {
     const response=await app.fetch(new Request('https://example.test/api/page?page=Linked&'+query+'&dm='+Number(dm)),environment);
     assert.equal(response.status,200);
@@ -380,7 +380,7 @@ test('Worker filters article, generated header and DM links from metadata withou
     assert.equal(labels.has('popup campaign'),dm && campaignVisible);
     assert.equal(labels.has('popup birth'),dm && bornVisible);
     if (dm) assert.match($('.dm-note-popup').text(),/popup campaign.*popup birth/);
-    assert.deepEqual(result.warnings,[]);
+    assert.deepEqual(result.warnings,['Missing wikilink target: Hidden']);
   }
   const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
   const shard=index.entries.find(entry=>entry.id==='Linked.md').note.shard;

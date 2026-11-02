@@ -2,7 +2,7 @@ import {detailSources,validateDetailManifest,resolveDetailManifest} from './map-
 import path from 'node:path';
 import {parse} from 'yaml';
 import MarkdownIt from 'markdown-it';
-import {IMAGE_TYPES,parseNote,publicationExclusions,availableInContext} from './content-store.mjs';
+import {IMAGE_TYPES,parseNote,availableInContext} from './content-store.mjs';
 import {escapeHtml,pageUrl} from './common.mjs';
 import {measurementOptions} from './map-distance.mjs';
 import {validateManifest,resolveMapSource} from './map-core.mjs';
@@ -144,7 +144,6 @@ export function mapImages(store,{homeSource=null,campaignHomes={},strict=false}=
   if(homeSource!==null)authors.push({id:'_website/home.md',note:typeof homeSource==='string'?parseNote(homeSource):homeSource});
   for(const [host,source] of Object.entries(campaignHomes))authors.push({id:'_website/'+host+'.md',note:typeof source==='string'?parseNote(source):source});
   for (const author of authors) {
-    if(publicationExclusions(author.note.metadata).includes('all'))continue;
     for (const token of markdown.parse(author.note.body,{})) {
       if (token.type !== 'fence' || !/^(?:taelgar-map|leaflet)(?:\s|$)/i.test(token.info.trim())) continue;
       try {

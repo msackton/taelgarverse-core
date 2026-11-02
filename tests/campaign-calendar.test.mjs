@@ -15,9 +15,9 @@ test('weekday columns agree with both vault session anchors across 34 no-leap ye
   assert.equal(drDateString(feb.endExclusive),'1748-03-01');
 });
 
-test('the calendar uses website session ranking, aliases, exclusion, and latest session end date',()=>{
+test('the calendar uses website session ranking, aliases and latest session end date',()=>{
   const notes=[session('Campaigns/A/Old.md',{DR:'1750-01-01'}),session('Campaigns/A/New.md',{campaign:'Campaign A',realWorldDate:'2026-01-01',DR:'1748-07-19',DR_end:'1748-07-23'}),
-    session('Campaigns/A/Hidden.md',{realWorldDate:'2027-01-01',DR:'1751-01-01',excludePublish:['all']}),
+    session('Campaigns/A/Hidden.md',{realWorldDate:'2025-01-01',DR:'1748-07-01',excludePublish:['all']}),
     session('Campaigns/B/B.md',{campaign:'Beta',DR:'1715-05-02'}),session('_templates/Session.md',{realWorldDate:'zzz',DR:null}),session('Worldbuilding/Session.md',{realWorldDate:'zzz',DR:null})];
   const state=calendarContext(notes,registry,'a');
   assert.equal(state.context.id,'alpha');assert.equal(state.context.date,'1748-07-23');assert.equal(state.context.source,'Campaigns/A/New.md');

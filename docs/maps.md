@@ -239,7 +239,7 @@ are not automatically published.
 The source can be a quoted wikilink, an exact vault path, or a path relative to
 the note. Missing qualified paths never fall back to a matching basename. The
 manifest's PNG path resolves exactly relative to the manifest, and normal folder
-publication exclusions apply to both files.
+publication folder exclusions apply to both files.
 
 Preparation validates pixel or hex crop bounds and fully decodes the static
 PNG before tiling. The tiny version 2 manifest contains `version`, `image`

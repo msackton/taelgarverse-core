@@ -40,11 +40,10 @@ test('backlinks deduplicate aliases and link formats, sort by title, and omit se
 test('backlinks filter source availability and occurrence campaign, date, and DM rules on every request',() => {
   for (const date of ['1729-12-31','1730-01-01','1740-01-01']) for (const campaigns of [[],['dufr'],['adma'],['adma','dufr']]) for (const dm of [false,true]) {
     const ctx = context(date,campaigns,dm), actual = pages(ctx);
-    const expected = ['backlink-source','embedded-reference'];
+    const expected = ['backlink-source','embedded-reference','excluded-reference'];
     if (date<'1730-01-01') expected.push('before-reference');
     else expected.push('date-reference','future-reference');
     if (campaigns.includes('dufr')) expected.push('campaign-reference','cross-campaign-reference');
-    else expected.push('excluded-reference');
     if (campaigns.includes('dufr')) expected.push('dunmar-backlink-session','campaigns/dunmari-frontier-campaign/letters/backlink-letter');
     if (campaigns.includes('adma')) expected.push('addermarch-backlink-session','campaigns/addermarch-campaign/handouts/backlink-letter');
     if (dm) expected.push('dm-reference','dm-block-reference');
@@ -62,7 +61,7 @@ test('campaign ownership recognizes registry identities and folders while keepin
     'Target.md':'# Target',
     'Shared.md':'---\nknownTo: [adma]\ncampaignInfo: [{campaign: adma}]\n---\n# Shared\n\n[[Target]]',
     'Multi.md':'---\ncampaign: [ADMA, dunmar-frontier]\n---\n# Multi\n\n[[Target]]',
-    'Other.md':'---\ncampaign: Addermarch Campaign\nexcludePublish: [adma]\n---\n# Excluded\n\n[[Target]]',
+    'Other.md':'---\ncampaign: Addermarch Campaign\ncreated: 9999-01-01\n---\n# Excluded\n\n[[Target]]',
     'Unknown.md':'---\ncampaign: Unregistered\n---\n# Unknown\n\n[[Target]]',
     'Unassigned Session.md':'---\ntags: [session-note]\n---\n# Unassigned\n\n[[Target]]',
     'Campaigns/Campaigns.md':'# Campaign Directory\n\n[[Target]]',
@@ -84,7 +83,7 @@ test('campaign ownership recognizes registry identities and folders while keepin
   }
   const all = linkedFrom(compiled,sample,'target',{...context('1720-01-01',['adma','dufr']),allCampaigns:true},owners).map(link=>link.page);
   for (const source of ['unknown','unassigned-session','campaigns/unregistered-campaign/session']) assert.ok(all.includes(source));
-  assert.equal(all.includes('other'),false); // Publication exclusions still apply.
+  assert.equal(all.includes('other'),false); // Creation dates still apply.
 });
 
 test('person Linked from omits campaign material in every context without removing it from the index or other pages',() => {

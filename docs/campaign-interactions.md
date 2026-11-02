@@ -153,7 +153,7 @@ Reading View and Live Preview show automatic footers on pages with registered
 picker directly below the heading, defaulting to **All**. Empty histories retain
 the heading, picker, knowledge status, and related material without allocating
 an empty timeline. This local author view includes DM text and ignores website
-publication exclusions. Selected campaign and date conditions still apply.
+website packaging rules. Selected campaign and date conditions still apply.
 A source note's `knownTo` adaptation does not make an untagged reference eligible.
 See the [plugin guide](../obsidian/taelgarverse/README.md#campaign-interactions)
 for settings, date selection, and lifecycle behavior.

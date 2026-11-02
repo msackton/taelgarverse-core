@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {availableFrom,availableInContext,excluded,hasStubTag,omitFromPublication,parseNote} from '../src/content-store.mjs';
+import {availableFrom,availableInContext,compileAvailability,hasStubTag,omitFromPublication,parseNote} from '../src/content-store.mjs';
 import {instantiate} from '../src/worker-headers.mjs';
 
 const entry = metadata => ({note:{metadata}});
@@ -47,15 +47,6 @@ test('birth takes precedence over creation; activeYear remains an independent re
   }
 });
 
-test('exclusions accept lists and comma-separated strings without making tags a visibility rule',()=>{
-  for (const excludePublish of [' DUFR, adma ',[' DUFR ','adma']]) {
-    assert.equal(excluded({excludePublish},{campaigns:['dufr']}),true);
-    assert.equal(excluded({excludePublish},{campaigns:['ADMA']}),true);
-    assert.equal(excluded({excludePublish},{campaigns:[]}),false);
-  }
-  for (const excludePublish of [' ALL ',['All']]) assert.equal(excluded({excludePublish},{campaigns:[]}),true);
-  assert.equal(availableInContext(entry({tags:['excalidraw']}),context('1730-01-01')),true);
-});
 
 test('retired POV metadata, settings and context flags never restrict page availability',()=>{
   for(const POV of [1740,'1740','1740s','1740-04','1740-04-02','modern',null,{},[1740]])
@@ -63,7 +54,19 @@ test('retired POV metadata, settings and context flags never restrict page avail
       const view={...context('1730-01-01'),pov},settings={respect_pov_dates};
       assert.equal(availableFrom(entry({POV}),settings),10101);
       assert.equal(availableInContext(entry({POV}),view,settings),true);
-      for(const restriction of [{born:1740},{created:1740},{activeYear:1740},{excludePublish:'all'}])
+      for(const restriction of [{born:1740},{created:1740},{activeYear:1740}])
         assert.equal(availableInContext(entry({POV,...restriction}),view,settings),false);
     }
+});
+
+test('retired publication exclusions are ignored in raw and compiled availability',()=>{
+  for(const excludePublish of ['all',['all'],['dufr'],'DUFR, adma']){
+    const page=entry({excludePublish});
+    assert.deepEqual(compileAvailability(page),{from:10101});
+    for(const campaigns of [[],['dufr'],['adma']]){
+      const view={date:'1730-01-01',campaigns};
+      assert.equal(availableInContext(page,view),true);
+      assert.equal(availableInContext({...page,availability:{from:10101,exclusions:['all']}},view),true);
+    }
+  }
 });

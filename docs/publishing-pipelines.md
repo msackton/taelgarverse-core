@@ -156,8 +156,8 @@ Both choices run these stages:
    content hashes participate in the publication fingerprint.
 2. **Dataview.** Build an index from the remaining copied Markdown when using
    Node, or use the live Obsidian
-   Dataview index. Evaluate plain DQL selected from website notes, skipping
-   `excludePublish: all`. Do not execute DataviewJS. Strict
+   Dataview index. Evaluate plain DQL selected from the included website notes.
+   The retired `excludePublish` field has no effect. Do not execute DataviewJS. Strict
    errors apply no partial replacements; `--no-strict` reports failures and
    keeps the failed query blocks.
 3. **Headers.** Convert eligible leading saved `[!info]` headers, empty legacy

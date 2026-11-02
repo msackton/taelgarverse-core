@@ -89,9 +89,8 @@ export function createIndexSearch(query,{revision,descriptor,store}){
       WHEN EXISTS(SELECT 1 FROM json_each(m.aliases) WHERE value=?) THEN 1 ELSE 2 END` :
       `CASE WHEN d.page IN (SELECT value FROM json_each(?)) THEN 0 WHEN d.page IN (SELECT value FROM json_each(?)) THEN 1 ELSE 2 END`;
     const metadataSQL=prepared ? `m.from_date<=?
-      AND NOT EXISTS(SELECT 1 FROM json_each(m.exclusions) x WHERE x.value='all' OR x.value IN (SELECT value FROM json_each(?)))
       ${input.type?'AND m.type=?':''}` : `d.page IN (SELECT value FROM json_each(?)) ${input.type?'AND d.page IN (SELECT value FROM json_each(?))':''}`;
-    const metadataParams=prepared ? [day,campaigns,...(input.type?[input.type]:[])] :
+    const metadataParams=prepared ? [day,...(input.type?[input.type]:[])] :
       [JSON.stringify(visible),...(input.type?[JSON.stringify(typed)]:[])];
     const output=await query([
       {sql:`SELECT revision FROM tv_search_revisions WHERE revision=? AND state='ready' AND digest=? AND compiler=? AND documents=? AND rules=?

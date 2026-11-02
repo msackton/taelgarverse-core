@@ -178,7 +178,7 @@ test('compiler supports arbitrary dates, campaign subsets and DM mode with whole
     'Unsafe.md':'Public prefix %% unclosed private data',
     'Heading.md':'## Searchable heading only'},{respect_pov_dates:true});
   const manifest=validateSearchManifest(compileSearch(store)),md=createMarkdown(),notesMarkdown=createMarkdown({html:false});
-  assert.equal(manifest.warnings.length,1);assert.doesNotMatch(JSON.stringify(manifest.documents),/Do not index|unclosed private|adminnever/);
+  assert.equal(manifest.warnings.length,1);assert.doesNotMatch(JSON.stringify(manifest.documents),/unclosed private|adminnever/);
   for(const date of ['1739-09-17','1740-01-01','1740-04-30','1740-05-01','1740-05-30','1740-05-31','1742-01-01','1750-02-05']){
     for(const campaigns of [[],['dufr'],['adma'],['adma','dufr'],['irrelevant','dufr']])for(const dm of [false,true]){
       const context={date,campaigns,dm},ids=visible(manifest,context);
@@ -208,7 +208,7 @@ test('compiler avoids transitive embeds, executable source, unsafe partial resul
   const host=manifest.documents.find(d=>d.page==='host');assert.doesNotMatch(host.text,/Child-only|secretquery|graph LR/);
   assert.throws(()=>compileSearch(storeFor({'Complex.md':'%%^Campaign:a%%one%%^End%%\n%%^Campaign:b%%two%%^End%%'}),{maxStatesPerNote:4}),/state limit/);
   const changed=structuredClone(manifest);changed.documents[0].text='tampered';assert.throws(()=>validateSearchManifest(changed),/digest/);
-  const empty=validateSearchManifest(compileSearch(storeFor({'Never.md':'---\nexcludePublish: all\n---\nNo search'})));assert.equal(empty.documents.length,0);
+  const retired=validateSearchManifest(compileSearch(storeFor({'Legacy.md':'---\nexcludePublish: all\n---\nSearchable text'})));assert.equal(retired.documents.length,1);
 });
 
 test('prepared search is revision-bound, stays out of R2 uploads, and tampering fails before database access',async t=>{
@@ -307,19 +307,20 @@ test('compiler ignores retired POV settings and fingerprints omit the policy',()
   assert.equal(buildFingerprint({...settings,respect_pov_dates:false},options),buildFingerprint({...settings,respect_pov_dates:true},options));
 });
 
-sqliteTest('schema-3 POV column removal is atomic and preserves ready generations and search',async t=>{
+sqliteTest('schema-3 retired visibility removal is atomic and preserves ready generations',async t=>{
   const {db,adapter,fail}=database();t.after(()=>db.close());
   const index=new SearchIndex(adapter),manifest=compileSearch(storeFor({'One.md':'---\ncreated: 1720\n---\ncurrent marker'}));
   await index.stage(rev('a'),manifest);
   // Reconstruct the obsolete schema around a real ready generation.
-  db.exec('ALTER TABLE tv_search_page_metadata ADD COLUMN pov_date INTEGER NOT NULL DEFAULT 17500101; UPDATE tv_search_meta SET version=3');
+  db.exec("ALTER TABLE tv_search_page_metadata ADD COLUMN pov_date INTEGER NOT NULL DEFAULT 17500101; ALTER TABLE tv_search_page_metadata ADD COLUMN exclusions TEXT NOT NULL DEFAULT '[]'; UPDATE tv_search_meta SET version=3");
   fail(sql=>sql.startsWith('UPDATE tv_search_meta'));
   await assert.rejects(index.ensure(),/injected/);
   assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,3);
-  assert.ok(db.prepare('PRAGMA table_info(tv_search_page_metadata)').all().some(row=>row.name==='pov_date'));
+  const restored=db.prepare('PRAGMA table_info(tv_search_page_metadata)').all().map(row=>row.name);
+  for(const field of ['pov_date','exclusions'])assert.ok(restored.includes(field));
   await index.ensure();
   assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,4);
-  assert.ok(!db.prepare('PRAGMA table_info(tv_search_page_metadata)').all().some(row=>row.name==='pov_date'));
+  assert.ok(!db.prepare('PRAGMA table_info(tv_search_page_metadata)').all().some(row=>row.name==='pov_date' || row.name==='exclusions'));
   assert.equal(db.prepare('SELECT from_date FROM tv_search_page_metadata').get().from_date,17200101);
   await index.verify(rev('a'),searchDescriptor(manifest));
   assert.equal((await index.stage(rev('a'),manifest)).resumed,true);

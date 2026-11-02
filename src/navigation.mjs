@@ -62,7 +62,7 @@ export class Navigation {
   }
 
   viewKey(context) {
-    return JSON.stringify([context.date,[...context.campaigns].sort()]);
+    return context.date;
   }
 
   compile(contexts=[]) {
