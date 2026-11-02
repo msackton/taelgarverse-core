@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {ROOT,isInside} from '../src/config.mjs';
 import {NO_PUBLISH_MARKER} from '../src/folder-exclusions.mjs';
-import {parseNote} from '../src/content-store.mjs';
+import {parseNote,omitFromPublication} from '../src/content-store.mjs';
 import {validateMapPath} from '../src/map-feature-path.mjs';
 import {readMapPathFile} from '../src/map-path-files.mjs';
 
@@ -23,12 +23,19 @@ export async function copyWorkingVault(vault,output,{log=()=>{}}={}) {
       const relative=folder?folder+'/'+entry.name:entry.name,source=path.join(vault,relative),target=path.join(output,relative);
       if(entry.isDirectory()){if(!entry.name.startsWith('_'))await walk(relative);}
       else if(entry.isFile()) {
+        let metadata;
+        if(/\.md$/i.test(relative)){
+          // Keep unpublished notes out of Dataview's index as well as the package.
+          // Invalid notes still reach Store's existing warning handling.
+          try{metadata=parseNote(await fs.readFile(source,'utf8')).metadata;}catch{}
+          if(metadata && omitFromPublication(metadata))continue;
+        }
         const stat=await fs.stat(source);await fs.copyFile(source,target);await fs.utimes(target,stat.atime,stat.mtime);
         if(/\.md$/i.test(relative)){
           stats.set(relative,{ctime:stat.birthtimeMs,mtime:stat.mtimeMs,size:stat.size});
           // Only explicitly referenced geometry is copied from private folders.
           // Malformed metadata remains the Store/renderer validation boundary.
-          try{const value=parseNote(await fs.readFile(target,'utf8')).metadata.mapPath;if(value?.source!==undefined)pathSources.add(validateMapPath(value).source);}catch{}
+          try{const value=metadata?.mapPath;if(value?.source!==undefined)pathSources.add(validateMapPath(value).source);}catch{}
         }
         copied++;
       }

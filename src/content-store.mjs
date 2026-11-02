@@ -26,6 +26,14 @@ export function parseNote(source) {
 export function authoredBody(note) {
   return withoutHeaderCallouts(note.body);
 }
+export function hasStubTag(metadata) {
+  const raw = metadata.tags;
+  const tags = typeof raw === 'string' ? raw.split(/[,\s]+/) : Array.isArray(raw) ? raw : [];
+  return tags.some(tag => typeof tag === 'string' && tag.trim().replace(/^#/, '').toLowerCase() === 'status/stub');
+}
+export function omitFromPublication(metadata) {
+  return metadata.noPublish === true || hasStubTag(metadata);
+}
 export function publicationExclusions(metadata) {
   const raw = metadata.excludePublish;
   const exclusions = (typeof raw === 'string' ? raw.split(',') : Array.isArray(raw) ? raw : []).map(x => String(x).trim().toLowerCase());

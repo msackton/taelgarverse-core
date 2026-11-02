@@ -1,11 +1,27 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {availableFrom,availableInContext,excluded} from '../src/content-store.mjs';
+import {availableFrom,availableInContext,excluded,hasStubTag,omitFromPublication,parseNote} from '../src/content-store.mjs';
 import {instantiate} from '../src/worker-headers.mjs';
 
 const entry = metadata => ({note:{metadata}});
 const context = date => ({date,campaigns:[]});
 const povSettings = {respect_pov_dates:true};
+
+test('stub publication policy recognizes exact frontmatter tags in lists and scalar strings',()=>{
+  for(const tags of [['person','status/stub'],'status/stub','person, status/stub','person #STATUS/STUB',[null,42,' #Status/Stub ']])
+    assert.equal(hasStubTag({tags}),true,JSON.stringify(tags));
+  for(const tags of [undefined,null,42,{},['status/wip'],['status/stubbed'],['status/stub/child'],['other/status/stub']])
+    assert.equal(hasStubTag({tags}),false,JSON.stringify(tags));
+});
+
+test('noPublish requires a YAML boolean true and does not override stub or campaign policy',()=>{
+  assert.equal(omitFromPublication(parseNote('---\nnoPublish: true\n---\n').metadata),true);
+  for(const value of [undefined,false,null,'true','false',0,1,[],{}])
+    assert.equal(omitFromPublication({noPublish:value}),false,JSON.stringify(value));
+  assert.equal(omitFromPublication({noPublish:false,tags:['status/stub']}),true);
+  assert.equal(omitFromPublication({excludePublish:'all'}),false);
+  assert.equal(omitFromPublication({excludePublish:['dufr']}),false);
+});
 
 test('birth and creation boundaries agree with CustomJS for full and partial dates',()=>{
   const customJS={state:{}};

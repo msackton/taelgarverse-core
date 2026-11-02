@@ -52,6 +52,10 @@ test('Node stages run DQL on a copied raw vault before conversion and never rewr
   const source='---\nheaderVersion: 1\ntags: [group]\n---\n# Saved header\n>[!info] Old\n\n'+
     '```dataview\nLIST FROM #person\n```\n\n```dataviewjs\n'+members+'\n```\n';
   await fs.writeFile(path.join(vault,'Guild.md'),source);await fs.mkdir(path.join(vault,'_private'));await fs.writeFile(path.join(vault,'_private','Indexed.md'),'# Private source note');
+  const stub='---\ntags: [person, status/stub]\nmapPath: {source: _maps/missing.json}\n---\n```dataview\nINVALID STUB QUERY\n```';
+  await fs.writeFile(path.join(vault,'Stub.md'),stub);
+  const unpublished='---\nnoPublish: true\nmapPath: {source: _maps/missing.json}\n---\n```dataview\nINVALID UNPUBLISHED QUERY\n```';
+  await fs.writeFile(path.join(vault,'Unpublished.md'),unpublished);
   const copy=await copyWorkingVault(vault,working);
   assert.equal(await fs.readFile(path.join(working,'Guild.md'),'utf8'),source);
   assert.equal(copy.stats.get('Guild.md').ctime,(await fs.stat(path.join(vault,'Guild.md'))).birthtimeMs);
@@ -60,6 +64,10 @@ test('Node stages run DQL on a copied raw vault before conversion and never rewr
     assert.equal(options.dataviewDirectory,undefined,'default must not point to a vault installation');
     assert.equal(directory,working);assert.match(store.entries[0].note.body,/Saved header/);assert.match(store.entries[0].note.body,/dataviewjs/);
     await assert.rejects(fs.access(path.join(directory,'_private')),{code:'ENOENT'});
+    await assert.rejects(fs.access(path.join(directory,'Stub.md')),{code:'ENOENT'});
+    assert.equal(options.stats.has('Stub.md'),false);
+    await assert.rejects(fs.access(path.join(directory,'Unpublished.md')),{code:'ENOENT'});
+    assert.equal(options.stats.has('Unpublished.md'),false);
     assert.equal(options.stats.has('_private/Indexed.md'),false);
     return {api:{tryQueryMarkdown:async()=>'- [[Result]]'},errors:[],identity:{version:'fixture'},index:{pages:new Map()},links:{ambiguities:new Map()}};
   }});
@@ -69,6 +77,8 @@ test('Node stages run DQL on a copied raw vault before conversion and never rewr
   assert.match(output,/\[\[Result\]\]/);assert.match(output,/taelgar-index/);assert.match(output,/Saved header/);
   assert.doesNotMatch(output,/dataviewjs|LIST FROM/);assert.equal(conversion.unconverted.length,0);
   assert.equal(await fs.readFile(path.join(vault,'Guild.md'),'utf8'),source);
+  assert.equal(await fs.readFile(path.join(vault,'Stub.md'),'utf8'),stub);
+  assert.equal(await fs.readFile(path.join(vault,'Unpublished.md'),'utf8'),unpublished);
   await assert.rejects(saveWorkingNotes(new Store({...settings,source_dir:vault})),/separate working vault/);
 });
 

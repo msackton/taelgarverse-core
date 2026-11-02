@@ -46,10 +46,41 @@ The following are left out of the article and media collection:
 - Files and folders beginning with `.`, files named `AGENTS.md`, and symbolic links
   (filesystem links to another location).
 - Folders containing a `.nopublish` marker, including every descendant.
+- Notes with the exact frontmatter tag `status/stub`.
+- Notes with the boolean frontmatter property `noPublish: true`.
 
 The underscore rule applies to **folders**: a file named `_example.md` can still
 be included. Likewise, `assets/dm-map.png` is included; it is outside `assets/dm/`.
 Tags such as `excalidraw` or `status/check/ai` do not prevent publication.
+
+`status/stub` is an exception: tagged notes are omitted before website query
+processing and packaging, including their bodies, metadata, aliases, backlinks,
+and search documents. The tag can be in a YAML list or scalar `tags` string;
+matching ignores capitalization and an optional leading `#`. Only the exact tag
+matches, not `status/stubbed` or `status/stub/child`. Inline body hashtags do not
+control this policy. Local website previews use the same rule. Source notes and
+separately stored media remain untouched. Remove the tag and republish to include
+the note. Text already copied into other notes is unaffected. The default Node
+Dataview backend does not index stub notes; the optional Obsidian backend queries
+the original vault, so its results can still mention them.
+
+To exclude any individual note from the publication package, add this property
+to its YAML frontmatter:
+
+```yaml
+noPublish: true
+```
+
+This uses the same packaging exclusion as `status/stub`: the note is omitted
+from the working copy, metadata, article content, backlinks, and search documents,
+including in local previews. It applies in every campaign/date view, including
+Behind the Curtain. Use a boolean (an Obsidian checkbox property); the quoted
+string `"true"` does not enable it. Setting `noPublish: false` or removing the
+property restores normal eligibility, but does not override `status/stub` or
+other exclusion rules. Source notes and separately stored media are unchanged;
+text copied into another note or returned by the optional Obsidian query backend
+is unaffected. Republish content for changes to reach the website; an existing
+active snapshot is not changed by editing this property.
 
 Notes with unreadable text or invalid properties are skipped with a warning.
 Two notes that produce the same website address stop publication until the
@@ -136,6 +167,7 @@ The website reads the properties at the top of each note—the YAML section betw
 | `displayDefaults`, `ddbLink` | Header formatting and a link to game mechanics. |
 | `born`, `created`, `died`, `destroyed`, `DR`, `DR_end` | Ages, lifespans, and event dates. |
 | `whereabouts`, `partOf`, `affiliations`, `leaderOf`, `campaignInfo` | Locations, relationships, leadership, and campaign events, using the selected date. |
+| `noPublish` | Boolean `true` omits the note from the publication package, like `status/stub`. |
 | `excludePublish`, `activeYear` | Whether the page is shown, as explained below. |
 
 Related notes also matter: a location or affiliation may use another note's name
@@ -608,6 +640,11 @@ These properties hide a whole page:
 
 `excludePublish` can also contain several campaign codes, as a YAML list or a
 comma-separated string. Codes are matched regardless of capitalization.
+This is a visibility rule, not a packaging exclusion: even `excludePublish: all`
+retains the note's Markdown and metadata in the publication snapshot, although
+it is omitted from search and cannot be opened as a page. Use `noPublish: true`,
+`status/stub` for stub notes, or a [folder marker](#exclude-a-folder) to omit
+content from packaging.
 Death or destruction does not hide a page; readers can still look up historical
 people, places, and objects.
 
@@ -652,7 +689,8 @@ but cannot be clicked; opening their address gives “Page unavailable.”
 **Readers can choose any campaign and turn on See Behind the Curtain.** These
 choices do not require a login. That option reveals comments, but never overrides
 the whole-page rules above. `knownTo`, nondated POV/audience notes, and status
-tags do not limit who can read a page.
+tags other than the `status/stub` packaging exclusion do not limit who can read a
+page. Notes marked `noPublish: true` are omitted entirely before these view rules.
 
 A hidden page's properties may still contribute to other pages' headers. Its
 images and other media can still be opened separately. Ordinary prose does not

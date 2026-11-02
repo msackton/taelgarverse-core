@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {isInside,targetPath,titleCase} from './config.mjs';
-import {ContentStore,parseNote,ASSET_TYPES} from './content-store.mjs';
+import {ContentStore,parseNote,ASSET_TYPES,omitFromPublication} from './content-store.mjs';
 import {NO_PUBLISH_MARKER,readFolderExclusions} from './folder-exclusions.mjs';
 import {validateManifest} from './map-core.mjs';
 import {validateMapLayers} from './map-layers.mjs';
@@ -47,6 +47,7 @@ export class Store extends ContentStore {
             warnings.push(relative + ': invalid YAML or UTF-8');
             continue;
           }
+          if (omitFromPublication(entry.note.metadata)) continue;
           entry.name = path.basename(file.name, '.md');
           entry.title = [entry.note.metadata.title ? titleCase(entry.note.metadata.title) : '',
             titleCase(entry.note.metadata.name || entry.name.replace(/-/g, ' '))].filter(Boolean).join(' ');
