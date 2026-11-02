@@ -18,13 +18,17 @@ test('session inventory only offers two actions for maps, with explicit human-re
   const h=setup();await h.view.ready;assert.equal(h.root.querySelectorAll('tbody tr').length,1);
   assert.match(h.root.textContent,/Unreviewed · 1 of 1/);assert.equal(h.root.querySelector('tbody').querySelectorAll('button').length,2);
   button(h.root,'Show entities map').click();await settle();assert.equal(h.view.getState().stage,'map');assert.match(h.root.textContent,/Guide/);
+  const topbar=h.root.querySelector('.entity-review-topbar');
+  assert.deepEqual([...topbar.querySelectorAll('button')].map(node=>node.textContent),['Back to sessions','Entity-by-entity review','Reload list']);
+  assert.ok(topbar.querySelector('[role=status]'));
+  assert.equal([...h.root.querySelectorAll('[role=status]')].filter(node=>!node.hidden).length,1);
   button(h.root,'Back to sessions').click();await settle();button(h.root,'Review entities').click();await settle();
   assert.equal(h.view.getState().stage,'review');assert.ok(button(h.root,'Skip for now'));h.view.dispose();
 });
 test('restoring selection does not start Python and changing state clears stale controls',async()=>{
   const h=setup();await h.view.ready;await h.view.restore({session:'other.yaml',stage:'review'});assert.deepEqual(h.calls.map(r=>r.command),['index']);
-  button(h.root,'Review entities').click();await settle();assert.ok(button(h.root,'Accept and next'));
-  await h.view.restore({session:'other.yaml',stage:'map'});assert.equal(button(h.root,'Accept and next'),undefined);h.view.dispose();
+  button(h.root,'Review entities').click();await settle();assert.ok(button(h.root,'Save and next'));
+  await h.view.restore({session:'other.yaml',stage:'map'});assert.equal(button(h.root,'Save and next'),undefined);h.view.dispose();
 });
 test('late discovery cannot redraw a disposed view',async()=>{
   const {document}=parseHTML('<main></main>');let resolve;const root=document.querySelector('main');

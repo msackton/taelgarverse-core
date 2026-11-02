@@ -40,11 +40,11 @@ export function mountSessionReview(root,{request,open,initialState={},onStartupS
     onStartupStep('index:rendered');
   }
   async function loadSession(){
-    clear();index.hidden=true;controls.hidden=true;
-    button(body,'Back to sessions',async()=>{clear();session=null;selected=null;index.hidden=false;controls.hidden=false;await loadIndex();});
-    button(body,stage==='map'?'Review entities':'Show entities map',async()=>{stage=stage==='map'?'review':'map';selected=null;await loadSession();});
+    clear();index.hidden=true;controls.hidden=true;status.hidden=true;
     const pane=el('div',null,body);
-    entityView=mountEntityReview(pane,{request,open,session,mode:stage,initialEntity:selected,onSelect:key=>{selected=key;}});
+    entityView=mountEntityReview(pane,{request,open,session,mode:stage,initialEntity:selected,onSelect:key=>{selected=key;},
+      onBack:async()=>{clear();session=null;selected=null;index.hidden=false;controls.hidden=false;status.hidden=false;await loadIndex();},
+      onSwitch:async()=>{stage=stage==='map'?'review':'map';selected=null;await loadSession();}});
     await entityView.ready;
   }
   button(controls,'Refresh sessions',loadIndex);
@@ -53,6 +53,6 @@ export function mountSessionReview(root,{request,open,initialState={},onStartupS
   return {ready,getState:()=>({session,entity:selected,stage}),restore:async state=>{
     const changed=session!==state.session||stage!==state.stage||selected!==state.entity;
     session=state.session;selected=state.entity;stage=state.stage==='review'?'review':'map';
-    if(changed){clear();index.hidden=false;controls.hidden=false;status.textContent='Saved selection restored. Choose a session to continue.';}
+    if(changed){clear();index.hidden=false;controls.hidden=false;status.hidden=false;status.textContent='Saved selection restored. Choose a session to continue.';}
   },dispose(){disposed=true;clear();root.replaceChildren();}};
 }

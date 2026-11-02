@@ -29,7 +29,7 @@ function host({requestError,missingStdin=false,basePath='D:/test-vault',renderer
     launch={file:_file,cwd:options.cwd};
     if(missingStdin){queueMicrotask(()=>callback(new Error(requestError),'',''));return {kill(){}};}
     const child=new EventEmitter();child.stdin=new EventEmitter();child.kill=()=>{};
-    child.stdin.end=()=>{requests++;queueMicrotask(()=>{
+    child.stdin.end=input=>{launch.request=JSON.parse(input);requests++;queueMicrotask(()=>{
       if(requestError)callback(new Error(requestError),'','');
       else callback(null,JSON.stringify(response),'');
     });};return child;
@@ -86,6 +86,23 @@ test('the feature discovers sessions without starting the Python bridge',async t
   const h=host({basePath:directory});
   const feature=new h.api.SessionReviewFeature({app:h.view.app,settings:{sessionReviewEnabled:true}});
   const result=await feature.request({command:'index'});assert.equal(result.sessions.length,0);assert.equal(h.requests,0);
+});
+
+test('staging creation sends live cached note identities and identifies uncached files for fallback',async()=>{
+  const h=host({renderer:true});
+  const files=[{path:'People/Known.md'},{path:'Items/Compass.md'},{path:'Worldbuilding/Uncached.md'}];
+  h.view.app.vault.getMarkdownFiles=()=>files;
+  h.view.app.metadataCache={getFileCache:file=>file===files[0]?{frontmatter:{name:'Known Person',aliases:['The guide',7]}}:
+    file===files[1]?{frontmatter:{aliases:'The silver compass'}}:null};
+  const feature=new h.api.SessionReviewFeature({app:h.view.app,settings:{sessionReviewEnabled:true}});
+  const request={command:'createStagingNote',name:'New ally',entity:'e001',token:{mapSha256:'map'}};
+  await feature.request(request);
+  assert.deepEqual(JSON.parse(JSON.stringify(h.launch.request.noteIndex)),[
+    {path:'People/Known.md',names:['Known Person','The guide']},
+    {path:'Items/Compass.md',names:['The silver compass']},
+    {path:'Worldbuilding/Uncached.md'},
+  ]);
+  assert.equal(request.noteIndex,undefined);assert.equal(h.launch.request.name,'New ally');
 });
 
 test('setup inspection records runtime identity without starting a child process',async()=>{

@@ -28,6 +28,7 @@ export function inspectReviewSetup(python){
       ELECTRON_RUN_AS_NODE:flag('ELECTRON_RUN_AS_NODE'),NODE_OPTIONS:process.env.NODE_OPTIONS!=null}};
 }
 export async function reviewRequest(vault,python,request){
+  const started=Date.now();
   const log=label=>{try{appendFileSync(path.join(vault,'.obsidian/plugins/taelgarverse/session-review-debug.log'),label+'\n');}catch{}};
   log('request '+request.command+' '+new Date().toISOString());
   const executable=resolveReviewPython(python),backend=reviewProcessBackend();
@@ -42,7 +43,7 @@ export async function reviewRequest(vault,python,request){
     const result=await runReviewProcess(executable,args,{cwd:vault,windowsHide:true,shell:false,encoding:'utf8',
       env:{...process.env,PYTHONIOENCODING:'utf-8'},timeout:60000,maxBuffer:REVIEW_PROCESS_LIMIT},JSON.stringify(request),log);
     const {error,output}=result;stderr=result.stderr;
-    log('process complete '+(error?.code??(error?'error':0))+' stdout length '+(output?.length??0));
+    log('process complete '+(error?.code??(error?'error':0))+' stdout length '+(output?.length??0)+' elapsed ms '+(Date.now()-started));
     if(error?.code==='ERR_CHILD_PROCESS_STDIO_MAXBUFFER')throw new Error('Review response too large');
     if(error?.killed)throw new Error('Review helper timed out; reload to inspect the current artifact before retrying.');
     if(error&&!output)throw error;
@@ -124,6 +125,18 @@ export class SessionReviewFeature extends Component{
     if(request.command==='connectionInfo'){
       const result=inspectReviewSetup(this.plugin.settings.sessionReviewPython);
       trace(this,'setup '+JSON.stringify(result));return Promise.resolve(result);
+    }
+    if(request.command==='createStagingNote'&&this.app.vault.getMarkdownFiles&&this.app.metadataCache?.getFileCache){
+      // Use Obsidian's live metadata index rather than reopening every vault file.
+      // Omit names when a file is not cached; the helper reads those files only.
+      const noteIndex=this.app.vault.getMarkdownFiles().map(file=>{
+        const cache=this.app.metadataCache.getFileCache(file),frontmatter=cache?.frontmatter;
+        const aliases=frontmatter?.aliases??[];
+        return {path:file.path,...(cache?{names:[frontmatter?.name,...(Array.isArray(aliases)?aliases:[aliases])]
+          .filter(value=>typeof value==='string')}:{})};
+      });
+      trace(this,'staging note index entries '+noteIndex.length+' uncached '+noteIndex.filter(item=>!item.names).length);
+      request={...request,noteIndex};
     }
     return reviewRequest(this.app.vault.adapter.getBasePath(),this.plugin.settings.sessionReviewPython,request);
   }
