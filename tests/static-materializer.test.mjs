@@ -90,7 +90,7 @@ test('static CLI dispatches only to Taelgarverse materializer and keeps legacy e
   let received;
   const legacy={runRequest:()=>assert.fail('the explicit Taelgarverse CLI must never select the original plugin')};
   await vm.runInNewContext(buildEvalCode(request),{app:{plugins:{plugins:{'taelgar-dataview-materializer':legacy,taelgarverse:{materializer:{runRequest:async value=>{received=value;}}}}}}});
-  assert.equal(received.id,'static-test');assert.equal(received.config.dynamicWebsite,false);assert.equal(received.config.headerType,'static');
+  assert.equal(received.id,'static-test');assert.equal(received.config.dynamicWebsite,undefined);assert.equal(received.config.headerType,'static');
   await assert.rejects(vm.runInNewContext(buildEvalCode(request),{app:{plugins:{plugins:{'taelgar-dataview-materializer':legacy}}}}),/Plugin not loaded: taelgarverse/);
 });
 
@@ -111,3 +111,22 @@ test('materializer website mode delegates only DQL export and shares the static 
 });
 
 function pathParent(value){return value.replace(/[\\/][^\\/]+[\\/]?$/,'');}
+
+
+test('removed dynamic website mode fails at CLI and desktop request boundaries',()=>{
+  assert.throws(()=>parseArgs(['--dynamic-website']),/removed.*npm run publish/);
+  assert.throws(()=>buildMaterializerRequest({dynamicWebsite:true}),/removed.*npm run publish/);
+  const {materializer}=feature();
+  assert.throws(()=>materializer.normalizeConfig({dynamicWebsite:true}),/removed.*npm run publish/);
+  assert.throws(()=>materializer.normalizeConfig({externalCopy:true}),/removed.*npm run publish/);
+});
+
+test('static materialization preserves nested list and quote containers for queries and maps',async()=>{
+  const {materializer,runtime}=feature();
+  runtime.api.tryQueryMarkdown=async()=>'- First\n- Second\n';
+  const source='> - ~~~dataview\n>   LIST\n>   ~~~\n\n- ~~~taelgar-map\n  image: [[Map.png]]\n  ~~~\n';
+  const result=await materializer.materializeMarkdown(source,{path:'Places/Town.md',name:'Town.md'},runtime,materializer.loadCore(),{headerType:'none',blockTimeoutMs:1000});
+  assert.equal(result.report.counts.errors,0);
+  assert.match(result.content,/> - - First\n>   - Second/);
+  assert.match(result.content,/- ~~~leaflet\n  image: \[\[Map.png\]\]\n  ~~~/);
+});

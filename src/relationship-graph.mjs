@@ -68,15 +68,6 @@ export function proseMentions(source) {
   scan(cursor,text.length);
   return results.filter(item=>item.target);
 }
-// Optional normalized image positions; no global lat/lon or cross-map guessing.
-export function graphPositions(value) {
-  if(value==null)return [];
-  const list=Array.isArray(value)?value:[value];
-  if(list.some(p=>!p || !targetText(p.map) || !Number.isFinite(p.x) || !Number.isFinite(p.y) ||
-    p.x<0 || p.x>1 || p.y<0 || p.y>1))throw new Error('graphPositions requires map, x and y; x/y must be numbers between 0 and 1.');
-  return list.map(p=>({map:targetText(p.map),x:p.x,y:p.y}));
-}
-
 export function buildRelationshipGraph(snapshot,{date,resolve,mentions=[],routes=[]}={}) {
   validateDate(date);
   const {dates,names,locations,affiliations}=createHeaderContext(snapshot,{date});
@@ -94,10 +85,8 @@ export function buildRelationshipGraph(snapshot,{date,resolve,mentions=[],routes
     try {
       const life=dates.getPageDates(page.metadata,at);if(!life.isCreated)continue;
       lives.set(page.path,life);
-      let positions=[];
-      try{positions=type==='place'?graphPositions(page.metadata.graphPositions):[];}catch(error){warnings.push(page.path+': '+error.message);}
       nodes.push({id:page.path,path:page.path,name:String(page.metadata.name??page.name??basename(page.path)),
-        type,...(type==='place'?{placeType:String(page.metadata.typeOf??'')}:{}),subtype:String(page.metadata.typeOfAlias??page.metadata.typeOf??''),positions,alive:life.isAlive});
+        type,...(type==='place'?{placeType:String(page.metadata.typeOf??'')}:{}),subtype:String(page.metadata.typeOfAlias??page.metadata.typeOf??''),alive:life.isAlive});
     }catch(error){warnings.push(page.path+': '+error.message);}
   }
   nodes.sort((a,b)=>a.name.localeCompare(b.name)||a.id.localeCompare(b.id));

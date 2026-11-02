@@ -35,6 +35,12 @@ flowchart LR
 
 ## Old static website
 
+The former `materialize-static --dynamic-website` mode has been removed. It
+produced obsolete HTML header markers. Use `npm run publish` for the website
+pipeline, optionally with `--materializer obsidian` for DQL. Ordinary
+`npm run materialize:static` remains the static Markdown export path. The
+CLI and desktop API reject old dynamic-website requests before processing files.
+
 The legacy entry point is `taelgarverse/autobuild_website.sh`. Its default
 materialization script remains the vault's
 `_scripts/materialize-dataview/materialize-dataview.mjs`, which selects only the
@@ -300,6 +306,12 @@ Shared header metadata, homepage/navigation and session inputs still come from
 the configured original vault. They are file inputs, not calls to Obsidian.
 
 ## Conversion contract
+
+Query selection, JavaScript conversion/cleanup and the static materializer share
+Markdown-it fence boundaries, including list/quote containers and CRLF source
+offsets. Replacements preserve the enclosing list and quote prefixes. Outer
+code examples and indented code are protected from query execution and cleanup;
+unclosed query fences are reported rather than materialized.
 
 `src/website-compatibility.mjs` parses JavaScript with Acorn and never evaluates
 it. A supported table must be a complete `const {util} = customJS; dv.table(...)`

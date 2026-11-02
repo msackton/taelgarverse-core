@@ -359,3 +359,14 @@ test('closed panels cannot mount late results and invalid block bodies explain t
     const invalid=h.block('campaign: clee');await invalid.child.ready;assert.match(invalid.element.textContent,/Leave.*empty/);invalid.child.unload();
   }finally{h.feature.unload();}
 });
+
+
+test('explicit placement detects nested fences and ignores outer code examples',()=>{
+  const h=host();
+  try{
+    for(const source of ['> ~~~taelgar-interactions\n> ~~~','- ~~~taelgar-interactions\n  ~~~','> 1. ~~~taelgar-interactions\n>    ~~~'])
+      assert.equal(h.hasInteractionsBlock(source),true,source);
+    assert.equal(h.hasInteractionsBlock('~~~~markdown\n~~~taelgar-interactions\n~~~\n~~~~'),false);
+    assert.equal(h.hasInteractionsBlock('    ~~~taelgar-interactions\n    ~~~'),false);
+  }finally{h.feature.unload();}
+});

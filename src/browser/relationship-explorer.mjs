@@ -8,7 +8,7 @@ export function mountRelationshipExplorer(root,{loadData,openNote,initialRoot=''
   const doc=root.ownerDocument,uid='taelgar-graph-'+(++nextId);
   let placeTree;
   let disposed=false,initialized=false,sequence=0,data,visible,layout,selected='',previous=new Map(),camera,drag,fullscreen=null;
-  const state={preset:'people',mode:'network',root:initialRoot,depth:embedded?1:2,unexpandedOrganizations:[],includeWorldbuilding:false};
+  const state={preset:'people',root:initialRoot,depth:embedded?1:2,unexpandedOrganizations:[],includeWorldbuilding:false};
   const el=(tag,parent,text,attrs={})=>{
     const node=doc.createElement(tag);if(text!==undefined)node.textContent=text;
     for(const [key,value] of Object.entries(attrs))node.setAttribute(key,value);
@@ -19,7 +19,7 @@ export function mountRelationshipExplorer(root,{loadData,openNote,initialRoot=''
   const controls=el('div',root,undefined,{class:'tg-controls'});
   const modes=el('div',controls,undefined,{class:'tg-modes',role:'group','aria-label':'Explore'});
   const switchMode=value=>{
-    state.preset=value;state.mode=value==='places'?'containment':'network';selected='';
+    state.preset=value;selected='';
     if(data&&!allowedNode(data.graph.nodes.find(n=>n.id===state.root)))state.root='';
     previous=new Map();draw();
   };
@@ -119,11 +119,6 @@ export function mountRelationshipExplorer(root,{loadData,openNote,initialRoot=''
       text.style.fontSize=label.fontSize+'px';text.style.strokeWidth='3px';text.setAttribute('y',34);
       text.replaceChildren();
       label.lines.forEach((line,i)=>svgEl('tspan',text,{x:0,dy:i?label.lineHeight:0},line));
-    }
-    for(const text of svg.querySelectorAll('.tg-zone-label')){
-      text.style.fontSize=(12*ratio)+'px';
-      const full=text.getAttribute('data-label')??text.textContent;text.setAttribute('data-label',full);
-      const max=Math.max(15,Math.floor(620/ratio/6.5));text.textContent=full.length>max?full.slice(0,max-1)+'…':full;
     }
     for(const region of membershipEnclosures(visible,layout.positions)){
       const enclosure=[...svg.querySelectorAll('[data-enclosure]')].find(e=>e.getAttribute('data-enclosure')===region.id);
@@ -255,15 +250,11 @@ export function mountRelationshipExplorer(root,{loadData,openNote,initialRoot=''
       placeBoxes.render(tree,state.root);showNode(selected);renderWarnings(tree.warnings);return;
     }
     visible=queryRelationshipGraph(graph,{...state,...(embedded?{root:initialRoot,depth:1,hideIsolated:false}:{}),kinds:PRESETS[state.preset]});
-    layout=layoutRelationships(visible,{mode:'network',previous});
-    if(state.mode==='network')previous=layout.positions;
+    layout=layoutRelationships(visible,{previous});
+    previous=layout.positions;
     svg.replaceChildren();
     const defs=svgEl('defs',svg),marker=svgEl('marker',defs,{id:uid+'-arrow',viewBox:'0 0 10 10',refX:9,refY:5,markerWidth:6,markerHeight:6,orient:'auto-start-reverse'});
     svgEl('path',marker,{d:'M 0 0 L 10 5 L 0 10 z',class:'tg-arrow'});
-    for(const box of layout.boxes) {
-      svgEl('rect',svg,{x:box.x,y:box.y,width:box.width,height:box.height,rx:12,class:'tg-zone'});
-      svgEl('text',svg,{x:box.x+15,y:box.y+50,class:'tg-zone-label'},box.label);
-    }
     const memberships=visibleMemberships(visible);
     memberships.forEach((region,index)=>{
       const maskId=uid+'-group-mask-'+index;
@@ -313,7 +304,7 @@ export function mountRelationshipExplorer(root,{loadData,openNote,initialRoot=''
       data=loaded;
       if(!initialized){
         const initial=data.graph.nodes.find(n=>n.id===state.root);
-        if(initial?.type==='place'){state.preset='places';state.mode='containment';}
+        if(initial?.type==='place'){state.preset='places';}
         else if(!allowedNode(initial))state.root='';
         initialized=true;
       }

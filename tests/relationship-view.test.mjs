@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mountRelationshipExplorer} from '../src/browser/relationship-explorer.mjs';
 import {imageDOM} from './helpers/image-dom.mjs';
-const node=(id,type,positions=[])=>({id,path:id,name:id,type,alive:true,positions});
+const node=(id,type)=>({id,path:id,name:id,type,alive:true});
 const edge=(source,target,kind)=>({id:source+target+kind,source,target,kind,label:kind,evidence:[]});
 const graph={date:'1720-01-01',warnings:[],nodes:[node('Alice','person'),node('Bob','person'),node('Guild','group'),
-  node('Town','place',[{map:'world.png',x:.3,y:.5}]),node('Inn','place'),node('Realm','place')],
+  node('Town','place'),node('Inn','place'),node('Realm','place')],
   edges:[{...edge('Alice','Bob','mentions'),undated:true,evidence:[{source:'Alice',line:8,excerpt:'Alice met [[Bob]]. <script>unsafe</script>'}]},
     edge('Alice','Guild','member'),edge('Bob','Town','current'),edge('Alice','Inn','current'),edge('Inn','Town','contains'),edge('Town','Realm','contains')]};
 function dom(){

@@ -217,3 +217,13 @@ test('content preparation cleans and materializes before packaging without a leg
   assert.doesNotMatch(packed,/dataview|## Remove/);
   assert.equal(await fs.readFile(path.join(f.vault,'Note.md'),'utf8'),source);
 });
+
+test('Obsidian DQL replacement keeps list and quote nesting around returned Markdown',async t=>{
+  const source='> - ~~~dataview\n>   LIST\n>   ~~~\n';
+  const f=await fixture(t,{'Note.md':source});
+  const report=await exportDataview(f.store,f.options,{run:f.run});
+  assert.equal(report.counts.materialized,1);
+  assert.equal(f.calls.length,1);
+  assert.equal(f.store.entries[0].note.body,'> - - Materialized [[Target]]\n');
+  assert.equal(await fs.readFile(path.join(f.vault,'Note.md'),'utf8'),source);
+});

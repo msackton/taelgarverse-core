@@ -26,7 +26,7 @@ export async function materializeWebsiteDataview(store,{directory,dataviewDirect
       try {
         const markdown=await runtime.api.tryQueryMarkdown(block.body,entry.id);
         const replacements=changes.get(entry) || [];
-        replacements.push({start:block.start,end:block.end,text:prefixMarkdownLines(markdown.trimEnd(),block.quotePrefix)+'\n'});changes.set(entry,replacements);
+        replacements.push({start:block.start,end:block.end,text:prefixMarkdownLines(markdown.trimEnd(),block.openingPrefix,block.continuationPrefix)+'\n'});changes.set(entry,replacements);
       } catch(error){issues.push({file:entry.id,line:block.startLine,kind:'error',message:error.message});}
     }
   }

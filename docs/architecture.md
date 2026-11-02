@@ -76,7 +76,7 @@ flowchart LR
 | `scripts/upload-content.mjs`, `scripts/cloudflare-client.mjs` | Separate incremental asset and snapshot transfers, bounded retries, request pacing, and shared refreshable Cloudflare credentials. Used by full and manual publication. |
 | `scripts/dev.mjs`, `scripts/test.mjs`, `.github/workflows/tests.yml` | Public development/test entry points, live-vault watching, full local publication preview, plugin installation, and GitHub test/package gates. |
 | `.github/workflows/website.yml` | Reuse CI tests, then deploy Worker/static assets on `main`. Serialize production pipelines; deployment credentials are available only in the deployment step. See the one-time cutover in [Deploy](deploy.md#one-time-github-website-deployment-setup). |
-| `scripts/prepare-cloudflare.mjs`, `scripts/convert-website-headers.mjs`, `src/publication-markdown.mjs`, `src/markdown-fences.mjs` | Orchestrate DQL, publication-only legacy header migration through the shared saved-header writer, compatibility conversion and remaining JavaScript cleanup, then package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. Source notes stay unchanged; runtime renderers accept only native header callouts. |
+| `scripts/prepare-cloudflare.mjs`, `scripts/convert-website-headers.mjs`, `src/publication-markdown.mjs`, `src/markdown-fences.mjs`, `src/markdown-blocks.cjs` | Orchestrate DQL, publication-only legacy header migration through the shared saved-header writer, compatibility conversion and remaining JavaScript cleanup, then package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. Source notes stay unchanged; runtime renderers accept only native header callouts. |
 | `scripts/compile-runtime.mjs`, `src/runtime-format.mjs` | Compile versioned lookups, availability, campaign contexts, navigation views, parsed notes and separate route manifests during publication. No HTML prerendering. |
 | `scripts/derivative-cache.mjs` | R2 recipe catalog for responsive images/map pyramids, output inventory validation, and publication of reusable records after successful asset uploads. Local/offline consumers retain filesystem generation. |
 | `scripts/build-images.mjs` | Responsive-image recipes, bounded parallel generation, cache-reuse counts, and deterministic asset registration. See [image delivery](images.md#publication-and-caching). |
@@ -222,8 +222,9 @@ text, and transcripts are ignored. The Worker requires no session-body reads. Ol
 retain authored headers and non-session campaign references. See [campaign interactions](campaign-interactions.md).
 
 Compiled runtime render data carries the same session interaction projections as
-the legacy index. Legacy transcript descriptors remain readable by snapshot
-storage, but new publications produce no transcript shards or links.
+the legacy index. Transcript serving and shard writing are retired. Retention
+recognizes old transcript descriptors only to preserve active/rollback snapshot
+objects and safely clean up older revisions; request handlers never load them.
 Older compiled publications without an
 interaction projection derive non-session references from the request's target
 backlink shard, keeping the shared engine immutable.
@@ -275,6 +276,13 @@ Node, Worker and Obsidian all import the maintained shared core. The legacy VM
 adapter uses `node:vm` only in reference tests; it is not a sandbox for arbitrary
 scripts. Circular location/organization chains produce a clear header error,
 including when a type filter would otherwise prevent the depth limit advancing.
+
+`src/markdown-blocks.cjs` uses Markdown-it block rules to identify fences and
+indented code with original source offsets. Comment protection, website query
+selection/conversion, map editing and the static materializer share these
+boundaries. Source rewrites retain list markers on the first line and quote/list
+continuation prefixes afterward. Inline-code protection remains in `comments.mjs`.
+
 Body Dataview/JavaScript is not executed by either renderer. Supported
 Dataview queries are materialized during publication and do not rerun when a
 visitor changes context.
@@ -367,8 +375,8 @@ The author-only graph
 includes unpublished local notes; it does not serve website requests.
 
 `src/relationship-graph.mjs` owns typed nodes/edges, prose evidence, and filtering;
-`src/relationship-layout.mjs` owns deterministic network, hierarchy, and
-map/schematic placement. `src/place-tree.mjs` owns canonical, cycle-safe containment and implicit Material Plane roots;
+`src/relationship-layout.mjs` owns deterministic network placement and organization
+enclosures. `src/place-tree.mjs` owns canonical, cycle-safe containment and implicit Material Plane roots;
 `src/browser/place-boxes.mjs` owns expandable boxes, contained people, paging, and responsive schematic route lines.
 `src/place-routes.mjs` extracts explicit road/river endpoints from typed map metadata;
 route edges never establish containment.

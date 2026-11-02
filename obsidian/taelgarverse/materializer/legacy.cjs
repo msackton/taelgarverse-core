@@ -14,14 +14,6 @@ const EXCLUDED_ASSET_DIRS = ["assets/dm", "assets/worldbuilding"];
 module.exports = class LegacyMaterializer extends Component {
   constructor(plugin) { super(); this.plugin = plugin; this.app = plugin.app; this.manifest = plugin.manifest; this.running = false; }
   addCommand(command) { return this.plugin.addCommand(command); }
-  get supportsDynamicWebsite() {
-    return true;
-  }
-
-  get supportsExternalCopy() {
-    return true;
-  }
-
   async onload() {
     this.running = false;
     this.core = undefined;
@@ -84,9 +76,7 @@ module.exports = class LegacyMaterializer extends Component {
       report.finishedAt = new Date().toISOString();
       await this.writeReport(reportPath, report);
 
-      if (report.status === "ok" && report.deferredCopy) {
-        new Notice("Dataview Markdown is ready. The Node CLI will copy the output files.");
-      } else if (report.status === "ok") {
+      if (report.status === "ok") {
         new Notice(`Dataview materialization complete: ${report.counts.filesChanged} files changed.`);
       } else {
         new Notice(`Dataview materialization failed: ${report.counts.errors} errors.`);
@@ -159,9 +149,6 @@ module.exports = class LegacyMaterializer extends Component {
       dataviewJsBlocks: 0,
       inlineExpressions: 0,
       headersRegenerated: 0,
-      headerMarkersInserted: 0,
-      dataviewJsBlocksRemoved: 0,
-      sectionsRemoved: 0,
       unsupported: 0,
       errors: 0,
       taelgarBlocks: 0,
@@ -210,9 +197,6 @@ module.exports = class LegacyMaterializer extends Component {
         counts.dataviewJsBlocks += result.report.counts.dataviewJsBlocks;
         counts.inlineExpressions += result.report.counts.inlineExpressions;
         counts.headersRegenerated += result.report.counts.headersRegenerated;
-        counts.headerMarkersInserted += result.report.counts.headerMarkersInserted;
-        counts.dataviewJsBlocksRemoved += result.report.counts.dataviewJsBlocksRemoved;
-        counts.sectionsRemoved += result.report.counts.sectionsRemoved;
         counts.unsupported += result.report.counts.unsupported;
         counts.errors += result.report.counts.errors;
         counts.remainingDataviewBlocks += result.report.remaining.dataviewFences;
@@ -224,29 +208,16 @@ module.exports = class LegacyMaterializer extends Component {
       const status = config.strict && hasFailures ? "failed" : "ok";
       const processFilesMs = Date.now() - processStartedMs;
       let copyMs = 0;
-      let deferredCopy;
 
       if (config.mode === "write" && status === "ok") {
         const copyStartedMs = Date.now();
-        if (config.externalCopy) {
-          await this.writeProgress(config, { status: "running", phase: "staging", counts });
-          await fsp.mkdir(path.dirname(config.stagedMarkdownPath), { recursive: true });
-          await fsp.writeFile(config.stagedMarkdownPath, JSON.stringify({
-            schemaVersion: 1, requestId: config.requestId, vaultPath: config.vaultPath,
-            outputPath: config.outputPath, files: materializedFiles, dynamicWebsite: config.dynamicWebsite,
-            excludedTopLevelDirs: config.excludedTopLevelDirs,
-            excludedTopLevelPrefixes: config.excludedTopLevelPrefixes,
-          }) + "\n", "utf8");
-          deferredCopy = config.stagedMarkdownPath;
-        } else {
-          await this.copyVaultToOutput(config.outputPath, materializedFiles, config);
-        }
+        await this.copyVaultToOutput(config.outputPath, materializedFiles, config);
         copyMs = Date.now() - copyStartedMs;
       }
 
       await this.writeProgress(config, {
         status,
-        phase: deferredCopy ? "awaiting-copy" : "complete",
+        phase: "complete",
         fileIndex: markdownFiles.length,
         totalFiles: markdownFiles.length,
         counts,
@@ -257,11 +228,9 @@ module.exports = class LegacyMaterializer extends Component {
         exitCode: status === "ok" ? 0 : 1,
         mode: config.mode,
         strict: config.strict,
-        dynamicWebsite: config.dynamicWebsite,
-        publicationPolicy: config.dynamicWebsite ? "context-v1" : "static",
-        deferredCopy,
-        phase: deferredCopy ? "awaiting-copy" : "complete",
-        outputComplete: config.mode === "write" && status === "ok" && !deferredCopy,
+        publicationPolicy: "static",
+        phase: "complete",
+        outputComplete: config.mode === "write" && status === "ok",
         vaultPath: config.vaultPath,
         outputPath: config.outputPath,
         counts,
@@ -288,6 +257,9 @@ module.exports = class LegacyMaterializer extends Component {
   }
 
   normalizeConfig(rawConfig) {
+    if (rawConfig.dynamicWebsite || rawConfig.externalCopy || rawConfig.stagedMarkdownPath) {
+      throw new Error("Dynamic website materialization was removed; use npm run publish with Node DQL or --materializer obsidian.");
+    }
     const vaultPath = path.resolve(rawConfig.vaultPath || this.getVaultBasePath());
     const currentVault = path.resolve(this.getVaultBasePath());
     if (vaultPath !== currentVault) {
@@ -312,13 +284,6 @@ module.exports = class LegacyMaterializer extends Component {
     }
     if (outputPath === currentVault) throw new Error("outputPath must be outside the source vault.");
 
-    const externalCopy = rawConfig.externalCopy === true;
-    const stagedMarkdownPath = rawConfig.stagedMarkdownPath ? path.resolve(rawConfig.stagedMarkdownPath) : undefined;
-    if (externalCopy && (!rawConfig.dynamicWebsite || mode !== "write" || !rawConfig.requestId ||
-        !stagedMarkdownPath || !this.isSubpath(stagedMarkdownPath, outputPath))) {
-      throw new Error("External copy requires dynamic website write mode and a staging file inside the output directory.");
-    }
-
     const headerType = rawConfig.headerType || "none";
     if (!["none", "static", "website"].includes(headerType)) {
       throw new Error(`Unsupported materializer headerType: ${headerType}`);
@@ -327,13 +292,9 @@ module.exports = class LegacyMaterializer extends Component {
     return {
       mode,
       strict: rawConfig.strict !== false,
-      dynamicWebsite: rawConfig.dynamicWebsite === true,
-      externalCopy,
-      stagedMarkdownPath,
-      requestId: rawConfig.requestId,
       vaultPath,
       outputPath,
-      headerType: rawConfig.dynamicWebsite === true ? "none" : headerType,
+      headerType,
       reportPath: rawConfig.reportPath,
       progressPath: rawConfig.progressPath || progressPathFor(rawConfig.reportPath),
       excludedTopLevelDirs: rawConfig.excludedTopLevelDirs || DEFAULT_EXCLUDED_TOP_LEVEL_DIRS,
@@ -355,12 +316,6 @@ module.exports = class LegacyMaterializer extends Component {
 
   isExcludedVaultPath(vaultPath, config, isDirectory = false) {
     if (/^assets?\/dm(?:\/|$)/i.test(vaultPath)) return true;
-    if (config.dynamicWebsite) {
-      const parts = vaultPath.split("/");
-      const directories = isDirectory ? parts : parts.slice(0, -1);
-      return parts.some(part => part.startsWith(".")) || parts.at(-1) === "AGENTS.md" ||
-        directories.some(part => part.startsWith("_") || part.toLowerCase() === "worldbuilding");
-    }
     if (EXCLUDED_ASSET_DIRS.some((directory) => vaultPath === directory || vaultPath.startsWith(`${directory}/`))) {
       return true;
     }
@@ -377,9 +332,6 @@ module.exports = class LegacyMaterializer extends Component {
     if (!dataviewPlugin?.api) throw new Error("Dataview plugin API is not available.");
     await this.waitForDataviewIndex(dataviewPlugin);
 
-    if (config.dynamicWebsite) {
-      return { api: dataviewPlugin.api, restore: () => {} };
-    }
 
     if (typeof window.forceLoadCustomJS !== "function") {
       throw new Error("CustomJS forceLoadCustomJS() is not available.");
@@ -608,9 +560,6 @@ module.exports = class LegacyMaterializer extends Component {
         dataviewJsBlocks: 0,
         inlineExpressions: 0,
         headersRegenerated: 0,
-        headerMarkersInserted: 0,
-        dataviewJsBlocksRemoved: 0,
-        sectionsRemoved: 0,
         unsupported: 0,
         errors: 0,
       },
@@ -630,32 +579,6 @@ module.exports = class LegacyMaterializer extends Component {
     };
 
     let source = original;
-    if (config.dynamicWebsite) {
-      const prepared = core.prepareDynamicWebsiteMarkdown(source);
-      source = prepared.content;
-      for (const key of ["headerMarkersInserted", "dataviewJsBlocksRemoved", "sectionsRemoved"]) {
-        report.counts[key] = prepared[key];
-      }
-    }
-    if (!config.dynamicWebsite && config.headerType !== "none") {
-      const headerStartedMs = Date.now();
-      try {
-        const regenerated = this.regenerateHeader(source, file, runtime, config.headerType);
-        if (regenerated !== source) {
-          source = regenerated;
-          report.counts.headersRegenerated += 1;
-        }
-      } catch (error) {
-        report.counts.errors += 1;
-        report.issues.push({
-          type: "error",
-          line: 1,
-          message: `Header regeneration failed: ${error.message}`,
-        });
-      } finally {
-        report.timing.headerMs += Date.now() - headerStartedMs;
-      }
-    }
 
     const fenceReplacements = [];
     const fences = core.scanFencedCodeBlocks(source);
@@ -667,7 +590,6 @@ module.exports = class LegacyMaterializer extends Component {
         this.addIssue(report, "error", block, "Unclosed fenced code block.");
         continue;
       }
-      if (config.dynamicWebsite && block.language === "dataviewjs") continue;
 
       if (block.language === "dataview") {
         report.counts.dataviewBlocks += 1;
@@ -687,8 +609,7 @@ module.exports = class LegacyMaterializer extends Component {
           fenceReplacements.push({
             start: block.start,
             end: block.end,
-            text: core.prefixMarkdownLines(normalizeRenderedMarkdown(rendered), block.quotePrefix) +
-              (config.dynamicWebsite ? (source.includes("\r\n") ? "\r\n" : "\n") : ""),
+            text: core.prefixMarkdownLines(normalizeRenderedMarkdown(rendered), block.openingPrefix, block.continuationPrefix),
           });
         } catch (error) {
           this.addIssue(report, "error", block, error.message);
@@ -715,7 +636,7 @@ module.exports = class LegacyMaterializer extends Component {
         fenceReplacements.push({
           start: block.start,
           end: block.end,
-          text: core.prefixMarkdownLines(normalizeRenderedMarkdown(rendered), block.quotePrefix),
+          text: core.prefixMarkdownLines(normalizeRenderedMarkdown(rendered), block.openingPrefix, block.continuationPrefix),
         });
       } catch (error) {
         this.addIssue(report, "error", block, error.message);
@@ -725,13 +646,11 @@ module.exports = class LegacyMaterializer extends Component {
     }
 
     let materialized = core.applyReplacements(source, fenceReplacements);
-    const protectedRanges = core.scanFencedCodeBlocks(materialized).map((block) => ({
+    const protectedRanges = core.scanCodeBlocks(materialized).map((block) => ({
       start: block.start,
       end: block.end,
     }));
-    const inlineExpressions = config.dynamicWebsite
-      ? []
-      : core.findInlineDataviewExpressions(materialized, protectedRanges);
+    const inlineExpressions = core.findInlineDataviewExpressions(materialized, protectedRanges);
     const inlineReplacements = [];
     const inlineStartedMs = Date.now();
 
@@ -777,16 +696,6 @@ module.exports = class LegacyMaterializer extends Component {
       changed: report.changed,
       report,
     };
-  }
-
-  regenerateHeader(source, file, runtime, headerType) {
-    const outputHandler = runtime.customJS.OutputHandler;
-    if (!outputHandler) throw new Error("customJS.OutputHandler is not available.");
-
-    const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
-    if (!frontmatter?.tags || !frontmatter?.headerVersion) return source;
-
-    return outputHandler.regenerateHeader(source, file.name, frontmatter, headerType).join("\n");
   }
 
   addIssue(report, type, block, message) {

@@ -64,11 +64,10 @@ invoke these exports. Moving those compatibility helpers entirely into the
 reference test harness is a useful subsequent cleanup; retaining them does not
 enable a legacy syntax in the callout handler.
 
-The bundled old materializer implementation still contains its original header
-helpers and dynamic-website preparation machinery. The Taelgarverse static pass
-does not select its header regeneration, and website DQL requests use the
-separate exporter. Removing those dormant helpers can be done separately from
-the still-required Dataview/CustomJS execution machinery.
+The Taelgarverse static pass renders native callouts directly. Its retired
+saved-header helper and dynamic-website marker preparation machinery have been
+removed; CLI and desktop requests reject the old mode. Website DQL requests use
+the separate exporter. Static Dataview/CustomJS execution remains supported.
 
 Vault-owned CustomJS/Templater scripts and the original materializer have not
 been rewritten. They can still produce old syntax if invoked. Update their

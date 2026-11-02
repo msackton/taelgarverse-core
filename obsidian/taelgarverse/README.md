@@ -2,7 +2,7 @@
 
 The unified desktop Taelgarverse plugin: generated note headers and indexes, local image maps,
 calibrated distances, freehand tracing, enclosed areas, and an optional image viewer.
-Name Explorer and the materializer remain separate. Requires Obsidian 1.8.0+.
+Name Explorer remains separate. Requires Obsidian 1.8.0+.
 
 ## Saved header commands
 

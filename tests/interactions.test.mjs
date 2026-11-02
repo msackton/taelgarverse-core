@@ -38,7 +38,7 @@ test('Cast met membership alone creates one session encounter; beats are never i
   assert.equal(events[0].text,'A session-level description.');assert.equal(events[0].location,'');
   assert.equal(events[0].start,'1720-01-01');assert.equal(events[0].end,'1720-01-03');
   assert.equal(events[0].transcriptUrl,undefined);assert.equal(events[0].url,null);
-  assert.equal(index.byTarget.another,undefined);assert.equal(Object.keys(index.transcripts).length,0);
+  assert.equal(index.byTarget.another,undefined);assert.equal(index.transcripts,undefined);
   const noBeats=recap.replace(/## Recap[\s\S]*?(?=## Cast)/,'');
   const brokenBeats=recap.replace('The party met [[Person]] at the inn.','%% broken');
   for(const source of [noBeats,brokenBeats,recap.replaceAll('- NPCs: Person','- NPCs: Someone Else')]) {
@@ -107,7 +107,7 @@ test('missing recaps fall back to explicit links in the official session note, w
   assert.equal(events(context()).length,1,'repeated links produce one session reference');
   assert.equal(event.kind,'session-reference');assert.equal(event.id,'session:clee:12.1');
   assert.equal(event.start,'1720-01-01');assert.equal(event.end,'1720-01-03');assert.equal(event.precision,'range');
-  assert.equal(event.text,'');assert.equal(event.transcriptUrl,null);
+  assert.equal(event.text,'');assert.equal(event.transcriptUrl,undefined);
   assert.match(event.sessionUrl,/session-12\.1\?date=1720-01-05&campaigns=clee/);
   assert.doesNotMatch(JSON.stringify(index),/Completely different generated prose/);
   assert.equal(campaignInteractions(index,store,store.resolve('Other'),context(),campaigns)[0].events.length,0,'the legacy duplicate cannot add evidence');
@@ -155,7 +155,7 @@ test('recap presence suppresses whole-session fallbacks even for empty, invalid 
 
 test('session dates and only the full-session link appear in browser details and the no-JS fallback',()=>{
   const {store,index}=sample({'Session.md':session});
-  index.transcripts['recap:clee:12.1:recap-001']='Person: A polished conversation.';
+  index.transcripts={'recap:clee:12.1:recap-001':'Person: A polished conversation.'};
   const groups=campaignInteractions(index,store,store.resolve('Person'),context(),registry);
   const {document}=parseHTML('<html><body>'+interactionView(groups)+'</body></html>'),root=document.querySelector('[data-interaction-campaign]');
   assert.equal(root.querySelectorAll('.interaction-fallback li').length,1);

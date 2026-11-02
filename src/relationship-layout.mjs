@@ -1,55 +1,6 @@
-// Pure deterministic layouts. Coordinates describe presentation unless anchored=true.
-export function layoutRelationships(graph,{mode='network',map='',aspect=1.4,previous=new Map()}={}) {
-  const nodes=graph.nodes,ids=new Set(nodes.map(n=>n.id)),parents=new Map();
-  for(const e of graph.edges)if(['contains','secondaryPlace','current','lastKnown','organization','member','leader'].includes(e.kind)) {
-    const list=parents.get(e.source)??[];list.push(e.target);parents.set(e.source,list);
-  }
-  if(mode==='geographic') {
-    const width=1000,height=width/Math.max(.2,Math.min(5,aspect)),positions=new Map(),groups=new Map();
-    for(const n of nodes) {
-      const pin=n.positions.find(p=>p.map===map);
-      if(pin)positions.set(n.id,{x:pin.x*width,y:pin.y*height,anchored:true});
-    }
-    for(const n of nodes) {
-      if(positions.has(n.id))continue;
-      const seen=new Set([n.id]),queue=[n.id];let anchor;
-      for(let i=0;i<queue.length && !anchor;i++)for(const next of parents.get(queue[i])??[]) {
-        if(positions.get(next)?.anchored){anchor=next;break;}
-        if(!seen.has(next)){seen.add(next);queue.push(next);}
-      }
-      const key=anchor??'',list=groups.get(key)??[];list.push(n);groups.set(key,list);
-    }
-    const column=Math.max(200,...nodes.filter(n=>!positions.has(n.id)).map(n=>relationshipLabel(n).width+32));
-    const boxWidth=column*3+60,baseX=map?1060:0,boxes=[];let y=10;
-    for(const [anchor,members] of groups) {
-      const h=110+Math.ceil(members.length/3)*150;
-      boxes.push({x:baseX,y,width:boxWidth,height:h,label:anchor?
-        'Within '+nodes.find(n=>n.id===anchor).name+' — schematic':'Unplaced',anchor});
-      members.forEach((n,i)=>positions.set(n.id,{x:baseX+30+column/2+(i%3)*column,y:y+110+Math.floor(i/3)*150,anchored:false}));
-      y+=h+30;
-    }
-    return {positions,boxes,width:groups.size?baseX+50+boxWidth:1100,height:Math.max(map?height+50:300,y),mapBox:{x:0,y:0,width,height}};
-  }
-  if(mode==='hierarchy') {
-    const levels=new Map(),visiting=new Set();
-    const depth=id=>{
-      if(levels.has(id))return levels.get(id);
-      if(visiting.has(id))return 0;
-      visiting.add(id);
-      const ancestors=(parents.get(id)??[]).filter(p=>ids.has(p));
-      const value=ancestors.length?1+Math.min(...ancestors.map(depth)):0;
-      visiting.delete(id);levels.set(id,value);return value;
-    };
-    nodes.forEach(n=>depth(n.id));
-    const rows=new Map();
-    for(const n of nodes){const d=levels.get(n.id),list=rows.get(d)??[];list.push(n);rows.set(d,list);}
-    const width=Math.max(1100,...[...rows.values()].map(row=>row.reduce((sum,n)=>sum+relationshipLabel(n).width+40,100))),positions=new Map();
-    for(const [d,row] of rows){
-      let x=(width-row.reduce((sum,n)=>sum+relationshipLabel(n).width+40,0))/2;
-      for(const n of row){const w=relationshipLabel(n).width;positions.set(n.id,{x:x+w/2,y:85+d*170});x+=w+40;}
-    }
-    return framePositions(nodes,positions);
-  }
+// Deterministic network layout with label clearance and organization enclosures.
+export function layoutRelationships(graph,{previous=new Map()}={}) {
+  const nodes=graph.nodes;
   const memberships=visibleMemberships(graph),memberGroups=new Map();
   for(const group of memberships)for(const id of [group.id,...group.members]){
     const groups=memberGroups.get(id)??new Set();groups.add(group.id);memberGroups.set(id,groups);
@@ -226,10 +177,10 @@ function separateLabels(nodes,positions) {
 }
 
 function framePositions(nodes,positions) {
-  if(!nodes.length)return {positions,boxes:[],width:600,height:400};
+  if(!nodes.length)return {positions,width:600,height:400};
   const bounds=nodes.map(n=>nodeFootprint(n,positions.get(n.id)));
   const left=Math.min(...bounds.map(b=>b.x)),top=Math.min(...bounds.map(b=>b.y));
   const right=Math.max(...bounds.map(b=>b.x+b.width)),bottom=Math.max(...bounds.map(b=>b.y+b.height));
   for(const p of positions.values()){p.x+=80-left;p.y+=80-top;}
-  return {positions,boxes:[],width:right-left+160,height:bottom-top+160};
+  return {positions,width:right-left+160,height:bottom-top+160};
 }

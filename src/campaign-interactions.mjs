@@ -124,7 +124,7 @@ function explicitTarget(store,name,warnings,source) {
   return isPerson(found.entry) ? found.entry : null;
 }
 export function compileInteractionIndex(store,registry,backlinks,bundles=null) {
-  const identities=campaignIdentities(registry),byTarget=Object.create(null),transcripts=Object.create(null),warnings=[],recaps=new Map();
+  const identities=campaignIdentities(registry),byTarget=Object.create(null),warnings=[],recaps=new Map();
   const append=(target,record)=>{(byTarget[target] ||= []).push(record);};
   for (const bundle of bundles || []) {
     if(bundle.invalid)continue;
@@ -165,7 +165,7 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=null) {
         campaign,source:source.slug,kind:'reference',when:link.when});
     }
   }
-  return {version:2,backlinkVersion:backlinks?.version || null,byTarget,transcripts,warnings};
+  return {version:2,backlinkVersion:backlinks?.version || null,byTarget,warnings};
 }
 export function campaignInteractions(index,store,entry,context,registry) {
   if (!isPerson(entry) || !availableInContext(entry,context,store.settings)) return [];
@@ -203,7 +203,7 @@ export function campaignInteractions(index,store,entry,context,registry) {
       const {cutoff,when,campaign,...event}=record;
       group.events.push({...event,title:interactionText(source.note.metadata.descTitle || source.title),
         text:'',sourceTitle:source.title,location:'',url:null,
-        sessionUrl:pageUrl(source.slug,context.date,context),transcriptUrl:null});
+        sessionUrl:pageUrl(source.slug,context.date,context)});
     } else {
       const source=store.bySlug.get(record.source);
       const type=interactionReferenceType(source?.note?.metadata);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {layoutRelationships,visibleMemberships,membershipEnclosures,nodeFootprint,relationshipLabel} from '../src/relationship-layout.mjs';
 import {queryRelationshipGraph} from '../src/relationship-graph.mjs';
-const node=(id,type)=>({id,path:id,name:id,type,positions:[],alive:true});
+const node=(id,type)=>({id,path:id,name:id,type,alive:true});
 const edge=(source,target,kind,status='current')=>({id:source+target+kind,source,target,kind,status});
 const graph={
   nodes:[node('Alice','person'),node('Bob','person'),node('Shared','person'),node('Former','person'),node('Outsider','person'),
@@ -48,8 +48,8 @@ test('shared people have one position inside both envelopes; nonmembers get excl
   const zoomed=membershipEnclosures(visible,positions,{size:2,ratio:3});
   assert.deepEqual(zoomed[0].points,regions[0].points);
   assert.deepEqual(zoomed.map(g=>g.color),regions.map(g=>g.color));
-  for(const mode of ['network','hierarchy','geographic']){
-    const layout=layoutRelationships(visible,{mode});
+  {
+    const layout=layoutRelationships(visible);
     assert.equal(layout.positions.size,visible.nodes.length);
     assert.equal(membershipEnclosures(visible,layout.positions).length,2);
     for(const p of layout.positions.values())assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y));
@@ -78,26 +78,6 @@ test('crowded groups reserve label space and can grow beyond the original viewpo
   assert.deepEqual(previous.get(nodes[0].id),{x:80,y:600});
   const long=relationshipLabel({name:'The Fellowship of the Wandering Knights of the Northern Mountains'});
   assert.ok(long.lines.length>1);assert.ok(long.lines.length<=3);
-});
-
-test('hierarchy separates long labels while preserving distinct levels',()=>{
-  const nodes=[node('The Extremely Long Named Northern Organization','group'),
-    ...Array.from({length:12},(_,i)=>node('Member of the Distant Northern Mountains '+i,'person'))];
-  const g={nodes,edges:nodes.slice(1).map(n=>edge(n.id,nodes[0].id,'member'))},layout=layoutRelationships(g,{mode:'hierarchy'});
-  const row=nodes.slice(1).map(n=>nodeFootprint(n,layout.positions.get(n.id)));
-  for(let i=1;i<row.length;i++)assert.ok(row[i-1].x+row[i-1].width+20<=row[i].x);
-  assert.ok(layout.positions.get(nodes[0].id).y<layout.positions.get(nodes[1].id).y);
-});
-
-test('geographic fallback uses the canvas without reserving space for an absent map',()=>{
-  const g={nodes:[node('Town','place'),node('Alice','person')],edges:[edge('Alice','Town','current')]};
-  const layout=layoutRelationships(g,{mode:'geographic'});
-  assert.equal(layout.boxes[0].x,0);
-  assert.equal(layout.boxes[0].label,'Unplaced');
-  for(const p of layout.positions.values()){
-    assert.equal(p.anchored,false);assert.ok(p.x<layout.width&&p.y<layout.height);
-  }
-  assert.ok(layout.width<1000);
 });
 
 test('a visitor linked to several members stays outside the organization outline, including after refresh',()=>{

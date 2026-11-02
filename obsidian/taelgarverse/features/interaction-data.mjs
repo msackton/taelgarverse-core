@@ -4,13 +4,14 @@ import {buildBacklinkCampaigns} from '../../../src/campaign-ownership.mjs';
 import {compileInteractionIndex,campaignIdentities,campaignInteractions,interactionDate,interactionReferenceType,sessionNoteFallbacks} from '../../../src/campaign-interactions.mjs';
 import {parseSessionRecap} from '../../../src/recap-parser.mjs';
 import {Contexts} from '../../../src/contexts.mjs';
-import {codeRanges,filterComments} from '../../../src/comments.mjs';
+import {filterComments} from '../../../src/comments.mjs';
+import {scanFencedCodeBlocks} from '../../../src/markdown-fences.mjs';
 import {bioDate} from './headers.mjs';
 
 const list=value=>Array.isArray(value)?value:value==null?[]:[value];
 export const hasKnownTo=metadata=>list(metadata?.knownTo).some(value=>String(value).trim());
 export function hasInteractionsBlock(source) {
-  return codeRanges(source).some(([start,end])=>/^ {0,3}(?:`{3,}|~{3,})taelgar-interactions\s*(?:\n|$)/i.test(source.slice(start,end)));
+  return scanFencedCodeBlocks(source).some(block=>block.language==='taelgar-interactions');
 }
 async function readFiles(files,read) {
   const values=new Array(files.length);let next=0;

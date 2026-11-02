@@ -114,7 +114,7 @@ export class RuntimeSnapshot {
       const compactBacklinks=this.index.version===2 ? this.backlinkLoader(backlinks,store) : null;
       const headers=hydrateHeaderSnapshot(compiledHeaders,store.entries.filter(entry=>entry.note).map(entry=>({path:entry.id,metadata:entry.note.metadata})));
       const engine=new RenderEngine({settings:this.index.settings,store,headers,backlinkIndex:compactBacklinks ? null : backlinks.index,
-        interactionIndex:data.interactions,loadTranscript:id=>store.getTranscript(id,data.interactions?.transcripts?.[id]),
+        interactionIndex:data.interactions,
         prepared:{contexts:this.contexts,campaignSites:CampaignSites.hydrate(data.sites),navigation,home:data.home,
           backlinkCampaigns:compactBacklinks?.campaigns || new Map(backlinks.campaigns),loadBacklinks:compactBacklinks?.load}});
       return {engine,store,index:this.index};
@@ -127,7 +127,7 @@ export class RuntimeSnapshot {
     // loading route data first.
     let pathname='';
     try{if(['GET','HEAD'].includes(request.method))pathname=decodeURIComponent(url.pathname);}catch{}
-    if(pathname==='/api/page' || pathname==='/api/index' || pathname==='/api/diagram-links' || pathname.startsWith('/page/') || pathname.startsWith('/campaign-transcripts/') || pathname==='/' && !url.searchParams.has('q'))return this.renderer();
+    if(pathname==='/api/page' || pathname==='/api/index' || pathname==='/api/diagram-links' || pathname.startsWith('/page/') || pathname==='/' && !url.searchParams.has('q'))return this.renderer();
     let store={bySlug:{size:this.index.pages},warnings:this.index.warnings,assets:new Map(),settings:this.index.settings};
     const engine={settings:this.index.settings,contexts:this.contexts,campaignSites:this.campaignSites};
     if(pathname.startsWith('/assets/')){

@@ -69,7 +69,7 @@ test('publication compiles session encounters without beat data, Worker matches 
     assert.match(report.interactions.warnings.join('\n'),/Unpublished Unresolved Person/);
     assert.doesNotMatch(JSON.stringify(index.interactions),/Long narrative|The party met|Source Range|u0001/);
     assert.doesNotMatch(raw,/POLISHED PUBLIC|POLISHED SECRET|DM ONLY DETAIL|UNREFERENCED TRANSCRIPT|Source Transcript|beat-transcripts/);
-    assert.equal(Object.keys(index.interactions.transcripts).length,0);
+    assert.equal(index.interactions.transcripts,undefined);
     const uploads=new Map(JSON.parse(fs.readFileSync(report.manifestFile,'utf8')).map(item=>[item.key,item.file]));
     const reads=[];
     const bucket={async get(key){reads.push(key);const file=uploads.get(key);if(!file)return null;return {json:async()=>JSON.parse(fs.readFileSync(file,'utf8'))};}};
@@ -144,8 +144,9 @@ test('publication compiles session encounters without beat data, Worker matches 
     const event=result.interactions[0].events[0];
     assert.equal((await worker.fetch(new Request('https://www.taelgar.org'+event.sessionUrl),env)).status,200);
     reads.length=0;
-    const transcriptResponse=await worker.fetch(new Request('https://www.taelgar.org/campaign-transcripts/'+encodeURIComponent('recap:clee:12.1:recap-001')+'?date=1720-01-02&campaigns=clee&person=person'),env);
+    const transcriptResponse=await createWorker().fetch(new Request('https://www.taelgar.org/campaign-transcripts/'+encodeURIComponent('recap:clee:12.1:recap-001')+'?date=1720-01-02&campaigns=clee&person=person'),env);
     assert.equal(transcriptResponse.status,404);
+    assert.equal(reads.some(key=>/runtime\/(?:render|headers|backlinks|navigation)\.json$/.test(key)),false,'retired routes do not initialize article rendering');
     assert.equal(reads.some(key=>key.includes('/transcripts/')),false);
     assert.equal([...uploads.keys()].some(key=>key.includes('/transcripts/')),false,'new snapshots contain no transcript shards');
     const old=structuredClone(index);delete old.interactions;

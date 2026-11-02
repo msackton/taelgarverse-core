@@ -236,7 +236,7 @@ export function buildFingerprint(settings, options, config={}) {
     new URL('../src/website-compatibility.mjs',import.meta.url),new URL('../src/dataview-node/engine.mjs',import.meta.url),
     new URL('../src/dataview-node/bundle.mjs',import.meta.url),
     new URL('../src/dataview-node/index.mjs',import.meta.url),new URL('../src/dataview-node/filesystem.mjs',import.meta.url),
-    new URL('../src/publication-markdown.mjs', import.meta.url), new URL('../src/markdown-fences.mjs', import.meta.url),
+    new URL('../src/publication-markdown.mjs', import.meta.url), new URL('../src/markdown-fences.mjs', import.meta.url), new URL('../src/markdown-blocks.cjs', import.meta.url),
     new URL('../obsidian/taelgarverse/features/exporter.mjs', import.meta.url),
     new URL('../obsidian/taelgarverse/features/materializer.mjs',import.meta.url),
     new URL('./build-maps.mjs', import.meta.url), new URL('../src/maps.mjs', import.meta.url),

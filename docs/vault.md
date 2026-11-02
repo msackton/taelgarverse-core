@@ -664,6 +664,11 @@ An ordinary Obsidian comment, `%% like this %%`, is hidden by default. With
 **See Behind the Curtain** enabled, it becomes a numbered popup note. Comments
 inside a section hidden for the current campaign or date stay hidden.
 
+Comment and conditional markers inside fenced or indented code are literal
+examples, including fences nested in lists and blockquotes. They do not change
+visibility or produce comment-syntax errors. Website query materialization also
+preserves those list/quote containers and leaves code examples untouched.
+
 To show a passage only for Dunmar Frontier:
 
 ```markdown

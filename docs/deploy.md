@@ -80,6 +80,11 @@ starts. If cleanup fails, the command exits without starting the server even
 though the prepared revision is active in local storage. Rerun the same preview
 command after fixing the error; no production publication is needed.
 
+The old `materialize-static --dynamic-website` flag is rejected. Use
+`npm run publish` for website content, with `--materializer obsidian` only when
+selecting Obsidian DQL explicitly. Static export continues through
+`npm run materialize:static`; see [publishing pipelines](publishing-pipelines.md).
+
 Content preparation copies the vault to a temporary working directory, evaluates
 supported DQL in Node, then runs a separate compatibility conversion. Known saved
 headers become an authored title, optional pronunciation and `taelgar-header`

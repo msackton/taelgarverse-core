@@ -210,9 +210,9 @@ remain strips without invented connections.
 ## Place metadata
 
 Nesting uses existing `whereabouts` and `partOf` metadata. No map coordinates
-are required. The earlier geographic prototype's `graphPositions` fields remain
-readable by the graph model but are not used by the nested Places browser;
-the explorer no longer loads map images.
+are required. The retired geographic/hierarchy layouts and `graphPositions`
+parser have been removed. Existing `graphPositions` metadata is ignored and
+can stay in notes; the explorer does not load map images.
 
 Road/river connections come only from `locations[].feature` in existing
 `%%^Metadata:map:v1%%` blocks, resolved relative to the route note:

@@ -96,7 +96,7 @@ export function convertWebsiteNote(note,{sourcePath='',resolveTarget}={}) {
       }
     }
     const markdown='```'+recognized.language+'\n'+recognized.body+'```';
-    replacements.push({start:block.start,end:block.end,text:prefixMarkdownLines(markdown,block.quotePrefix)+'\n'});
+    replacements.push({start:block.start,end:block.end,text:prefixMarkdownLines(markdown,block.openingPrefix,block.continuationPrefix)+'\n'});
     changes.push({rule:recognized.rule,file:sourcePath,line:block.startLine});
   }
   const body=applyReplacements(note.body,replacements);

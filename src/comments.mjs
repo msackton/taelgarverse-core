@@ -1,26 +1,9 @@
 import {dateKey, RenderError} from './common.mjs';
+import {scanCodeBlocks} from './markdown-fences.mjs';
 
 // Ported from taelgar-utils' public-export parser. Validate discarded blocks too.
 export function codeRanges(text) {
-  const ranges = [];
-  let active = null, offset = 0;
-  for (const line of text.match(/[^\n]*\n|[^\n]+$/g) ?? []) {
-    const body = line.replace(/\n$/, '');
-    if (!active) {
-      const opener = /^( {0,3})(\x60{3,}|~{3,})(.*)$/.exec(body);
-      if (opener && !(opener[2][0] === '\x60' && opener[3].includes('\x60'))) {
-        active = {char: opener[2][0], length: opener[2].length, start: offset};
-      }
-    } else {
-      const trimmed = body.replace(/^ */, '');
-      const run = trimmed.match(new RegExp('^' + active.char + '+'))?.[0].length ?? 0;
-      if (body.length - trimmed.length <= 3 && run >= active.length && !trimmed.slice(run).trim()) {
-        ranges.push([active.start, offset + line.length]); active = null;
-      }
-    }
-    offset += line.length;
-  }
-  if (active) ranges.push([active.start, text.length]);
+  const ranges = scanCodeBlocks(text).map(block=>[block.start,block.end]);
   const inFence = position => ranges.find(([a,b]) => a <= position && position < b);
   const escaped = position => {
     let n = 0;

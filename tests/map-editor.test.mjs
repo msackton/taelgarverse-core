@@ -83,3 +83,14 @@ test('divergent split editors and editors opened during atomic save fail without
   clean.app.vault.process=async(file,fn)=>{opened=true;fn(note);};
   await assert.rejects(saveMapSession(clean.app,session,{...block,crop},manifest),/opened in an editor/);assert.equal(clean.writes,0);
 });
+
+test('saving a map inside a quoted list preserves its container and neighboring prose',()=>{
+  const text='> - ~~~taelgar-map\r\n'+source.trimEnd().split('\n').map(line=>'>   '+line+'\r\n').join('')+'>   ~~~\r\n\r\n> - Keep this sibling.\r\n';
+  const guard=captureMapBlock(text,{source});
+  const result=patchMapBlock(text,guard,{...block,crop},manifest,{newId:()=> 'nested-map'});
+  assert.ok(result.replacement.startsWith('> - ~~~taelgar-map\r\n'));
+  assert.ok(result.replacement.split('\r\n').slice(1,-1).every(line=>line.startsWith('>   ')));
+  assert.ok(result.text.endsWith('\r\n> - Keep this sibling.\r\n'));
+  assert.deepEqual(parseMapBlock(result.guard.body).crop,crop);
+  assert.equal(result.text.replaceAll('\r\n','').includes('\n'),false);
+});

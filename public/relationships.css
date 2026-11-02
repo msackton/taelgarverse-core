@@ -40,8 +40,6 @@
 .taelgar-graph .tg-edge:hover .tg-edge-line,.taelgar-graph .tg-edge:focus .tg-edge-line{stroke:var(--text-accent,#c5b2ff);stroke-opacity:1;stroke-width:3}
 .taelgar-graph .tg-edge-dashed .tg-edge-line{stroke-dasharray:5 5}
 .taelgar-graph .tg-arrow{fill:var(--text-muted,#8d93a8)}
-.taelgar-graph .tg-zone{fill:var(--background-primary,#1e2026);stroke:var(--background-modifier-border,#424654);stroke-dasharray:7 5}
-.taelgar-graph .tg-zone-label{fill:var(--text-muted,#aaaebc);font-size:15px}
 .taelgar-graph .tg-map-image{opacity:.85}
 .taelgar-graph .tg-warnings{margin-top:14px;font-size:12px}
 .taelgar-graph [hidden]{display:none!important}

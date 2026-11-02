@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {headerFixture} from './helpers/header-fixture.mjs';
-import {buildRelationshipGraph,proseMentions,queryRelationshipGraph,graphPositions,filterWorldbuilding} from '../src/relationship-graph.mjs';
+import {buildRelationshipGraph,proseMentions,queryRelationshipGraph,filterWorldbuilding} from '../src/relationship-graph.mjs';
 import {layoutRelationships} from '../src/relationship-layout.mjs';
 
 const notes={
@@ -83,23 +83,12 @@ test('occupied places retain ancestors; collapsing keeps a counted parent even w
   assert.ok(!collapsed.nodes.some(n=>n.name==='Alice'||n.name==='Inn'));
   assert.ok(collapsed.nodes.find(n=>n.name==='Town').collapsedCount>=3);
 });
-test('geographic placement keeps each map independent and unpositioned descendants schematic',()=>{
-  const g=queryRelationshipGraph(graph(),{preset:'places'});
-  const layout=layoutRelationships(g,{mode:'geographic',map:'map.png',aspect:2});
-  assert.deepEqual(layout.positions.get('Places/Town.md'),{x:400,y:300,anchored:true});
-  assert.equal(layout.positions.get('Places/Inn.md').anchored,false);
-  assert.ok(layout.boxes.some(b=>b.anchor==='Places/Town.md'));
-  assert.ok(layout.boxes.some(b=>!b.anchor));
-  const other=layoutRelationships(g,{mode:'geographic',map:'other.png'});
-  assert.equal([...other.positions.values()].filter(p=>p.anchored).length,0);
-  assert.throws(()=>graphPositions({map:'map.png',x:12,y:.5}),/between 0 and 1/);
-});
 test('cycles and multiple parents terminate; layouts remain finite and filters never mutate the input',()=>{
   const g=graph('1720-01-01',{'Places/Realm.md':{tags:['place'],whereabouts:'Town'}});
   const original=JSON.stringify(g);
   const visible=queryRelationshipGraph(g,{preset:'places',onlyOccupied:true,root:'Places/Town.md',depth:'all'});
-  for(const mode of ['hierarchy','network','geographic']){
-    const layout=layoutRelationships(visible,{mode,map:'map.png'});
+  {
+    const layout=layoutRelationships(visible);
     assert.equal(layout.positions.size,visible.nodes.length);
     for(const p of layout.positions.values())assert.ok(Number.isFinite(p.x)&&Number.isFinite(p.y));
   }
@@ -190,13 +179,6 @@ test('spatial view uses current or last known, never separate homes or former pa
   const lastOnly=queryRelationshipGraph(raw,{preset:'places',kinds:['lastKnown']});
   assert.ok(!lastOnly.nodes.some(n=>n.id==='People/Traveller.md'));
   assert.ok(lastOnly.nodes.some(n=>n.id==='People/Lost.md'));
-  const layout=layoutRelationships(g,{mode:'geographic',map:'map.png'});
-  const lostBox=layout.boxes.find(b=>b.anchor==='Places/Realm.md');
-  // Realm is unpositioned; neither Lost nor Traveller is anchored to their old Town.
-  assert.equal(lostBox,undefined);
-  const townBox=layout.boxes.find(b=>b.anchor==='Places/Town.md');
-  assert.ok(townBox);
-  assert.ok(layout.positions.get('People/Traveller.md').x>=1060);
 });
 
 test('expired visits become last known while current visits are inclusive at their end',()=>{
@@ -243,4 +225,11 @@ test('Worldbuilding filtering covers folder descendants and all types without ma
  assert.deepEqual(filtered.nodes.map(n=>n.id),['People/A.md','Worldbuilding Notes/Kept.md','People/Worldbuilding.md']);
  assert.equal(filtered.edges.length,2);
  assert.equal(filterWorldbuilding(g,true),g);assert.equal(JSON.stringify(g),before);
+});
+
+test('retired graphPositions metadata is ignored without affecting place relationships',()=>{
+  const g=graph('1720-01-01',{'Places/Town.md':{...notes['Places/Town.md'],graphPositions:{map:'unused.png',x:12,y:'invalid'}}});
+  assert.equal(g.warnings.length,0);
+  assert.ok(g.edges.some(edge=>edge.source==='Places/Inn.md'&&edge.target==='Places/Town.md'));
+  assert.ok(g.nodes.every(node=>!Object.hasOwn(node,'positions')));
 });

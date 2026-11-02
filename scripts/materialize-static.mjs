@@ -5,7 +5,6 @@ import path from "node:path";
 import process from "node:process";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { finishDeferredCopy } from "./static-copy-output.mjs";
 
 const PLUGIN_ID = "taelgarverse";
 const DEFAULT_OBSIDIAN_COMMAND = "obsidian";
@@ -13,7 +12,6 @@ const DEFAULT_OBSIDIAN_COMMAND = "obsidian";
 export function parseArgs(argv) {
   const args = {
     strict: true,
-    dynamicWebsite: false,
     blockTimeoutMs: 30000,
     wait: true,
     obsidianCommand: process.env.OBSIDIAN_COMMAND || DEFAULT_OBSIDIAN_COMMAND,
@@ -37,7 +35,7 @@ export function parseArgs(argv) {
     else if (arg === "--mode") args.mode = next();
     else if (arg === "--report") args.reportPath = next();
     else if (arg === "--header-type") args.headerType = next();
-    else if (arg === "--dynamic-website") args.dynamicWebsite = true;
+    else if (arg === "--dynamic-website") throw new Error("--dynamic-website was removed; use npm run publish (Node DQL by default, or --materializer obsidian).");
     else if (arg === "--timeout") throw new Error("--timeout was removed; stop stuck materialization processes explicitly.");
     else if (arg === "--block-timeout") args.blockTimeoutMs = Number(next()) * 1000;
     else if (arg === "--obsidian-command" || arg === "--obsidian-cli") {
@@ -84,9 +82,6 @@ Options:
   --date DATE        Override CustomJS target date.
   --report PATH      Report JSON path.
   --header-type TYPE website, static, or none. Default: website.
-  --dynamic-website Replace generated headers with <!-- taelgar:header -->,
-                    delete dataviewjs blocks and sections left empty by them,
-                    and materialize dataview queries; overrides --header-type.
   --strict           Fail when unsupported blocks or errors are found. Default.
   --no-strict        Produce partial output and report unsupported blocks.
   --block-timeout SECONDS
@@ -104,7 +99,6 @@ Options:
   --no-obsidian-output
                     Hide Obsidian CLI stdout/stderr unless the command fails.
   --no-wait          Run the CLI request and print the report path without reading it.
-                    Unavailable for dynamic website write mode, which needs the Node copy phase.
 `);
 }
 
@@ -121,8 +115,7 @@ export function buildMaterializerRequest(args, options = {}) {
         ? path.join(outputPath, ".dataview-materialization-report.json")
         : path.join(pluginDir, "last-report.json")),
   );
-  const externalCopy = args.dynamicWebsite && mode === "write";
-  if (externalCopy && args.wait === false) throw new Error("--no-wait cannot be used for dynamic website write mode: the Node CLI must finish copying the output.");
+  if (args.dynamicWebsite || args.externalCopy) throw new Error("Dynamic website materialization was removed; use npm run publish.");
 
   const request = {
     id,
@@ -131,14 +124,10 @@ export function buildMaterializerRequest(args, options = {}) {
       outputPath,
       mode,
       strict: args.strict,
-      dynamicWebsite: args.dynamicWebsite ?? false,
-      externalCopy: Boolean(externalCopy),
-      requestId: id,
-      stagedMarkdownPath: externalCopy ? path.join(outputPath, `.dataview-${id.replace(/[^a-zA-Z0-9_-]/g, "_")}.markdown.json`) : undefined,
       reportPath,
       progressPath: `${reportPath}.progress.json`,
       overrideDate: args.overrideDate,
-      headerType: args.dynamicWebsite ? "none" : (args.headerType ?? "website"),
+      headerType: args.headerType ?? "website",
       blockTimeoutMs: args.blockTimeoutMs,
     },
   };
@@ -153,15 +142,6 @@ export function buildEvalCode(request) {
   if (!plugin) throw new Error(${JSON.stringify(`Plugin not loaded: ${PLUGIN_ID}`)});
   if (typeof plugin.runRequest !== "function") {
     throw new Error(${JSON.stringify(`Plugin does not expose runRequest(): ${PLUGIN_ID}`)});
-  }
-  if ((request.config?.dynamicWebsite && plugin.supportsDynamicWebsite !== true) ||
-      (request.config?.externalCopy && plugin.supportsExternalCopy !== true)) {
-    const message = "The loaded materializer plugin is outdated. Reload the Taelgarverse plugin or restart Obsidian, then rerun this command.";
-    if (typeof plugin.writeReport !== "function") throw new Error(message);
-    await plugin.writeReport(request.config.reportPath, {
-      id: request.id, status: "failed", exitCode: 1, error: {message}
-    });
-    return message;
   }
   await plugin.runRequest(request);
   return ${JSON.stringify(`Materializer request ${request.id} finished`)};
@@ -257,10 +237,7 @@ export function formatProgressLine(progress, options = {}) {
   if (progress.phase === "copying") {
     return truncateLine(`Copying output: ${progress.filesCopied || 0} files, ${(Number(progress.bytesCopied || 0) / 1048576).toFixed(1)} MiB | ${progress.currentFile || status}`, columns);
   }
-  if (progress.phase === "staging") return truncateLine("Materializing: Markdown finished; preparing Node output copy", columns);
-  if (progress.phase === "awaiting-copy") return truncateLine("Materializing: Markdown ready; waiting for Node output copy", columns);
   if (progress.phase === "complete") return status === "ok" ? "Materialization complete." : "Materialization failed; see report.";
-  if (progress.phase === "copy-failed") return "Output copy failed; see report.";
 
   if (status === "starting" && total === 0) {
     return truncateLine("Materializing: starting Obsidian runtime and waiting for Dataview/CustomJS", columns);
@@ -410,7 +387,6 @@ export function summarizeReport(report) {
     exitCode: report.exitCode,
     mode: report.mode,
     strict: report.strict,
-    dynamicWebsite: report.dynamicWebsite ?? false,
     filesScanned: report.counts.filesScanned,
     filesSkipped: report.counts.filesSkipped,
     filesChanged: report.counts.filesChanged,
@@ -418,9 +394,6 @@ export function summarizeReport(report) {
     dataviewJsBlocks: report.counts.dataviewJsBlocks,
     inlineExpressions: report.counts.inlineExpressions,
     headersRegenerated: report.counts.headersRegenerated,
-    headerMarkersInserted: report.counts.headerMarkersInserted,
-    dataviewJsBlocksRemoved: report.counts.dataviewJsBlocksRemoved,
-    sectionsRemoved: report.counts.sectionsRemoved,
     unsupported: report.counts.unsupported,
     errors: report.counts.errors,
     remaining: {
@@ -446,16 +419,13 @@ export function formatReportOutcome(report, reportPath) {
   const counts = report.counts;
   const partial = !failed && counts && (counts.errors > 0 || counts.unsupported > 0);
   const lines = [failed ? "Materialization failed." : partial ? "Materialization completed with partial output." : "Materialization complete."];
-  if (failed && report.mode === "write" && report.strict && counts && report.phase !== "copy-failed") {
+  if (failed && report.mode === "write" && report.strict && counts) {
     lines.push("Strict mode blocked writing vault output; only report files were written.");
   } else if (!failed && report.mode === "write" && report.outputPath) {
     lines.push(`Output: ${report.outputPath}`);
   }
   if (counts) {
     lines.push(`Scanned ${counts.filesScanned ?? 0} notes; errors ${counts.errors ?? 0}; unsupported ${counts.unsupported ?? 0}.`);
-    if (report.dynamicWebsite) {
-      lines.push(`Dynamic website: ${counts.headerMarkersInserted ?? 0} header markers; ${counts.dataviewJsBlocksRemoved ?? 0} JavaScript blocks removed; ${counts.sectionsRemoved ?? 0} headings removed; ${counts.dataviewBlocks ?? 0} Dataview queries processed.`);
-    }
   }
   if (report.error?.message) lines.push(report.error.message);
   for (const file of report.files || []) {
@@ -463,7 +433,7 @@ export function formatReportOutcome(report, reportPath) {
       lines.push(`${file.path}${issue.line ? ':' + issue.line : ''} [${issue.type}]: ${String(issue.message || '').replace(/\s+/g, ' ').trim()}`);
     }
   }
-  if (failed && report.mode === "write" && report.strict && counts && report.phase !== "copy-failed") {
+  if (failed && report.mode === "write" && report.strict && counts) {
     lines.push("Resolve the issues above, or use --no-strict to export partial output with failed/unsupported blocks left unchanged.");
   } else if (partial) {
     lines.push("Failed or unsupported blocks remain unchanged in the output.");
@@ -498,7 +468,6 @@ export async function main() {
         request.config.outputPath ? `Materializing: output ${request.config.outputPath}` : undefined,
         `Materializing: report ${reportPath}`,
         `Materializing: header type ${request.config.headerType}`,
-        request.config.dynamicWebsite ? "Materializing: dynamic website Markdown" : undefined,
         `Materializing: launching ${obsidianCommand}`,
       ]
         .filter(Boolean)
@@ -524,17 +493,7 @@ export async function main() {
       return;
     }
 
-    let report = await waitForReport(reportPath, request.id);
-    report = await finishDeferredCopy(report, reportPath, async copyProgress => {
-      await fs.writeFile(`${reportPath}.progress.json`, JSON.stringify({
-        ...copyProgress, status: "running", counts: report.counts, updatedAt: new Date().toISOString(),
-      }) + "\n", "utf8");
-    });
-    if (request.config.externalCopy) {
-      await fs.writeFile(`${reportPath}.progress.json`, JSON.stringify({
-        status: report.status, phase: report.phase, counts: report.counts, updatedAt: new Date().toISOString(),
-      }) + "\n", "utf8");
-    }
+    const report = await waitForReport(reportPath, request.id);
     await progressMonitor.stop();
     const failed = report.status === "failed" || Number(report.exitCode || 0) !== 0;
     (failed ? process.stderr : process.stdout).write(formatReportOutcome(report, reportPath) + "\n");

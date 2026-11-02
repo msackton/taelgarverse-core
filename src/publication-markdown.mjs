@@ -1,5 +1,5 @@
 import {convertWebsiteNote} from './website-compatibility.mjs';
-import {scanFencedCodeBlocks,scanSectionHeadings,applyReplacements} from './markdown-fences.mjs';
+import {scanFencedCodeBlocks,scanSectionHeadings,applyReplacements,prefixMarkdownLines} from './markdown-fences.mjs';
 
 // Publication copies only. DQL evaluation runs in the preceding Node stage;
 // conversion and cleanup never execute JavaScript or edit original notes.
@@ -10,7 +10,7 @@ export function preparePublicationNote(note) {
 export function cleanupPublicationNote(note) {
   const fences=scanFencedCodeBlocks(note.body);
   const removed=fences.filter(block=>block.language==='dataviewjs' && block.closed);
-  const replacements=removed.map(block=>({start:block.start,end:block.end,text:block.quotePrefix+'\n'}));
+  const replacements=removed.map(block=>({start:block.start,end:block.end,text:prefixMarkdownLines('\n',block.openingPrefix,block.continuationPrefix)}));
   let sectionsRemoved=0;
   for(const heading of scanSectionHeadings(note.body,fences).reverse()) {
     if(!removed.some(block=>block.start>=heading.contentStart && block.end<=heading.end))continue;

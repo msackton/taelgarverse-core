@@ -78,7 +78,7 @@ export async function exportDataview(store,{directory,vaultPath,obsidianCommand,
         if(value.status==='error'){issue(entry,block,value.message);continue;}
         const replacements=changes.get(entry) || [];
         const markdown=value.markdown.replace(/\r\n?/g,'\n').trimEnd();
-        replacements.push({start:block.start,end:block.end,text:prefixMarkdownLines(markdown,block.quotePrefix)+'\n'});
+        replacements.push({start:block.start,end:block.end,text:prefixMarkdownLines(markdown,block.openingPrefix,block.continuationPrefix)+'\n'});
         changes.set(entry,replacements);
       }
     } finally {clearInterval(progressTimer);}

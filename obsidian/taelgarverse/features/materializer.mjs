@@ -75,7 +75,8 @@ export class MaterializerFeature extends LegacyMaterializer {
         let markdown;
         if(block.language==='taelgar-map') {
           if(parseMapBlock(block.body).version===2)throw new Error('Version 2 manifest maps require the Taelgarverse renderer; static Leaflet conversion is unsupported.');
-          const text=original.slice(block.start,block.end).replace(/^([ \t>]*[`~]{3,})taelgar-map\b/i,'$1leaflet');
+          const raw=original.slice(block.start,block.end),start=block.openingPrefix.length+block.fenceLength;
+          const text=raw.slice(0,start)+raw.slice(start).replace(/^(\s*)taelgar-map\b/i,'$1leaflet');
           replacements.push({start:block.start,end:block.end,text});maps++;continue;
         } else {
           const snapshot=await runtime.headers(),date=config.overrideDate || bioDate(metadata,globalThis,snapshot.fallback);
@@ -89,7 +90,7 @@ export class MaterializerFeature extends LegacyMaterializer {
           }
           nativeBlocks++;
         }
-        replacements.push({start:block.start,end:block.end,text:prefixMarkdownLines(markdown.trimEnd(),block.quotePrefix)+'\n'});
+        replacements.push({start:block.start,end:block.end,text:prefixMarkdownLines(markdown.trimEnd(),block.openingPrefix,block.continuationPrefix)+'\n'});
       } catch(error) {issues.push({type:'error',line:block.startLine,message:error.message});}
     }
     const source=applyReplacements(original,replacements);
