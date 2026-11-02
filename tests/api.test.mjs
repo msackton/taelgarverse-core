@@ -292,7 +292,10 @@ test('HTTP HTML, styles, docs, schema, errors and method handling',async () => {
     assert.equal((await fetch(base + '/theme/' + filename)).status,200);
   }
   assert.equal((await fetch(base + '/docs')).status,200);
-  assert.equal((await (await fetch(base + '/openapi.json')).json()).openapi,'3.1.0');
+  const spec=await (await fetch(base + '/openapi.json')).json();
+  assert.equal(spec.openapi,'3.1.0');
+  for(const endpoint of Object.values(spec.paths))
+    assert.ok(!(endpoint.get.parameters || []).some(parameter=>parameter.name==='pov'));
   assert.equal((await fetch(base + '/api/page')).status,400);
   assert.equal((await fetch(base + '/api/page?page=Missing')).status,404);
   assert.equal((await fetch(base + '/api/page?page=Same')).status,409);
@@ -525,40 +528,38 @@ test('Custom campaigns filter article blocks and persist through article, search
   for (const link of $('a[href^="/page/"]').toArray()) assert.equal(new URL($(link).attr('href'),'https://example.test').searchParams.get('campaigns'),'all');
 });
 
-test('reader POV preference follows browsing and search, overrides defaults, and stays request-local',async()=>{
+test('retired POV settings and query parameters are ignored across browsing and search',async()=>{
   for (const respect_pov_dates of [false,true]) {
     const app=new Engine({...engine.settings,respect_pov_dates}),server=createServer(app);
     await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
     const base='http://127.0.0.1:'+server.address().port;
     try {
-      for (const pov of [undefined,'1','0']) for (const date of ['1739-12-31','1740-01-01']) for (const dm of ['0','1']) {
-        const enabled=pov===undefined?respect_pov_dates:pov==='1';
-        const visible=!enabled || date==='1740-01-01',query='date='+date+'&dm='+dm+(pov===undefined?'':'&pov='+pov);
+      for (const pov of [undefined,'1','0','invalid']) for (const date of ['1739-12-31','1740-01-01']) for (const dm of ['0','1']) {
+        const query='date='+date+'&dm='+dm+(pov===undefined?'':'&pov='+pov);
         const $=load(await (await fetch(base+'/?q=POV&'+query)).text());
         for (const slug of ['pov-year','pov-plural']) {
-          assert.equal($('main a[href^="/page/'+slug+'?"]').length,visible?1:0);
-          assert.equal($('.site-sidebar a[href*="/page/'+slug+'?"]').length,visible?1:0);
-          assert.equal((await fetch(base+'/page/'+slug+'?'+query)).status,visible?200:404);
+          assert.equal($('main a[href^="/page/'+slug+'?"]').length,1);
+          assert.equal($('.site-sidebar a[href*="/page/'+slug+'?"]').length,1);
+          assert.equal((await fetch(base+'/page/'+slug+'?'+query)).status,200);
         }
         for (const form of ['#context-controls','#header-search','.search-form']) {
-          assert.equal($(form+' input[name="pov"]').length,pov===undefined?0:1);
-          if (pov!==undefined) assert.equal($(form+' input[name="pov"]').val(),pov);
+          assert.equal($(form+' input[name="pov"]').length,0);
         }
         const results=await (await fetch(base+'/api/search?q=POV&'+query)).json();
         assert.equal(results.source,'full-text');
-        assert.deepEqual(results.results.map(r=>r.page).sort(),visible?['pov-plural','pov-year']:[]);
-        if (pov!==undefined) for (const item of results.results) assert.equal(new URL(item.url,base).searchParams.get('pov'),pov);
+        assert.deepEqual(results.results.map(r=>r.page).sort(),['pov-plural','pov-year']);
+        if (pov!==undefined) for (const item of results.results) assert.equal(new URL(item.url,base).searchParams.get('pov'),null);
         const host=await (await fetch(base+'/api/page?page=Perspective%20Links&'+query)).json();
         const article=load(host.html);
-        assert.equal(article('a').filter((_,a)=>article(a).text()==='future viewpoint').length,visible?1:0);
-        assert.equal(article.text().includes('POV plural text.'),visible);
-        assert.equal(host.backlinks.some(link=>link.page==='pov-year'),visible);
+        assert.equal(article('a').filter((_,a)=>article(a).text()==='future viewpoint').length,1);
+        assert.equal(article.text().includes('POV plural text.'),true);
+        assert.equal(host.backlinks.some(link=>link.page==='pov-year'),true);
         const diagram=await (await fetch(base+'/api/diagram-links?source=Perspective%20Links&target=POV%20Year&'+query)).json();
-        assert.equal(Boolean(diagram.links[0]),visible);
+        assert.equal(Boolean(diagram.links[0]),true);
         if (pov!==undefined) {
-          for (const link of $('.site-sidebar a[href],.site-brand').toArray()) assert.equal(new URL($(link).attr('href'),base).searchParams.get('pov'),pov);
+          for (const link of $('.site-sidebar a[href],.site-brand').toArray()) assert.equal(new URL($(link).attr('href'),base).searchParams.get('pov'),null);
           const lazy=$('[data-nav-url]').first().attr('data-nav-url');
-          assert.equal(new URL(lazy,base).searchParams.get('pov'),pov);
+          assert.equal(new URL(lazy,base).searchParams.get('pov'),null);
           assert.equal((await fetch(new URL(lazy,base))).status,200);
         }
       }
@@ -566,9 +567,9 @@ test('reader POV preference follows browsing and search, overrides defaults, and
         const response=await fetch(base+'/api/page?page=POV%20Year&date=1739-12-31&pov='+pov);
         return response.status;
       }));
-      assert.deepEqual(outcomes,[404,200,404,200]);
+      assert.deepEqual(outcomes,[200,200,200,200]);
       assert.equal(app.store.settings.respect_pov_dates,respect_pov_dates);
-      assert.equal((await fetch(base+'/api/page?page=POV%20Year&date=1739-12-31&pov=invalid')).status,400);
+      assert.equal((await fetch(base+'/api/page?page=POV%20Year&date=1739-12-31&pov=invalid')).status,200);
     } finally {
       await new Promise(resolve=>server.close(resolve));app.closeSearch();
     }

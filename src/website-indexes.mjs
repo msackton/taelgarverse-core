@@ -13,7 +13,7 @@ export const HEADER_INDEX_SLOT='<div class="taelgar-header-index-slot"></div>';
 function indexEnvironment(env) {
   const {store,context,entry,headers}=env;
   const entries=new Map(store.entries.filter(entry=>entry.note).map(entry=>[entry.id,entry]));
-  const visible=page=>availableInContext(entries.get(page.path),context,store.settings);
+  const visible=page=>availableInContext(entries.get(page.path),context);
   const resolve=(target,source)=>{
     let entry;
     if (/^\.\.?\//.test(target)) {

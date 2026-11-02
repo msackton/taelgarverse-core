@@ -35,7 +35,7 @@ export function pageNameSearch(store,input,context,notice){
   const query=nameQuery(input.query);
   const entries=[...store.bySlug.values()].filter(entry=>{
     const raw=entry.note.metadata.aliases || [],aliases=Array.isArray(raw)?raw:[raw];
-    return availableInContext(entry,context,store.settings) && (!input.type || searchType(entry)===input.type) &&
+    return availableInContext(entry,context) && (!input.type || searchType(entry)===input.type) &&
       (entry.searchMetadata?.text ?? nameQuery([entry.slug,entry.name,entry.title,entry.note.metadata.name,...aliases].filter(Boolean).join(' '))).includes(query);
   }).sort((a,b)=>{
     return nameRank(a,query)-nameRank(b,query) || a.title.localeCompare(b.title) || a.slug.localeCompare(b.slug);
@@ -76,11 +76,11 @@ export function createIndexSearch(query,{revision,descriptor,store}){
     const prepared=descriptor.metadataVersion===1;
     if(descriptor.metadataVersion!==undefined && (!prepared || !Number.isSafeInteger(descriptor.metadata) || descriptor.metadata<0))throw new Error('Search metadata descriptor unavailable');
     // Metadata is already in the revision snapshot. Pass only matching slugs,
-    // so reader POV visibility, ranking, and type filtering happen before LIMIT without a schema change
+    // so visibility, ranking, and type filtering happen before LIMIT
     // or reads of article bodies. JSON parameters avoid per-page SQL bindings.
     const exact=[],aliases=[],typed=[],visible=[],name=nameQuery(input.query);
     if(!prepared)for(const entry of store.bySlug.values()){
-      if (availableInContext(entry,context,store.settings)) visible.push(entry.slug);
+      if (availableInContext(entry,context)) visible.push(entry.slug);
       const rank=nameRank(entry,name);
       if(rank===0)exact.push(entry.slug);else if(rank===1)aliases.push(entry.slug);
       if(input.type && searchType(entry)===input.type)typed.push(entry.slug);
@@ -88,14 +88,14 @@ export function createIndexSearch(query,{revision,descriptor,store}){
     const rankSQL=prepared ? `CASE WHEN EXISTS(SELECT 1 FROM json_each(m.names) WHERE value=?) THEN 0
       WHEN EXISTS(SELECT 1 FROM json_each(m.aliases) WHERE value=?) THEN 1 ELSE 2 END` :
       `CASE WHEN d.page IN (SELECT value FROM json_each(?)) THEN 0 WHEN d.page IN (SELECT value FROM json_each(?)) THEN 1 ELSE 2 END`;
-    const metadataSQL=prepared ? `m.from_date<=? AND (?=0 OR m.pov_date<=?)
+    const metadataSQL=prepared ? `m.from_date<=?
       AND NOT EXISTS(SELECT 1 FROM json_each(m.exclusions) x WHERE x.value='all' OR x.value IN (SELECT value FROM json_each(?)))
       ${input.type?'AND m.type=?':''}` : `d.page IN (SELECT value FROM json_each(?)) ${input.type?'AND d.page IN (SELECT value FROM json_each(?))':''}`;
-    const metadataParams=prepared ? [day,(context.pov ?? store.settings?.respect_pov_dates)===true?1:0,day,campaigns,...(input.type?[input.type]:[])] :
+    const metadataParams=prepared ? [day,campaigns,...(input.type?[input.type]:[])] :
       [JSON.stringify(visible),...(input.type?[JSON.stringify(typed)]:[])];
     const output=await query([
       {sql:`SELECT revision FROM tv_search_revisions WHERE revision=? AND state='ready' AND digest=? AND compiler=? AND documents=? AND rules=?
-        AND EXISTS(SELECT 1 FROM tv_search_meta WHERE owner='taelgarverse-core-search' AND version IN (1,2,3))
+        AND EXISTS(SELECT 1 FROM tv_search_meta WHERE owner='taelgarverse-core-search' AND version IN (1,2,3,4))
         ${prepared?'AND (SELECT COUNT(*) FROM tv_search_page_metadata WHERE revision=tv_search_revisions.revision)=?':''}`,
         params:[revision,descriptor.digest,descriptor.version,descriptor.documents,descriptor.rules,...(prepared?[descriptor.metadata]:[])]},
       {sql:`SELECT d.page,d.title,bm25(tv_search_fts,10,6,1) AS rank,
@@ -118,7 +118,7 @@ export function createIndexSearch(query,{revision,descriptor,store}){
     if(rows.length>input.limit+1)throw new Error('Unbounded search response');
     const seen=new Set(),results=rows.map(row=>{
       const entry=store.bySlug.get(row.page);
-      if(!availableInContext(entry,context,store.settings) || (input.type && searchType(entry)!==input.type) || entry.title!==row.title || seen.has(row.page) || typeof row.marked!=='string' || row.marked.length>2400)throw new Error('Search result does not match this publication');
+      if(!availableInContext(entry,context) || (input.type && searchType(entry)!==input.type) || entry.title!==row.title || seen.has(row.page) || typeof row.marked!=='string' || row.marked.length>2400)throw new Error('Search result does not match this publication');
       seen.add(row.page);const {excerpt,highlights}=excerptParts(row.marked);return result(entry,context,excerpt,highlights);
     });
     return {query:input.query,type:input.type,context,source:'full-text',fallback:false,limit:input.limit,offset:input.offset,hasMore:rows.length>input.limit,results:results.slice(0,input.limit)};

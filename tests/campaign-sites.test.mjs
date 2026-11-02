@@ -255,44 +255,19 @@ test('discovery and publication fingerprints include multi-campaign metadata',t=
   assert.throws(()=>new CampaignSites(readCampaignHomes(settings),engine().contexts),/context is no longer supported/);
 });
 
-test('microsite enforcePoV overrides URL choices and site defaults across all page surfaces',async()=>{
-  const home=value=>'---\ncampaigns: [clee]\n'+(value===undefined?'':'enforcePoV: '+value+'\n')+'---\n# Perspective home\n\n[[POV]]\n\n![[POV]]';
-  for (const respect_pov_dates of [false,true]) {
-    const app=engine({enabled:home(1),disabled:home(0),inherited:home(),combined:'---\ncampaigns: [clee, dufr]\ndate: 1720-01-01\nenforcePoV: 1\n---\n# Combined'}, {respect_pov_dates});
-    for (const [host,enforced] of [['enabled',true],['disabled',false],['combined',true]]) for (const pov of [undefined,'0','1','invalid']) {
-      const query=pov===undefined?'':'pov='+pov;
-      const visible=!enforced,domain=host+'.taelgar.org';
-      assert.equal((await request(app,domain,'/api/page?page=POV&'+query)).status,visible?200:404);
-      assert.equal((await request(app,domain,'/page/pov?'+query)).status,visible?200:404);
-      const story=await (await request(app,domain,'/api/page?page=Story&'+query)).json();
-      assert.equal(story.context.pov,enforced);assert.equal(story.date,'1720-01-01');
-      const result=await (await request(app,domain,'/api/search?q=POV&'+query)).json();
-      assert.equal(result.context.pov,enforced);assert.equal(result.results.length,visible?1:0);
-      const links=await (await request(app,domain,'/api/diagram-links?source=Story&target=POV&'+query)).json();
-      assert.equal(Boolean(links.links[0]),visible);
-      const $=load(await (await request(app,domain,'/?'+query)).text());
-      assert.equal($('#context-controls input[name="pov"]').val(),enforced?'1':'0');
-      if (host!=='combined') assert.equal($('.home-prose').text().includes('Perspective body marker.'),visible);
-      const lazy=$('[data-nav-url]').first().attr('data-nav-url');
-      const branch=await (await request(app,domain,lazy+'&'+query)).json();
-      assert.equal(branch.html.includes('/page/pov?'),visible);
+test('retired microsite POV metadata is ignored while date and campaign locks remain authoritative',async()=>{
+  for(const value of ['1','0','true','invalid','{}']){
+    const app=engine({party:'---\ncampaigns: [clee]\nenforcePoV: '+value+'\n---\n# Home\n\n![[POV]]'},{respect_pov_dates:true});
+    for(const pov of ['0','1','invalid']){
+      const query='pov='+pov+'&date=9999-01-01';
+      const response=await request(app,'party.taelgar.org','/api/page?page=POV&'+query);
+      assert.equal(response.status,200);
+      const result=await response.json();assert.equal(result.date,'1720-01-01');assert.equal(result.context.pov,undefined);
+      const search=await (await request(app,'party.taelgar.org','/api/search?q=POV&'+query)).json();assert.equal(search.results.length,1);
+      const links=await (await request(app,'party.taelgar.org','/api/diagram-links?source=Story&target=POV&'+query)).json();assert.ok(links.links[0]);
+      const $=load(await (await request(app,'party.taelgar.org','/?'+query)).text());assert.equal($('input[name=pov]').length,0);
+      assert.match($('.home-prose').text(),/Perspective body marker/);
     }
-    for (const pov of [undefined,'0','1']) {
-      const enabled=pov===undefined?respect_pov_dates:pov==='1';
-      const response=await request(app,'inherited.taelgar.org','/api/page?page=POV'+(pov===undefined?'':'&pov='+pov));
-      assert.equal(response.status,enabled?404:200);
-    }
-    assert.equal(app.settings.respect_pov_dates,respect_pov_dates);
-  }
-});
-
-test('microsite enforcePoV accepts 1 or 0 and rejects malformed landing-page values',()=>{
-  const contexts=engine().contexts;
-  for (const value of [1,0,'"1"','"0"']) {
-    const sites=new CampaignSites({forced:'---\ncampaigns: [clee]\nenforcePoV: '+value+'\n---\n# Home'},contexts);
-    assert.equal(sites.byHost.get('forced').enforcePoV,String(value).includes('1'));
-  }
-  for (const value of ['2','-1','null','true','false','[]','{}','yes','""']) {
-    assert.throws(()=>new CampaignSites({forced:'---\ncampaigns: [clee]\nenforcePoV: '+value+'\n---\n# Home'},contexts),/Campaign homepage "forced": enforcePoV must be 1 or 0/);
+    assert.equal(app.campaignSites.byHost.get('party').enforcePoV,undefined);
   }
 });

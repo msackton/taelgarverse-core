@@ -75,7 +75,7 @@ For optional session-note metadata and links, campaign and session metadata
 identify candidates. The registry's exact `campaignRoot`/`notePattern` path
 wins; otherwise a single available candidate is required. Unavailable or
 ambiguous notes leave recap-backed session records using header metadata without
-a note link. Links retain date, campaign, DM, and POV context.
+a note link. Links retain date, campaign and DM context.
 
 Session-note fallback chooses that same preferred filename or one unambiguous
 legacy metadata candidate before request visibility. An unavailable official
@@ -99,7 +99,7 @@ interaction component's eligible related material.
 
 ## Visibility and publication
 
-Person availability retains existing publication and POV rules. Each encounter
+Person availability retains existing publication and date rules. Each encounter
 waits until its full session's recorded end date. Available official session
 dates take precedence, falling back to recap header dates. Unknown dates remain
 undated without borrowing dates from beats. Session identities sort numerically
@@ -108,7 +108,7 @@ when dates are equal or absent.
 Session title and tagline retain campaign/date/DM conditional filtering; ordinary
 annotations are excluded. Malformed selected metadata omits the affected record.
 Beat comments and missing or malformed Short/Long sections have no effect.
-Session-reference dots and related links retain source availability, POV, and
+Session-reference dots and related links retain source availability and
 occurrence-level campaign/date/DM filtering. Only explicit authored links
 qualify for fallback; frontmatter, plain names, and generated headers do not.
 

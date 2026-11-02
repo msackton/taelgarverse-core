@@ -168,7 +168,7 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=null) {
   return {version:2,backlinkVersion:backlinks?.version || null,byTarget,warnings};
 }
 export function campaignInteractions(index,store,entry,context,registry) {
-  if (!isPerson(entry) || !availableInContext(entry,context,store.settings)) return [];
+  if (!isPerson(entry) || !availableInContext(entry,context)) return [];
   const identities=campaignIdentities(registry),known=new Set(list(entry.note.metadata.knownTo).map(name=>identities.get(normalize(name))).filter(Boolean));
   const selected=new Set(context.campaigns),groups=new Map();
   for (const campaign of Object.values(registry.campaigns || {})) if (selected.has(campaign.code)) groups.set(campaign.code,{code:campaign.code,label:campaign.name,known:known.has(campaign.code),events:[]});
@@ -181,7 +181,7 @@ export function campaignInteractions(index,store,entry,context,registry) {
       const variant=record.variants.find(item=>interactionRuleVisible(item.when,context));
       if (!variant) continue;
       const {when,...text}=variant,{variants,campaign,sessionSources:sources,...event}=record;
-      const candidates=(sources?.candidates || []).map(slug=>store.bySlug.get(slug)).filter(source=>availableInContext(source,context,store.settings));
+      const candidates=(sources?.candidates || []).map(slug=>store.bySlug.get(slug)).filter(source=>availableInContext(source,context));
       const source=candidates.find(entry=>entry.slug===sources?.preferred) || (candidates.length===1 ? candidates[0] : null);
       const period=interactionDate(source?.note.metadata.DR),until=interactionDate(source?.note.metadata.DR_end) || period;
       const validPeriod=period && until.end>=period.start;
@@ -198,7 +198,7 @@ export function campaignInteractions(index,store,entry,context,registry) {
         precision:validPeriod ? period.start===until.end ? period.precision : 'range' : record.precision});
     } else if(record.kind==='session-reference') {
       const source=store.bySlug.get(record.source);
-      if((record.cutoff && record.cutoff>context.date) || !interactionReferenceType(source?.note?.metadata) || !availableInContext(source,context,store.settings) ||
+      if((record.cutoff && record.cutoff>context.date) || !interactionReferenceType(source?.note?.metadata) || !availableInContext(source,context) ||
         (index.backlinkVersion===1 && context.campaigns.length>1) || !interactionRuleVisible(record.when,context))continue;
       const {cutoff,when,campaign,...event}=record;
       group.events.push({...event,title:interactionText(source.note.metadata.descTitle || source.title),
@@ -207,7 +207,7 @@ export function campaignInteractions(index,store,entry,context,registry) {
     } else {
       const source=store.bySlug.get(record.source);
       const type=interactionReferenceType(source?.note?.metadata);
-      if (!type || !availableInContext(source,context,store.settings) || (index.backlinkVersion===1 && context.campaigns.length>1) || !interactionRuleVisible(record.when,context)) continue;
+      if (!type || !availableInContext(source,context) || (index.backlinkVersion===1 && context.campaigns.length>1) || !interactionRuleVisible(record.when,context)) continue;
       group.events.push({id:record.id,kind:'reference',title:source.title,text:'',start:null,end:null,precision:'undated',
         session:null,sourceTitle:source.title,url:pageUrl(source.slug,context.date,context),location:'',referenceType:type});
     }

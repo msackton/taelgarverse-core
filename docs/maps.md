@@ -216,7 +216,7 @@ legacy inline `points` remains readable. Version 2
 maps render these ordered Photoshop-coordinate polylines in blue (river) or
 brown (road), clipped to the crop, with the same importance thresholds as towns.
 They have no implicit closing edge or layer toggles. Published paths include
-only notes available in the reader's date/campaign/POV context and link to their
+only notes available in the reader's date/campaign context and link to their
 pages. The Obsidian editor supports point edits and freehand tracing, saving the
 geometry file and only the selected note's `mapPath` field; see [rivers and roads](map-editor.md#rivers-and-roads).
 

@@ -31,7 +31,6 @@ export function collectImageUsages(store,{homeSource=null,campaignHomes={},maxSt
     }
     if (!bodyImages) continue;
     const codes = [...new Set(conditions.map(rule=>rule.campaign).filter(code=>code && code!=='none'))].sort();
-    // Prepare images for readers who opt out of the site POV default as well.
     const dates = [...new Set([10101,availableFrom(entry),...conditions.map(rule=>rule.date)].filter(Boolean))].sort((a,b)=>a-b);
     if (codes.length>10 || 2**codes.length*dates.length*2>maxStatesPerNote) throw new Error('Image usage state limit exceeded for '+entry.id);
     const selections = codes.reduce((all,code)=>[...all,...all.map(selected=>[...selected,code])],[[]]), seen = new Set();

@@ -3,7 +3,7 @@ import {randomUUID} from 'node:crypto';
 import {SEARCH_VERSION,searchHash,documentHash,validateSearchManifest,searchDescriptor} from './compile-search.mjs';
 import {withPublicationProgress} from './publication-progress.mjs';
 
-const OWNER='taelgarverse-core-search',SCHEMA=3;
+const OWNER='taelgarverse-core-search',SCHEMA=4;
 const schema=[
   'CREATE TABLE tv_search_meta(owner TEXT PRIMARY KEY,version INTEGER NOT NULL)',
   `CREATE TABLE tv_search_revisions(revision TEXT PRIMARY KEY,digest TEXT NOT NULL,compiler INTEGER NOT NULL,
@@ -45,7 +45,7 @@ const retentionSchema=[
 ];
 const metadataSchema=[
   `CREATE TABLE tv_search_page_metadata(revision TEXT NOT NULL REFERENCES tv_search_revisions(revision),page TEXT NOT NULL,
-    type TEXT NOT NULL,names TEXT NOT NULL,aliases TEXT NOT NULL,search_text TEXT NOT NULL,from_date INTEGER NOT NULL,pov_date INTEGER NOT NULL,
+    type TEXT NOT NULL,names TEXT NOT NULL,aliases TEXT NOT NULL,search_text TEXT NOT NULL,from_date INTEGER NOT NULL,
     exclusions TEXT NOT NULL,PRIMARY KEY(revision,page))`,
   'CREATE INDEX tv_search_page_type ON tv_search_page_metadata(revision,type)',
   `CREATE TRIGGER tv_search_metadata_insert BEFORE INSERT ON tv_search_page_metadata WHEN
@@ -95,8 +95,13 @@ export class SearchIndex {
     const [tables]=await this.query([{sql:"SELECT name FROM sqlite_master WHERE type='table' AND name NOT GLOB 'sqlite_*' AND name NOT GLOB '_cf_*'"}]);
     if(tables.some(t=>t.name==='tv_search_meta')){
       const [rows]=await this.query([{sql:'SELECT owner,version FROM tv_search_meta'}]);
-      if(rows.length!==1 || rows[0].owner!==OWNER || ![1,2,SCHEMA].includes(rows[0].version))throw new Error('Incompatible search database ownership/schema');
-      if(rows[0].version<SCHEMA)await this.query([...(rows[0].version===1?retentionSchema:[]),...metadataSchema].map(sql=>({sql})).concat({sql:'UPDATE tv_search_meta SET version=? WHERE owner=?',params:[SCHEMA,OWNER]}));
+      if(rows.length!==1 || rows[0].owner!==OWNER || ![1,2,3,SCHEMA].includes(rows[0].version))throw new Error('Incompatible search database ownership/schema');
+      if(rows[0].version<SCHEMA){
+        // Schema 4 removes only the retired cutoff; ready generations remain usable.
+        const migration=rows[0].version<3 ? [...(rows[0].version===1?retentionSchema:[]),...metadataSchema] :
+          ['ALTER TABLE tv_search_page_metadata DROP COLUMN pov_date'];
+        await this.query([...migration.map(sql=>({sql})),{sql:'UPDATE tv_search_meta SET version=? WHERE owner=?',params:[SCHEMA,OWNER]}]);
+      }
     }else{
       if(tables.length)throw new Error('Refusing to initialize a nonempty database without the production search marker');
       await this.query([...schema,...retentionSchema,...metadataSchema].map(sql=>({sql})).concat({sql:'INSERT INTO tv_search_meta VALUES(?,?)',params:[OWNER,SCHEMA]}));
@@ -184,9 +189,9 @@ export class SearchIndex {
       }
       let stagedRules=0;
       for(const group of chunks(manifest.metadata || [])){
-        await this.query([{sql:`INSERT INTO tv_search_page_metadata(revision,page,type,names,aliases,search_text,from_date,pov_date,exclusions)
+        await this.query([{sql:`INSERT INTO tv_search_page_metadata(revision,page,type,names,aliases,search_text,from_date,exclusions)
           SELECT ?,json_extract(value,'$.page'),json_extract(value,'$.type'),json_extract(value,'$.names'),json_extract(value,'$.aliases'),
-          json_extract(value,'$.text'),json_extract(value,'$.from'),json_extract(value,'$.povFrom'),json_extract(value,'$.exclusions')
+          json_extract(value,'$.text'),json_extract(value,'$.from'),json_extract(value,'$.exclusions')
           FROM json_each(?) WHERE true ON CONFLICT(revision,page) DO NOTHING`,params:[revision,JSON.stringify(group)]}]);
       }
       progress(`Search visibility rules: 0/${manifest.rules.length} staged.`);
@@ -216,7 +221,7 @@ export class SearchIndex {
       const verifiedMetadata=[];
       if(manifest.metadata)for(let offset=0;;offset+=500){
         const [rows]=await this.query([{sql:'SELECT * FROM tv_search_page_metadata WHERE revision=? ORDER BY page LIMIT 500 OFFSET ?',params:[revision,offset]}]);
-        for(const row of rows)verifiedMetadata.push({page:row.page,type:row.type,names:JSON.parse(row.names),aliases:JSON.parse(row.aliases),text:row.search_text,from:row.from_date,povFrom:row.pov_date,exclusions:JSON.parse(row.exclusions)});
+        for(const row of rows)verifiedMetadata.push({page:row.page,type:row.type,names:JSON.parse(row.names),aliases:JSON.parse(row.aliases),text:row.search_text,from:row.from_date,exclusions:JSON.parse(row.exclusions)});
         if(rows.length<500)break;
       }
       // Match the compiler's locale-aware page ordering, independently of SQL collation.

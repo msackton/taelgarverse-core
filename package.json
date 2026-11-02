@@ -30,7 +30,6 @@
     "linkedom": "0.18.13",
     "mermaid": "12.2.0",
     "miniflare": "5.20261012.1-beta",
-    "tiktoken": "1.0.22",
     "wrangler": "4.151.1"
   }
 }

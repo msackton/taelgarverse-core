@@ -128,7 +128,6 @@ flowchart LR
 | `public/search-overlay.js` | Search suggestions attached to the original query field, context/type preservation, keyboard controls, and stale-request cancellation. |
 | `public/quiet-library.css`, `public/site-ui.js`, `public/appearance.js` | Quiet Library layout, responsive dialogs and scroll controls, and browser-local System/Light/Dark appearance. |
 | `src/release-footer.mjs`, `public/release.js`, `scripts/build-core-release.mjs` | Version footer, copy behavior, and core provenance captured by Wrangler's custom build. |
-| `experiments/ai-search/` | Isolated D1 full-text baseline and optional AI Search pilot: allowlisted exports, usage limits, explicit independent syncs, local viewer, fallback, and repeatable comparisons; no production imports. |
 | `experiments/dataview/` | [Local DQL comparison harness](../experiments/dataview/README.md): Node/plugin comparisons using the same maintained Node Dataview adapter as publication. Captured-index replay isolates engine compatibility from filesystem metadata differences; timeline corpus excluded. |
 
 ## Configuration
@@ -192,7 +191,7 @@ The publisher fingerprints both files so changes cannot be skipped as unchanged.
 `src/website-sources.mjs` also discovers opted-in `_website/<name>.md` files
 from the original vault, using an explicit `subdomain` or the filename as the
 host label and rejecting duplicates. `src/campaign-sites.mjs` validates their campaign
-selections, dates, and optional `enforcePoV` policy and selects sites by hostname. Sources enter the publication fingerprint, image-usage
+selections and dates and selects sites by hostname. Sources enter the publication fingerprint, image-usage
 scan, and optional `campaignHomes` revision-index field. The shared application
 enforces the hostname's context per request without mutating the cached engine.
 See [campaign landing pages](campaign-sites.md) for authoring and routing.
@@ -208,10 +207,9 @@ configuration tests in `tests/config.test.mjs`.
 Each render resolves a date/campaign and checks page availability before loading
 the body. It then renders explicit header callouts, filters comments/conditional blocks,
 and renders HTML. Search, navigation, and internal-link availability use the same
-metadata rule, including the reader's optional POV date restriction. The
-publisher stores the site default in the snapshot. The compiler retains both
-POV modes, and search applies the reader's metadata visibility before pagination.
-Reader choices stay request-local and never mutate the shared engine.
+metadata rules for birth/creation, activity and campaign exclusions. Search applies
+these rules before pagination. Date, campaign and DM choices stay request-local
+and never mutate the shared engine.
 These rules are specified in [vault usage](vault.md).
 
 Person campaign histories use authoritative recap Cast `met` membership to select
@@ -375,7 +373,7 @@ than requiring request-time YAML parsing. Backlink loading is asynchronous and
 request-local; the synchronous Node renderer still uses its full backlink index.
 Artifact hashes are verified on load,
 with shared pending reads and a bounded 16-object data cache. Navigation compiles
-named-context visibility for both POV modes; custom views are calculated on
+named-context visibility by date and campaign; custom views are calculated on
 demand in a bounded 32-view cache. Request context and active-page selection stay
 separate from shared visibility data. Node reads a filesystem snapshot at startup and must restart
 after vault, runtime, settings, homepage, or menu changes. Node responses remain
@@ -420,7 +418,7 @@ Inline `taelgar-relationship` blocks share the feature lifecycle and graph cache
 | Vault Markdown/media, session notes, registry, `.obsidian/metadata.json` | Run the content publisher. |
 | Add or remove a folder's `.nopublish` marker | Republish content; the publisher fingerprints the original-vault markers and excludes matching exported subtrees before packaging and search compilation. |
 | Structured session recap fields used by campaign interactions | Republish content; recap projections are revision-bound, and parsed source fields participate in the publisher fingerprint. |
-| `_website/home.md`, `_website/navigation.md`, `home_source`, `nav_source`, `default_date`, `respect_pov_dates`, materializer, packaging, image settings | Republish content; use `--force` if the change is outside the publisher's fingerprint. A core merge alone does not refresh the published homepage or menu. |
+| `_website/home.md`, `_website/navigation.md`, `home_source`, `nav_source`, `default_date`, materializer, packaging, image settings | Republish content; use `--force` if the change is outside the publisher's fingerprint. A core merge alone does not refresh the published homepage or menu. |
 | Renderer, routes, CSS/browser scripts, dependencies, Worker configuration | Merge core changes to `main`; GitHub deploys to Cloudflare after CI passes. |
 | Taelgarverse plugin or shared map code used by it | Test both consumers, bump the plugin's own version, then explicitly release to the BRAT distribution repository. A website deployment does not release the plugin. |
 | Maintained shared header core | Test Node, Worker and Obsidian; use the website code release path and a separate explicit plugin release. Content publication does not deploy header code. |

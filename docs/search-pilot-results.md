@@ -2,17 +2,18 @@
 
 Measured on 2026-10-19 against the isolated `taelgarverse-search-pilot` instance.
 These are exploratory results from the 22-note sample, not a production search
-evaluation. See the [operating guide](../experiments/ai-search/README.md) to repeat
-the runs or try different questions.
+evaluation. The experiment has since been retired; its implementation and
+repeat-run commands have been removed. These observations are historical. See
+[production search](search.md) and the [retirement note](search-pilot.md).
 
 ## Independent full-text baseline and optional AI
 
-The same exports are now indexed in the separate D1 database named
-`taelgarverse-search-pilot`. The default viewer compares D1 alone with D1 plus
-one optional vector-retrieval request. Both use the same visible prose. Exact
-title/alias matches are preferred; remaining candidates combine with reciprocal
-rank fusion. AI is disabled per search with the checkbox or for the server with
-`serve --no-ai`. Index updates remain separate explicit commands.
+The same exports were indexed in the separate D1 database named
+`taelgarverse-search-pilot`. The viewer compared D1 alone with D1 plus
+one optional vector-retrieval request. Both used the same visible prose. Exact
+title/alias matches were preferred; remaining candidates combined with reciprocal
+rank fusion. AI could be disabled per search or for the whole server.
+Index updates required separate explicit commands.
 
 The 16-query, whole-note run with all-word matching and AI disabled found all
 eight name/alias/phrase cases and one paraphrased case: **9/15 positive hits@5**.
@@ -35,7 +36,7 @@ identical full-text results with zero AI attempts when disabled.
 A second server started with `--no-ai` also rejected an explicitly requested
 AI-only query. Even a client sending `ai: true` received identical D1 results in
 both layered columns; the AI request counter remained unchanged. Local tests
-cover provider/quota failure, stale or foreign AI results, and timeout/abort
+covered provider/quota failure, stale or foreign AI results, and timeout/abort
 fallback. The pilot comparison waits for the optional AI attempt before showing
 both columns; a production interface could display baseline results immediately.
 
@@ -49,7 +50,7 @@ usage and the full corpus still need measurement. See [D1 pricing](https://devel
 All **eight live D1 visibility checks** and **five update/delete checks** passed.
 The real API also rolled back an intentionally failed diagnostic transaction,
 preserving the active digest. An unchanged sync sent zero documents and wrote
-zero rows. Diagnostic copies were removed afterward. SQLite-backed tests cover
+zero rows. Diagnostic copies were removed afterward. SQLite-backed tests covered
 weighted ranking, phrases, apostrophes, edits/deletions, transaction rollback,
 stale excerpts, scope isolation, and refusal to initialize a foreign schema.
 
@@ -120,7 +121,7 @@ stats response used here exposes item/chunk counts rather than billed tokens.
 
 ## Visibility and scope
 
-The local tests cover excluded/future pages, campaign/date/DM prose, unsafe
+The local tests covered excluded/future pages, campaign/date/DM prose, unsafe
 comments, nonexpansion of embeds, stale excerpts, and batch/view isolation.
 The live visibility corpus uses Rhodar, Ursk, Elemental Plane of Fire, and
 Twilight Promontory in six exported views. All eight live checks passed: a

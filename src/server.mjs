@@ -24,16 +24,16 @@ export function createServer(engine) {
     try {
       const request=new Request(new URL(req.url,'http://'+(req.headers.host || 'localhost')),{method:req.method,headers:req.headers});
       const response=await handleRequest(request,engine,{
-        async renderPage(page,date,context,dm,campaigns,pov) {
+        async renderPage(page,date,context,dm,campaigns) {
           await ready();
-          const render = ()=>engine.render(page,date,context,dm,undefined,campaigns,undefined,pov);
+          const render = ()=>engine.render(page,date,context,dm,undefined,campaigns);
           const result = render(), entries = imageEntries(engine.store,result.html);
           if (!entries.length) return result;
           await prepareImages(engine.store,imageCache,{usages:imageUsages},entries);
           return render();
         },
-        async renderIndex(page,type,date,context,dm,campaigns,pov) {
-          const render=()=>engine.renderIndex(page,type,date,context,dm,campaigns,pov);
+        async renderIndex(page,type,date,context,dm,campaigns) {
+          const render=()=>engine.renderIndex(page,type,date,context,dm,campaigns);
           const result=render(),entries=imageEntries(engine.store,result);
           if(!entries.length)return result;
           await prepareImages(engine.store,imageCache,{usages:imageUsages},entries);

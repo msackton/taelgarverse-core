@@ -58,6 +58,14 @@ test('real D1 staging, FTS, persisted restart and R2 activation gate preserve pr
   const resumed=await index.stage(revision,first);assert.equal(resumed.usage.rowsWritten,0);
   const search=createIndexSearch(statements=>database.query(statements),{revision,descriptor:searchDescriptor(first),store:new ContentStore([{id:'One.md',name:'One',title:'One',slug:'one',target:targetPath('One.md'),note:parseNote('oldmarker')}])});
   const queryContext={kind:'custom',id:'custom',date:'1740-01-01',campaigns:[],dm:false};
+  // Emulate an existing schema-3 publication, with a later obsolete POV cutoff.
+  await database.query([{sql:'ALTER TABLE tv_search_page_metadata ADD COLUMN pov_date INTEGER NOT NULL DEFAULT 18000101'},
+    {sql:'UPDATE tv_search_meta SET version=3'}]);
+  assert.equal((await search(searchInput('oldmarker'),queryContext)).results[0].excerpt,'oldmarker');
+  await index.ensure();
+  const columns=(await database.query([{sql:'PRAGMA table_info(tv_search_page_metadata)'}]))[0].results;
+  assert.ok(!columns.some(row=>row.name==='pov_date'));
+  await index.verify(revision,searchDescriptor(first));
   assert.equal((await search(searchInput('oldmarker'),queryContext)).results[0].excerpt,'oldmarker');
   assert.equal((await search(searchInput('privatepopup'),queryContext)).results.length,0);
   assert.equal((await search(searchInput('privatepopup'),{...queryContext,dm:true})).results.length,1);

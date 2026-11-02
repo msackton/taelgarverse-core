@@ -58,28 +58,19 @@ function creationDateKey(value) {
   }
   try { return dateKey(date,true); } catch { return null; }
 }
-// POV dates describe the earliest perspective in which the page exists.
-// Years (quoted or numeric), plural years, and months start at their beginning.
-function povDateKey(value) {
-  if (typeof value !== 'string' && typeof value !== 'number') return null;
-  const date = String(value).trim().replace(/^([0-9]{1,4})s$/, '$1');
-  try { return dateKey(date,true); } catch { return null; }
-}
-export function availableFrom(entry, settings = {}) {
-  if (entry.availability) return settings.respect_pov_dates === true ? entry.availability.povFrom : entry.availability.from;
+export function availableFrom(entry) {
+  if (entry.availability) return entry.availability.from;
   const metadata=entry.note.metadata,start=creationDateKey(metadata.born || metadata.created);
-  const pov = settings.respect_pov_dates === true ? povDateKey(metadata.POV) : null;
-  return Math.max(start || 10101,metadata.activeYear ? dateKey(String(metadata.activeYear),true) : 10101,pov || 10101);
+  return Math.max(start || 10101,metadata.activeYear ? dateKey(String(metadata.activeYear),true) : 10101);
 }
-export function availableInContext(entry, context, settings) {
+export function availableInContext(entry, context) {
   if (!entry?.note) return false;
   const exclusions=entry.availability?.exclusions;
   if (exclusions ? exclusions.includes('all') || context.campaigns.some(c=>exclusions.includes(c.toLowerCase())) : excluded(entry.note.metadata,{campaigns:context.campaigns})) return false;
-  const policy = typeof context.pov === 'boolean' ? {respect_pov_dates:context.pov} : settings;
-  return availableFrom(entry,policy)<=dateKey(context.date);
+  return availableFrom(entry)<=dateKey(context.date);
 }
 export function compileAvailability(entry) {
-  return {from:availableFrom(entry),povFrom:availableFrom(entry,{respect_pov_dates:true}),exclusions:publicationExclusions(entry.note.metadata)};
+  return {from:availableFrom(entry),exclusions:publicationExclusions(entry.note.metadata)};
 }
 function addAlias(map, alias, entry) {
   if (!alias) return;

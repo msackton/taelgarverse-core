@@ -10,17 +10,18 @@ export function publication({revision='a'.repeat(64),text='Original biography.',
     'Person.md':'---\ntags: [person]\nborn: 1700-01-01\n---\n<!-- taelgar:header -->\n\n'+text+' [['+linked+']]\n\n%% secret detail %%\n\n%%^Campaign:dufr%%Frontier paragraph.%%^End%%\n\n%%^Date:1730-01-01%%Later paragraph.%%^End%%',
     [linked+'.md']:'Reference [[Person]].',
     'Future.md':'---\nPOV: 1750s\n---\nFuture body.',
+    'Unborn.md':'---\nborn: 1800\n---\nUnborn body.',
     'Broken.md':'%% unclosed',
     'Frontier Session.md':'---\ntags: [session-note]\ncampaign: dufr\nDR: 1745-01-01\n---\nSession.',
     'Adder Session.md':'---\ntags: [session-note]\ncampaign: adma\nDR: 1740-01-01\n---\nSession.',
   };
   const entries=Object.entries(notes).map(([id,source])=>({id,name:id.slice(0,-3),title:id.slice(0,-3),extension:'.md',
     target:id.toLowerCase().replaceAll(' ','-'),slug:id.slice(0,-3).toLowerCase().replaceAll(' ','-'),note:parseNote(source)}));
-  const settings={default_date:'1748-01-01',campaigns:[],respect_pov_dates:true},store=new ContentStore(entries,[],settings);
+  const settings={default_date:'1748-01-01',campaigns:[]},store=new ContentStore(entries,[],settings);
   const index={entries,settings,warnings:[],sourceVersion:{commit:'d'.repeat(40),dirty:false},coreMeta,
     registry:{campaigns:{frontier:{name:'Frontier',code:'dufr'},adder:{name:'Adder',code:'adma'}}},backlinks:buildBacklinkIndex(store),
     navigationSource:'- [Home](index.md)\n- World\n    - {glob: .}',homeSource:home,
-    campaignHomes:{frontier:'---\ncampaigns: ['+siteCampaigns+']\nenforcePoV: 1\n---\n# Campaign home'}};
+    campaignHomes:{frontier:'---\ncampaigns: ['+siteCampaigns+']\n---\n# Campaign home'}};
   const compiled=compileRuntime(index,store),pointer={revision,commit:'d'.repeat(40),dirty:false,completedAt:'2026-10-21T10:00:00.000Z'};
   const objects=new Map([...compiled.objects].map(([file,json])=>['revisions/'+revision+'/'+file,json]));
   objects.set('revisions/'+revision+'/runtime.json',JSON.stringify({...compiled.manifest,revision}));

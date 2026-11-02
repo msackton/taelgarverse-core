@@ -7,8 +7,8 @@ test('floating search preserves context, repeated campaign choices and normal qu
   assert.deepEqual(params.getAll('campaigns'),['dufr','adma']);
   assert.equal(params.get('date'),'1730-01-01');assert.equal(params.get('context'),'custom');assert.equal(params.get('dm'),'1');
   assert.equal(params.get('q'),'"Green Sea" & elves');assert.equal(params.get('offset'),'20');assert.equal(params.get('limit'),'20');
-  assert.equal(params.get('pov'),'1');
-  assert.equal(searchParameters([['pov','0']],'new query').get('pov'),'0');
+  assert.equal(params.get('pov'),null);
+  assert.equal(searchParameters([['pov','0']],'new query').get('pov'),null);
   assert.equal(params.has('unrelated'),false);assert.equal(params.get('type'),'person');
   assert.equal(searchParameters(params,'new query').get('type'),'person');
   assert.equal(searchParameters(params,'new query').has('offset'),false);

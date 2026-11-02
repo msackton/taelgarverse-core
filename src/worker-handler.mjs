@@ -38,16 +38,16 @@ export function createWorker(coreRelease = {},{cache}={}) {
         search:createD1Search(env.SEARCH_DB,{revision,descriptor:index.search,store}),
         releases:{core:coreRelease,content:{...(index.sourceVersion || {}),
           ...(published.commit ? {commit:published.commit,dirty:published.dirty} : {}),publishedAt:published.completedAt}},
-        async renderPage(page,date,context,dm,campaigns,pov) {
-          const result=await engine.renderAsync(page,date,context,dm,campaigns,entry=>store.getNote(entry),pov);
+        async renderPage(page,date,context,dm,campaigns) {
+          const result=await engine.renderAsync(page,date,context,dm,campaigns,entry=>store.getNote(entry));
           renderedPage=true;return result;
         },
         async renderHome(context,siteHost) {
           const result=await engine.renderHomeAsync(context,entry=>store.getNote(entry),siteHost);
           renderedPage=!!result;return result;
         },
-        renderIndex(page,type,date,context,dm,campaigns,pov) {
-          return engine.renderIndexAsync(page,type,date,context,dm,campaigns,entry=>store.getNote(entry),pov);
+        renderIndex(page,type,date,context,dm,campaigns) {
+          return engine.renderIndexAsync(page,type,date,context,dm,campaigns,entry=>store.getNote(entry));
         },
         assets(entry,request) {
           return serveAsset(request,entry,async range=>{

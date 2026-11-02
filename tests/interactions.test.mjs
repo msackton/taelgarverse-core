@@ -85,7 +85,7 @@ test('session links prefer the registry path, preserve context, and omit ambiguo
   const index=compileInteractionIndex(store,campaigns,null,[parseSessionRecap(recap)]);
   const ctx={...context('1720-01-05',['clee'],true),pov:true};
   const events=()=>campaignInteractions(index,store,store.resolve('Person'),ctx,campaigns)[0].events;
-  assert.match(events()[0].sessionUrl,/session-12\.1\?date=1720-01-05&campaigns=clee&dm=1&pov=1/);
+  assert.match(events()[0].sessionUrl,/session-12\.1\?date=1720-01-05&campaigns=clee&dm=1/);
   store.lookup('Campaigns/Clee/Session 12.1.md').entry.note.metadata.excludePublish=['clee'];
   assert.match(events()[0].sessionUrl,/legacy\?/);
   store.lookup('Campaigns/Clee/Legacy.md').entry.note.metadata.excludePublish=['clee'];

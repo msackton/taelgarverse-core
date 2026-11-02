@@ -1,9 +1,9 @@
 # Production search index and publication
 
 The D1 compiler, publication lifecycle, Worker search API and results page are
-implemented. Local previews use SQLite with the same compiler and query. AI
-Search remains independent; production AI integration is deferred and production
-search contacts no AI service.
+implemented. Local previews use SQLite with the same compiler and query.
+The experimental semantic-search pilot has been retired; search uses D1 FTS5
+and contacts no AI service.
 
 ## App search
 
@@ -36,7 +36,7 @@ Other. This does not infer types from folders or require new vault metadata.
 Unknown filter values return HTTP 400.
 
 New publications store normalized names/aliases, content types, numeric
-availability dates (with and without POV), and campaign exclusions as immutable
+availability dates, and campaign exclusions as immutable
 revision-specific D1 metadata. Filtering and exact-name ranking happen in SQL
 before pagination, without iterating all vault notes or sending page-slug lists
 on each request. Publications without this descriptor retain the legacy
@@ -68,9 +68,7 @@ path. A full vault can take several seconds to initialize the first search.
 
 Deploy the updated core to add the route and UI, then publish content to stage
 the matching production index. Either order is supported because older snapshots
-fall back to page names. Local checks do not index the vault remotely. Production
-AI enrichment is deferred; the isolated pilot is not
-imported into the app.
+fall back to page names. Local checks do not index the vault remotely.
 
 ## Compiler and visibility
 
@@ -88,19 +86,10 @@ and `dm` (true, false, or null for either). Unrelated campaigns have no effect.
 This supports arbitrary Custom dates/subsets and matches across paragraphs.
 The separate campaign-ownership filter used by backlinks is not applied here.
 
-POV filtering is a request-local reader preference: `pov=1` enables it and
-`pov=0` disables it. A microsite's authored `enforcePoV` overrides the URL
-preference when present. Otherwise, when omitted, `respect_pov_dates` supplies the site default
-(`false` in new and older snapshots). See [page visibility](vault.md#when-a-page-is-shown).
-The compiler retains text for both POV modes, while keeping birth/creation,
-activity, campaign, and DM intervals. New revisions store both availability
-thresholds in D1; the request selects the effective POV policy in SQL before
-ranking and pagination. Older revisions supply the available-page list from
-snapshot metadata. The Worker validates returned matches against the active
-snapshot's metadata as well.
-The preference stays in result links, pagination, forms, and floating suggestions.
-Changing the configuration default still invalidates the publication fingerprint
-and requires publication to store the new default.
+Page availability uses birth/creation, activity and campaign exclusions, with
+date/campaign/DM intervals for comment text. `POV` metadata and the retired
+reader/microsite settings have no effect. The same availability rules apply
+to search results and article links. See [page visibility](vault.md#when-a-page-is-shown).
 
 An unsafe comment omits the entire note and records a warning. More than 4,096
 candidate states in one note, or a document larger than 1.5 MB, stops compilation.
@@ -119,17 +108,17 @@ Staging validates the manifest's association with that R2 index before any write
 
 The production database is `taelgarverse-search`, binding `SEARCH_DB`, with its
 explicit ID in `wrangler.json`. Local overrides support `d1_databases`. Remote
-operations check the account/name/ID. The pilot database is incompatible; foreign
+operations check the account/name/ID. Foreign
 ownership or SQL schema versions stop initialization.
 
 | Table | Purpose |
 | --- | --- |
-| `tv_search_meta` | Production ownership marker and SQL schema version, currently 3. |
+| `tv_search_meta` | Production ownership marker and SQL schema version, currently 4. |
 | `tv_search_documents` | Immutable versions: page, title, aliases, prose, and content-hash ID. |
 | `tv_search_fts` | External-content FTS5 index over title, aliases, and prose. |
 | `tv_search_revisions` | R2 revision, compiler version/digest, expected counts, and staging/ready state. |
 | `tv_search_rules` | Revision membership and context rules. |
-| `tv_search_page_metadata` | Per-revision normalized names/aliases, type, search-name text, availability thresholds, and campaign exclusions. |
+| `tv_search_page_metadata` | Per-revision normalized names/aliases, type, search-name text, availability date, and campaign exclusions. |
 | `tv_search_gc` | Transaction-scoped authorization to remove retired ready memberships. |
 | `tv_search_publish_lock` | One shared publisher/cleanup owner across machines. |
 
@@ -143,10 +132,17 @@ digest, and membership counts. The query service filters on the active
 R2 revision and context rules before ranking/limiting; `EXISTS` avoids duplicate
 matches from multiple applicable rules.
 
-Staging upgrades schema 1 or 2 to schema 3 transactionally. Older ready revisions
-remain usable through the legacy query, and coordinated retention removes their
-metadata alongside rules when a revision is retired. Deploy the updated Worker
-before publishing; see [runtime snapshot rollout](deploy.md#roll-out-compiled-runtime-snapshots).
+Staging upgrades schemas 1–3 to schema 4 transactionally. Schema 3 loses the
+unused `pov_date` column; existing ready generations retain their text, birth/creation
+thresholds, campaign exclusions, digests and readiness. The updated reader works
+with both schemas 3 and 4, so deploy the Worker before the next content publication.
+Old compiled navigation keys are bypassed and visibility is recalculated from
+the snapshot metadata until content is republished. Existing snapshots do not
+need republication to remove POV behavior. Reprepare any unfinished old search
+manifests before resuming staging. After schema 4 is applied, rolling back to code
+that queries `pov_date` requires restoring a compatible database; content rollback
+with the updated code continues to work. No remote migration runs during tests
+or website deployment. See [runtime snapshot rollout](deploy.md#roll-out-compiled-runtime-snapshots).
 
 ## Publishing and recovery
 

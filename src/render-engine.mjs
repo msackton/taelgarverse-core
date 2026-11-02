@@ -1,4 +1,4 @@
-import {RenderError, escapeHtml, parseDM, parsePOV, pageUrl} from './common.mjs';
+import {RenderError, escapeHtml, parseDM, pageUrl} from './common.mjs';
 import {buildBacklinkIndex,buildBacklinkCampaigns,linkedFrom} from './backlinks.mjs';
 import {parseNote, availableInContext} from './content-store.mjs';
 import {filterComments} from './comments.mjs';
@@ -40,17 +40,16 @@ export class RenderEngine {
     if (!interactionIndex) this.store.warnings.push(...this.interactionIndex.warnings);
   }
 
-  resolvePage(page, date, contextId, dm = false, selectedCampaigns, pov) {
+  resolvePage(page, date, contextId, dm = false, selectedCampaigns) {
     dm = parseDM(dm);
-    pov = parsePOV(pov);
-    const context = {...this.contexts.resolve(contextId,date,selectedCampaigns), dm,...(pov === undefined ? {} : {pov})};
+    const context = {...this.contexts.resolve(contextId,date,selectedCampaigns), dm};
     const entry = this.store.resolve(page);
-    if (!availableInContext(entry,context,this.settings)) throw new RenderError(404,'Page is not available in this context');
+    if (!availableInContext(entry,context)) throw new RenderError(404,'Page is not available in this context');
     return {entry,context};
   }
 
-  render(page, date, contextId, dm = false, loadedNote, selectedCampaigns, embedLoading, pov, backlinkIndex = this.backlinkIndex) {
-    const {entry,context} = this.resolvePage(page,date,contextId,dm,selectedCampaigns,pov);
+  render(page, date, contextId, dm = false, loadedNote, selectedCampaigns, embedLoading, backlinkIndex = this.backlinkIndex) {
+    const {entry,context} = this.resolvePage(page,date,contextId,dm,selectedCampaigns);
     date = context.date;
     dm = context.dm;
     const metadata = entry.note.metadata;
@@ -91,19 +90,19 @@ export class RenderEngine {
         ? linkedFrom(backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
   }
 
-  renderIndex(page,type,date,contextId,dm,selectedCampaigns,pov,noteLoading) {
-    const {entry,context}=this.resolvePage(page,date,contextId,dm,selectedCampaigns,pov);
+  renderIndex(page,type,date,contextId,dm,selectedCampaigns,noteLoading) {
+    const {entry,context}=this.resolvePage(page,date,contextId,dm,selectedCampaigns);
     return renderHeaderIndex(type,{store:this.store,entry,context,headers:this.headers,warnings:[],noteLoading});
   }
 
-  async renderIndexAsync(page,type,date,contextId,dm,selectedCampaigns,loadNote,pov) {
-    return this.loadNotes(loading=>this.renderIndex(page,type,date,contextId,dm,selectedCampaigns,pov,loading),loadNote);
+  async renderIndexAsync(page,type,date,contextId,dm,selectedCampaigns,loadNote) {
+    return this.loadNotes(loading=>this.renderIndex(page,type,date,contextId,dm,selectedCampaigns,loading),loadNote);
   }
 
-  async renderAsync(page,date,contextId,dm,selectedCampaigns,loadNote,pov) {
-    const {entry} = this.resolvePage(page,date,contextId,dm,selectedCampaigns,pov);
+  async renderAsync(page,date,contextId,dm,selectedCampaigns,loadNote) {
+    const {entry} = this.resolvePage(page,date,contextId,dm,selectedCampaigns);
     const [note,backlinks] = await Promise.all([loadNote(entry),this.loadBacklinks ? this.loadBacklinks(entry) : this.backlinkIndex]);
-    return this.loadNotes(loading=>this.render(page,date,contextId,dm,note,selectedCampaigns,loading,pov,backlinks),loadNote,new Map([[entry.id,note]]));
+    return this.loadNotes(loading=>this.render(page,date,contextId,dm,note,selectedCampaigns,loading,backlinks),loadNote,new Map([[entry.id,note]]));
   }
 
   // Embeds and Members descriptions discover visible note dependencies during

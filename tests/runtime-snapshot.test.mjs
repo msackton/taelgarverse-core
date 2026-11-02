@@ -116,8 +116,8 @@ test('compiled and legacy Workers calculate visible indexes from metadata and pr
     const content=await request(worker,bucket,'/api/index?page=Places/Realm.md&type=residents&date=1720-01-01&campaigns=dufr&pov=1');
     assert.equal(content.status,200);const grid=await content.text();
     assert.match(grid,/taelgar-index-image/);assert.match(grid,/Alice Example<\/a> \(she\/her AL-iss\)/);
-    assert.doesNotMatch(grid,/Hidden|Campaign Secret|POV Secret|Future|Dead|Visitor/);
-    assert.doesNotMatch(result.html,/People\/(?:Hidden|Campaign Secret|POV Secret)|Dead|Future|Visitor/);
+    assert.doesNotMatch(grid,/Hidden|Campaign Secret|Future|Dead|Visitor/);
+    assert.doesNotMatch(result.html,/People\/(?:Hidden|Campaign Secret)|Dead|Future|Visitor/);
     if(!legacy)assert.equal(bucket.calls.filter(key=>key.includes('/runtime/notes/')).length,1,'metadata indexes do not fetch candidate bodies');
     const embedded=await request(worker,bucket,'/api/page?page=Index Embed&date=1720-01-01&campaigns=dufr&pov=1');
     assert.equal(embedded.status,200);const page=await embedded.json();assert.match(page.html,/Alice Example/);
@@ -136,7 +136,7 @@ test('compiled and legacy Workers calculate visible indexes from metadata and pr
     assert.equal(members.status,200);const people=await members.json();
     assert.match(people.html,/Person<\/th>.*Info<\/th>.*Current Location<\/th>/s);
     assert.match(people.html,/she\/her AL-iss/);assert.match(people.html,/January 1st, 1720/);
-    assert.doesNotMatch(people.html,/People\/(?:Hidden|Campaign Secret|POV Secret)|Dead|Future/);
+    assert.doesNotMatch(people.html,/People\/(?:Hidden|Campaign Secret)|Dead|Future/);
   }
 });
 
@@ -214,7 +214,7 @@ test('bitset views preserve visibility, links and public navigation IDs at byte 
   const snapshot=await openSnapshot(new Bucket(),report.revision),store=await snapshot.searchStore();
   const source=fs.readFileSync(settings.nav_source,'utf8'),original=new Navigation(store,source);
   const compiled=original.compile([{date:'1900-01-01',campaigns:[]},{date:'1901-01-01',campaigns:[]}]);
-  assert.equal(compiled.views.length,4);assert.equal(compiled.visibility.length,1);
+  assert.equal(compiled.views.length,2);assert.equal(compiled.visibility.length,1);
   const loaded=Navigation.hydrate(store,compiled);
   for(const date of ['1729-12-31','1745-01-01','1900-01-01','1901-01-01'])for(const campaigns of [[],['dufr'],['adma']])for(const pov of [false,true]){
     const context={date,campaigns,pov},a=original.view(context,'person'),b=loaded.view(context,'person');
@@ -333,7 +333,7 @@ test('compiled navigation preserves IDs and breadcrumbs while its custom-view ca
   assert.equal(navigation.sidebar(before),navigation.sidebar(after));
   const hidden=navigation.view({...context,pov:true}),shown=navigation.view({...context,pov:false});
   const id=navigation.paths.get('future').at(-1).id;
-  assert.equal(hidden.visible.has(id),false);assert.equal(shown.visible.has(id),true);
+  assert.equal(hidden.visible.has(id),true);assert.equal(shown.visible.has(id),true);
 });
 
 test('retention validates every compiled dependency before cleanup',async()=>{

@@ -17,7 +17,6 @@ export const indexNotes = {
   'People/Chapter Member.md':{tags:['person'],affiliations:['Chapter']},
   'People/Hidden.md':{tags:['person'],whereabouts:'Town',affiliations:['Guild'],excludePublish:'all'},
   'People/Campaign Secret.md':{tags:['person'],whereabouts:'Town',affiliations:['Guild'],excludePublish:['dufr']},
-  'People/POV Secret.md':{tags:['person'],whereabouts:'Town',affiliations:['Guild'],POV:'1740s'},
 };
 
 export const featureIndexNotes={

@@ -106,7 +106,7 @@ export function renderMap(source, env) {
     if(config.version===2){
       const paths=[];
       for(const target of env.store.entries??[]){
-        if(!target.note?.metadata?.mapPath || !availableInContext(target,env.context??{date:env.date,campaigns:[]},env.store.settings))continue;
+        if(!target.note?.metadata?.mapPath || !availableInContext(target,env.context??{date:env.date,campaigns:[]}))continue;
         let value;
         try{if(target.mapPathError)throw new Error(target.mapPathError);value=resolveMapPath(target.note.metadata.mapPath,target.mapPathGeometry);}
         catch{env.warnings.push('Map: invalid mapPath in '+target.id);continue;}
@@ -120,7 +120,7 @@ export function renderMap(source, env) {
       for(const layer of config.regionLayers)for(const region of layer.regions){
         if(!region.note)continue;
         const target=env.store.lookup(region.note).entry;
-        if(target?.note && availableInContext(target,env.context??{date:env.date,campaigns:[]},env.store.settings))
+        if(target?.note && availableInContext(target,env.context??{date:env.date,campaigns:[]}))
           config.regionLinks[layer.key+'#'+region.id]=pageUrl(target.slug,env.date,env.context);
       }
     }

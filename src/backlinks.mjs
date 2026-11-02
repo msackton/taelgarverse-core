@@ -85,7 +85,7 @@ export {buildBacklinkCampaigns} from './campaign-ownership.mjs';
 
 export function linkedFrom(index, store, target, context, sourceCampaigns) {
   const entry = store.bySlug.get(target);
-  if (!index || !availableInContext(entry,context,store.settings)) return [];
+  if (!index || !availableInContext(entry,context)) return [];
   const tags = Array.isArray(entry.note.metadata.tags) ? entry.note.metadata.tags : [entry.note.metadata.tags];
   // Person histories own campaign references. Keep the full compiled backlink
   // index for that component; omit these sources only from generic Linked from.
@@ -97,7 +97,7 @@ export function linkedFrom(index, store, target, context, sourceCampaigns) {
     if (personCampaigns && (personCampaigns.has(link.source) || source?.note.metadata.sessionNumber != null)) return false;
     const ownership = sourceCampaigns?.get(link.source);
     return (context.allCampaigns || !ownership || ownership.some(code=>campaigns.has(code))) &&
-      source?.slug !== target && availableInContext(source,context,store.settings) && link.when.some(rule =>
+      source?.slug !== target && availableInContext(source,context) && link.when.some(rule =>
       (!rule.campaign || campaigns.has(rule.campaign)) &&
       (!rule.campaigns || rule.campaigns.every(code=>campaigns.has(code))) &&
       (!rule.exceptCampaigns || !rule.exceptCampaigns.some(code => campaigns.has(code))) &&

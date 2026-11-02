@@ -139,12 +139,13 @@ index is retained; restore a format-1 content revision before rolling back to
 that Worker. Content rollback with the current Worker supports either format.
 
 New publications retain the schema-1 index/raw shards and add compiled runtime objects. Search
-staging upgrades D1 transactionally to schema 3, adding immutable, revision-bound
+staging upgrades D1 transactionally to schema 4, maintaining immutable, revision-bound
 page metadata without discarding existing ready generations. Activation still
 follows R2 upload and D1 verification. Previous-content rollback remains
-available. Rolling website code back to a version that only accepts D1 schemas
-1–2 causes full-text search to use its page-name fallback after the upgrade;
-keep the updated Worker when rolling back content.
+available. Deploy the updated Worker before publishing schema 4. Older website
+code rejects schema 4 or queries its removed POV column, so full-text search
+uses its page-name fallback after a code rollback. Keep the updated Worker when
+rolling back content; no database migration is needed for that path.
 
 Local validation uses `npm test`, the R2/D1 integration tests, and
 `node scripts/cloudflare.mjs check`. These checks do not publish or deploy.
@@ -549,26 +550,9 @@ The shared defaults are in [config.json](../config.json):
 | --- | --- | --- |
 | `vault_dir` | `"../taelgar"` | Your Taelgar vault. Used for notes, media, supporting scripts, and metadata by previews and publishing. This is the only folder you normally need to set. |
 | `default_date` | `"1750-01-01"` | The in-world fallback date when no campaign session date is available. Use a full year-month-day date. Campaign dates normally come from session notes. |
-| `respect_pov_dates` | `false` | Default for POV date filtering. Readers can override it with `pov=1` or `pov=0` in URLs. Plural years such as `1740s` mean January 1, 1740. |
 | `source_dir` (optional) | Uses `vault_dir` | Selects content for internal preparation/server tools. Quick `dev` deliberately reads the live vault; full `dev` prepares its own materialized snapshot. |
 | `nav_source` (optional) | `_website/navigation.md` inside the vault | Uses a different menu file. Set it to `null` to build the menu from the note folders. |
 | `home_source` (optional) | `_website/home.md` inside the vault | Uses a different homepage file. Set it to `null` to show the page finder as the homepage. |
-
-To trial POV filtering without changing the default, deploy the updated core
-and open a URL with `pov=1` (or `pov=0` to turn it off). The preference stays in
-links and forms as you browse. Existing snapshots already contain POV metadata;
-this reader opt-in works with existing production search indexes and needs no
-content publication. It adds no visible control to the normal website.
-
-To change the default for URLs that omit `pov`, add `"respect_pov_dates": true`
-to `config.local.json`. Use a JSON boolean, without quotes around `true` or
-`false`. Restart the local preview after changing it. For the hosted site, deploy
-updated core first, then publish content to store the new default. Changing this
-configuration default requires content publication; a code deployment alone does
-not change it. Readers can still override the default with either URL value.
-A microsite can enforce either mode with `enforcePoV: 1` or `enforcePoV: 0` in
-its `_website/<name>.md` frontmatter; this overrides URL choices. See
-[campaign landing pages](campaign-sites.md#pov-date-filtering).
 
 To use a vault in another location, create `config.local.json` in
 `taelgarverse-core` with:
@@ -782,20 +766,6 @@ populate D1 or invoke AI Search.
 Local Node previews use an in-memory SQLite index, initialized on first search.
 They need `node:sqlite` support and do not contact Cloudflare; restart after source
 changes to rebuild the local store/index. See [search](search.md#app-search).
-
-## Isolated search experiment
-
-`node experiments/ai-search/cli.mjs help` describes the separate search pilot. Its
-[operating guide](../experiments/ai-search/README.md) covers local preparation,
-authentication, explicit small uploads, comparisons, and cleanup. These commands
-do not publish vault content or deploy the website; they target only
-the D1 database and AI Search instance each named `taelgarverse-search-pilot`
-when using Cloudflare. `baseline-upload` syncs D1 independently; AI `upload` is
-optional. `serve --no-ai` enforces baseline-only operation, and the ordinary
-viewer has a per-search AI toggle. Disabling queries does not remove the AI
-index or stop separately invoked uploads. Production search integration remains
-outside the experiment.
-
 
 ## Local transparent map-layer exports
 

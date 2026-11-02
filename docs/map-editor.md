@@ -459,7 +459,7 @@ Transparent PNG references can be used beneath either drawing tool. Path geometr
 stays mounted through pan/zoom; only importance groups change visibility on zoom.
 
 Published version 2 maps also draw `mapPath` metadata and link to the feature's
-page. They include only notes available in the current date/campaign/POV context;
+page. They include only notes available in the current date/campaign context;
 excluded notes contribute no geometry. Invalid inline metadata is skipped with a render warning. Missing, malformed,
 excluded or changed geometry files block publication with the note/source named.
 The publisher copies explicitly referenced geometry from `_maps` and embeds its

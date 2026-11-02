@@ -5,7 +5,6 @@ import {instantiate} from '../src/worker-headers.mjs';
 
 const entry = metadata => ({note:{metadata}});
 const context = date => ({date,campaigns:[]});
-const povSettings = {respect_pov_dates:true};
 
 test('stub publication policy recognizes exact frontmatter tags in lists and scalar strings',()=>{
   for(const tags of [['person','status/stub'],'status/stub','person, status/stub','person #STATUS/STUB',[null,42,' #Status/Stub ']])
@@ -58,57 +57,13 @@ test('exclusions accept lists and comma-separated strings without making tags a 
   assert.equal(availableInContext(entry({tags:['excalidraw']}),context('1730-01-01')),true);
 });
 
-test('dated POV hides a page until the start of its stated period, including plural years',()=>{
-  for (const [value,boundary,before] of [
-    [1740,'1740-01-01','1739-12-31'],['1740','1740-01-01','1739-12-31'],
-    ['1740s','1740-01-01','1739-12-31'],[' 1740s ','1740-01-01','1739-12-31'],
-    ['1740-04','1740-04-01','1740-03-31'],['1740-04-02','1740-04-02','1740-04-01'],
-  ]) for (const dm of [false,true]) {
-    const page=entry({POV:value});
-    assert.equal(availableInContext(page,{...context(before),dm},povSettings),false,String(value));
-    assert.equal(availableInContext(page,{...context(boundary),dm},povSettings),true,String(value));
-    assert.equal(availableInContext(page,{...context('1750-01-01'),dm},povSettings),true,String(value));
-  }
-});
-
-test('POV remains independent of birth, creation, activity, and campaign exclusions',()=>{
-  for (const metadata of [
-    {POV:1740,born:1720},{POV:1720,born:1740},{POV:1740,created:1720},
-    {POV:1720,created:1740},{POV:1740,activeYear:1720},{POV:1720,activeYear:1740},
-  ]) {
-    assert.equal(availableFrom(entry(metadata),povSettings),17400101);
-    assert.equal(availableInContext(entry(metadata),context('1739-12-31'),povSettings),false);
-    assert.equal(availableInContext(entry(metadata),context('1740-01-01'),povSettings),true);
-  }
-  assert.equal(availableInContext(entry({POV:1740,excludePublish:['dufr']}),{...context('1750-01-01'),campaigns:['dufr']},povSettings),false);
-  assert.equal(availableInContext(entry({POV:1720,born:'1740'}),context('1740-01-01'),povSettings),false);
-});
-
-test('undated, modern, missing, and invalid POV values add no date restriction',()=>{
-  for (const POV of [undefined,null,'modern','undated','unknown','',false,{},[1740],'1740s extra','1740-13','1740-02-29']) {
-    assert.equal(availableFrom(entry({POV}),povSettings),10101,JSON.stringify(POV));
-    assert.equal(availableInContext(entry({POV}),context('1730-01-01'),povSettings),true);
-    assert.equal(availableInContext(entry({POV,born:1740}),context('1730-01-01'),povSettings),false);
-  }
-});
-
-test('POV restrictions are disabled unless the site explicitly opts in',()=>{
-  for (const settings of [undefined,{}, {respect_pov_dates:false}]) {
-    for (const POV of [1740,'1740','1740s','1740-04-02']) {
+test('retired POV metadata, settings and context flags never restrict page availability',()=>{
+  for(const POV of [1740,'1740','1740s','1740-04','1740-04-02','modern',null,{},[1740]])
+    for(const respect_pov_dates of [undefined,false,true])for(const pov of [undefined,false,true]){
+      const view={...context('1730-01-01'),pov},settings={respect_pov_dates};
       assert.equal(availableFrom(entry({POV}),settings),10101);
-      assert.equal(availableInContext(entry({POV}),context('1730-01-01'),settings),true);
-      assert.equal(availableInContext(entry({POV,born:1740}),context('1730-01-01'),settings),false);
-      assert.equal(availableInContext(entry({POV,activeYear:1740}),context('1730-01-01'),settings),false);
+      assert.equal(availableInContext(entry({POV}),view,settings),true);
+      for(const restriction of [{born:1740},{created:1740},{activeYear:1740},{excludePublish:'all'}])
+        assert.equal(availableInContext(entry({POV,...restriction}),view,settings),false);
     }
-  }
-});
-
-test('a reader POV choice overrides the site default while keeping other page restrictions',()=>{
-  for (const respect_pov_dates of [false,true]) for (const pov of [false,true]) {
-    const settings={respect_pov_dates},view={...context('1730-01-01'),pov};
-    assert.equal(availableInContext(entry({POV:'1740s'}),view,settings),!pov);
-    assert.equal(availableInContext(entry({born:1740}),view,settings),false);
-    assert.equal(availableInContext(entry({activeYear:1740}),view,settings),false);
-    assert.equal(availableInContext(entry({excludePublish:'all'}),view,settings),false);
-  }
 });

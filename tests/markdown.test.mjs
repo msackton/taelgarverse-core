@@ -64,7 +64,7 @@ test('page links follow campaign exclusions and date boundaries across link form
     [{born:'1730-04-02'},[],'1730-04-02',true],
     [{created:'1730-04-02'},[],'1730-04-01',false],
     [{created:'1730-04-02'},[],'1730-04-02',true],
-    [{POV:'1740s'},[],'1739-12-31',false],
+    [{POV:'1740s'},[],'1739-12-31',true],
     [{POV:'1740s'},[],'1740-01-01',true],
     [{activeYear:1740},[],'1739-12-31',false],
     [{activeYear:1740},[],'1740-01-01',true],
@@ -135,11 +135,11 @@ test('Mermaid fences preserve escaped source as a readable fallback without affe
   assert.deepEqual(result.warnings,[]);
 });
 
-test('future POV links stay clickable when the site has not opted into filtering',()=>{
+test('retired POV metadata never disables links',()=>{
   for (const settings of [{},{respect_pov_dates:false},{respect_pov_dates:true}]) {
     const result=render('[[Target|perspective]]',{metadata:{POV:'1740s'},settings});
     const $=load(result.html,{},false);
-    assert.equal($('a').length,settings.respect_pov_dates?0:1);
+    assert.equal($('a').length,1);
     assert.equal($.text().trim(),'perspective');
   }
 });

@@ -28,7 +28,7 @@ test('page and homepage hits skip snapshot initialization even in a fresh Worker
   for(const value of cache.values.values())assert.equal(new Headers(value.headers).get('Cache-Control'),'public, max-age=86400');
 });
 
-test('hostnames and all URL variants remain isolated, including repeated parameters and POV overrides',async()=>{
+test('hostnames and all URL variants remain isolated, including repeated and ignored parameters',async()=>{
   const {request,env}=setup(),uncached=createWorker(coreRelease,{cache:null});
   const urls=['/page/person','/page/person?dm=1','/page/person?date=1720-01-01','/page/person?context=frontier',
     '/page/person?context=custom&campaigns=adma','/page/person?campaigns=dufr&campaigns=adma','/page/person?campaigns=all',
@@ -43,8 +43,8 @@ test('hostnames and all URL variants remain isolated, including repeated paramet
     const hit=await request(url);assert.equal(hit.headers.get('X-Taelgar-Page-Cache'),'HIT',url);assert.equal(await hit.text(),body,url);
   }
   assert.equal(etags.size,urls.length);
-  assert.equal((await request('/page/future?pov=1')).status,404);
-  assert.equal((await request('https://frontier.taelgar.org/page/future?pov=0')).status,404);
+  assert.equal((await request('/page/future?pov=1')).status,200);
+  assert.equal((await request('https://frontier.taelgar.org/page/future?pov=0')).status,200);
   assert.equal((await request('/page/person?dm=0')).status,200);
   assert.doesNotMatch(await (await request('/page/person?dm=0')).text(),/secret detail/);
   assert.match(await (await request('/page/person?dm=1')).text(),/secret detail/);
@@ -108,7 +108,7 @@ test('GET/HEAD revalidation returns bodyless 304s and HEAD misses never poison c
 
 test('errors, search, APIs, fallback homepages and bypassed requests remain uncached',async()=>{
   const {request,cache}=setup();
-  for(const [url,status] of [['/page/missing',404],['/page/broken',422],['/page/person?date=bad',400],['/page/future',404],
+  for(const [url,status] of [['/page/missing',404],['/page/broken',422],['/page/person?date=bad',400],['/page/unborn',404],
     ['https://missing.taelgar.org/',404],['/%ZZ',400],['/?q=',200],['/api/page?page=Person',200],['/api/contexts',200],['/health',200]]){
     const response=await request(url);assert.equal(response.status,status,url);assert.equal(response.headers.get('Cache-Control'),'no-store',url);await response.text();
   }

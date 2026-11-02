@@ -211,7 +211,7 @@ Header index buttons perform only a first-match existence probe; their card grid
 are requested from `/api/index` on activation. That API initializes the shared
 renderer metadata and header indexes without loading source or candidate note
 bodies. It revalidates source availability, enabled index type, date, campaigns,
-DM and POV preferences, including campaign-host locks. Responses remain
+DM preferences, including campaign-host locks. Responses remain
 `no-store` and do not enter the page HTML cache. Inline indexes retain immediate
 rendering. These are source-code behaviors, not evidence of a deployment.
 
@@ -269,7 +269,7 @@ this cache; the generic Cloudflare cache-status header is not its diagnostic.
 
 Keys hash the full origin, path and query, preserving repeated parameter order
 and empty values, plus the content revision/commit/dirty flag/activation timestamp
-and the core commit/dirty flag/build timestamp. Changed dates, campaigns, DM/POV
+and the core commit/dirty flag/build timestamp. Changed dates, campaigns, DM
 preferences, host policies, links, publications, rollbacks and website builds
 therefore cannot accidentally reuse another representation. URL fragments do
 not affect server output. Publishing or deploying switches the namespace;
@@ -367,36 +367,14 @@ These are source-code behaviors; deploying this change and publishing content
 are still required to enable production full-text results. See
 [search publication](search.md) for the schema, lifecycle, and local/remote commands.
 
-## Isolated search pilot
+## Retired search pilot
 
-The separate `taelgarverse-search-pilot` instance uses built-in storage and hybrid
-keyword/vector indexing. Its creation and initial 22-note indexing were verified
-through the AI Search API on 2026-10-19. It uses the default
-`@cf/qwen/qwen3-embedding-0.6b` embedding model, 800-token managed chunks, and zero
-managed overlap. Fixed pilot views use `owner`, `run`, `view`, and `sha256` text
-metadata; raw publication shards are not a data source.
-
-The [pilot client](../experiments/ai-search/cloudflare.mjs) fixes the instance
-name and uses the existing Wrangler login or an environment token. The
-[operating guide](../experiments/ai-search/README.md) owns commands, limits,
-artifacts, and cleanup. No binding to this instance has been added to the
-production Worker; the local pilot viewer performs the experiment's queries.
-
-An independent D1 database, also named `taelgarverse-search-pilot`, was created
-and tested through the D1 REST API on 2026-10-19. Its FTS5 index contains the same
-22-note whole-note/passage exports and the four-note visibility sample. The
-[baseline client](../experiments/ai-search/baseline.mjs) fixes this resource name,
-checks the ownership/schema marker before mutations, applies run/view filters in
-SQL, and validates the active digest and excerpts against the local export.
-Incremental updates, deletions and the active digest commit in one transaction;
-live rollback, visibility, and edit/delete probes passed.
-
-D1 requires no AI instance or AI credentials/scopes. The local server uses the
-existing Cloudflare login with D1 access, while the optional AI request uses
-AI Search permissions. `--no-ai` prevents AI requests; per-search disabling and
-provider/timeout fallback return the D1 results. No D1 binding or search route has
-been added to the production Worker. Neither index is updated by the production
-publisher. Uploading to either remains an explicit pilot command.
+The semantic-search experiment and its CLI, local viewer and tokenizer dependency
+have been removed. Historical records describe an AI Search instance and a
+separate D1 database, each named `taelgarverse-search-pilot`, created on
+2026-10-19. This code cleanup does not delete or verify those remote resources.
+Neither is used by production search or the content publisher. Removing them
+requires a separately authorized Cloudflare operation.
 
 User-directed AI access is enabled separately from crawler access. The live
 edge rules and both deployed Worker guards exempt Cloudflare-verified

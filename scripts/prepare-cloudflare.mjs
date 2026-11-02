@@ -104,7 +104,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const backlinks=await timed('Compiling backlinks',()=>buildBacklinkIndex(store));
   const searchManifest=await timed('Compiling search',()=>compileSearch(store)),search=searchDescriptor(searchManifest);
   const bundles=readInteractionBundles(settings),{warnings:interactionWarnings,...interactions}=compileInteractionIndex(store,registry,backlinks,bundles.bundles);
-  const base={schemaVersion:1,sourceVersion:{commit:sourceVersion.commit,dirty:sourceVersion.dirty},settings:{default_date:settings.default_date,campaigns:settings.campaigns,respect_pov_dates:settings.respect_pov_dates === true},backlinks,
+  const base={schemaVersion:1,sourceVersion:{commit:sourceVersion.commit,dirty:sourceVersion.dirty},settings:{default_date:settings.default_date,campaigns:settings.campaigns},backlinks,
     registry,interactions,
     coreMeta,
     navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,

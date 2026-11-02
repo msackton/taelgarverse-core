@@ -312,7 +312,7 @@ test('Obsidian member tables format pronouns, info, dated locations and homes; g
     assert.equal(cells[0].textContent,'Alice Example (xe/xem AL-iss)');assert.equal(cells[1].textContent,'Townfolk human');
     assert.equal(cells[2].textContent,'Inn, Town (January 1st, 1710)');
     h.click(cells[2].querySelector('a'));assert.deepEqual(h.opened[0],['Places/Inn.md','Places/Realm.md',false]);
-    assert.equal(table.element.querySelectorAll('tbody tr').length,6,'local results follow affiliation dates, including future-born and publication-hidden members');
+    assert.equal(table.element.querySelectorAll('tbody tr').length,5,'local results follow affiliation dates, including future-born and publication-hidden members');
     assert.equal(table.element.querySelectorAll('img').length,0);
     const grid=await h.block('type: members\ntarget: Guild\nmode: grid');
     assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Alice Example \(xe\/xem AL-iss\)/);

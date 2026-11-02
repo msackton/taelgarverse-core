@@ -121,7 +121,7 @@ sqliteTest('schema-1 database upgrades transactionally without dropping ready ge
       (SELECT state FROM tv_search_revisions WHERE revision=old.revision)='ready'
       BEGIN SELECT RAISE(ABORT,'Ready search membership is immutable'); END;
     DROP TABLE tv_search_page_metadata; DROP INDEX tv_search_document_membership; DROP TABLE tv_search_gc; DROP TABLE tv_search_publish_lock; UPDATE tv_search_meta SET version=1;`);
-  await index.ensure();assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,3);
+  await index.ensure();assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,4);
   await index.verify(rev('a'),searchDescriptor(manifest));
   await index.withPublicationLock(()=>index.prune([rev('a')]));db.close();
 });
@@ -146,7 +146,7 @@ sqliteTest('schema-2 upgrade is atomic and retains old ready search revisions',a
   assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,2);
   assert.equal(db.prepare("SELECT name FROM sqlite_master WHERE name='tv_search_page_metadata'").get(),undefined);
   await index.ensure();await index.verify(rev('a'),searchDescriptor(manifest));
-  assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,3);
+  assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,4);
   const next=compileSearch(storeFor({'One.md':'new marker'}));await index.stage(rev('b'),next);
   assert.throws(()=>db.prepare("UPDATE tv_search_page_metadata SET type='other' WHERE revision=?").run(rev('b')),/immutable/);
   assert.throws(()=>db.prepare('DELETE FROM tv_search_page_metadata WHERE revision=?').run(rev('b')),/immutable/);
@@ -160,7 +160,7 @@ sqliteTest('resumed search staging validates metadata as well as immutable text 
   fail(sql=>sql.startsWith('INSERT INTO tv_search_rules'));
   await assert.rejects(index.stage(rev('a'),manifest),/injected/);
   db.exec('DROP TRIGGER tv_search_metadata_update');
-  db.prepare('UPDATE tv_search_page_metadata SET pov_date=10101 WHERE revision=?').run(rev('a'));
+  db.prepare('UPDATE tv_search_page_metadata SET from_date=17500101 WHERE revision=?').run(rev('a'));
   await assert.rejects(index.stage(rev('a'),manifest),/verification/);
   await assert.rejects(index.verify(rev('a'),searchDescriptor(manifest)),/not ready/);
 });
@@ -217,7 +217,7 @@ test('prepared search is revision-bound, stays out of R2 uploads, and tampering 
   const source=path.join(directory,'source');fs.mkdirSync(source);fs.writeFileSync(path.join(source,'One.md'),'Public.\n%% private-fixture-marker %%');
   const report=await prepareContent({...testSettings(),source_dir:source,home_source:null,nav_source:null},path.join(directory,'output'),{commit:'a'.repeat(40),dirty:false});
   const manifest=readPreparedSearch(report);assert.ok(manifest.documents.some(d=>d.text.includes('private-fixture-marker')));
-  const index=fs.readFileSync(report.indexFile,'utf8');assert.equal(JSON.parse(index).settings.respect_pov_dates,false);assert.ok(!index.includes('private-fixture-marker'));assert.ok(!index.includes('searchFile'));
+  const index=fs.readFileSync(report.indexFile,'utf8');assert.equal(JSON.parse(index).settings.respect_pov_dates,undefined);assert.ok(!index.includes('private-fixture-marker'));assert.ok(!index.includes('searchFile'));
   const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));assert.ok(!uploads.some(item=>item.file===report.searchFile || item.key.endsWith('/search.json')));
   fs.writeFileSync(report.searchFile,JSON.stringify({...manifest,digest:'f'.repeat(64)}));
   await assert.rejects(stagePreparedSearch(report),/manifest\/digest/);
@@ -286,7 +286,7 @@ test('publisher gates activation and unchanged skips on D1 readiness; build-only
 test('production credentials never enable Wrangler auth logging, and configured accounts/resources cannot be silently retargeted',async()=>{
   const account='a'.repeat(32),id='11111111-1111-4111-8111-111111111111',config={account_id:account,d1_databases:[{binding:SEARCH_BINDING,database_name:SEARCH_DATABASE,database_id:id}]};
   assert.equal(searchBinding(config).database_id,id);assert.throws(()=>searchBinding({}),/Configure/);
-  assert.throws(()=>searchBinding({d1_databases:[{...config.d1_databases[0],database_name:'taelgarverse-search-pilot'}]}),/Configure/);
+  assert.throws(()=>searchBinding({d1_databases:[{...config.d1_databases[0],database_name:'unrelated-search-database'}]}),/Configure/);
   assert.throws(()=>searchCredentials(config,{CLOUDFLARE_ACCOUNT_ID:'b'.repeat(32)}),/disagree/);
   const auth=searchCredentials(config,{WRANGLER_WRITE_LOGS:'true'},(_command,args,opts)=>{
     assert.equal(opts.env.WRANGLER_WRITE_LOGS,'false');assert.deepEqual(opts.stdio,['ignore','pipe','pipe']);return JSON.stringify({token:'fake-secret'});
@@ -297,12 +297,32 @@ test('production credentials never enable Wrangler auth logging, and configured 
   assert.notEqual(buildFingerprint(settings,options,config),buildFingerprint(settings,options,{...config,d1_databases:[{...config.d1_databases[0],database_id:id.replace('1','2')}]}));
 });
 
-test('compiler retains both POV modes and publication fingerprints track the site default',()=>{
+test('compiler ignores retired POV settings and fingerprints omit the policy',()=>{
   const sources={'POV.md':'---\nPOV: 1740s\n---\nPerspective text.'};
   for (const settings of [{},{respect_pov_dates:false},{respect_pov_dates:true}]) {
     const manifest=validateSearchManifest(compileSearch(storeFor(sources,settings)));
     assert.deepEqual(manifest.rules.map(rule=>rule.from),[10101]);
   }
   const settings=testSettings(),options={maxSize:2560,quality:82};
-  assert.notEqual(buildFingerprint({...settings,respect_pov_dates:false},options),buildFingerprint({...settings,respect_pov_dates:true},options));
+  assert.equal(buildFingerprint({...settings,respect_pov_dates:false},options),buildFingerprint({...settings,respect_pov_dates:true},options));
+});
+
+sqliteTest('schema-3 POV column removal is atomic and preserves ready generations and search',async t=>{
+  const {db,adapter,fail}=database();t.after(()=>db.close());
+  const index=new SearchIndex(adapter),manifest=compileSearch(storeFor({'One.md':'---\ncreated: 1720\n---\ncurrent marker'}));
+  await index.stage(rev('a'),manifest);
+  // Reconstruct the obsolete schema around a real ready generation.
+  db.exec('ALTER TABLE tv_search_page_metadata ADD COLUMN pov_date INTEGER NOT NULL DEFAULT 17500101; UPDATE tv_search_meta SET version=3');
+  fail(sql=>sql.startsWith('UPDATE tv_search_meta'));
+  await assert.rejects(index.ensure(),/injected/);
+  assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,3);
+  assert.ok(db.prepare('PRAGMA table_info(tv_search_page_metadata)').all().some(row=>row.name==='pov_date'));
+  await index.ensure();
+  assert.equal(db.prepare('SELECT version FROM tv_search_meta').get().version,4);
+  assert.ok(!db.prepare('PRAGMA table_info(tv_search_page_metadata)').all().some(row=>row.name==='pov_date'));
+  assert.equal(db.prepare('SELECT from_date FROM tv_search_page_metadata').get().from_date,17200101);
+  await index.verify(rev('a'),searchDescriptor(manifest));
+  assert.equal((await index.stage(rev('a'),manifest)).resumed,true);
+  const next=compileSearch(storeFor({'One.md':'next marker'}));await index.stage(rev('b'),next);
+  await index.withPublicationLock(()=>index.prune([rev('a'),rev('b')]));
 });

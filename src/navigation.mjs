@@ -13,7 +13,6 @@ export class Navigation {
   constructor(store, template = null) {
     this.viewCache=new Map();
     this.preparedViews=new Map();
-    this.settings = store.settings;
     this.entries = store.entries.filter(entry=>entry.note);
     this.byTarget = new Map(this.entries.map(entry=>[entry.target,entry]));
     const roots = [], stack = [{indent:-1,children:roots}];
@@ -63,21 +62,21 @@ export class Navigation {
   }
 
   viewKey(context) {
-    return JSON.stringify([context.date,[...context.campaigns].sort(),context.pov ?? (this.settings?.respect_pov_dates===true)]);
+    return JSON.stringify([context.date,[...context.campaigns].sort()]);
   }
 
   compile(contexts=[]) {
     const nodes=[...this.nodes.values()],indices=new Map(nodes.map((node,i)=>[node.id,i]));
     const views=new Map(),visibility=[],byVisibility=new Map();
-    for(const context of contexts)for(const pov of [false,true]){
-      const selection={...context,pov},view=this.view(selection);
+    for(const context of contexts){
+      const view=this.view(context);
       // Two bits per node: visible, then linkable. Identical reader views share
       // one bitmap; no per-node objects are needed until a view is requested.
       const bits=Buffer.alloc(Math.ceil(nodes.length/4));
       for(const [id,node] of view.visible){const index=indices.get(id);bits[index>>2]|=(node.entry || node.home ? 3 : 1)<<((index%4)*2);}
       const encoded=bits.toString('base64');
       if(!byVisibility.has(encoded)){byVisibility.set(encoded,visibility.length);visibility.push(encoded);}
-      views.set(this.viewKey(selection),byVisibility.get(encoded));
+      views.set(this.viewKey(context),byVisibility.get(encoded));
     }
     return {nodes:nodes.map(node=>({id:node.id,label:node.label,home:node.home,entry:node.entry?.slug,children:node.children.map(child=>indices.get(child.id))})),
       roots:this.roots.map(node=>indices.get(node.id)),paths:[...this.paths].map(([slug,trail])=>[slug,trail.map(node=>indices.get(node.id))]),
@@ -88,7 +87,7 @@ export class Navigation {
     const nodes=compiled.nodes.map(node=>({...node,entry:node.entry ? store.bySlug.get(node.entry) : undefined}));
     nodes.forEach((node,i)=>{node.children=compiled.nodes[i].children.map(index=>nodes[index]);});
     const paths=values=>new Map(values.map(([key,trail])=>[key,trail.map(index=>nodes[index])]));
-    return Object.assign(Object.create(Navigation.prototype),{settings:store.settings,nodes:new Map(nodes.map(node=>[node.id,node])),
+    return Object.assign(Object.create(Navigation.prototype),{nodes:new Map(nodes.map(node=>[node.id,node])),
       roots:compiled.roots.map(index=>nodes[index]),paths:paths(compiled.paths),nodePaths:paths(compiled.trails),
       compiledNodes:nodes,preparedViews:new Map(compiled.visibility ? compiled.views.map(([key,index])=>[key,compiled.visibility[index]]) : compiled.views),viewCache:new Map()});
   }
@@ -129,7 +128,7 @@ export class Navigation {
       const children = node.children.filter(child=>visit(child));
       let link = node.home;
       if (node.entry) {
-        if (!available.has(node.entry)) available.set(node.entry,availableInContext(node.entry,context,this.settings));
+        if (!available.has(node.entry)) available.set(node.entry,availableInContext(node.entry,context));
         link = available.get(node.entry);
       }
       if (!link && !children.length) return false;
