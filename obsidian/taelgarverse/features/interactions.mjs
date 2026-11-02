@@ -4,7 +4,7 @@ import {Decoration,EditorView,ViewPlugin,WidgetType} from '@codemirror/view';
 import {interactionView} from '../../../src/interaction-view.mjs';
 import {mountInteractions} from '../../../src/browser/interactions.mjs';
 import {interactionParts} from '../../../src/browser/interaction-groups.mjs';
-import {obsidianInteractions,hasKnownTo,hasInteractionsBlock,knownCampaigns,interactionsDate,localInteractions} from './interaction-data.mjs';
+import {obsidianInteractions,hasKnownTo,hasInteractionsBlock,knownCampaigns,normalizeInteractionDate,localInteractions} from './interaction-data.mjs';
 
 class InteractionsChild extends MarkdownRenderChild {
   constructor(feature,element,path,{source='',measure=()=>{}}={}) {
@@ -37,7 +37,7 @@ class InteractionsChild extends MarkdownRenderChild {
       if(!campaigns.length)throw new Error('Add at least one registered campaign to knownTo.');
       const previous=this.selected || this.feature.selections.get(this.path) || 'all';
       this.selected=previous==='all' || !campaigns.some(campaign=>campaign.code===previous) ? 'all' : previous;
-      this.date=interactionsDate(metadata,globalThis,snapshot.fallback);
+      this.date=normalizeInteractionDate(this.feature.plugin.dates.getDate(metadata,snapshot.fallback));
       const results=campaigns.filter(campaign=>this.selected==='all' || campaign.code===this.selected).map(campaign=>localInteractions(snapshot,this.path,campaign,this.date,this.feature.app));
       const groups=results.map(result=>result.group),links=new Map(results.flatMap(result=>[...result.links]));
       const knowledgeOnly=groups.every(group=>!group.events.length);
@@ -58,7 +58,7 @@ class InteractionsChild extends MarkdownRenderChild {
       this.timelines=[...timeline.querySelectorAll('[data-interaction-campaign]')].map(campaign=>mountInteractions(campaign));this.measure();
     } catch(error) {
       if(this.disposed || sequence!==this.sequence)return;
-      this.disposeTimelines();
+      this.date=null;this.disposeTimelines();
       element.classList.remove('taelgar-interactions--knowledge-only','taelgar-interactions--compact');
       element.textContent='Campaign interactions unavailable: '+error.message;this.measure();
     }
@@ -111,12 +111,12 @@ export class InteractionsFeature extends Component {
       if(events?.on)for(const name of names)this.registerEvent(events.on(name,refresh));
     for(const name of ['layout-change','file-open'])this.registerEvent(this.app.workspace.on(name,()=>this.scheduleReading()));
     this.app.workspace.onLayoutReady(()=>this.scheduleReading());
-    this.calendarTimer=setInterval(()=>{
+    this.register(this.plugin.dates.subscribe(()=>{
       for(const child of this.panels.values()) {
         const file=this.app.vault.getAbstractFileByPath(child.path),metadata=file && this.app.metadataCache.getFileCache(file)?.frontmatter || {};
-        try{if(interactionsDate(metadata,globalThis,this.snapshot?.fallback || '1750-01-01')!==child.date)void child.render();}catch{}
+        try{if(normalizeInteractionDate(this.plugin.dates.getDate(metadata,this.snapshot?.fallback || '1750-01-01'))!==child.date)void child.render();}catch{void child.render();}
       }
-    },2000);
+    }));
   }
   async getSnapshot() {
     if(!this.pending){const pending=obsidianInteractions(this.app);this.pending=pending;pending.catch(()=>{if(this.pending===pending)this.pending=null;});}
@@ -166,7 +166,7 @@ export class InteractionsFeature extends Component {
   removeReading(root){const mounted=this.reading.get(root);if(!mounted)return;mounted.observer?.disconnect();this.removePanel(mounted.element);mounted.element.remove();this.reading.delete(root);}
   setAutomatic(value){this.automatic=value===true;this.invalidate();}
   onunload() {
-    this.disposed=true;this.readingSequence++;clearTimeout(this.refreshTimer);clearTimeout(this.readingTimer);clearInterval(this.calendarTimer);
+    this.disposed=true;this.readingSequence++;clearTimeout(this.refreshTimer);clearTimeout(this.readingTimer);
     for(const root of [...this.reading.keys()])this.removeReading(root);
     for(const child of [...this.panels.values()])child.unload();this.panels.clear();this.editors.clear();this.selections.clear();this.pending=null;this.snapshot=null;
   }

@@ -8,7 +8,7 @@ listeners and refresh timer. It never edits notes.
 
 This is an author view over local vault metadata, including unpublished notes.
 The campaign setting supplies the query date; it does not apply website campaign
-visibility rules. It always follows the active campaign date, sharing the header
+visibility rules. It always follows the active campaign date, sharing the plugin-owned vault
 snapshot and date services (including an active CustomJS/calendar override). A note's
 individual `pageTargetDate` does not override this graph-wide date.
 

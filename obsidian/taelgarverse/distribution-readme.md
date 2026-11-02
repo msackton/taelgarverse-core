@@ -115,6 +115,13 @@ their existing plugins. Dates follow an active CustomJS override, the note's
 Taelgar's Calendarium calendar, in that order. Otherwise, they use the latest campaign session date, falling back to
 DR 1750-01-01.
 
+The plugin owns shared snapshot and date services independently of the header
+renderer. Calendar changes refresh subscribers immediately; legacy external
+calendar and CustomJS changes share one two-second polling bridge. Renderers
+release their subscriptions on teardown, and the bridge stops when none remain. Snapshot
+loading is lazy, so initializing the plugin in a Maps-only vault does not require
+header display metadata.
+
 ## Campaign interactions
 
 The plugin automatically adds a **Campaign interactions** panel at the bottom

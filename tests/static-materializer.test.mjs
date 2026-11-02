@@ -12,7 +12,7 @@ import {renderCases} from './fixtures/header-cases.mjs';
 import {buildEvalCode,buildMaterializerRequest,parseArgs} from '../scripts/materialize-static.mjs';
 
 const require=createRequire(import.meta.url);
-const compiled=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/features/materializer.mjs'],write:false,bundle:true,platform:'node',format:'cjs',external:['obsidian','@codemirror/state','@codemirror/view'],logLevel:'silent'});
+const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export * from './obsidian/taelgarverse/features/materializer.mjs'; export * from './obsidian/taelgarverse/services/dates.mjs';",resolveDir:ROOT},write:false,bundle:true,platform:'node',format:'cjs',external:['obsidian','@codemirror/state','@codemirror/view'],logLevel:'silent'});
 function feature(fixture=headerFixture({baseNotes:indexNotes,date:'1720-01-01'})) {
   const cm=codeMirrorHost();
   const module={exports:{}},globals={module,exports:module.exports,structuredClone,console,setTimeout,clearTimeout,TextEncoder,TextDecoder,
@@ -22,7 +22,7 @@ function feature(fixture=headerFixture({baseNotes:indexNotes,date:'1720-01-01'})
   const app={vault:{adapter:{getBasePath:()=>ROOT}},metadataCache:{getFirstLinkpathDest:target=>{
     const page=pages.find(p=>p.path===target || p.name===target);return page&&{path:page.path};
   }}};
-  const materializer=new module.exports.MaterializerFeature({app,manifest:{id:'taelgarverse'},addCommand:()=>{}});
+  const materializer=new module.exports.MaterializerFeature({app,manifest:{id:'taelgarverse'},dates:{getDate:(metadata,fallback)=>module.exports.selectObsidianDate(metadata,globals,fallback)},addCommand:()=>{}});
   return {materializer,runtime:{api:{tryQueryMarkdown:async()=>'- [[DQL output]]'},customJS:{},headers:async()=>({runtime:fixture.runtime,fallback:'1720-01-01'})}};
 }
 

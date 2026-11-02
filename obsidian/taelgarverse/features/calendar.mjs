@@ -93,8 +93,6 @@ export class CalendarFeature extends Component {
   notifyDate(){
     this.app.workspace.trigger?.('taelgarverse:context-changed',this.api.getContext());
     this.app.workspace.trigger?.('dataview:refresh-views');
-    for(const child of this.plugin.headers?.bios??[])void child.render();
-    this.plugin.interactions?.invalidate();
   }
   async selectCampaign(id){
     if(!this.state?.contexts?.byId.has(id))throw new Error('Unknown campaign setting');

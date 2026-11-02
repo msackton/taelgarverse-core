@@ -7,7 +7,6 @@ import {mountRelationshipExplorer} from '../../../src/browser/relationship-explo
 import {getPageType} from '../../../src/header-core/metadata.mjs';
 import {DateManager} from '../../../src/header-core/dates.mjs';
 import {drDateString} from '../../../src/campaign-calendar.mjs';
-import {bioDate} from './headers.mjs';
 
 export const RELATIONSHIP_VIEW='taelgar-relationship-explorer';
 
@@ -70,7 +69,7 @@ export class RelationshipsFeature extends Component {
   }
   activate(enabled){
     if(this.enabled===enabled||this.disposed&&enabled)return;
-    this.enabled=enabled;clearTimeout(this.timer);clearInterval(this.dateTimer);
+    this.enabled=enabled;clearTimeout(this.timer);
     if(enabled){
       this.events=this.addChild(new Component());
       this.ribbon=this.plugin.addRibbonIcon('network','Open relationship explorer',()=>{void this.open();});
@@ -81,13 +80,8 @@ export class RelationshipsFeature extends Component {
       };
       for(const [target,names] of [[this.app.metadataCache,['changed','resolved']],[this.app.vault,['rename','delete','modify']]])
         if(target?.on)for(const name of names)this.events.registerEvent(target.on(name,invalidate));
-      if(this.app.workspace.on)this.events.registerEvent(this.app.workspace.on('taelgarverse:context-changed',()=>this.schedule()));
-      // Match header refresh behavior for external calendar / CustomJS overrides.
-      this.dateTimer=setInterval(()=>{
-        if(!this.views.size&&!this.blocks.size)return;
-        let key;try{key=JSON.stringify(bioDate({},globalThis,this.plugin.headers?.snapshot?.fallback));}catch(error){key=error.message;}
-        if(key!==this.dateKey){this.dateKey=key;this.schedule();}
-      },2000);
+      this.events.register(this.plugin.snapshots.subscribe(()=>this.schedule()));
+      this.events.register(this.plugin.dates.subscribe(()=>this.schedule()));
     }else{
       if(this.events){this.removeChild(this.events);this.events=null;}
       this.ribbon?.remove();this.ribbon=null;
@@ -110,9 +104,9 @@ export class RelationshipsFeature extends Component {
   }
   async data(date){
     if(!this.enabled||this.disposed)throw new Error('Relationship explorer disabled');
-    const snapshot=await this.plugin.headers.getSnapshot(),warnings=[],mentions=[],routes=[];
+    const snapshot=await this.plugin.snapshots.getSnapshot(),warnings=[],mentions=[],routes=[];
     if(date===undefined){
-      const dates=new DateManager({}),selected=dates.normalizeDate(bioDate({},globalThis,snapshot.fallback));
+      const dates=new DateManager({}),selected=dates.normalizeDate(this.plugin.dates.getDate({},snapshot.fallback));
       if(!selected)throw new Error('No active campaign date');
       date=drDateString(selected.sort-dates.normalizeDate('0001-01-01').sort);
     }

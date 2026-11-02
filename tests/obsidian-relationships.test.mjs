@@ -1,3 +1,4 @@
+import {serviceExports,attachServices} from './helpers/obsidian-services.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -8,7 +9,7 @@ import {codeMirrorHost} from './helpers/codemirror-host.mjs';
 import {ROOT} from '../src/config.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 const require=createRequire(import.meta.url);
-const compiled=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/features/relationships.mjs'],write:false,
+const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export * from './obsidian/taelgarverse/features/relationships.mjs';"+serviceExports,resolveDir:ROOT},write:false,
   bundle:true,platform:'node',format:'cjs',external:['obsidian','@codemirror/state','@codemirror/view'],logLevel:'silent'});
 function emitter(){
   const events=new Map();return {on(name,fn){const list=events.get(name)??new Set();list.add(fn);events.set(name,list);return ()=>list.delete(fn);},
@@ -19,6 +20,7 @@ function host(enabled=false,extraNotes={}){
     constructor(){this.children=new Set();this.disposers=[];}
     addChild(child){this.children.add(child);child.onload?.();return child;}
     removeChild(child){this.children.delete(child);child.unload();}
+    register(dispose){this.disposers.push(dispose);}
     registerEvent(fn){this.disposers.push(fn);}
     unload(){this.onunload?.();for(const child of this.children)child.unload();for(const fn of this.disposers)fn();}
   }
@@ -31,14 +33,19 @@ function host(enabled=false,extraNotes={}){
   const fixture=headerFixture({baseNotes:notes}),files=Object.entries(notes).map(([path,metadata])=>({path,metadata,stat:{mtime:1,size:10}}));
   const cache=emitter(),vault=emitter(),workspace=emitter(),commands=[],opened=[];let reads=0,ribbons=0,closed=0;
   const app={metadataCache:{on:cache.on,getFileCache:file=>({frontmatter:file.metadata}),
-      getFirstLinkpathDest:target=>files.find(f=>f.path===target||f.path==='People/'+target+'.md')},
-    vault:{on:vault.on,getMarkdownFiles:()=>files,getAbstractFileByPath:path=>files.find(f=>f.path===path),
+      getFirstLinkpathDest:target=>files.find(f=>f.path===target||f.path.endsWith('/'+target+'.md'))},
+    vault:{on:vault.on,getRoot:()=>({path:''}),adapter:{read:async file=>JSON.stringify(file.endsWith('metadata.json')?fixture.input.coreMeta:fixture.input.registry)},getMarkdownFiles:()=>files,getAbstractFileByPath:path=>files.find(f=>f.path===path),
       cachedRead:async file=>{reads++;return file.path.includes('Alice')?'Alice met [[Bob]].':'Bob traveled.';}},
     workspace:{on:workspace.on,detachLeavesOfType(){closed++;},getLeaf:()=>({openFile:async(...args)=>opened.push(args)})}};
-  const plugin={app,settings:{relationshipsEnabled:enabled},headers:{getSnapshot:async()=>({runtime:fixture.runtime,fallback:'1720-01-01'})},
+  const plugin={app,settings:{relationshipsEnabled:enabled},
     saveData:async()=>{},registerMarkdownCodeBlockProcessor(name,fn){this.processor=fn;},registerView(){},addCommand:command=>commands.push(command),addRibbonIcon(){ribbons++;return {remove(){ribbons--;}};}};
+  const disposeServices=attachServices(plugin,module.exports);
+  const serviceListeners=cache.count+vault.count+workspace.count;
+  const load=plugin.snapshots.getSnapshot.bind(plugin.snapshots);
+  plugin.snapshots.getSnapshot=async()=>({...await load(),fallback:'1720-01-01'});
   const feature=new module.exports.RelationshipsFeature(plugin);feature.onload();
-  return {feature,app,plugin,files,cache,vault,workspace,commands,opened,globals,timers,get reads(){return reads;},get ribbons(){return ribbons;},get closed(){return closed;}};
+  const dispose=()=>{feature.unload();disposeServices();};
+  return {feature,app,plugin,dispose,serviceListeners,files,cache,vault,workspace,commands,opened,globals,timers,get reads(){return reads;},get ribbons(){return ribbons;},get closed(){return closed;}};
 }
 test('opt-in lifecycle does no disabled reads, caches prose, invalidates changes and fully disables',async()=>{
   const h=host();try {
@@ -51,14 +58,13 @@ test('opt-in lifecycle does no disabled reads, caches prose, invalidates changes
     await h.feature.openNote('People/Alice.md',8);assert.equal(h.opened[0][1].eState.line,8);
     let disposed=0;h.feature.views.add({explorer:{dispose(){disposed++;}}});
     await h.feature.setEnabled(false);assert.equal(disposed,1);assert.equal(h.ribbons,0);assert.equal(h.timers.size,0);
-    assert.equal(h.cache.count+h.vault.count+h.workspace.count,0);assert.ok(h.closed>0);
+    assert.equal(h.cache.count+h.vault.count+h.workspace.count,h.serviceListeners);assert.ok(h.closed>0);
     await assert.rejects(h.feature.data(),/disabled/);
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 test('disabled in-flight reads cannot finish building data and failed reads can be retried',async()=>{
   const h=host(true);try {
-    let release;h.app.vault.cachedRead=()=>new Promise(resolve=>{release=resolve;});
-    h.app.vault.getMarkdownFiles=()=>[h.files[0]];
+    let release;h.app.vault.cachedRead=file=>file.path===h.files[0].path?new Promise(resolve=>{release=resolve;}):Promise.resolve('');
     const pending=h.feature.data();await new Promise(resolve=>setTimeout(resolve,0));
     await h.feature.setEnabled(false);release('[[Bob]]');await assert.rejects(pending,/disabled/);
     await h.feature.setEnabled(true);
@@ -66,7 +72,7 @@ test('disabled in-flight reads cannot finish building data and failed reads can 
     const failed=await h.feature.data();assert.match(failed.warnings[0],/Temporary read error/);
     h.app.vault.cachedRead=async()=>'[[Bob]]';
     const recovered=await h.feature.data();assert.equal(recovered.warnings.length,0);assert.equal(recovered.graph.edges.length,1);
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 
@@ -80,7 +86,7 @@ test('cached date-block evidence is re-filtered by cutoff without rereading pers
     assert.equal(at.graph.edges[0].earliestDate,'1730-01-01');assert.equal(reads,2);
     const later=await h.feature.data('1800-01-01');assert.equal(later.graph.edges.length,1);
     const earlier=await h.feature.data('1720-01-01');assert.equal(earlier.graph.edges.length,0);assert.equal(reads,2);
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('route metadata is lazily read, cached, invalidated, and resolved through native note links',async()=>{
@@ -97,7 +103,7 @@ test('route metadata is lazily read, cached, invalidated, and resolved through n
     data=await h.feature.data();assert.equal(reads,5);
     assert.equal(data.graph.edges.find(e=>e.kind==='route').target,'Places/River.md');
     assert.equal(data.warnings.length,0);
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('relationship blocks use their source note, stop when disabled, resume, and dispose with Markdown',async()=>{
@@ -113,7 +119,7 @@ test('relationship blocks use their source note, stop when disabled, resume, and
  assert.match(element.textContent,/Enable Relationship explorer/);
  await h.feature.setEnabled(true);await block.explorer.ready;
  block.unload();assert.equal(h.feature.blocks.size,0);assert.equal(element.children.length,0);
- h.feature.unload();
+ h.dispose();
 });
 
 test('registered code block renders mode: list, follows source links, and resumes list mode after toggling',async()=>{
@@ -131,5 +137,5 @@ test('registered code block renders mode: list, follows source links, and resume
   await h.feature.setEnabled(true);await block.explorer.ready;
   assert.ok(element.classList.contains('tg-relationship-list'));
   assert.ok(element.querySelector('[data-href="People/Bob.md"]'));
- }finally{block.unload();h.feature.unload();}
+ }finally{block.unload();h.dispose();}
 });

@@ -1,3 +1,4 @@
+import {serviceExports,attachServices} from './helpers/obsidian-services.mjs';
 import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,7 +15,7 @@ import {parseNote} from '../src/content-store.mjs';
 import {initializeHeaders,renderHeader} from '../src/headers.mjs';
 
 const require=createRequire(import.meta.url),settings=testSettings();
-const compiled=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/features/headers.mjs'],write:false,
+const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export * from './obsidian/taelgarverse/features/headers.mjs';"+serviceExports,resolveDir:ROOT},write:false,
   bundle:true,platform:'node',format:'cjs',external:['obsidian','@codemirror/state','@codemirror/view'],logLevel:'silent'});
 const sources=JSON.parse(fs.readFileSync(new URL('./fixtures/bio-blocks.json',import.meta.url),'utf8'));
 const coreMeta=JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'.obsidian/metadata.json'),'utf8'));
@@ -30,6 +31,7 @@ function host(extraSources={}){
     load(){if(this.loaded)return;this.loaded=true;this.onload?.();}
     addChild(child){this.children.add(child);child.load();return child;}
     removeChild(child){if(this.children.delete(child))child.unload();return child;}
+    register(dispose){this.disposers.push(dispose);}
     registerEvent(dispose){this.disposers.push(dispose);}
     unload(){this.onunload?.();for(const child of [...this.children])this.removeChild(child);for(const dispose of this.disposers)dispose();}
   }
@@ -54,10 +56,12 @@ function host(extraSources={}){
   const commands=[];
   const plugin={app,addCommand:command=>commands.push(command),registerMarkdownCodeBlockProcessor:(type,processor)=>processors.set(type,processor),
     registerMarkdownPostProcessor:processor=>postprocessors.push(processor),registerEditorExtension:extension=>extensions.push(extension)};
+  const disposeServices=attachServices(plugin,module.exports);
   const feature=new module.exports.HeadersFeature(plugin);feature.load();
+  const dispose=()=>{feature.unload();disposeServices();};
   const {document}=imageDOM();
   const element=document.createElement('div');document.body.append(element);
-  return {...module.exports,plugin,feature,app,globals,metadata,calls,notices,commands,intervals,element,cacheEvents,vaultEvents,processors,postprocessors,extensions,document,
+  return {...module.exports,plugin,feature,dispose,app,globals,metadata,calls,notices,commands,intervals,element,cacheEvents,vaultEvents,processors,postprocessors,extensions,document,
     defer(){deferred=new Promise(resolve=>{this.release=()=>{deferred=null;resolve();};});},
     notes,
     child(source='',sourcePath='Bio Person.md') {
@@ -77,7 +81,7 @@ test('Obsidian registers a callout postprocessor without a competing Live Previe
   try {
     assert.deepEqual([...h.processors.keys()],['taelgar-index']);assert.equal(h.extensions.length,0);
     assert.equal(h.feature.bios.size,0);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('header commands are hotkey-ready, use unsaved editor metadata and apply one undoable range edit',async()=>{
@@ -100,7 +104,7 @@ test('header commands are hotkey-ready, use unsaved editor metadata and apply on
     source='---\ntags: [person]\n---\nOpening prose.';await h.commands[0].editorCallback(editor,{file});assert.equal(edits.length,1,'missing headers are not implicitly added');
     await h.commands[1].editorCallback(editor,{file});assert.equal(edits.length,2);assert.ok(source.endsWith('Opening prose.'));
     source='---\ninvalid: [\n---\n> [!taelgar-header]\n';await h.commands[1].editorCallback(editor,{file});assert.equal(edits.length,2);assert.match(h.notices.at(-1),/Header unavailable/);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('editor H1 regeneration uses vault and unsaved per-note naming defaults and never overwrites edits made during setup',async()=>{
@@ -118,7 +122,7 @@ test('editor H1 regeneration uses vault and unsaved per-note naming defaults and
     assert.equal(changed.status,'skipped');assert.equal(edits,before);assert.ok(source.endsWith('A concurrent edit.'));
     h.app.vault.adapter.read=async()=>{view.file={path:'Another.md'};return '{}';};
     const switched=await h.commands[0].editorCallback(editor,view);assert.equal(switched.status,'skipped');assert.equal(edits,before);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('editor commands skip untagged/excluded metadata while an explicit callout still renders',async()=>{
@@ -131,21 +135,21 @@ test('editor commands skip untagged/excluded metadata while an explicit callout 
         const result=await command.editorCallback(editor,{file:{path:'Bio Person.md'}});
         assert.equal(result.status,'skipped');assert.match(result.reason,/Header ineligible/);
       }
-      const snapshot=await h.obsidianHeaders(h.app);
-      const markdown=h.obsidianBio(snapshot,{basename:'Explicit'},{...(tags===null?{}:{tags}),displayDefaults:{boxInfo:'Explicit information'}},{});
+      const snapshot=await h.plugin.snapshots.getSnapshot();
+      const markdown=h.obsidianBio(snapshot,{basename:'Explicit'},{...(tags===null?{}:{tags}),displayDefaults:{boxInfo:'Explicit information'}},snapshot.fallback);
       assert.match(markdown,/Explicit information/,'rendering has no source-writing eligibility restrictions');
     }
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('Obsidian bios match the existing static header generator for people, places and dated events without Dataview or CustomJS',async()=>{
   const h=host();
   try{
-    const snapshot=await h.obsidianHeaders(h.app);
+    const snapshot=await h.plugin.snapshots.getSnapshot();
     const reference=initializeHeaders({runtimeDir:settings.vault_dir,coreMeta,registry,pages:h.app.vault.getMarkdownFiles().map(file=>({path:file.path,metadata:h.metadata.get(file.path)}))});
     for(const file of h.app.vault.getMarkdownFiles())for(const date of ['1720-01-01','1730-01-01']){
       const metadata={...h.metadata.get(file.path),pageTargetDate:date};
-      const actual=h.obsidianBio(snapshot,file,metadata,{});
+      const actual=h.obsidianBio(snapshot,file,metadata,date);
       const header=parseNote(renderHeader(reference,{source:'---\n---\n',name:file.basename,metadata,date,headerType:'static'})).body;
       const expected=header.replace(/^# [^\n]*\n/,'').replace(/^\*\([^\n]*\)\*\n/,'').trimEnd()+'\n';
       assert.equal(actual.trimEnd(),expected.trimEnd(),file.path+' at '+date);
@@ -153,7 +157,7 @@ test('Obsidian bios match the existing static header generator for people, place
       assert.equal((actual.match(/^# /gm)||[]).length,0);
       assert.doesNotMatch(actual,/BY-oh/);
     }
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('Obsidian location chains follow its link resolver when a homepage has the same basename',async()=>{
@@ -166,26 +170,26 @@ test('Obsidian location chains follow its link resolver when a homepage has the 
   });
   try{
     const file=h.app.vault.getAbstractFileByPath('People/Alain.md');
-    const snapshot=await h.obsidianHeaders(h.app);
-    const markdown=h.obsidianBio(snapshot,file,h.metadata.get(file.path),{});
+    const snapshot=await h.plugin.snapshots.getSnapshot();
+    const markdown=h.obsidianBio(snapshot,file,h.metadata.get(file.path),h.selectObsidianDate(h.metadata.get(file.path),{},snapshot.fallback));
     assert.match(markdown,/Based in \[\[Cleenseau\]\], the \[\[Manor of Cleenseau\]\], the \[\[Barony of Aveil\]\]/);
     assert.equal(snapshot.runtime.resolve('cleenseau').path,'_website/cleenseau.md');
     assert.equal(snapshot.runtime.resolve('Cleenseau').path,'Gazetteer/Cleenseau.md');
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('bio dates honor the existing override, note date, calendars and fallback order',()=>{
   const h=host(),calendar={year:1749,month:6,day:1};
   try{
-    assert.equal(h.bioDate({pageTargetDate:'1720-01-01'},{customJS:{state:{overrideDate:'1730-01-01'}}},'1750-01-01'),'1730-01-01');
-    assert.equal(h.bioDate({pageTargetDate:'1720-01-01'},{},'1750-01-01'),'1720-01-01');
+    assert.equal(h.selectObsidianDate({pageTargetDate:'1720-01-01'},{customJS:{state:{overrideDate:'1730-01-01'}}},'1750-01-01'),'1730-01-01');
+    assert.equal(h.selectObsidianDate({pageTargetDate:'1720-01-01'},{},'1750-01-01'),'1720-01-01');
     const campaign={getCurrentDate:()=>'1748-07-23'};
-    assert.equal(h.bioDate({},{TaelgarverseCalendar:campaign,FantasyCalendarAPI:{getCalendars:()=>[{current:calendar}]}},'1750-01-01'),'1748-07-23');
-    assert.equal(h.bioDate({pageTargetDate:'1720-01-01'},{TaelgarverseCalendar:campaign},'1750-01-01'),'1720-01-01');
-    assert.equal(h.bioDate({},{FantasyCalendarAPI:{getCalendars:()=>[{current:calendar}]}},'1750-01-01'),calendar);
-    assert.equal(h.bioDate({},{Calendarium:{getAPI:()=>({getCurrentDate:()=>calendar})}},'1750-01-01'),calendar);
-    assert.equal(h.bioDate({},{Calendarium:{getAPI:()=>{throw Error('No calendar');}}},'1750-01-01'),'1750-01-01');
-  }finally{h.feature.unload();}
+    assert.equal(h.selectObsidianDate({},{TaelgarverseCalendar:campaign,FantasyCalendarAPI:{getCalendars:()=>[{current:calendar}]}},'1750-01-01'),'1748-07-23');
+    assert.equal(h.selectObsidianDate({pageTargetDate:'1720-01-01'},{TaelgarverseCalendar:campaign},'1750-01-01'),'1720-01-01');
+    assert.equal(h.selectObsidianDate({},{FantasyCalendarAPI:{getCalendars:()=>[{current:calendar}]}},'1750-01-01'),calendar);
+    assert.equal(h.selectObsidianDate({},{Calendarium:{getAPI:()=>({getCurrentDate:()=>calendar})}},'1750-01-01'),calendar);
+    assert.equal(h.selectObsidianDate({},{Calendarium:{getAPI:()=>{throw Error('No calendar');}}},'1750-01-01'),'1750-01-01');
+  }finally{h.dispose();}
 });
 
 test('Obsidian displays the requested header error for circular relationship metadata',async()=>{
@@ -199,7 +203,7 @@ test('Obsidian displays the requested header error for circular relationship met
     assert.match(h.element.textContent,/Bio unavailable: Circular location chain:/);
     assert.doesNotMatch(h.element.textContent,/Maximum call stack/);
     assert.equal(h.calls.length,0,'invalid metadata does not mount a partially rendered bio');
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('Obsidian renders native callout Markdown, refreshes metadata and dates, and releases handlers and timers',async()=>{
@@ -214,7 +218,7 @@ test('Obsidian renders native callout Markdown, refreshes metadata and dates, an
     for(const tick of h.intervals.values())tick();await pause(20);assert.ok(h.calls.length>calls);
     assert.equal(child.children.size,1,'only the current Markdown render remains mounted');
     assert.equal(h.metadata.get('Bio Person.md').pageTargetDate,'1730-01-01');
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
   assert.equal(h.intervals.size,0);assert.equal(h.cacheEvents.count,0);assert.equal(h.vaultEvents.count,0);
 });
 
@@ -224,7 +228,7 @@ test('closed notes cannot mount a stale header and arbitrary fallback text is ig
     h.defer();const pending=child.onload();await pause(20);child.unload();h.release();await pending;
     assert.equal(h.element.output,undefined);assert.equal(h.intervals.size,0);
     const fallback=h.child('Saved fallback including dv.current()');await fallback.onload();assert.match(h.element.output.markdown,/Biographical Info/);assert.doesNotMatch(h.element.output.markdown,/Saved fallback|dv.current/);fallback.unload();
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('native Live Preview callout processing renders one header across repeat processing, metadata refresh and remounts',async()=>{
@@ -254,5 +258,19 @@ test('native Live Preview callout processing renders one header across repeat pr
     children[0].unload();first.remove();assert.equal(h.feature.bios.size,0);
     const second=await mount();assert.equal(h.feature.bios.size,1);assert.equal(h.intervals.size,1);
     children[1].unload();second.remove();assert.equal(h.feature.bios.size,0);assert.equal(h.intervals.size,0);
-  } finally {for(const child of children)child.unload();h.feature.unload();}
+  } finally {for(const child of children)child.unload();h.dispose();}
+});
+
+test('headers recover when the date provider returns to the same date after becoming unavailable',async()=>{
+  const h=host(),child=h.child();
+  try{
+    await child.onload();const calls=h.calls.length;
+    delete h.metadata.get('Bio Person.md').pageTargetDate;
+    h.globals.TaelgarverseCalendar={getCurrentDate(){throw new Error('Campaign unavailable');}};
+    h.plugin.dates.notify();await pause(20);
+    assert.match(h.element.textContent,/Bio unavailable: Campaign unavailable/);
+    h.globals.TaelgarverseCalendar.getCurrentDate=()=> '1720-01-01';
+    h.plugin.dates.notify();await pause(20);
+    assert.ok(h.calls.length>calls);assert.match(h.element.output.markdown,/Biographical Info/);
+  }finally{h.dispose();}
 });

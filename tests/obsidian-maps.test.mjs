@@ -34,10 +34,11 @@ function host(){
   const doc={createElement(tag){const element=new Element(doc);element.tag=tag;return element;}};
   class TFile {constructor(filePath){this.path=filePath;this.extension=filePath.split('.').at(-1);this.stat={mtime:1,size:4};}}
   class Component {
-    constructor(){this.children=[];}
+    constructor(){this.children=[];this.cleanups=[];}
     addChild(child){this.children.push(child);child.onload?.();return child;}
+    register(callback){this.cleanups.push(callback);}
     registerEvent(){}
-    unload(){this.onunload?.();for(const child of [...this.children])child.unload();}
+    unload(){this.onunload?.();for(const child of [...this.children])child.unload();for(const cleanup of this.cleanups)cleanup();}
   }
   class Plugin extends Component {
     async loadData(){return this.savedData || {};}
@@ -135,7 +136,8 @@ test('Obsidian map components mount the shared controller and dispose observers 
   let child;
   plugin.processor(source,h.doc.createElement('div'),{sourcePath:'Places/Map.md',addChild(value){child=value;}});
   await child.onload();assert.equal(h.counts.maps,1);
-  plugin.unload();assert.deepEqual(h.counts,{maps:1,removed:1,disconnected:1});assert.equal(plugin.children[0].hashes.size,0);assert.equal(plugin.children[0].maps.size,0);
+  const maps=plugin.children.find(child=>child.hashes);
+  plugin.unload();assert.deepEqual(h.counts,{maps:1,removed:1,disconnected:1});assert.equal(maps.hashes.size,0);assert.equal(maps.maps.size,0);
 });
 
 test('an Obsidian note closed during image hashing never mounts a stale map',async()=>{

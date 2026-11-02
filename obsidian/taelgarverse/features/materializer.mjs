@@ -1,7 +1,7 @@
 import LegacyMaterializer from '../materializer/legacy.cjs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import {obsidianHeaders,bioDate,obsidianIndex} from './headers.mjs';
+import {obsidianIndex} from '../services/indexes.mjs';
 import {obsidianInteractions,knownCampaigns,localInteractions} from './interaction-data.mjs';
 import {renderHeaderCallout} from '../../../src/header-core/index.mjs';
 import {parseIndex} from '../../../src/indexes.mjs';
@@ -49,7 +49,7 @@ export class MaterializerFeature extends LegacyMaterializer {
 
   async prepareRuntime(config) {
     const runtime=await super.prepareRuntime(config);
-    runtime.headers=()=>runtime.headerSnapshot ??= obsidianHeaders(this.app);
+    runtime.headers=()=>runtime.headerSnapshot ??= this.plugin.snapshots.getSnapshot();
     runtime.interactions=()=>runtime.interactionSnapshot ??= obsidianInteractions(this.app);
     return runtime;
   }
@@ -61,7 +61,7 @@ export class MaterializerFeature extends LegacyMaterializer {
     const bodyStart=frontmatter?.[0].length || 0;
     for(const callout of scanHeaderCallouts(original.slice(bodyStart))) {
       try {
-        const snapshot=await runtime.headers(),date=config.overrideDate || bioDate(metadata,globalThis,snapshot.fallback);
+        const snapshot=await runtime.headers(),date=config.overrideDate || this.plugin.dates.getDate(metadata,snapshot.fallback);
         const text=renderHeaderCallout(snapshot.runtime,{name:file.basename || file.name.replace(/\.md$/i,''),metadata,date,
           mode:config.headerType==='website'?'website':'obsidian'}).trimEnd()+'\n';
         replacements.push({start:bodyStart+callout.start,end:bodyStart+callout.end,text});nativeBlocks++;
@@ -79,7 +79,7 @@ export class MaterializerFeature extends LegacyMaterializer {
           const text=raw.slice(0,start)+raw.slice(start).replace(/^(\s*)taelgar-map\b/i,'$1leaflet');
           replacements.push({start:block.start,end:block.end,text});maps++;continue;
         } else {
-          const snapshot=await runtime.headers(),date=config.overrideDate || bioDate(metadata,globalThis,snapshot.fallback);
+          const snapshot=await runtime.headers(),date=config.overrideDate || this.plugin.dates.getDate(metadata,snapshot.fallback);
           if(block.language==='taelgar-index') {
             const options=parseIndex(block.body);
             markdown=options.show==='obsidian'?'':indexMarkdown(obsidianIndex(this.app,snapshot,options,file.path,date));

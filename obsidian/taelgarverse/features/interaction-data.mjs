@@ -6,7 +6,6 @@ import {parseSessionRecap} from '../../../src/recap-parser.mjs';
 import {Contexts} from '../../../src/contexts.mjs';
 import {filterComments} from '../../../src/comments.mjs';
 import {scanFencedCodeBlocks} from '../../../src/markdown-fences.mjs';
-import {bioDate} from './headers.mjs';
 
 const list=value=>Array.isArray(value)?value:value==null?[]:[value];
 export const hasKnownTo=metadata=>list(metadata?.knownTo).some(value=>String(value).trim());
@@ -89,8 +88,7 @@ export function knownCampaigns(snapshot,metadata) {
   const identities=campaignIdentities(snapshot.registry),codes=new Set(list(metadata.knownTo).map(value=>identities.get(String(value).trim().toLowerCase())).filter(Boolean));
   return Object.values(snapshot.registry.campaigns || {}).filter(campaign=>codes.has(campaign.code));
 }
-export function interactionsDate(metadata,globals,fallback) {
-  const value=bioDate(metadata,globals,fallback);
+export function normalizeInteractionDate(value) {
   if(value && typeof value==='object') {
     const date=String(value.year).padStart(4,'0')+'-'+String(Number(value.month)+1).padStart(2,'0')+'-'+String(value.day).padStart(2,'0');
     const period=interactionDate(date);if(period)return period.end;

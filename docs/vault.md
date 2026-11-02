@@ -209,7 +209,11 @@ Preview callout widget. The plugin does not add a competing CodeMirror header
 replacement. Obsidian owns selection/editing and reveals the saved source when
 editing the callout. Source mode always shows saved Markdown.
 Metadata and calendar changes refresh generated information without rewriting
-the file. The static materializer emits website or Obsidian-style Markdown for
+the file. Shared plugin services own the metadata snapshot and authoring-date
+selection; Calendar signals changes to subscribed headers, indexes, interactions
+and relationships. Legacy calendar/CustomJS changes use one shared two-second
+polling bridge. Date changes reuse cached interaction data; they do not rebuild
+the recap/reference index. The static materializer emits website or Obsidian-style Markdown for
 its configured export date, using `website` or `static` header type respectively.
 
 Only top-level callouts are recognized. Examples in code, nested blockquotes,

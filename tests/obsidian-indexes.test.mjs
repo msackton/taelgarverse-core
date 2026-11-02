@@ -1,3 +1,4 @@
+import {serviceExports,attachServices} from './helpers/obsidian-services.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -15,7 +16,7 @@ import {indexPopup,indexPopupShell} from '../src/index-view.mjs';
 import {cintraSource,cintraSentence} from './fixtures/index-descriptions.mjs';
 
 const require=createRequire(import.meta.url);
-const compiled=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/features/headers.mjs'],write:false,
+const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export * from './obsidian/taelgarverse/features/headers.mjs';"+serviceExports,resolveDir:ROOT},write:false,
   bundle:true,platform:'node',format:'cjs',external:['obsidian','@codemirror/state','@codemirror/view'],logLevel:'silent'});
 
 function events(){const callbacks=new Map();return {
@@ -31,6 +32,7 @@ function host(settings={}) {
     load(){if(this.loaded)return;this.loaded=true;this.loading=Promise.resolve(this.onload?.());}
     addChild(child){this.children.add(child);child.load();return child;}
     removeChild(child){if(this.children.delete(child))child.unload();}
+    register(dispose){this.disposers.push(dispose);}
     registerEvent(dispose){this.disposers.push(dispose);}
     unload(){this.onunload?.();for(const child of [...this.children])this.removeChild(child);for(const dispose of this.disposers)dispose();}
   }
@@ -59,9 +61,11 @@ function host(settings={}) {
       getResourcePath:file=>'app://local/'+file.path},
     workspace:{openLinkText:(...args)=>opened.push(args)}};
   const plugin={app,settings,addCommand:()=>{},registerMarkdownCodeBlockProcessor:(type,processor)=>processors.set(type,processor),registerMarkdownPostProcessor:processor=>postprocessors.push(processor),registerEditorExtension:()=>{}};
+  const disposeServices=attachServices(plugin,module.exports);
   const feature=new module.exports.HeadersFeature(plugin);feature.load();
+  const dispose=()=>{feature.unload();disposeServices();};
   const context=sourcePath=>({sourcePath,addChild(child){child.load();this.child=child;}});
-  return {...dom,...module.exports,app,feature,metadata,files,bodies,opened,intervals,cache,vault,globals,
+  return {...dom,...module.exports,app,plugin,feature,dispose,metadata,files,bodies,opened,intervals,cache,vault,globals,
     async block(source,sourcePath='Places/Realm.md',type='taelgar-index') {
       const element=document.createElement('div');document.body.append(element);
       const ctx=context(sourcePath);
@@ -94,7 +98,7 @@ test('Obsidian inline indexes render current metadata, respect show, and open na
     const hidden=await h.block('type: residents\nshow: website');assert.equal(hidden.element.hidden,true);assert.equal(hidden.element.innerHTML,'');
     const both=await h.block('type: members\ntarget: Guild\nshow: both');assert.match(both.element.textContent,/Treasurer/);
     const invalid=await h.block('type: residents\nshow: invalid');assert.match(invalid.element.textContent,/show must/);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
   assert.equal(h.intervals.size,0);assert.equal(h.cache.count,0);assert.equal(h.vault.count,0);
 });
 
@@ -115,7 +119,7 @@ test('Obsidian inline grids and tables have H2 labels, including empty results',
     h.click(bio.element.querySelector('summary'));await pause(10);
     const dialog=h.document.querySelector('dialog[open]');
     assert.equal(dialog.querySelectorAll('h2').length,1,'the popup keeps its single dialog title');
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('Obsidian heading false preserves grid/table contents and empty messages',async()=>{
@@ -134,7 +138,7 @@ test('Obsidian heading false preserves grid/table contents and empty messages',a
     }
     const invalid=await h.block('type: settlements\nheading: "false"');
     assert.match(invalid.element.textContent,/heading must be true or false/);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('new header buttons follow the callout, stay outside it, and release open dialogs',async()=>{
@@ -168,7 +172,7 @@ test('new header buttons follow the callout, stay outside it, and release open d
     assert.equal(empty.element.querySelector('.taelgar-index-buttons'),null);
     const inline=await h.block('type: members','Groups/Empty.md');
     assert.match(inline.element.textContent,/No members found/);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('disabled header popups preserve headers, inline indexes, and frontmatter',async()=>{
@@ -187,7 +191,7 @@ test('disabled header popups preserve headers, inline indexes, and frontmatter',
     const grid=await h.block('type: residents');
     assert.ok(grid.element.querySelector('.taelgar-index-grid'));
     assert.equal(JSON.stringify([...h.metadata]),before);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('header popup toggle closes dialogs immediately and refreshes existing and pending headers',async()=>{
@@ -215,7 +219,7 @@ test('header popup toggle closes dialogs immediately and refreshes existing and 
     const later=await pending;
     assert.equal(later.element.querySelector('.taelgar-index-buttons'),null);
     assert.equal(h.document.querySelector('dialog'),null);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('vault edits, date changes, renames and deletes refresh live indexes without stale popups',async()=>{
@@ -231,16 +235,16 @@ test('vault edits, date changes, renames and deletes refresh live indexes withou
     h.globals.customJS.state.overrideDate='1720-01-01';
     h.files.splice(h.files.findIndex(file=>file.path==='People/Alice.md'),1);h.vault.trigger('delete');await pause(160);
     assert.doesNotMatch(element.textContent,/Alice Example/);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('unloading during asynchronous bio rendering cannot mount stale index controls',async()=>{
   const h=host();
   try {
     h.defer();const pending=h.block('','Places/Realm.md','taelgar-header');await pause(20);
-    h.feature.unload();h.release();const {element}=await pending;
+    h.dispose();h.release();const {element}=await pending;
     assert.equal(element.textContent,'');assert.equal(element.querySelector('.taelgar-generated-bio,.taelgar-index-buttons'),null);assert.equal(h.document.querySelector('dialog'),null);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('shared popups support native details fallback, backdrop dismissal and disposal',()=>{
@@ -281,7 +285,7 @@ test('Obsidian grids resolve local images and people tables keep native links, l
     assert.equal(popup.querySelectorAll('img').length,1);
     assert.equal(popup.querySelectorAll('table').length,0);
     assert.match(popup.querySelector('.taelgar-index-card').textContent,/Alice Example \(she\/her AL-iss\)/);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('Obsidian settlement tables use home regions, type aliases and formatted populations, including ruins',async()=>{
@@ -293,7 +297,7 @@ test('Obsidian settlement tables use home regions, type aliases and formatted po
     assert.deepEqual(rows,[['Ruin','Realm','settlement','—'],['Town','Realm','town','pop. 1,234']]);
     const region=table.element.querySelector('tbody tr td:nth-child(2) a');h.click(region);
     assert.deepEqual(h.opened[0],['Places/Realm.md','Places/Realm.md',false]);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('Obsidian member tables format pronouns, info, dated locations and homes; grids show the first authored sentence',async()=>{
@@ -316,7 +320,7 @@ test('Obsidian member tables format pronouns, info, dated locations and homes; g
     assert.doesNotMatch(grid.element.querySelector('.taelgar-index-card').textContent,/A second sentence/);
     assert.doesNotMatch(grid.element.querySelector('.taelgar-index-card').textContent,/Current Location:/);
     assert.doesNotMatch(grid.element.querySelector('.taelgar-index-card').textContent,/Home:/);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 
@@ -339,7 +343,7 @@ test('Obsidian auto-Members popups skip Cintra image callouts and explicit empty
     const invalid=await h.block('','Groups/Shakun Mystai.md','taelgar-header');
     assert.ok(invalid.element.querySelector('.taelgar-generated-bio'));
     assert.match(invalid.element.querySelector('.taelgar-index-error').textContent,/indexes must be an array/);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('Obsidian table indexes avoid description reads and closing a view cancels a pending grid mount',async()=>{
@@ -353,17 +357,17 @@ test('Obsidian table indexes avoid description reads and closing a view cancels 
     const source=new Promise(resolve=>{release=resolve;});
     h.app.vault.cachedRead=()=>{started();return source;};
     const pending=h.block('type: members\ntarget: Guild');
-    await reading;h.feature.unload();release(cintraSource);
+    await reading;h.dispose();release(cintraSource);
     const grid=await pending;
     assert.equal(grid.element.innerHTML,'');
     assert.equal(h.document.querySelector('.taelgar-index-grid'),null);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('reused Obsidian queries isolate render additions, dates, targets and metadata refreshes',async()=>{
   const h=host();
   try {
-    const snapshot=await h.feature.getSnapshot();
+    const snapshot=await h.plugin.snapshots.getSnapshot();
     const run=(date='1720-01-01',source='Places/Realm.md')=>h.obsidianIndex(h.app,snapshot,{type:'residents'},source,date);
     const first=run(),expected=JSON.stringify(first);
     first.items[0].name='Changed by one render';first.items[0].image='app://stale';
@@ -373,10 +377,10 @@ test('reused Obsidian queries isolate render additions, dates, targets and metad
     assert.deepEqual(Array.from(run('1720-01-01','Places/Other Realm.md').items,item=>item.path),['People/Visitor.md']);
     h.metadata.get('People/Alice.md').whereabouts='Other Realm';
     h.cache.trigger('changed');await pause(160);
-    const updated=await h.feature.getSnapshot();
+    const updated=await h.plugin.snapshots.getSnapshot();
     const changed=h.obsidianIndex(h.app,updated,{type:'residents'},'Places/Realm.md','1720-01-01');
     assert.ok(!changed.items.some(item=>item.path==='People/Alice.md'));
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 
@@ -416,12 +420,12 @@ test('Places filters keep independent Obsidian cached grids, tables and existenc
     const natural=await h.block('type: places\nplaceType: natural','Places/Town.md');
     assert.equal(natural.element.querySelectorAll('.taelgar-index-card').length,1);assert.match(natural.element.textContent,/Wood/);assert.doesNotMatch(natural.element.textContent,/Shop|Shrine/);
     h.click(natural.element.querySelector('.taelgar-index-link'));assert.deepEqual(h.opened.at(-1),['Places/Wood.md','Places/Town.md',false]);
-    const snapshot=await h.obsidianHeaders(h.app),context='Places/Wood.md',date='1720-01-01';
+    const snapshot=await h.plugin.snapshots.getSnapshot(),context='Places/Wood.md',date='1720-01-01';
     h.obsidianIndex(h.app,snapshot,{type:'places',placeType:'built'},context,date);
     assert.equal(h.obsidianIndexExists(h.app,snapshot,{type:'places',placeType:'built'},context,date),true);
     assert.equal(h.obsidianIndexExists(h.app,snapshot,{type:'places',placeType:'natural'},context,date),false);
     const invalid=await h.block('type: rivers\nplaceType: built','Places/Basin.md');assert.match(invalid.element.textContent,/only supported for places/);
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
 });
 
 test('Rivers and Places use native links, compact tables and lazy image-card popups in Obsidian',async()=>{
@@ -445,5 +449,19 @@ test('Rivers and Places use native links, compact tables and lazy image-card pop
       h.click(popup.querySelector('.taelgar-index-link'));assert.equal(h.opened.at(-1)[1],'Places/'+target+'.md');
       h.click(popup.querySelector('.taelgar-index-close'));
     }
-  } finally {h.feature.unload();}
+  } finally {h.dispose();}
+});
+
+test('inline indexes recover at the same date after a calendar provider error',async()=>{
+  const h=host();
+  try{
+    const {element}=await h.block('type: residents');
+    const snapshot=await h.plugin.snapshots.getSnapshot();
+    delete h.metadata.get('Places/Realm.md').pageTargetDate;
+    h.globals.TaelgarverseCalendar={getCurrentDate(){throw new Error('Campaign unavailable');}};
+    h.plugin.dates.notify();await pause(20);assert.match(element.textContent,/Campaign unavailable/);
+    h.globals.TaelgarverseCalendar.getCurrentDate=()=> '1720-01-01';
+    h.plugin.dates.notify();await pause(20);assert.match(element.textContent,/Alice Example/);
+    assert.equal(await h.plugin.snapshots.getSnapshot(),snapshot);
+  }finally{h.dispose();}
 });

@@ -1,8 +1,7 @@
 import {Component,MarkdownRenderChild,MarkdownRenderer,Notice} from 'obsidian';
-import {createHeaderSnapshot,renderHeaderCallout} from '../../../src/header-core/index.mjs';
-import {Contexts} from '../../../src/contexts.mjs';
+import {renderHeaderCallout} from '../../../src/header-core/index.mjs';
 import {escapeHtml} from '../../../src/common.mjs';
-import {headerIndexesForMetadata,parseIndex,queryIndex,indexHasResults,indexLabels} from '../../../src/indexes.mjs';
+import {headerIndexesForMetadata,parseIndex,indexLabels} from '../../../src/indexes.mjs';
 import {indexView,indexPopup,indexPopupShell,indexError} from '../../../src/index-view.mjs';
 import {indexImageTarget} from '../../../src/index-images.mjs';
 import {IMAGE_TYPES,parseNote} from '../../../src/content-store.mjs';
@@ -10,65 +9,11 @@ import {firstDescriptionSentence} from '../../../src/index-description.mjs';
 import {mountIndexPopups} from '../../../src/browser/index-popups.mjs';
 import {headerSourceEligibility,rewriteHeader} from '../../../src/header-rewrite.mjs';
 import {installHeaderTool} from '../header-tool.mjs';
+import {obsidianIndex,obsidianIndexExists} from '../services/indexes.mjs';
 
-export function bioDate(metadata, globals, fallback) {
-  if (globals.customJS?.state?.overrideDate) return globals.customJS.state.overrideDate;
-  if (metadata.pageTargetDate) return metadata.pageTargetDate;
-  if (globals.TaelgarverseCalendar) return globals.TaelgarverseCalendar.getCurrentDate();
-  const fantasy = globals.FantasyCalendarAPI?.getCalendars()?.[0]?.current;
-  if (fantasy) return fantasy;
-  try { return globals.Calendarium?.getAPI('Taelgar')?.getCurrentDate() ?? fallback; }
-  catch { return fallback; }
-}
-
-export async function obsidianHeaders(app) {
-  const [coreMeta,registry] = await Promise.all([
-    app.vault.adapter.read((app.vault.configDir || '.obsidian') + '/metadata.json'),
-    app.vault.adapter.read('_scripts/session_note_campaigns.json'),
-  ]).then(values => values.map(value=>JSON.parse(value)));
-  const pages = app.vault.getMarkdownFiles().map(file => ({path:file.path,metadata:app.metadataCache.getFileCache(file)?.frontmatter || {}}));
-  const runtime = createHeaderSnapshot({pages,coreMeta,registry},{
-    resolveLink:target=>app.metadataCache.getFirstLinkpathDest(target,app.vault.getRoot().path)?.path,
-  });
-  const fallback = new Contexts({entries:pages.map(page=>({id:page.path,note:{metadata:page.metadata}}))},registry,{default_date:'1750-01-01'}).resolve().date;
-  return {runtime,fallback};
-}
-
-export function obsidianBio(snapshot,file,metadata,globals=globalThis) {
+export function obsidianBio(snapshot,file,metadata,date) {
   return renderHeaderCallout(snapshot.runtime,{name:file.basename,
-    metadata,date:bioDate(metadata,globals,snapshot.fallback),mode:'obsidian'});
-}
-
-// Metadata changes replace the runtime snapshot, dropping its cached queries.
-// This author-only cache never serves website requests or crosses date/source views.
-const indexSnapshots=new WeakMap();
-const MAX_INDEX_QUERIES=32;
-function indexState(snapshot) {
-  let state=indexSnapshots.get(snapshot.runtime);
-  if(!state) {
-    state={pages:new Map(snapshot.runtime.pages.map(page=>[page.path,page])),queries:new Map()};
-    indexSnapshots.set(snapshot.runtime,state);
-  }
-  return state;
-}
-const indexKey=(options,sourcePath,date)=>JSON.stringify([sourcePath,options.type,options.target,options.recursive ?? options.type!=='members',options.placeType,date]);
-const indexContext=(app,state,sourcePath,date)=>({date,sourcePath,resolve:(target,source)=>{
-  const file=app.metadataCache.getFirstLinkpathDest(target,source);
-  return file && state.pages.get(file.path);
-}});
-export function obsidianIndexExists(app,snapshot,options,sourcePath,date) {
-  const state=indexState(snapshot),cached=state.queries.get(indexKey(options,sourcePath,date));
-  return cached ? cached.items.length>0 : indexHasResults(snapshot.runtime,options,indexContext(app,state,sourcePath,date));
-}
-export function obsidianIndex(app,snapshot,options,sourcePath,date) {
-  const state=indexState(snapshot),key=indexKey(options,sourcePath,date);
-  let result=state.queries.get(key);
-  if(result)state.queries.delete(key);
-  else result=queryIndex(snapshot.runtime,options,indexContext(app,state,sourcePath,date));
-  state.queries.set(key,result);
-  if(state.queries.size>MAX_INDEX_QUERIES)state.queries.delete(state.queries.keys().next().value);
-  // Image URLs and other host additions belong to this render, not the cache.
-  return structuredClone(result);
+    metadata,date,mode:'obsidian'});
 }
 
 async function indexMarkup(feature,snapshot,options,sourcePath,date,{popup=false,heading=false}={}) {
@@ -113,29 +58,29 @@ class BioChild extends MarkdownRenderChild {
   }
   onload() {
     this.feature.bios.add(this);
-    this.timer=setInterval(()=>{
+    this.register(this.feature.plugin.dates.subscribe(()=>{
       const file=this.feature.app.vault.getAbstractFileByPath(this.context.sourcePath);
       if(!file)return;
       const metadata=this.feature.app.metadataCache.getFileCache(file)?.frontmatter || {};
       try {
-        const date=JSON.stringify(bioDate(metadata,globalThis,this.feature.snapshot?.fallback));
+        const date=JSON.stringify(this.feature.plugin.dates.getDate(metadata,this.feature.plugin.snapshots.snapshot?.fallback));
         if(date!==this.date)this.render();
       } catch {this.render();}
-    },2000);
+    }));
     return this.render();
   }
   async render() {
     const sequence=++this.sequence,element=this.containerEl,app=this.feature.app;
     let rendering;
     try {
-      const snapshot=await this.feature.getSnapshot();
+      const snapshot=await this.feature.plugin.snapshots.getSnapshot();
       if(this.disposed || sequence!==this.sequence)return;
       const file=app.vault.getAbstractFileByPath(this.context.sourcePath);
       if(!file)throw new Error('The source note is no longer available.');
       const metadata=app.metadataCache.getFileCache(file)?.frontmatter || {};
-      this.date=JSON.stringify(bioDate(metadata,globalThis,snapshot.fallback));
+      const date=this.feature.plugin.dates.getDate(metadata,snapshot.fallback);this.date=JSON.stringify(date);
       if(this.disposed || sequence!==this.sequence)return;
-      const markdown=obsidianBio(snapshot,file,metadata,globalThis);
+      const markdown=obsidianBio(snapshot,file,metadata,date);
       // Render offscreen so a stale async render cannot replace a newer header.
       const output=element.ownerDocument.createElement('div');
       output.className='taelgar-generated-bio';
@@ -143,18 +88,18 @@ class BioChild extends MarkdownRenderChild {
       await MarkdownRenderer.render(app,markdown,output,this.context.sourcePath,rendering);
       if(this.disposed || sequence!==this.sequence){this.removeChild(rendering);return;}
       let disposeIndexes;
-      const indexButtons=this.feature.headerIndexPopups ? headerIndexMarkup(this.feature,snapshot,metadata,this.context.sourcePath,bioDate(metadata,globalThis,snapshot.fallback)) : '';
+      const indexButtons=this.feature.headerIndexPopups ? headerIndexMarkup(this.feature,snapshot,metadata,this.context.sourcePath,date) : '';
       if(indexButtons) {
         const buttons=element.ownerDocument.createElement('div');buttons.className='taelgar-index-buttons';
         buttons.innerHTML=indexButtons;
         if(buttons.innerHTML) {
           output.append(buttons);
           disposeIndexes=mountIndexes(buttons,app,this.context.sourcePath,{load:async details=>{
-            const current=await this.feature.getSnapshot();
+            const current=await this.feature.plugin.snapshots.getSnapshot();
             const currentFile=app.vault.getAbstractFileByPath(this.context.sourcePath);
             if(!currentFile)throw new Error('Index target unavailable');
             const currentMetadata=app.metadataCache.getFileCache(currentFile)?.frontmatter || {};
-            return indexMarkup(this.feature,current,{type:details.dataset.indexType},this.context.sourcePath,bioDate(currentMetadata,globalThis,current.fallback));
+            return indexMarkup(this.feature,current,{type:details.dataset.indexType},this.context.sourcePath,this.feature.plugin.dates.getDate(currentMetadata,current.fallback));
           }});
         }
       }
@@ -164,12 +109,13 @@ class BioChild extends MarkdownRenderChild {
     } catch(error) {
       if(rendering)this.removeChild(rendering);
       if(this.disposed || sequence!==this.sequence)return;
+      this.date=null;
       if(this.rendered){this.removeChild(this.rendered);this.rendered=null;}
       this.disposeIndexes?.();this.disposeIndexes=null;
       element.textContent='Bio unavailable: '+error.message;
     }
   }
-  onunload() {this.disposed=true;this.sequence++;clearInterval(this.timer);this.disposeIndexes?.();this.containerEl.replaceChildren();this.feature.bios.delete(this);}
+  onunload() {this.disposed=true;this.sequence++;this.disposeIndexes?.();this.containerEl.replaceChildren();this.feature.bios.delete(this);}
 }
 
 class IndexChild extends BioChild {
@@ -181,17 +127,17 @@ class IndexChild extends BioChild {
       if(options?.show==='website') {
         this.disposeIndexes?.();this.disposeIndexes=null;element.replaceChildren();element.hidden=true;return;
       }
-      const snapshot=await this.feature.getSnapshot();
+      const snapshot=await this.feature.plugin.snapshots.getSnapshot();
       if(this.disposed || sequence!==this.sequence)return;
       const metadata=this.feature.app.metadataCache.getFileCache(this.feature.app.vault.getAbstractFileByPath(this.context.sourcePath))?.frontmatter || {};
-      const date=bioDate(metadata,globalThis,snapshot.fallback);this.date=JSON.stringify(date);
+      const date=this.feature.plugin.dates.getDate(metadata,snapshot.fallback);this.date=JSON.stringify(date);
       const html=await indexMarkup(this.feature,snapshot,options,this.context.sourcePath,date,{heading:options.heading});
       if(this.disposed || sequence!==this.sequence)return;
       this.disposeIndexes?.();element.hidden=false;element.innerHTML=html;
       this.disposeIndexes=mountIndexes(element,this.feature.app,this.context.sourcePath);
     }catch(error){
       if(this.disposed || sequence!==this.sequence)return;
-      this.disposeIndexes?.();this.disposeIndexes=null;element.hidden=false;element.innerHTML=indexError(error);
+      this.date=null;this.disposeIndexes?.();this.disposeIndexes=null;element.hidden=false;element.innerHTML=indexError(error);
     }
   }
 }
@@ -246,23 +192,7 @@ export class HeadersFeature extends Component {
         context.addChild(new BioChild(this,'',host,context));
       }
     },100);
-    const refresh=()=>{
-      this.pending=null;this.snapshot=null;clearTimeout(this.timer);
-      this.timer=setTimeout(()=>{for(const child of this.bios)child.render();},100);
-    };
-    for(const [events,names] of [[this.app.metadataCache,['changed','resolved']],[this.app.vault,['rename','delete']]]) {
-      if(events?.on)for(const name of names)this.registerEvent(events.on(name,refresh));
-    }
+    this.register(this.plugin.snapshots.subscribe(()=>{for(const child of this.bios)void child.render();}));
   }
-  async getSnapshot() {
-    if(!this.pending) {
-      const pending=obsidianHeaders(this.app);this.pending=pending;
-      pending.catch(()=>{if(this.pending===pending)this.pending=null;});
-    }
-    const pending=this.pending,snapshot=await pending;
-    if(this.disposed)throw new Error('The bio renderer has unloaded.');
-    if(this.pending!==pending)return this.getSnapshot();
-    this.snapshot=snapshot;return snapshot;
-  }
-  onunload() {this.disposed=true;clearTimeout(this.timer);for(const child of [...this.bios])child.unload();this.pending=null;this.snapshot=null;}
+  onunload() {this.disposed=true;for(const child of [...this.bios])child.unload();}
 }

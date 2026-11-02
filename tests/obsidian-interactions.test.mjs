@@ -1,3 +1,4 @@
+import {serviceExports,attachServices} from './helpers/obsidian-services.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
@@ -11,7 +12,7 @@ import {imageDOM} from './helpers/image-dom.mjs';
 import {codeMirrorHost} from './helpers/codemirror-host.mjs';
 
 const require=createRequire(import.meta.url);
-const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export * from './obsidian/taelgarverse/features/interactions.mjs'; export * from './obsidian/taelgarverse/features/interaction-data.mjs';",resolveDir:ROOT},write:false,
+const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export * from './obsidian/taelgarverse/features/interactions.mjs'; export * from './obsidian/taelgarverse/features/interaction-data.mjs';"+serviceExports,resolveDir:ROOT},write:false,
   bundle:true,platform:'node',format:'cjs',external:['obsidian','@codemirror/state','@codemirror/view'],logLevel:'silent'});
 const registry={campaigns:{cleenseau:{name:'Cleenseau',code:'clee',aliases:['Clee'],campaignRoot:'Campaigns/Clee',notePattern:'Session {session_padded}.md'},other:{name:'Other',code:'other',aliases:['OTH'],campaignRoot:'Campaigns/Other'}}};
 const recap=(campaign,text)=>['## Session Header','- Campaign: '+campaign,'- Session Number: 1','- Desc Title: At the Inn','- Tagline: '+text,'- DR Date: 1748-01-01','## Recap',
@@ -42,6 +43,7 @@ function host({automatic=false,notes={}}={}) {
     unload(){if(!this.loaded)return;this.loaded=false;this.onunload?.();for(const child of [...this.children])this.removeChild(child);for(const cleanup of this.cleanups)cleanup();this.cleanups=[];}
     addChild(child){this.children.add(child);child.load();return child;}
     removeChild(child){this.children.delete(child);child.unload();}
+    register(dispose){this.cleanups.push(dispose);}
     registerEvent(off){this.cleanups.push(off);}
     registerDomEvent(element,name,fn){element.addEventListener(name,fn);this.cleanups.push(()=>element.removeEventListener(name,fn));}
   }
@@ -62,8 +64,10 @@ function host({automatic=false,notes={}}={}) {
   const view={file:files.get('People/Person.md'),mode:'preview',getMode(){return this.mode;},getViewType:()=> 'markdown',previewMode:{containerEl:dom.document.querySelector('.markdown-preview-view')}};
   const leaves=[{view}],processors=new Map(),extensions=[];
   const plugin={app,settings:{automaticInteractions:automatic},registerMarkdownCodeBlockProcessor:(language,fn)=>processors.set(language,fn),registerMarkdownPostProcessor(fn){this.post=fn;},registerEditorExtension:value=>extensions.push(value)};
+  const disposeServices=attachServices(plugin,module.exports);
   const feature=new module.exports.InteractionsFeature(plugin);feature.load();
-  return {...dom,...module.exports,globals,app,feature,plugin,view,leaves,processors,extensions,metadata,texts,reads,opened,intervals,cache,vault,workspace,
+  const dispose=()=>{feature.unload();disposeServices();};
+  return {...dom,...module.exports,globals,app,feature,dispose,plugin,view,leaves,processors,extensions,metadata,texts,reads,opened,intervals,cache,vault,workspace,
     async settle(){await pause(15);await Promise.all([...feature.panels.values()].map(child=>child.ready));await pause(5);},
     block(source='',p='People/Person.md'){const element=dom.document.createElement('div');dom.document.body.append(element);let child;processors.get('taelgar-interactions')(source,element,{sourcePath:p,addChild(value){child=value;child.load();}});return {element,child};},
     editor(source=texts.get('People/Person.md'),p='People/Person.md',live=true){return {doc:{length:source.length,toString:()=>source},field:key=>key===liveField?live:key===infoField?{file:files.get(p)}:undefined};},
@@ -82,7 +86,7 @@ test('Obsidian indexes authoritative recaps and native campaign references, reta
     assert.equal(result.group.events[0].transcriptUrl,undefined);
     assert.ok(h.reads.every(p=>!p.includes('/Session 01.md') && !p.includes('transcript') && !p.startsWith('World') && !p.includes('_generated')));
     assert.equal(h.metadata.get('People/Person.md').excludePublish,'all','vault metadata is never modified');
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('Obsidian reads only missing-recap official session notes for fallback dots and preserves native occurrence visibility',async()=>{
@@ -107,7 +111,7 @@ test('Obsidian reads only missing-recap official session notes for fallback dots
     h.texts.set('_sessions/cleenseau/cleenseau-001/cleaned/cleenseau-001-session-recap.md','Malformed recap');
     const broken=await h.obsidianInteractions(h.app);
     assert.ok(!broken.index.byTarget['People/Person.md'].some(event=>event.id==='session:clee:1'),'malformed recap also blocks a fallback');
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('Obsidian keeps separate same-day official session dots with native links',async()=>{
@@ -124,7 +128,7 @@ test('Obsidian keeps separate same-day official session dots with native links',
       assert.equal(h.opened.at(-1)[0],'Campaigns/Clee/Session 0'+(index+2)+'.md');
     }
     assert.equal(root.querySelector('[data-interaction-back]'),null);child.unload();
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('explicit blocks select known campaigns, retain choice after refresh, and open only native session links',async()=>{
@@ -158,7 +162,7 @@ test('explicit blocks select known campaigns, retain choice after refresh, and o
     h.cache.trigger('changed');await pause(190);await h.settle();assert.equal(element.querySelector('select[aria-label="Campaign"]').value,'all');
     h.click(element.querySelector('.interaction-dot'));const openPopup=element.querySelector('.interaction-detail');
     child.unload();assert.equal(openPopup.hidden,true);assert.equal(h.feature.panels.size,0);
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
   assert.equal(h.intervals.size,0);assert.equal(h.cache.count,0);assert.equal(h.vault.count,0);assert.equal(h.workspace.count,0);assert.equal(h.resize.size,0);
 });
 
@@ -180,7 +184,7 @@ test('reference filtering uses authored tags before local knownTo adaptation and
     }
     assert.equal(h.metadata.get('Campaigns/Clee/Untagged known page.md').tags,undefined);
     child.unload();
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('All preserves the heading and picker above consistent knowledge-only campaign headers',async()=>{
@@ -197,7 +201,7 @@ test('All preserves the heading and picker above consistent knowledge-only campa
     assert.equal(element.querySelectorAll('.interaction-campaign-header').length,1);
     assert.ok(element.querySelector('h2 + .taelgar-interaction-campaign select'));
     child.unload();
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('native backlink offsets preserve CRLF and authored links after generated callouts',async()=>{
@@ -209,7 +213,7 @@ test('native backlink offsets preserve CRLF and authored links after generated c
     assert.ok(events.some(event=>event.title==='Windows letter'));
     assert.equal(events.filter(event=>event.title==='Following callout').length,1,'the authored reference after the callout retains its native offsets');
     assert.equal(events.some(event=>event.title==='Windows header'),false);
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('reference-only campaign choices keep the picker below the heading and native item/document links, then restore the recap timeline',async()=>{
@@ -253,7 +257,7 @@ test('reference-only campaign choices keep the picker below the heading and nati
     h.click(element.querySelector('.interaction-dot'));
     assert.match(element.querySelector('.interaction-detail').textContent,/Cleenseau party/);
     child.unload();
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('knownTo without campaign records renders a compact campaign header in blocks, Reading View and Live Preview',async()=>{
@@ -273,7 +277,7 @@ test('knownTo without campaign records renders a compact campaign header in bloc
     const widget=h.extensions[0][0].create(h.editor('Body',p)).ranges[0].value.widget;
     const preview=widget.toDOM({dom:h.document.createElement('div'),requestMeasure(){}});await h.settle();heading(preview);widget.destroy(preview);
     assert.equal(h.texts.get(p),'---\nknownTo: Clee\n---\n# Known Only');
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('the campaign picker stays below the heading for knowledge-only campaigns and restores records when switching campaigns',async()=>{
@@ -302,7 +306,7 @@ test('the campaign picker stays below the heading for knowledge-only campaigns a
     assert.equal(element.querySelector('.interaction-campaign-header h3').textContent,'Cleenseau');
     assert.equal(element.querySelector('.interaction-knowledge').textContent,'Known to party');
     child.unload();
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('automatic Reading View footers stay at the end, appear on non-person knownTo pages, suppress explicit blocks, and disappear when notes close',async()=>{
@@ -320,7 +324,7 @@ test('automatic Reading View footers stay at the end, appear on non-person known
     h.view.file=h.app.vault.getAbstractFileByPath('People/Person.md');await h.feature.syncReading();await h.settle();
     h.feature.setAutomatic(false);await pause(180);await h.feature.syncReading();assert.equal(root.querySelectorAll('.taelgar-interactions').length,0);
     h.feature.setAutomatic(true);await h.feature.syncReading();await h.settle();h.leaves.length=0;await h.feature.syncReading();assert.equal(h.feature.panels.size,0);assert.equal(h.mutations.size,0);
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('Live Preview uses a block widget at the document end, updates for edits and metadata, and leaves Source mode and explicit fences alone',async()=>{
@@ -337,19 +341,21 @@ test('Live Preview uses a block widget at the document end, updates for edits an
     const examples='````markdown\n```taelgar-interactions\n```\n````';assert.equal(h.hasInteractionsBlock(examples),false);
     h.metadata.get('People/Person.md').knownTo=[];assert.equal(field.create(state).ranges.length,0);
     widget.destroy(element);tracker.destroy();assert.equal(h.feature.editors.size,0);
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('date overrides and recap edits refresh the shared history without stale renders or note writes',async()=>{
   const h=host();
   try {
     const {element,child}=h.block();await child.ready;
+    const readsBeforeDateChange=h.reads.length;
     h.globals.customJS={state:{overrideDate:'1747-01-01'}};for(const tick of h.intervals.values())tick();await h.settle();assert.doesNotMatch(element.textContent,/Cleenseau party/);assert.match(element.textContent,/Handout/);
     h.globals.customJS.state.overrideDate='1750-01-02';for(const tick of h.intervals.values())tick();await h.settle();assert.match(element.textContent,/Later/);
+    assert.equal(h.reads.length,readsBeforeDateChange,'date changes reuse the interaction snapshot without rereading notes');
     const p='_sessions/cleenseau/cleenseau-001/cleaned/cleenseau-001-session-recap.md';h.texts.set(p,h.texts.get(p).replace('Cleenseau party','edited party'));h.vault.trigger('modify');await pause(190);await h.settle();assert.match(element.textContent,/edited party/);
-    assert.equal(h.interactionsDate({},{FantasyCalendarAPI:{getCalendars:()=>[{current:{year:1748,month:0,day:2}}]}},'1750-01-01'),'1748-01-02');
+    assert.equal(h.normalizeInteractionDate({year:1748,month:0,day:2}),'1748-01-02');
     assert.equal(h.texts.get('People/Person.md'),initial['People/Person.md']);
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 test('closed panels cannot mount late results and invalid block bodies explain the supported syntax',async()=>{
@@ -357,7 +363,7 @@ test('closed panels cannot mount late results and invalid block bodies explain t
   try {
     h.defer();const {element,child}=h.block();child.unload();h.release();await child.ready;assert.equal(element.childElementCount,0);
     const invalid=h.block('campaign: clee');await invalid.child.ready;assert.match(invalid.element.textContent,/Leave.*empty/);invalid.child.unload();
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
 });
 
 
@@ -368,5 +374,19 @@ test('explicit placement detects nested fences and ignores outer code examples',
       assert.equal(h.hasInteractionsBlock(source),true,source);
     assert.equal(h.hasInteractionsBlock('~~~~markdown\n~~~taelgar-interactions\n~~~\n~~~~'),false);
     assert.equal(h.hasInteractionsBlock('    ~~~taelgar-interactions\n    ~~~'),false);
-  }finally{h.feature.unload();}
+  }finally{h.dispose();}
+});
+
+test('calendar availability events replace stale interaction panels and recover without rereading notes',async()=>{
+  const h=host(),{element}=h.block();
+  try{
+    await h.settle();delete h.metadata.get('People/Person.md').pageTargetDate;
+    const reads=h.reads.length;
+    h.globals.TaelgarverseCalendar={getCurrentDate(){throw new Error('Campaign date unavailable');}};
+    h.workspace.trigger('taelgarverse:context-changed');await h.settle();
+    assert.match(element.textContent,/Campaign interactions unavailable: Campaign date unavailable/);
+    h.globals.TaelgarverseCalendar.getCurrentDate=()=> '1748-01-02';
+    h.workspace.trigger('taelgarverse:context-changed');await h.settle();
+    assert.match(element.textContent,/Cleenseau party/);assert.equal(h.reads.length,reads);
+  }finally{h.dispose();}
 });
