@@ -765,6 +765,12 @@ a collapse control. The right sidebar flows with the page, with no sticky
 positioning, height cap, or separate scrollbar. The left navigation retains its
 own scrolling.
 
+Desktop breadcrumbs align with the article's prose width and stay on one line.
+When the full trail will not fit, older ancestors collapse into an `…` disclosure;
+open it to follow those links. Home, the current page, and as many nearest ancestors
+as fit remain visible. An exceptionally long current-page label truncates with an
+ellipsis; hovering shows its full title. The trail expands again when space permits.
+
 Main sections appear in the desktop header, with the current section's branch
 on the left. Below 1100px the full navigation moves into a hamburger drawer;
 below 800px the page contents disappear. In note or homepage frontmatter,

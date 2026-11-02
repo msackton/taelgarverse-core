@@ -135,8 +135,10 @@ flowchart LR
 
 The page shell uses Quiet Library typography with the Sage & stone palette.
 `src/header.mjs` owns header controls, dialogs, and search suggestion markup; `src/navigation.mjs`
-renders context-filtered section links and the lazy navigation tree. Browser
-code moves navigation and context controls into dialogs below 1100px. Search
+renders context-filtered section links and the lazy navigation tree.
+`public/navigation.js` fits desktop breadcrumbs to one line and keeps collapsed
+ancestors accessible through a disclosure (see [navigation](vault.md#links-navigation-and-media)).
+Browser code moves navigation and context controls into dialogs below 1100px. Search
 uses the original field with a nonmodal suggestions dropdown; its phone icon
 reveals the field in the header. Backlinks use the right sidebar even without a contents list, and remain
 accessible below the article on mobile. Material CSS still provides article
