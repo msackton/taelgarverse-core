@@ -2,76 +2,31 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
 import {mountSessionReview} from '../src/browser/session-review.mjs';
-
-const ref={kind:'transcript',sourceId:'transcriptProcessing.artifacts.polishedMarkdown',startUid:'u0002',endUid:'u0004'};
-const fixture=()=>({token:{mapSha256:'map',inputDigest:'inputs',notes:[]},session:{campaign:'Demo',number:1},
-  reviewState:{history:[],excluded:[],deferred:[],invalidated:[],accepted:{},redirects:{}},notes:{},
-  document:{entities:[{id:'e001',kind:'npc',label:'Uncertain guide',reason:'Candidate unresolved.',candidates:['People/Guide.md'],occurrences:[{source:ref}],review:{confidence:'medium',status:'unreviewed'}},
-    {id:'e002',kind:'divine',label:'Named spirit',reason:'No individual page.',occurrences:[{source:ref}],review:{confidence:'high',status:'automatedReviewed'}}],
-    exclusions:[{label:'Ordinary coins',reason:'Routine treasure.',source:ref}]},exclusionRecords:[{key:'exclusion:coins',label:'Ordinary coins',reason:'Routine treasure.',source:ref}]} );
-const settle=()=>new Promise(resolve=>setTimeout(resolve,5));
-function button(root,name){return [...root.querySelectorAll('button')].find(el=>el.textContent===name);}
+const settle=()=>new Promise(resolve=>setTimeout(resolve,10));
+const button=(root,name)=>[...root.querySelectorAll('button')].find(el=>el.textContent===name);
 function setup(){
-  const {document}=parseHTML('<html><body><main></main></body></html>');const root=document.querySelector('main');
-  // linkedom does not implement a writable select.value like Chromium does.
-  const create=document.createElement.bind(document);
-  document.createElement=tag=>{const el=create(tag);if(tag==='select')Object.defineProperty(el,'value',{value:'',writable:true});return el;};
-  let data=fixture();const calls=[],opened=[];
-  const view=mountSessionReview(root,{open:async(...args)=>opened.push(args),request:async request=>{
+  const {document}=parseHTML('<main></main>'),root=document.querySelector('main'),calls=[];
+  const create=document.createElement.bind(document);document.createElement=tag=>{const node=create(tag);if(tag==='select')Object.defineProperty(node,'value',{value:'',writable:true});return node;};
+  const view=mountSessionReview(root,{open:()=>{},request:async request=>{
     calls.push(request);
-    if(request.command==='index')return {sessions:[{sessionYaml:'_sessions/demo/cleaned/demo-session.yaml',campaign:'Demo',number:1,stage:'reviewable',entities:2,pending:1,human:0}]};
-    if(request.command==='inspect')return structuredClone(data);
-    if(request.command==='evidence')return {passages:[{source:ref,owner:'Scene 1',text:'DM: The guide speaks.',path:'_sessions/demo/cleaned/demo-transcript.md',line:9}]};
-    if(request.command==='entityQueueDecision'){
-      assert.deepEqual(request.token,data.token);
-      const row=data.document.entities.find(x=>'entity:'+x.id===request.key);row.review.status='humanReviewed';data.reviewState.history.push({entity:row.id,action:request.action});
-      data.token.mapSha256+='next';return structuredClone(data);
-    }
-    throw new Error('Unexpected request');
-  }});
-  return {root,view,calls,opened};
+    if(request.command==='index')return {sessions:[{sessionYaml:'demo.yaml',campaign:'Demo',number:1,entities:1,pending:1},{sessionYaml:'unmapped.yaml',campaign:'Other'}]};
+    if(request.command==='inspect')return {token:{},session:{campaign:'Demo',number:1},review:{history:[],feedback:[]},document:{entities:[{id:'e001',label:'Guide',kind:'npc',importance:'cameo',review:{confidence:'high',status:'automatedReviewed'}}]}};
+    throw new Error('Unexpected '+request.command);
+  }});return {root,view,calls};
 }
-test('session selection opens a compact queue and hides the session inventory',async()=>{
-  const {root,view}=setup();await view.ready;
-  button(root,'Demo 1').click();await settle();
-  assert.match(root.textContent,/Uncertain guide/);assert.match(root.textContent,/1 accepted by AI confidence/);
-  assert.ok([...root.querySelectorAll('div')].some(node=>node.hidden&&node.querySelector('table')));
-  assert.doesNotMatch(root.textContent,/The guide speaks/);
-  button(root,'Skip for now').click();await settle();assert.match(root.textContent,/Ordinary coins/);
-  button(root,'Back to sessions').click();await settle();assert.ok(button(root,'Demo 1'));
-  view.dispose();assert.equal(root.childNodes.length,0);
+test('session inventory only offers two actions for maps, with explicit human-review status',async()=>{
+  const h=setup();await h.view.ready;assert.equal(h.root.querySelectorAll('tbody tr').length,1);
+  assert.match(h.root.textContent,/Unreviewed · 1 of 1/);assert.equal(h.root.querySelector('tbody').querySelectorAll('button').length,2);
+  button(h.root,'Show entities map').click();await settle();assert.equal(h.view.getState().stage,'map');assert.match(h.root.textContent,/Guide/);
+  button(h.root,'Back to sessions').click();await settle();button(h.root,'Review entities').click();await settle();
+  assert.equal(h.view.getState().stage,'review');assert.ok(button(h.root,'Skip for now'));h.view.dispose();
 });
-test('selected evidence opens original UID-resolved source and accepts only the selected entity',async()=>{
-  const {root,view,calls,opened}=setup();await view.ready;
-  button(root,'Demo 1').click();await settle();
-  const evidence=[...root.querySelectorAll('summary')].find(node=>node.textContent==='Transcript evidence').parentElement;
-  evidence.open=true;evidence.dispatchEvent(new root.ownerDocument.defaultView.Event('toggle'));await settle();
-  assert.match(root.textContent,/The guide speaks/);
-  button(root,'Open transcript passage').click();await settle();assert.deepEqual(opened,[['_sessions/demo/cleaned/demo-transcript.md',9]]);
-  button(root,'Accept and next').click();await settle();
-  const applied=calls.filter(x=>x.command==='entityQueueDecision');assert.equal(applied.length,1);assert.equal(applied[0].key,'entity:e001');
-  assert.equal(view.getState().entity,'exclusion:coins');view.dispose();
+test('restoring selection does not start Python and changing state clears stale controls',async()=>{
+  const h=setup();await h.view.ready;await h.view.restore({session:'other.yaml',stage:'review'});assert.deepEqual(h.calls.map(r=>r.command),['index']);
+  button(h.root,'Review entities').click();await settle();assert.ok(button(h.root,'Accept and next'));
+  await h.view.restore({session:'other.yaml',stage:'map'});assert.equal(button(h.root,'Accept and next'),undefined);h.view.dispose();
 });
-test('late index response cannot redraw an unloaded review view',async()=>{
-  const {document}=parseHTML('<main></main>');const root=document.querySelector('main');let resolve;
-  const view=mountSessionReview(root,{request:()=>new Promise(r=>resolve=r),open:()=>{}});
-  view.dispose();resolve({sessions:[]});await view.ready;assert.equal(root.childNodes.length,0);
-});
-
-test('restored session state waits for an explicit user action before loading its review',async()=>{
-  const {document}=parseHTML('<main></main>');const root=document.querySelector('main');const calls=[];
-  const view=mountSessionReview(root,{initialState:{session:'demo-session.yaml',entity:'e001'},open:()=>{},request:async request=>{
-    calls.push(request.command);if(request.command==='index')return {sessions:[]};throw new Error('Unexpected helper request');
-  }});
-  await view.ready;await view.restore({session:'demo-session.yaml',entity:'e001'});
-  assert.deepEqual(calls,['index']);assert.equal(view.getState().session,'demo-session.yaml');view.dispose();
-});
-
-test('changing restored session state clears old decision controls before resuming',async()=>{
-  const {root,view,calls}=setup();await view.ready;button(root,'Demo 1').click();await settle();
-  assert.ok(button(root,'Accept and next'));
-  const count=calls.length;
-  await view.restore({session:'_sessions/other/cleaned/other-session.yaml',stage:'entities'});
-  assert.equal(calls.length,count);assert.equal(button(root,'Accept and next'),undefined);
-  assert.doesNotMatch(root.textContent,/Uncertain guide/);assert.match(root.textContent,/Saved selection restored/);view.dispose();
+test('late discovery cannot redraw a disposed view',async()=>{
+  const {document}=parseHTML('<main></main>');let resolve;const root=document.querySelector('main');
+  const view=mountSessionReview(root,{request:()=>new Promise(r=>resolve=r),open:()=>{}});view.dispose();resolve({sessions:[]});await view.ready;assert.equal(root.childNodes.length,0);
 });

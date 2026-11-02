@@ -98,7 +98,7 @@ test('setup inspection records runtime identity without starting a child process
 
 test('missing Python shows an inline failure instead of a blank Obsidian view',async()=>{
   const h=host({requestError:'spawn python ENOENT'});await h.view.open(h.root);
-  assert.match(h.root.textContent,/spawn python ENOENT/);assert.match(h.root.textContent,/Refresh session index/);
+  assert.match(h.root.textContent,/spawn python ENOENT/);assert.match(h.root.textContent,/Refresh sessions/);
   h.view.onClose();
 });
 

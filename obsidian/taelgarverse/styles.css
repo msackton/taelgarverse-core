@@ -38,3 +38,14 @@
 .entity-review-card summary { cursor: pointer; }
 .entity-queue-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; margin-block: .8rem; }
 .entity-later-identity { font-weight: 600; color: var(--text-accent); }
+.entity-review-map { min-width: 0; }
+.entity-review-map > div { overflow-x: auto; }
+.entity-review-map td { vertical-align: top; min-width: 12rem; overflow-wrap: anywhere; }
+.entity-review-map td:last-child { min-width: 18rem; }
+.entity-review-map a, .entity-review-card a { display: inline-block; margin: .2rem .6rem .2rem 0; }
+.entity-review-map select, .entity-review-card select { max-width: 100%; }
+@media (max-width: 650px) {
+  .entity-review-map thead { display: none; }
+  .entity-review-map tr, .entity-review-map td { display: block; min-width: 0; }
+  .entity-review-map tr { margin-block: 1rem; border: 1px solid var(--background-modifier-border); }
+}

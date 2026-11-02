@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {parse} from 'yaml';
+import {createHash} from 'node:crypto';
 
 // Discovery hints only. Guarded Python inspection validates a chosen review.
 // Do not follow symlinks/junctions while browsing the local session inventory.
@@ -27,29 +28,21 @@ export async function discoverSessionReviews(vault){
       const data=parse(await plain(file));
       if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('Expected a session YAML object');
       row.campaign=String(data.campaign??'');row.number=data.sessionNumber;
-      const folder=path.dirname(file),files=await entries(folder);
-      const reports=files.filter(item=>item.name.endsWith('-transcript-review.md'));
-      if(reports.length>1)throw new Error('Multiple transcript reviews; select the intended bundle');
-      if(reports.length){
-        const text=await plain(path.join(folder,reports[0].name));
-        const header=text.match(/^%% transcript-review:v1 (.+) %%\r?$/m);
-        if(!header){row.transcriptStage='legacy review';row.transcriptPending=null;}
-        else{
-          const meta=JSON.parse(header[1]);
-          row.transcriptStage=meta.qualityComplete===true?'reviewable':'quality pending';
-          row.transcriptPending=[...text.matchAll(/^%% transcript-issue:v1 (.+) %%\r?$/gm)].length;
-        }
-      }else{
-        try{await plain(path.join(folder,'transcript-work/state.json'));row.transcriptStage='cleaning in progress';row.transcriptPending=null;}
-        catch(error){if(error.code!=='ENOENT')throw error;row.transcriptStage=data.transcriptProcessing?.status??'not processed';row.transcriptPending=0;}
-      }
+      const folder=path.dirname(file);
       const entity=path.join(folder,path.basename(file).replace(/-session\.yaml$/,'-entity-map.json'));
       try{
         const doc=JSON.parse(await plain(entity));
         if(!Array.isArray(doc.entities)||doc.entities.some(item=>!item?.review))throw new Error('Invalid entity inventory');
+        row.entities=doc.entities.length;
+        const reviewPath=entity.replace(/-entity-map\.json$/,'-entities-review.json');
+        try{
+          const review=JSON.parse(await plain(reviewPath));
+          if(review.transaction){row.pending=doc.entities.length;row.reviewRecovery=true;}
+          if(!review.transaction&&review.mapSha256!==createHash('sha256').update(await plain(entity)).digest('hex'))throw new Error('Review JSON is out of sync with the entity map');
+        }catch(error){if(error.code!=='ENOENT')throw error;}
         Object.assign(row,{stage:'reviewable',entities:doc.entities.length,
-          pending:doc.entities.filter(item=>item.review.status==='unreviewed'||item.review.confidence!=='high').length,
-          human:doc.entities.filter(item=>item.review.status==='humanReviewed').length,deferred:doc.reviewState?.deferred?.length??0});
+          pending:row.reviewRecovery?doc.entities.length:doc.entities.filter(item=>item.review.status!=='humanReviewed').length,
+          human:doc.entities.filter(item=>item.review.status==='humanReviewed').length});
       }catch(error){if(error.code!=='ENOENT')throw error;}
     }catch(error){row.stage='error';row.error=error.message;}
     sessions.push(row);

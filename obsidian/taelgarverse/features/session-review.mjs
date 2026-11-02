@@ -146,7 +146,7 @@ export class SessionReviewFeature extends Component{
   renderSettings(container){
     new Setting(container).setName('Session review').setHeading();
     new Setting(container).setName('Enable session review')
-      .setDesc('Experimental desktop session index, transcript fixes, and entity decisions. Requires Python 3.9+ and the vault’s session-review helpers.')
+      .setDesc('Sessions with entity maps, editable rows, and one-at-a-time human review. Requires Python 3.9+ and the vault’s entity-review helper.')
       .addToggle(toggle=>toggle.setValue(this.enabled).onChange(async value=>{
         this.plugin.settings.sessionReviewEnabled=value;await this.plugin.saveData(this.plugin.settings);
         if(!value)this.app.workspace.detachLeavesOfType?.(SESSION_REVIEW_VIEW);

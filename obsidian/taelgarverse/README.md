@@ -26,17 +26,17 @@ permits insertion and `--write` applies edits; `--check` and `--write` are exclu
 See [formats and boundaries](../../docs/vault.md#writing-or-adding-a-saved-header)
 and [CLI usage](../../docs/deploy.md#saved-header-commands).
 
-## Session review prototype
+## Entity map review
 
 Enable **Settings → Taelgarverse → Enable session review**, then run
-**Taelgarverse: Open session review**. The desktop tab indexes session manifests,
-queued transcript fixes, and entity maps. It supports selected transcript
-decisions, passage search, bounded manual corrections, change previews, and explicit
-transcript completion, as well as entity
-acceptance/correction, deferral, exclusions, and deliberate merges/splits.
-Discovery runs natively without Python. Review operations require the vault-owned
-deterministic Python helpers and their dependencies. Changes require explicit
-user actions. See [setup and review behavior](../../docs/session-review.md).
+**Taelgarverse: Open session review**. Sessions with entity maps offer **Show
+entities map** (editable rows with source/vault links) and **Review entities**
+(one at a time). A session stays unreviewed until all included entities are human
+reviewed, regardless of agent confidence. Human edits, optional reasons, and agent
+feedback persist in a sibling entities-review JSON. The entity skill reads that
+feedback for assisted resolution and recalibration. Discovery needs no Python;
+review uses the vault-owned guarded Python helper. See
+[setup and review behavior](../../docs/session-review.md).
 
 ## Relationship explorer
 

@@ -1,212 +1,120 @@
-# Session review in Obsidian
+# Entity map review in Obsidian
 
-The experimental **Session review** workspace tab indexes the local vault's
-`_sessions/**/*-session.yaml` manifests. It is a manual editor and review queue:
-you choose passages and identities, inspect changes, and explicitly save them.
-Existing suggestions are optional inputs. Discovery runs locally in JavaScript;
-opening the hub does not launch Python. Python supplies deterministic source
-validation and guarded writes when you explicitly open or change a review.
+The desktop **Session review** tab now focuses on entity maps. Enable
+**Settings → Taelgarverse → Enable session review**, then run
+**Taelgarverse: Open session review**. The session list has exactly two actions:
+**Show entities map** and **Review entities**. Only mapped sessions are listed;
+discovery errors remain visible. Search uses campaign, session number, and YAML path.
 
-## Local setup
+A session is **Unreviewed** whenever any included entity is not `humanReviewed`.
+High-confidence or `automatedReviewed` entities still require human review. Counts
+are local discovery hints; opening a map validates registered source, YAML, note,
+map, and feedback fingerprints. Refresh after external changes. Source or note
+changes block review until the map is intentionally rechecked; old human status
+is never proof that changed evidence was reviewed.
 
-Opening and searching the session index requires only the desktop plugin. For
-transcript/entity review operations the vault must contain the maintained `process-transcript`,
-`prepare-interaction-transcript`, `map-transcript-scenes`, and
-`check-session-entities` helpers under `.agents/skills/`. Install Python 3.9+
-and the requirements from the entity skill:
+## Table and queue
+
+**Show entities map** displays a row per entity with ID, kind, session importance,
+confidence, review status, source names, vault target, and clickable UID source
+blocks. Later-identification and Mirror of the Past flags remain visible.
+**Read source passages** loads verbatim evidence on demand. Vault links open the
+actual local note, and source links open the UID-resolved source editor line.
+Both polished transcripts and registered prepared narratives are supported.
+
+Expand **Edit entity / feedback** to change the label, kind, importance, vault
+link, or review status. New links are inspected before saving. Leaving a link blank
+keeps the entity unlinked. Choosing a target clears unresolved alternatives; clearing
+a target also clears the later-identification flag. Changing an item to another
+kind clears its item-only Mirror flag. Other fields and source evidence remain intact.
+**Save changes**, **Mark human reviewed**, and **Remove entity** save immediately.
+Every edit/removal records the old/new record and an optional reason. Removal
+retains the old record in history. There is no automatic deletion of session files.
+
+**Review entities** uses the same fields and saves, showing one entity at a time.
+The default queue includes every included entity not human reviewed; **All entities**
+also allows reopening completed decisions. **Skip for now** and **Previous** navigate
+without saving. **Accept and next** explicitly marks the displayed decision human
+reviewed; **Save and next** preserves the selected review status. Returning to the
+session list refreshes its counts. Empty maps have zero pending included entities.
+Original excluded candidates are visible as context below the table; they are not
+part of the included-entity review count. Request complex splits, merges, additions,
+or exclusion revisions through feedback for the agent.
+
+## Feedback and agent handoff
+
+**Agent feedback** saves an entity comment/question immediately, without an export
+step or a model call. **Session feedback and history** accepts missing-entity or
+session-level comments and shows saved changes/reasons, including removed entities.
+Comments do not change review status. Use the explicit status control to reopen a
+record that needs another human review. Feedback is saved in
+`cleaned/<stem>-entities-review.json`, beside `*-entity-map.json`; a link appears
+after the first save. Merely opening review never creates a file.
+
+The vault's `check-session-entities` skill understands this JSON and these requests:
+
+- **Recalibrate skill based on feedback:** inspect corrections and original
+  confidence/reasons, reconcile their snapshots, and update supported skill rules
+  and examples. Session-specific edits do not automatically become general rules.
+- **Resolve feedback with my help:** inspect open issues and supporting passages,
+  work through questions with the human, apply agreed changes through guarded
+  saves, and record a resolution only after checking the outcome.
+
+Human corrections remain in history. Agent resolutions do not create human approval.
+Changed source/note evidence requires preserving the old record’s fields while
+resetting its status to unreviewed; the earlier approval remains in history.
+Regeneration appends an agent event and cannot overwrite whole human-reviewed
+records, forge new human statuses, or recreate removed IDs. Reopen a protected
+record as unreviewed before asking an agent to revise it. Historical calibration
+exports are preserved and are not automatically replayed or migrated.
+
+## Setup, persistence, and recovery
+
+Discovery runs in JavaScript without Python. Review requires Python 3.9+ and the
+vault's maintained `.agents/skills/check-session-entities/scripts/entity_review.py`
+and its source-reader dependencies. Install the entity skill requirements, e.g.:
 
 ```powershell
 python -m pip install -r D:\personal\taelgar\.agents\skills\check-session-entities\requirements.txt
 ```
 
-From core, build/install the local development plugin:
+Configure the Python executable in Taelgarverse settings when needed. The desktop
+adapter invokes Python without a shell using UTF-8 JSON stdin/stdout. Windows
+uses the existing native executable resolution and forward-slash launch paths.
+Requests have a 60-second timeout, 16 MiB output limit, and callback watchdog.
+Errors stay visible beside the form; failed writes do not advance the queue.
+The lower-level Python setup/connection commands remain available to adapter tests;
+the focused session UI no longer contains transcript repair or connection tools.
+
+Map and review writes share the session lock. Review JSON contains version 1,
+purpose `session-entities-review`, the session YAML, current map byte hash,
+history, and open/resolved feedback. Each human change includes before/after
+snapshots and exact map hashes. Agent regeneration records whole-map snapshots.
+A write-ahead transaction inside the review file allows the next inspection to
+complete an interrupted two-file save if the map still matches its before/after
+hash. Unexpected external changes stop for reconciliation; never edit hashes to
+bypass the guard. Refresh/reinspect after a stale-token failure.
+
+This replaces the old provisional `reviewState` queue and high-confidence default
+acceptance. The current entity-map schema does not accept `reviewState`; unsupported
+legacy maps need the entity skill's explicit upgrade. Existing transcript review
+artifacts and helpers are preserved, but transcript repair is outside this tab.
+No final interaction generation or automatic agent execution is added.
+
+## Ownership and checks
+
+Core owns the desktop adapter, native index, DOM table/queue, and plugin styles.
+The vault owns source validation, guarded edits, review JSON, locks, and recoverable
+writes in `entity_review.py` and `entity_review_store.py`. `entity_map.py` uses the
+same store when regenerating a reviewed map. See the vault skill's
+`references/review-workflow.md` for the agent API and feedback semantics.
+
+Run core's entity/session review, index, process, Python-resolution, and Obsidian
+adapter tests, plus `node scripts/build-obsidian.mjs`. Run the vault entity suite
+with `python3 -B -m unittest discover -s .agents/skills/check-session-entities/tests -v`.
+Use temporary bundles for save/recovery tests. A local plugin build does not install
+or release it. Development installation, when requested, uses:
 
 ```powershell
 npm run dev -- --plugin --vault D:\personal\taelgar
 ```
-
-This updates the local plugin installation, preserving its settings and vault
-notes. Reload Taelgarverse if the installer cannot reload it. Enable
-**Settings → Taelgarverse → Enable session review**, then run
-**Taelgarverse: Open session review**. The Python executable can be configured
-in the same settings. Requests invoke it without a shell, in UTF-8 mode, using
-asynchronous `execFile` and JSON stdin/stdout. On Windows the executable and
-working-directory paths use forward slashes for the native launch. It resolves
-a native Python `.exe` from PATH or the usual Python
-installation folders before launching; non-executable Windows aliases are skipped.
-An explicit executable setting takes precedence. **Inspect Python setup** shows
-the resolved path and host versions without starting a process. This feature
-requires desktop Obsidian; it does not run on mobile.
-
-## Session index
-
-The index shows transcript stage/pending questions and entity counts. Its
-**Reviewable only** checkbox includes portable transcript reviews and entity
-maps; clear it to find finalized transcripts for a new bounded correction.
-Select the transcript or entity button for the desired stage. Search by campaign,
-session number, or manifest path. Counts are discovery hints: opening a stage
-validates current references before allowing decisions. Refresh explicitly after
-external edits. The workspace remembers the selected session, stage, and entity.
-**Reload selected session** resumes that saved selection explicitly. Opening or
-restoring the hub only discovers sessions; it never reopens a Python-backed
-review automatically. Unprocessed sessions open their manifest as an ordinary note.
-
-The tab initializes both when opened and when its workspace state is restored;
-deferred tabs are loaded before reuse. Startup failures display an explanation
-and **Retry opening session review**. If an older build left an empty tab,
-reload Taelgarverse and reopen the command. A Python/helper error appears in the
-tab beside its refresh controls; copy that message when reporting a failure.
-
-On 2026-10-29, approved live checks isolated the Windows blank-window issue to
-native process creation with the original launch paths in Obsidian 1.14.5
-(Electron 43.8.3 / Node 24.22.0, x64). Both renderer and experimental main-process
-launches failed before Python could respond; the latter exited with Windows
-status `0xC0000420`. Copied-runtime scratch tests had passed and did not reproduce
-the live failure. Normalizing the executable and working directory to equivalent
-forward-slash Windows paths made ordinary asynchronous stdin/stdout work in the
-live app. The final implementation uses that normalization without a main-process
-bridge, temporary transcript files, or an extra service. The lower-level cause of
-the host's path-dependent termination has not been established.
-
-After installing and reloading that build, the actual **Check Python connection**
-button succeeded with Python 3.11.7. Opening **Dragonets 1 → Transcript** displayed
-two queued questions in the hub's 223-session index. All decision buttons remained
-disabled pending a preview, and SHA-256 comparisons confirmed all 20 files in that
-session bundle were unchanged. Saving real decisions was outside this check.
-
-Native timeout is 60 seconds, output limit is 16 MiB, and the request also has a
-65-second callback watchdog. Early launch errors preserve the OS error even when
-stdin was never created. Stdin error listeners are removed on completion. Unit
-tests cover Windows drive/UNC normalization, Unicode and quoted JSON, large
-responses, controlled helper errors, output limits, and timeouts.
-
-The process-free setup inspection records runtime path/architecture, Node option
-names, selected non-secret environment flags, child-process import identity, and
-the selected launch backend in `session-review-debug.log`.
-
-The referenced [Python Scripter implementation](https://github.com/nickrallison/obsidian-python-scripter/blob/master/src/managers/scriptManager.ts)
-launches an external interpreter with `child_process.exec` through a shell; it does
-not embed Python. Its [README](https://github.com/nickrallison/obsidian-python-scripter/blob/master/README.md)
-marks it archived and points to Shell Commands. This is a comparison reference,
-not a dependency or a confirmed solution to the live renderer crash.
-Follow the user's current permissions for local build installation and for
-interaction with their running Obsidian session separately.
-
-## Transcript fixes
-
-Portable `*-transcript-review.md` files remain the transcript decision store.
-The original work queue is not required. Each question presents its original
-full UID, exact replacement target, proposal, alternatives, recommendation,
-conversation context, and affected readable turns.
-
-Choose proposed wording, an alternative, a custom replacement, or **Retain
-unresolved**. Leave undecided questions pending. **Copy replacement into matching turns**
-only replaces a unique literal occurrence of the target in the displayed readable
-turn; inspect that suggestion before applying. If punctuation differs, edit the
-turn explicitly. The existing validator checks the complete corrected turn,
-source coverage, meaningful symbols, and preserved words outside the correction.
-Speaker reassignment and turns needing reconstructed `[garbled]`/`[cross-talk]`
-substitution spans are not supported by the desktop form.
-
-**Preview transcript decision** validates the proposed changes in memory and
-shows exact file diffs without writing. Changing any form field invalidates its
-preview. **Apply this transcript decision** applies only that previewed question,
-rechecking its inspected fingerprints under the session lock. The existing
-session transaction writes cleaned text, readable text, and remaining review
-together. Original and prepared references remain unchanged. The inspected review
-hash and every retained reference fingerprint are checked under the shared session
-lock. A stale or invalid decision fails without recording a partial decision.
-Interrupted transactions use the existing transcript recovery procedure.
-
-**Search transcript** finds current wording, speakers, or a UID. Choose a result to
-inspect its original, current wording, and conversation context, then supply exact
-words occurring once in its cleaned text. **Queue this passage for correction**
-creates a bounded question, or adds one to an existing review. Overlap with another
-question is rejected; existing decisions and reviewed turn updates are preserved.
-Queuing a question does not change transcript wording. This works with portable
-reviews and finalized transcripts, without generating any model suggestions.
-
-After resolving all questions, **Preview finishing review** lists the completion
-record to update and the temporary review/processing files to retire. **Finish
-transcript review** requires that preview's exact current plan and invokes the
-existing deterministic finalizer. Retained original/prepared/cleaned/readable
-references remain in place. There are no autonomous runs or model calls.
-
-A changed transcript makes
-dependent scene/entity fingerprints stale. Their accepted decisions remain stored;
-recheck/rebuild maps before resuming entity review. The plugin never rewrites map
-fingerprints merely to make them appear current.
-
-## Entity decisions
-
-Opening entity review hides the session index and shows one compact proposal at a
-time. **Needs review** contains entities without a decision and unreviewed excluded
-candidates. High-confidence AI entities default to accepted and are accessible in
-**All entities and exclusions**. This is a display policy: opening the queue does
-not write decisions or forge `humanReviewed`. Medium/low confidence, changed
-evidence and deferred records have no default. Explicit human decisions override
-the AI default. Later-identification flags remain visible.
-
-Entity review accepts full-transcript calibration maps without a scene-map
-dependency and older maps that explicitly fingerprint a scene map. It preserves
-the saved evidence model; a missing or stale scene map still blocks an older map
-that depends on it. Both formats retain whole-turn UID, source, YAML and note
-validation.
-
-**Accept and next**, **Exclude and next**, **Include and next**, and **Keep excluded
-and next** save immediately through the guarded helper. A corrected vault link is
-inspected automatically before acceptance. Including an excluded candidate asks for
-its kind; the helper assigns a stable ID and retains its original evidence. A
-person can remain unlinked. **Skip for now** navigates without saving. Transcript
-evidence is expandable and loaded on demand; source editor line numbers are
-resolved from UIDs when opened, never saved as provenance.
-
-**Changes needed** saves a comment in `reviewState.requests`. **Export changes
-needed** writes `<stem>-entity-feedback-<map-hash>.json` beside the map, containing only
-unresolved change requests, qualified entity/exclusion references, reviewed record
-snapshots, exact current map byte hashes and reconciliation flags. It never starts
-an agent. Repeated exports use a numbered suffix to preserve earlier handoffs.
-Explicit later decisions clear the corresponding request. Exclusion
-references derive from label/source, not mutable array positions. Detailed kind,
-grouping or identity changes can be requested here without a large editing form.
-
-**Name transcribed incorrectly** selects an evidence UID, exact current words,
-optional suggested spelling and explanation. It queues a pending question in the
-existing portable transcript review Markdown, preserving its other questions and
-turn edits. A finalized transcript can be reopened for this bounded review. The
-entity decision and spoken text are unchanged by flagging. Agent guidance receives
-the entity origin and human feedback in the question's recommendation; a vault
-match alone does not establish what was spoken.
-
-Decisions and history currently live in optional `reviewState` inside the entity
-map, atomically with its entities. This is provisional review storage, not a final
-processing-log design. Excluded entities remain available there and are omitted by
-the read-only v7 projection. Redirects and history flag references needing recheck
-after merge/split/exclusion; no final interactions are rewritten or generated.
-
-Ordinary guarded regeneration preserves accepted human identities and review
-state. It rejects removal of protected identities and forged new human statuses.
-Changed dependent evidence resets the affected entity to unreviewed while retaining
-its accepted snapshot for recheck. Source ranges that no longer resolve require
-explicit reconciliation. Fingerprints do not discover newly created potential
-matches elsewhere in the vault. Validation never supplies semantic review status.
-
-## Ownership and checks
-
-Core owns the Obsidian feature and DOM views in
-`obsidian/taelgarverse/features/session-review.mjs`,
-native discovery in `obsidian/taelgarverse/features/session-review-index.mjs`,
-`src/browser/session-review.mjs`, `src/browser/entity-review.mjs`, and `src/browser/transcript-review.mjs`.
-The vault owns the scene/entity readers, guarded decision API, portable transcript
-review, shared lock, and atomic/transactional writes. The desktop adapter reuses
-those helpers instead of implementing source alignment or persistence in JavaScript.
-Windows uses a session-specific kernel mutex and no-follow draft file opens;
-Unix uses the existing directory flock.
-
-Use core's `node --test tests/session-review-index.test.mjs tests/session-review.test.mjs tests/entity-review.test.mjs tests/transcript-review.test.mjs`
-and plugin integration tests/build. In the vault, run the three scoped
-reduction/scene/entity suites plus `process-transcript`'s `test_desktop.py` and
-`test_review.py` with its scripts on `PYTHONPATH`. On Windows, use
-`python -X utf8 -B` for transcript tests whose legacy fixtures rely on UTF-8 defaults.
-Tests use temporary bundles and do not require saved calibration maps. A passing
-structural suite does not establish transcription accuracy or entity identity.

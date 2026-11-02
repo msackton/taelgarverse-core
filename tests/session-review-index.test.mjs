@@ -20,9 +20,9 @@ test('native discovery reads portable questions and entity review counts without
   const before=await Promise.all((await fs.readdir(folder)).map(async file=>[file,await fs.readFile(path.join(folder,file),'utf8')]));
   const result=await discoverSessionReviews(root),row=result.sessions[0];
   assert.equal(result.countsAreUnvalidated,true);assert.equal(result.sessions.length,1);
-  assert.equal(row.sessionYaml,'_sessions/demo/cleaned/demo-session.yaml');assert.equal(row.transcriptPending,1);
-  assert.equal(row.entities,2);assert.equal(row.pending,1);assert.equal(row.human,1);assert.equal(row.deferred,1);
-  assert.equal(row.transcriptStage,'reviewable');
+  assert.equal(row.sessionYaml,'_sessions/demo/cleaned/demo-session.yaml');assert.equal(row.transcriptPending,undefined);
+  assert.equal(row.entities,2);assert.equal(row.pending,1);assert.equal(row.human,1);assert.equal(row.deferred,undefined);
+  assert.equal(row.transcriptStage,undefined);
   for(const [file,text] of before)assert.equal(await fs.readFile(path.join(folder,file),'utf8'),text);
 });
 
@@ -30,13 +30,13 @@ test('malformed inventories are visible and do not hide other sessions',async t=
   const {root,write}=await fixture(t);await write('broken-session.yaml','[not a manifest]');
   await write('ignored-session.yml','campaign: Ignored');
   const result=await discoverSessionReviews(root);
-  assert.equal(result.sessions.length,2);assert.equal(result.sessions.find(row=>row.number===1).transcriptStage,'complete');
+  assert.equal(result.sessions.length,2);assert.equal(result.sessions.find(row=>row.number===1).stage,'not mapped');
   assert.match(result.sessions.find(row=>row.stage==='error').error,/session YAML object/);
 });
 
 test('multiple review reports surface an error and an empty vault remains browseable',async t=>{
   const {root,write}=await fixture(t);await write('one-transcript-review.md','legacy');await write('two-transcript-review.md','legacy');
-  assert.match((await discoverSessionReviews(root)).sessions[0].error,/Multiple transcript reviews/);
+  assert.equal((await discoverSessionReviews(root)).sessions[0].stage,'not mapped');
   await fs.rename(path.join(root,'_sessions'),path.join(root,'elsewhere'));
   assert.deepEqual((await discoverSessionReviews(root)).sessions,[]);
 });
@@ -45,5 +45,11 @@ test('unprocessed manifests remain discoverable alongside cleaned session bundle
   const {root}=await fixture(t);const folder=path.join(root,'_sessions/to-process/demo');await fs.mkdir(folder,{recursive:true});
   await fs.writeFile(path.join(folder,'second-session.yaml'),'campaign: Demo\nsessionNumber: 2');
   const result=await discoverSessionReviews(root);assert.equal(result.sessions.length,2);
-  assert.equal(result.sessions.find(row=>row.number===2).transcriptStage,'not processed');
+  assert.equal(result.sessions.find(row=>row.number===2).stage,'not mapped');
+});
+
+ test('high-confidence automated reviews keep a session pending',async t=>{
+  const {root,write}=await fixture(t);
+  await write('demo-entity-map.json',JSON.stringify({entities:[{review:{status:'automatedReviewed',confidence:'high'}},{review:{status:'humanReviewed',confidence:'low'}}]}));
+  const row=(await discoverSessionReviews(root)).sessions[0];assert.equal(row.pending,1);assert.equal(row.human,1);
 });
