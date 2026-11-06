@@ -1,5 +1,7 @@
 const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-export const interactionKindLabel=kind=>kind==='session-reference' ? 'Session reference' : kind==='reference' ? 'Campaign reference' : 'Encounter';
+export const interactionKindLabel=kind=>({'session-reference':'Session reference',reference:'Campaign reference',observation:'Observed',presence:'Present',mention:'Mentioned','mapped-reference':'Session record'}[kind] || 'Encounter');
+export const exchangeActionLabel=action=>({interacted:'Interacted',observed:'Observed',present:'Present',mentioned:'Mentioned'}[action] || 'Recorded');
+export const exchangeRoleLabel=role=>({star:'Featured',supporting:'Supporting',cameo:'Cameo'}[role] || '');
 export function interactionDateLabel(event) {
   if (!event.start) return (event.sessionLabel ? event.sessionLabel+' · ' : '')+'Date unrecorded';
   if (event.precision==='year') return event.start.slice(0,4);

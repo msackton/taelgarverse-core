@@ -111,15 +111,15 @@ validates these files, embeds geometry with the owning note, and checks for
 changes before packaging. Their content hashes invalidate the publication
 checkpoint even if the files are Git-ignored. They are not public asset downloads.
 
-Both previews compile [person campaign interactions](campaign-interactions.md)
-from recap Cast `met` membership in the original vault's `_sessions` directory,
-plus non-session campaign-folder backlinks. Each encounter is one full session;
-session notes supply the title, dates, tagline, and optional note link, with
-recap session headers as fallback metadata. Beats and transcripts are ignored.
-Session-header and Cast changes refresh quick preview and participate in
-publication fingerprints; beat-only edits do not. Session encounter records
-require a fresh content publication; older beat projections are omitted while
-session references and related material remain readable. Deploy the updated core
+Both previews compile [campaign interactions](campaign-interactions.md) from
+validated entity/interaction maps in the original vault's `_sessions` directory,
+with recap Cast `met` membership and explicit session-note links retained for
+older sessions. One dot represents one entity per session; mapped popups include
+retained passages with action/role labels. Session metadata, mapped participation,
+and retained passages participate in fingerprints and refresh quick preview.
+Review context and unrelated recap beats remain outside the public projection.
+Fresh content publication is required to compile maps; core deployment alone
+does not update stored interactions. Deploy the updated core
 through GitHub before publishing new content.
 
 ### Roll out compiled runtime snapshots

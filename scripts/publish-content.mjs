@@ -245,6 +245,7 @@ export function buildFingerprint(settings, options, config={}) {
     new URL('../src/content-store.mjs', import.meta.url), new URL('../src/header-callout.mjs', import.meta.url), new URL('../src/backlinks.mjs', import.meta.url),
     new URL('../src/campaign-interactions.mjs', import.meta.url), new URL('../src/session-interactions.mjs', import.meta.url),
     new URL('../src/recap-parser.mjs', import.meta.url),
+    new URL('../src/mapped-sessions.mjs', import.meta.url),
     new URL('../src/campaign-ownership.mjs', import.meta.url),
     new URL('../src/markdown.mjs', import.meta.url), new URL('../src/comments.mjs', import.meta.url),
     new URL('../src/common.mjs', import.meta.url), new URL('./build-runtime.mjs', import.meta.url)]) {

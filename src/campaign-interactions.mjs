@@ -39,16 +39,18 @@ function fullDate(key) {
   return String(Math.floor(key/10000)).padStart(4,'0')+'-'+String(Math.floor(key/100)%100).padStart(2,'0')+'-'+String(key%100).padStart(2,'0');
 }
 // The recap supplies session-level fallback metadata, never beat text.
-function sessionVariants(bundle) {
-  const fields={title:bundle.title || 'Session '+bundle.number,text:bundle.tagline || ''},conditions=[];
+function sessionVariants(bundle,fields={title:bundle.title || 'Session '+bundle.number,text:bundle.tagline || ''}) {
+  const conditions=[];
   for (const value of Object.values(fields)) filterComments(value,{date:'0001-01-01',conditions});
   const campaigns=[...new Set(conditions.map(rule=>rule.campaign).filter(code=>code && code!=='none'))].sort();
   if (campaigns.length>10) throw new Error('Too many campaign conditions for session projection');
   const states=campaigns.reduce((all,code)=>[...all,...all.map(state=>[...state,code])],[[]]);
   const dates=[...new Set([10101,...conditions.map(rule=>rule.date).filter(Boolean)])].sort((a,b)=>a-b),variants=new Map();
   for (let i=0;i<dates.length;i++) for (const selected of states) for (const dm of [false,true]) {
-    const projected=Object.fromEntries(Object.entries(fields).map(([key,value])=>[key,interactionText(
-      filterComments(value,{date:fullDate(dates[i]),campaigns:selected,dm}).replace(/<p class="dm-block-label">Behind the Curtain<\/p>/g,''))]));
+    const projected=Object.fromEntries(Object.entries(fields).map(([key,value])=>{
+      const visible=filterComments(value,{date:fullDate(dates[i]),campaigns:selected,dm}).replace(/<p class="dm-block-label">Behind the Curtain<\/p>/g,'');
+      return [key,key==='passage' ? visible.trim() : interactionText(visible)];
+    }));
     if (!projected.title) continue;
     const key=JSON.stringify(projected),variant=variants.get(key) || {...projected,when:[]};
     variant.when.push({...(selected.length ? {campaigns:selected} : {}),
@@ -59,6 +61,8 @@ function sessionVariants(bundle) {
   return [...variants.values()];
 }
 function isPerson(entry) { return list(entry?.note?.metadata.tags).includes('person'); }
+const actionKinds={interacted:'encounter',observed:'observation',present:'presence',mentioned:'mention'};
+const actionPriority=['interacted','observed','present','mentioned'];
 export function interactionReferenceType(metadata) {
   const tags=new Set(list(metadata?.tags).filter(tag=>typeof tag==='string').flatMap(tag=>tag.split(/[\s,]+/)).map(tag=>tag.replace(/^#/,'').toLowerCase().split('/')[0]).filter(Boolean));
   if(!tags.size || tags.has('meta') || tags.has('background'))return null;
@@ -126,8 +130,10 @@ function explicitTarget(store,name,warnings,source) {
 export function compileInteractionIndex(store,registry,backlinks,bundles=null) {
   const identities=campaignIdentities(registry),byTarget=Object.create(null),warnings=[],recaps=new Map();
   const append=(target,record)=>{(byTarget[target] ||= []).push(record);};
+  const mappedIdentities=new Set((bundles || []).filter(bundle=>bundle.mapped).map(bundle=>recapIdentity(bundle,registry,identities)).filter(Boolean));
   for (const bundle of bundles || []) {
     if(bundle.invalid)continue;
+    if(!bundle.mapped && mappedIdentities.has(recapIdentity(bundle,registry,identities)))continue;
     const campaign=identities.get(normalize(bundle.campaign));
     if (!campaign) {warnings.push(bundle.key+': unknown campaign '+bundle.campaign);continue;}
     const key=campaign+':'+bundle.number,items=recaps.get(key) || [];
@@ -139,10 +145,31 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=null) {
     const period=interactionDate(bundle.date),until=interactionDate(bundle.end) || period;
     if(period && until.end<period.start){warnings.push(bundle.key+': inverted session dates');continue;}
     const sources=sessionSources(store,registry,identities,campaign,bundle.number);
-    const met=new Set((bundle.metPeople || []).map(name=>explicitTarget(store,name,warnings,bundle.key)?.slug).filter(Boolean));
     try {
       const variants=sessionVariants(bundle);
-      for (const target of met) append(target,{id:'recap:'+identity,campaign,kind:'encounter',scope:'session',sessionSources:sources,
+      const records=new Map();
+      if(bundle.mapped)for(const entity of bundle.entities) {
+        if(!entity.note)continue;
+        const target=store.entries.find(entry=>entry.note && entry.id===entity.note);
+        if(!target){warnings.push(bundle.key+': unavailable mapped note '+entity.note);continue;}
+        // Several session-era identities may resolve to the same canonical note.
+        const previous=records.get(target.slug),exchanges=previous?.exchanges || [];
+        for(const exchange of entity.exchanges) {
+          const existing=exchanges.find(item=>item.id===exchange.id);
+          if(existing) {
+            if(actionPriority.indexOf(exchange.action)<actionPriority.indexOf(existing.action))existing.action=exchange.action;
+            if(['star','supporting','cameo'].indexOf(exchange.role)<['star','supporting','cameo'].indexOf(existing.role))existing.role=exchange.role;
+          } else exchanges.push({id:exchange.id,order:exchange.order,action:exchange.action,role:exchange.role,
+            variants:sessionVariants(bundle,{title:exchange.title,passage:exchange.passage})});
+        }
+        exchanges.sort((a,b)=>a.order-b.order);
+        const importance=['star','supporting','cameo'].find(role=>role===previous?.importance || role===entity.importance);
+        records.set(target.slug,{kind:'mapped-reference',exchanges,importance,
+          ...(previous?.examinedInMirrorOfPast || entity.examinedInMirrorOfPast ? {examinedInMirrorOfPast:true} : {})});
+      }
+      else for(const target of new Set((bundle.metPeople || []).map(name=>explicitTarget(store,name,warnings,bundle.key)?.slug).filter(Boolean)))records.set(target,{kind:'encounter'});
+      for (const [target,details] of records) append(target,{id:(bundle.mapped ? 'mapped:' : 'recap:')+identity,campaign,...details,
+        ...(details.exchanges ? {exchanges:details.exchanges.map(({order,...exchange})=>exchange)} : {}),scope:'session',sessionSources:sources,
         session:'recap:'+identity,sessionLabel:'Session '+bundle.number,variants,
         start:period?.start || null,end:until?.end || null,
         precision:period ? period.start===until.end ? period.precision : 'range' : 'undated'});
@@ -153,7 +180,7 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=null) {
   const ownership=buildBacklinkCampaigns(store,registry);
   const roots=Object.values(registry.campaigns || {}).map(campaign=>normalize(campaign.campaignRoot).replaceAll('\\','/').replace(/\/+$/,'')).filter(Boolean);
   for (const entry of store.bySlug.values()) {
-    if (!isPerson(entry)) continue;
+    if (!isPerson(entry) && !list(entry.note?.metadata.knownTo).length) continue;
     for (const link of Object.hasOwn(backlinks?.byTarget || {},entry.slug) ? backlinks.byTarget[entry.slug] : []) {
       const source=store.bySlug.get(link.source),metadata=source?.note?.metadata;
       const fallback=fallbacks.get(link.source);
@@ -168,19 +195,25 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=null) {
   return {version:2,backlinkVersion:backlinks?.version || null,byTarget,warnings};
 }
 export function campaignInteractions(index,store,entry,context,registry) {
-  if (!isPerson(entry) || !availableInContext(entry,context)) return [];
+  if ((!isPerson(entry) && !list(entry?.note?.metadata.knownTo).length) || !availableInContext(entry,context)) return [];
   const identities=campaignIdentities(registry),known=new Set(list(entry.note.metadata.knownTo).map(name=>identities.get(normalize(name))).filter(Boolean));
   const selected=new Set(context.campaigns),groups=new Map();
   for (const campaign of Object.values(registry.campaigns || {})) if (selected.has(campaign.code)) groups.set(campaign.code,{code:campaign.code,label:campaign.name,known:known.has(campaign.code),events:[]});
   for (const record of Object.hasOwn(index?.byTarget || {},entry.slug) ? index.byTarget[entry.slug] : []) {
     const group=groups.get(record.campaign);
     if (!group) continue;
-    if (record.kind==='encounter') {
+    if (record.kind==='encounter' || record.kind==='mapped-reference') {
       // Older beat projections cannot establish session-level met membership.
       if(record.scope!=='session')continue;
       const variant=record.variants.find(item=>interactionRuleVisible(item.when,context));
       if (!variant) continue;
-      const {when,...text}=variant,{variants,campaign,sessionSources:sources,...event}=record;
+      const {when,...text}=variant,{variants,campaign,sessionSources:sources,exchanges:compiledExchanges,...event}=record;
+      const exchanges=(compiledExchanges || []).flatMap(({variants,...exchange})=>{
+        const visible=variants.find(item=>interactionRuleVisible(item.when,context));
+        if(!visible)return [];
+        const {when,...content}=visible;return [{...exchange,...content}];
+      });
+      const action=actionPriority.find(action=>exchanges.some(exchange=>exchange.action===action));
       const candidates=(sources?.candidates || []).map(slug=>store.bySlug.get(slug)).filter(source=>availableInContext(source,context));
       const source=candidates.find(entry=>entry.slug===sources?.preferred) || (candidates.length===1 ? candidates[0] : null);
       const period=interactionDate(source?.note.metadata.DR),until=interactionDate(source?.note.metadata.DR_end) || period;
@@ -193,7 +226,7 @@ export function campaignInteractions(index,store,entry,context,registry) {
         title=source?.note.metadata.descTitle ? visible(source.note.metadata.descTitle) : text.title;
         description=source?.note.metadata.tagline ? visible(source.note.metadata.tagline) : text.text;
       } catch {continue;}
-      group.events.push({...event,...text,url:null,sessionUrl:source ? pageUrl(source.slug,context.date,context) : null,
+      group.events.push({...event,...text,...(compiledExchanges ? {kind:actionKinds[action] || 'mapped-reference',exchanges} : {}),url:null,sessionUrl:source ? pageUrl(source.slug,context.date,context) : null,
         title,text:description,sourceTitle:source?.title || text.title,location:'',start,end,
         precision:validPeriod ? period.start===until.end ? period.precision : 'range' : record.precision});
     } else if(record.kind==='session-reference') {

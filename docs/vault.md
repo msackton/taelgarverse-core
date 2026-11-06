@@ -795,41 +795,31 @@ normal campaign filtering described above.
 Nonempty backlinks appear in the right sidebar even on short articles; on mobile they
 appear in a collapsed **Linked from** section below the article.
 
-Person pages also show a **Campaign interactions** summary and session dot history
-for the intersection of the page's registered `knownTo` campaigns and the active
-context's campaigns, without a component campaign picker. An empty intersection
-means no component. `knownTo` supplies undated party knowledge and
-`campaignInfo` retains its normal header wording. Authoritative recap entries
-supply one encounter per session for resolved NPCs explicitly marked `met` in
-the recap's Cast. Mention-only and other statuses do not qualify; combined
-statuses containing `met` do. Cast membership alone selects sessions; beats,
-their NPC lists, Short/Long text, and transcripts are ignored. The available
-session note's `descTitle`, `DR`, `DR_end`, and `tagline` supply
-the popup's title, dates, and description, falling back to the recap Session Header. Session
-notes supply optional full-session links. If a session has no recap file, its official
-session note's explicit NPC links supply hollow **Session reference** dots, counted
-separately from encounters, with session dates and a note link. The registry
-filename wins, with a unique legacy metadata candidate as a fallback; ambiguous
-notes supply no dots. An existing recap suppresses note fallback for the whole
-session, even when its Cast contains no met entry for the person. Non-session
-campaign-folder backlinks supply separate links under **Related campaign material**. Untagged sources and
-sources with `meta` or `background` tags (including nested tags) are excluded.
-Related links run horizontally with wrapping on separate Items, Stories, Sources, and other References lines,
-based on authored tags, each showing up to ten links before **Show more** for longer lists.
-Selecting a dot opens its details in a compact popup with DR dates and links to
-available full session notes. Beat and transcript links are omitted. Popups start closed
-and dismiss with their close button, Escape, an outside click, or selecting the
-dot again. Missing source links never
-remove session encounters.
-Session references show only title, date, and a session-number link, with no
-explanatory commentary or repeated session titles. Recap sessions show only
-session-level information; they never combine beat details.
-Each session keeps a separate dot, even on the same recorded day. Dots open
-their popups directly without beat drill-down or zoom.
-Dots show their title and date even in long histories. Labels wrap across rows, with
-two-line titles and full text in the popup.
-This does not infer encounters from mentions or filter page availability by party
-knowledge. See [campaign interaction sources and rules](campaign-interactions.md).
+Available pages with registered `knownTo` campaigns show a **Campaign
+interactions** summary and one dot per session for the intersection of those
+campaigns and the active reader context. People, divine beings, items, and
+organizations can receive mapped histories. The website reads validated v4
+entity maps and matching v1 interaction collections from the original vault's
+`_sessions` directory. Exact mapped note paths identify targets. Dots distinguish
+encounters, observations, presence, mentions, and map-only session records.
+Only direct `interacted` participation counts as a mapped encounter.
+
+Selecting a mapped dot opens session metadata, session importance, optional
+Mirror of the Past information, and expandable exchange titles with retained
+passages and action/role labels. Text is escaped, conditional campaign/date/DM
+blocks are filtered, and source comments, cut-source speech, review context,
+source paths, and full transcripts are excluded. The same passages remain
+available without JavaScript. Session notes supply preferred display metadata
+and optional full-session links; complete-session end dates control visibility.
+
+Maps take precedence for the entire session. Stale or malformed artifacts omit
+the session with a local warning. Without maps, explicit recap Cast `met`
+membership retains the earlier encounter behavior; only when maps and recaps
+are both absent do authored session-note links supply hollow **Session
+reference** dots. Related non-session campaign material remains separate,
+with Items, Stories, Sources, and other References categories and **Show more**
+after ten links. `knownTo` and `campaignInfo` retain their authored header
+behavior. See [campaign interaction sources and rules](campaign-interactions.md).
 
 The Obsidian plugin offers the same dots through an empty `taelgar-interactions`
 code block. It also adds a footer automatically to notes with registered

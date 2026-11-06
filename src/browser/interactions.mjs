@@ -1,4 +1,4 @@
-import {interactionDateLabel,interactionParts,interactionKindLabel as kindLabel} from './interaction-groups.mjs';
+import {interactionDateLabel,interactionParts,interactionKindLabel as kindLabel,exchangeActionLabel,exchangeRoleLabel} from './interaction-groups.mjs';
 
 function node(document,tag,className,text) {
   const result=document.createElement(tag);result.className=className;if(text!=null)result.textContent=text;return result;
@@ -52,6 +52,19 @@ export function mountInteractions(root) {
     detail.replaceChildren(close,node(document,'p','interaction-event-meta',current.start ? interactionDateLabel(current)+' DR' : 'Date unrecorded'),title);
     if(!current.start && current.sessionStart)detail.append(node(document,'p','interaction-event-meta','Session dates: '+current.sessionStart+(current.sessionEnd!==current.sessionStart ? '–'+current.sessionEnd : '')+' DR'));
     if(current.kind!=='session-reference' && current.text)detail.append(node(document,'p','interaction-event-text',current.text));
+    if(current.exchanges) {
+      detail.append(node(document,'p','interaction-event-meta',kindLabel(current.kind)+' · '+exchangeRoleLabel(current.importance)+' in this session'+
+        (current.examinedInMirrorOfPast ? ' · Examined in the Mirror of the Past' : '')));
+      const exchanges=node(document,'div','interaction-exchanges');
+      for(const exchange of current.exchanges) {
+        const item=node(document,'details','interaction-exchange');
+        item.append(node(document,'summary','',exchange.title),node(document,'p','interaction-event-meta',exchangeActionLabel(exchange.action)+' · '+exchangeRoleLabel(exchange.role)),
+          node(document,'div','interaction-passage',exchange.passage));
+        item.addEventListener('toggle',positionPopup);
+        exchanges.append(item);
+      }
+      detail.append(exchanges);
+    }
     if(current.location)detail.append(node(document,'p','interaction-event-meta',current.location));
     const sessionLabel=current.sessionLabel || current.sourceTitle,sessionUrl=current.sessionUrl;
     if(sessionLabel){const sources=node(document,'nav','interaction-sources');sources.setAttribute('aria-label','Interaction sources');
@@ -81,6 +94,7 @@ export function mountInteractions(root) {
       const glyph=node(document,'span','interaction-glyph');glyph.setAttribute('aria-hidden','true');
       glyph.append(node(document,'span','interaction-mark '+event.kind,''));
       button.append(glyph,node(document,'span','interaction-dot-title',title),node(document,'span','interaction-dot-date',dateLabel));
+      if(event.exchanges)button.append(node(document,'span','interaction-dot-kind',kindLabel(event.kind)));
       button.addEventListener('click',()=>openPopup(event,button));plot.append(button);
     });
   }

@@ -1,171 +1,145 @@
-# Campaign interactions with people
+# Campaign interactions
 
-Person pages show authored campaign knowledge beside the header and a graphical
-**Campaign interactions** history below the article. Encounters are session
-records. Recap Cast membership selects the sessions; beats are never inputs.
-
-## Reader experience
-
-The website shows the intersection of the page's registered `knownTo` campaigns
-and the active context's campaigns, without a component campaign picker. An empty
-intersection means no component. Each selected campaign has its own heading and
-**Known to party** line. `knownTo` supplies undated knowledge; `campaignInfo`
+The website shows **Campaign interactions** on available notes with registered
+`knownTo` campaigns, including people, divine beings, items, and organizations.
+Only campaigns shared by `knownTo` and the active reader context appear. Each
+campaign retains its own heading and **Known to party** line; `campaignInfo`
 retains its normal header wording and does not create dots.
 
-Every session has one dot. Different sessions remain separate even when their
-dates match. The dot shows the session title and DR date or date range, including
-in long histories. Undated sessions stay undated. Titles use up to two lines;
-full titles are available on hover and in the popup. Dots wrap onto additional
-rows, with two columns on narrow screens.
+## Session maps on the website
 
-Selecting a dot opens its popup directly, without grouping, zoom, or beat
-drill-down. Recap-backed encounters show the session title, date, tagline, and
-an optional numbered link such as **Session 30** to the full session note. They
-do not show beat titles, Short/Long text, beat locations, or transcript links.
-The official session note's `descTitle`, `DR`, `DR_end`, and `tagline` supply
-display metadata; missing fields fall back to the recap's Session Header.
+The Node reader discovers `cleaned/*-entity-map.json` under
+`_sessions/<campaign>/<session>/`. A v4 entity map supplies exact vault-relative
+note targets, session importance, and an optional Mirror of the Past flag.
+Unresolved entities have no public page target; labels, aliases, and candidate
+paths never substitute for a missing mapped note. Targets still obey normal
+publication and page availability rules.
 
-Details start closed. A close button, Escape, an outside click, or selecting the
-dot again dismisses the popup. Only one popup is open across campaigns. Campaign
-changes and note closure also dismiss it. Popups fit the viewport and scroll for
-long text. Touch and keyboard use the same actions. Without JavaScript, the same
-sessions remain available as a list with full-session links.
+The matching `*-session.yaml` supplies campaign, session number, and fallback DR
+dates. The reader verifies the entity map's session metadata digest and actual
+registered source hashes. If `*-interactions.json` exists, it must be v1, belong
+to the same session, reference the current entity-map bytes and polished
+transcript hash, and contain unique exchange/participation IDs with recognized
+roles and actions. Stale or malformed artifacts omit the session with a local
+warning. An orphan interactions file also reserves its session rather than
+restoring recap or generated-note evidence.
 
-When a session has no recap file, explicit NPC links in its official session
-note retain the older hollow **Session reference** dot. These are counted
-separately from encounters and show only the session title, date, and numbered
-note link. They do not infer a meeting or copy prose from the note.
+One dot represents one mapped note in one session. Several mapped identities
+resolving to the same note share the dot and deduplicate shared exchanges.
+Exchange order follows the interaction collection. The strongest visible action
+selects the dot: **Encounter** (`interacted`), **Observed**, **Present**, then
+**Mentioned**. Counts distinguish these categories. A map without extracted
+exchanges supplies a **Session record**, without inferring a meeting or current
+presence. Session importance and exchange roles remain separate: a session cameo
+can be featured in its own exchange.
 
-**Related campaign material** stays separate from dots and encounter counts.
-Authored `object`/`item` tags select **Items**, `story` selects **Stories**,
-and `source`/`document` selects **Sources**. Other eligible notes use
-**References**. Nested tags work; a note appears once, with item, story, then
-source precedence. Untagged notes and notes carrying `meta` or `background`
-are excluded, including nested tags and notes carrying other types. Links run
-horizontally and wrap. Each category sorts by title, shows the first ten links,
-and uses a native **Show more** disclosure for the remainder. A document's own
-date never becomes an encounter date.
+The popup shows the session title, DR dates, tagline when available, session
+importance, optional Mirror of the Past flag, and an optional numbered link to
+the full session note. Each extracted exchange has an expandable title, its
+action/role, and the retained passage. Passages render as escaped text with line
+breaks; editorial cut descriptions remain readable. Source comments containing
+UIDs or omitted speech, review context, review reasons, full transcript bodies,
+source paths, and entity-resolution bookkeeping are excluded from the public
+projection. There is no full-transcript route or download.
 
-## Authoritative sources
+Session titles and taglines retain campaign/date/DM filtering. Extracted exchange
+titles and passages receive the same conditional filtering before they reach
+HTML or browser JSON. Ordinary annotations are discarded. A wholly hidden
+exchange title omits that exchange and cannot establish a visible encounter.
+Malformed conditional text omits the affected session locally.
 
-| Source | Use |
-| --- | --- |
-| Person `knownTo` and `campaignInfo` | Authored header information. |
-| Recap `## Cast` / `### NPCs` | An explicit `met` status creates one session encounter for the resolved NPC. |
-| Recap `## Session Header` | Campaign/session identity and fallback title, DR dates, and tagline. |
-| Official session note | Full-session display metadata and optional note link; explicit NPC links provide legacy references only when no recap exists. |
-| Non-session articles in registered campaign folders | Supplementary related links, typed using authored tags, without inferred dates. |
+An available official session note's `descTitle`, `DR`, `DR_end`, and `tagline`
+take precedence for display. Recap Session Header titles/taglines remain optional
+fallbacks for mapped sessions. Without either, the title is **Session N**.
+Each record waits until its full session end date; dates remain undated when
+unknown. No exchange UID or transcript position is treated as an in-world date.
+The registry's exact `campaignRoot`/`notePattern` selects the preferred official
+note; otherwise one available metadata candidate is required. Missing or
+ambiguous links do not remove mapped records.
 
-The Node importer reads
-`_sessions/<campaign>/<session>/cleaned/*-session-recap.md`. Campaign identity
-comes from the registry; the recap header's **Campaign** and **Session Number**
-identify the session. Fractional numbers remain intact. The session exists
-independently of any beat, NPC list in a beat, Short text, or transcript.
+## Older sessions
 
-Only Cast NPCs explicitly marked `met` qualify. Combined statuses such as
-`met, fought` or `companion, met` qualify. Mention-only and all other statuses
-alone do not. A Cast entry need not appear in any beat. Repeated names resolve
-to one session record per person. Resolution uses explicit wikilinks or
-unambiguous filenames, aliases, or metadata names, restricted to person-tagged
-notes. There is no fuzzy matching. Ambiguous or missing people, duplicate recap
-identities, inverted session dates, and malformed session-header conditions are
-reported locally. Duplicate recaps are omitted rather than chosen arbitrarily.
+Mapped artifacts take precedence over recap Cast membership for the whole
+session, including map-only sessions, empty collections, invalid artifacts, and
+entities represented only by mentions. Sessions without maps retain the existing
+recap behavior: `## Cast` / `### NPCs` entries explicitly containing `met` create
+one encounter per resolved person. Combined statuses such as `met, fought`
+qualify; mention-only entries do not. Resolution uses explicit wikilinks or
+unambiguous filenames, aliases, or metadata names among person-tagged notes.
+Beats, beat NPC lists, Short/Long text, and old transcript artifacts remain
+irrelevant to this fallback.
 
-For optional session-note metadata and links, campaign and session metadata
-identify candidates. The registry's exact `campaignRoot`/`notePattern` path
-wins; otherwise a single available candidate is required. Unavailable or
-ambiguous notes leave recap-backed session records using header metadata without
-a note link. Links retain date, campaign and DM context.
+When neither maps nor a recap exist, explicit authored links in the preferred
+or unambiguous official session note provide hollow **Session reference** dots.
+These do not imply an encounter and show only session metadata and the note
+link. Existing authoritative artifacts suppress this fallback for their entire
+session, even when they contain no qualifying entry. Missing scans in old
+snapshots do not establish that source artifacts were absent.
 
-Session-note fallback chooses that same preferred filename or one unambiguous
-legacy metadata candidate before request visibility. An unavailable official
-note does not make a duplicate authoritative. Any existing recap suppresses
-fallback for its whole session, including empty Cast lists, duplicate recaps,
-and sessions where the NPC is only mentioned. Malformed recaps reserve their
-standard artifact-directory session identity when resolvable. Ambiguous session
-notes supply no fallback.
+Duplicate authoritative session identities are omitted with local warnings.
+Inverted date ranges are also omitted. Fractional session numbers remain intact.
+For equal or unknown dates, session identities sort numerically.
 
-Supplementary references use the authored backlink index. Sources must be
-inside a registered `campaignRoot`, belong to a selected campaign, and be
-non-session notes: neither tagged `session-note` nor carrying `sessionNumber`.
-General world articles and campaign-tagged articles outside campaign folders
-do not contribute. Type exclusions apply to existing indexes too.
+## Controls and related material
 
-Generic **Linked from** backlinks on person pages exclude session notes and
-other campaign material in all contexts. Campaign ownership includes declared
-metadata and registered or unregistered campaign folders. Shared world
-references remain in **Linked from**; the compiled index stays intact for the
-interaction component's eligible related material.
+Dots retain visible session titles and dates, wrap across rows, and use two
+columns on narrow screens. Mapped dots also show their action category in text.
+Selecting a dot opens its popup directly. A close button, Escape, an outside
+click, or selecting the dot again dismisses it; only one popup opens across
+campaigns. Popups fit the viewport and scroll for long passages. Keyboard and
+touch use the same controls. Without JavaScript, the same sessions, expandable
+passages, and session links remain available as a list.
 
-## Visibility and publication
+**Related campaign material** remains separate from dots and encounter counts.
+Only non-session notes inside registered campaign folders contribute via
+occurrence-filtered authored backlinks. Authored `object`/`item` tags select
+**Items**, `story` selects **Stories**, and `source`/`document` selects **Sources**;
+other eligible tags use **References**. Nested tags work. Untagged notes and
+notes with `meta` or `background` are excluded. Categories sort by title, wrap
+horizontally, and show ten links before a native **Show more** disclosure. A
+reference's own date never creates an encounter date.
 
-Person availability retains existing publication and date rules. Each encounter
-waits until its full session's recorded end date. Available official session
-dates take precedence, falling back to recap header dates. Unknown dates remain
-undated without borrowing dates from beats. Session identities sort numerically
-when dates are equal or absent.
+Generic **Linked from** on person pages continues to exclude session notes and
+campaign material; shared world references remain there. The compiled backlink
+index is preserved for interaction-related material.
 
-Session title and tagline retain campaign/date/DM conditional filtering; ordinary
-annotations are excluded. Malformed selected metadata omits the affected record.
-Beat comments and missing or malformed Short/Long sections have no effect.
-Session-reference dots and related links retain source availability and
-occurrence-level campaign/date/DM filtering. Only explicit authored links
-qualify for fallback; frontmatter, plain names, and generated headers do not.
+## Publication and compatibility
 
-The version-2 interaction projection stores one encounter per resolved met NPC
-per session, marked `scope: session`. No beat IDs, beat text, transcript
-bodies/descriptors, source ranges, Cast descriptions, or editorial bookkeeping
-are compiled. New publications reject transcript uploads. Old transcript
-descriptors are ignored; normal retention removes obsolete transcript shards
-even from active and previous revisions. Transcript rollback is unsupported.
-The website has no transcript route, loader, or shard writer; obsolete beat URLs
-return 404 without initializing article rendering.
+The Node renderer and publisher read maps from the original vault. Fingerprints
+include the normalized session/exchange projection and parser/compiler source.
+Changes to retained passages, participation, session metadata, importance, or
+Mirror of the Past flags invalidate the projection. Review context and unrelated
+recap beat edits do not become published data. Full source bytes are read only
+to check freshness and are not copied into the interaction projection.
 
-Node, Obsidian, and the Worker share the session model. The Worker filters the
-compiled projection and uses indexed session metadata without fetching session
-bodies. The person's article shard is sufficient. Fingerprints include selected
-session headers, met membership, and compiler/parser source. Edits only to
-beats, Short/Long text, transcript references or transcript bodies do not change
-the session inputs.
-
-Deploy core through the normal website workflow and republish content to compile
-session records. Older beat encounter records without `scope: session` are
-omitted until republished; their session references and related material remain
-readable. Snapshots without an interaction index supply authored header
-information and non-session references, without inventing fallbacks from a
-missing scan. Experimental version-1 and unknown interaction projections require
-repreparation. Legacy version-1 backlinks remain omitted for multi-campaign
-combinations. No new Cloudflare resources or D1 migrations are needed. Deployment
-and publication retain the permission gates in [deployment workflows](deploy.md).
+The existing version-2 interaction projection gains mapped session records and
+conditional exchange variants. Existing recap session records remain readable;
+old beat records without `scope: session` remain omitted. The Worker filters
+compiled data using indexed session metadata without fetching session or
+transcript bodies. The viewed article shard is sufficient. There are no new
+Cloudflare resources, transcript shards, or D1 migrations. Deploy core through
+the normal website workflow, then republish content to compile maps. Deployment,
+push, and publication retain the gates in [deployment workflows](deploy.md).
 
 ## Obsidian
 
-The plugin shares the session-header/Cast parser, campaign ownership, session
-model, and dot controls. Its adapter reads vault metadata, recap files, and
-native link caches. Full-session and related links open local notes. It never
-reads or opens beat/transcript artifacts and requires no website or note writes.
-Only sessions missing a recap require session-note body reads to identify
-fallback links and preserve their occurrence-level visibility.
-
-An empty `taelgar-interactions` block places a panel explicitly. Otherwise,
-Reading View and Live Preview show automatic footers on pages with registered
-`knownTo` campaigns, including non-person pages. Multiple campaigns use one
-picker directly below the heading, defaulting to **All**. Empty histories retain
-the heading, picker, knowledge status, and related material without allocating
-an empty timeline. This local author view includes DM text and ignores website
-website packaging rules. Selected campaign and date conditions still apply.
-A source note's `knownTo` adaptation does not make an untagged reference eligible.
-See the [plugin guide](../obsidian/taelgarverse/README.md#campaign-interactions)
-for settings, date selection, and lifecycle behavior.
+This website change does not add map discovery to the Obsidian adapter. The
+plugin continues to read recap Session Headers and Cast membership with native
+metadata/link caches; it shares the compiler and popup controls. Its local
+`taelgar-interactions` blocks and automatic footers retain their campaign picker,
+date selection, native note links, and DM-inclusive author view. See the
+[plugin guide](../obsidian/taelgarverse/README.md#campaign-interactions).
 
 ## Code and checks
 
-- `src/recap-parser.mjs`: pure session-header and met-Cast parser.
-- `src/session-interactions.mjs`: Node-only recap discovery.
-- `src/campaign-interactions.mjs`: compiler and request-local session model.
+- `src/mapped-sessions.mjs`: Node-only mapped artifact validation and projection.
+- `src/session-interactions.mjs`: discovery, map precedence, and recap fallback.
+- `src/recap-parser.mjs`: shared recap Session Header/Cast parser.
+- `src/campaign-interactions.mjs`: compilation and request visibility.
 - `src/interaction-view.mjs`, `src/browser/interactions.mjs`,
-  `src/browser/interaction-groups.mjs`, `public/interactions.css`: session
-  labels, accessible popups, and related-material links.
-- `tests/interactions.test.mjs`, `tests/interactions-worker.test.mjs`,
-  `tests/obsidian-interactions.test.mjs`: session authority, beat independence,
-  references, visibility, fingerprints, compatibility, and consumer parity.
+  `src/browser/interaction-groups.mjs`, `public/interactions.css`: accessible
+  dots, counts, expandable passages, and related material.
+- `tests/mapped-interactions.test.mjs`, `tests/interactions.test.mjs`,
+  `tests/interactions-worker.test.mjs`, `tests/obsidian-interactions.test.mjs`:
+  artifact freshness, exact targets, action distinctions, passage escaping,
+  visibility, Worker parity, compatibility, and existing consumer behavior.
