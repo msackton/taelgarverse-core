@@ -54,11 +54,18 @@ results are not cached between contexts or publications. The Worker uses the
 come from the matched visible text version, and page metadata is checked again
 before any result is returned.
 
-Missing bindings, legacy/unsupported descriptors, unready/stale indexes or query
-errors fall back to visible title/path/alias matches with a clear notice. A valid
+Missing bindings, legacy/unsupported descriptors, unready/stale indexes, query
+errors or a D1 batch exceeding three seconds fall back to visible title/path/alias
+matches with a clear notice. A valid
 full-text query with zero matches stays empty. Raw errors, queries and excerpts
 are excluded from fallback logs. Result URLs, pagination, forms and the context
 selector retain Custom campaign subsets, dates and Behind the Curtain choices.
+
+Floating browser search has a twelve-second deadline covering the response body
+as well as the fetch. It aborts stalled work, displays a retry message, and ignores
+late results. New queries and closing the panel cancel silently. Worker request
+and storage deadlines, immutable metadata caching and query-free phase logs are
+documented under [runtime performance](cloudflare.md#runtime-deadlines-caching-and-timings).
 
 Node previews lazily compile and stage an in-memory SQLite index on the first
 nonempty search, reusing it until the server closes. This needs `node:sqlite`

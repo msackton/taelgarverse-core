@@ -3,10 +3,19 @@ async function loadBranch(details) {
   const children = details.querySelector(':scope > [data-nav-children]');
   if (!details.open || children.dataset.loaded === 'true' || children.getAttribute('aria-busy') === 'true') return;
   children.setAttribute('aria-busy','true');
+  const controller = new AbortController();
+  let timer;
   try {
-    const response = await fetch(details.dataset.navUrl);
-    if (!response.ok) throw new Error('Navigation unavailable');
-    const result = await response.json();
+    const deadline = new Promise((_,reject)=>{
+      timer=setTimeout(()=>{reject(new Error('Navigation timed out'));controller.abort();},12000);
+    });
+    const result = await Promise.race([(async()=>{
+      const response = await fetch(details.dataset.navUrl,{signal:controller.signal});
+      if (!response.ok) throw new Error('Navigation unavailable');
+      const data = await response.json();
+      if (typeof data.html !== 'string') throw new Error('Invalid navigation response');
+      return data;
+    })(),deadline]);
     children.innerHTML = result.html;
     children.dataset.loaded = 'true';
   } catch {
@@ -17,7 +26,7 @@ async function loadBranch(details) {
       retry.addEventListener('click',()=>loadBranch(details));
       item.append(retry); children.append(item);
     }
-  } finally { children.removeAttribute('aria-busy'); }
+  } finally { clearTimeout(timer);children.removeAttribute('aria-busy'); }
 }
 document.addEventListener('toggle',event=>{
   if (event.target.matches('details[data-nav-url]')) loadBranch(event.target);

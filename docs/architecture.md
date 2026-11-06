@@ -89,6 +89,7 @@ flowchart LR
 | `src/folder-exclusions.mjs` | Discover original-vault `.nopublish` folder markers for local indexing, export packaging, and publication fingerprints. |
 | `src/snapshot.mjs` | Load the R2 index and fetch/cache Markdown shards on demand. |
 | `src/runtime-snapshot.mjs` | Select compiled or legacy snapshots; lazily load route data and verify/cache prepared notes and asset manifests. |
+| `src/runtime-io.mjs`, `src/snapshot-cache.mjs` | Bounded storage waits and stream cleanup, request phase timings, and hash-verified immutable snapshot caching in the Workers Cache API. See [runtime performance](cloudflare.md#runtime-deadlines-caching-and-timings). |
 | `src/page-cache.mjs` | Worker-only HTML response caching, keyed by publication/build identity and full URL; browser ETag revalidation. |
 | `src/crawler-policy.mjs`, `public/robots.txt`, `public/_headers` | Worker crawler rejection before content/cache access, static crawler exclusions, and no-index responses. Hosted behavior and limits belong in [Cloudflare](cloudflare.md#what-happens-when-someone-opens-a-page). |
 | `src/application.mjs` | Shared Fetch API router: homepage, articles, search HTML/JSON, contexts, navigation, assets, health. |

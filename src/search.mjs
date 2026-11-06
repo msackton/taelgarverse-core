@@ -2,6 +2,7 @@ import {RenderError,dateKey,pageUrl} from './common.mjs';
 import {availableInContext} from './content-store.mjs';
 import {searchType,searchTypes} from './search-types.mjs';
 import {normalizeName} from './search-metadata.mjs';
+import {withTimeout} from './runtime-io.mjs';
 
 const OPEN='\ue000',CLOSE='\ue001';
 const nameQuery=normalizeName;
@@ -130,6 +131,8 @@ export function createD1Search(database,options){
     // Fresh request-local session sees the latest publication readiness, even
     // when D1 read replicas are enabled. No context/result cache is shared.
     const session=database.withSession?database.withSession('first-primary'):database;
-    return createIndexSearch(statements=>session.batch(statements.map(({sql,params})=>session.prepare(sql).bind(...params))),options)(input,context);
+    const measure=options.measure || ((name,operation)=>operation());
+    return createIndexSearch(statements=>measure('d1',()=>withTimeout(
+      ()=>session.batch(statements.map(({sql,params})=>session.prepare(sql).bind(...params))),options.queryTimeoutMs ?? 3000)),options)(input,context);
   };
 }

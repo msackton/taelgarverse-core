@@ -296,6 +296,64 @@ See [when a page is shown](vault.md#when-a-page-is-shown).
 The site does not offer a raw Markdown or full index download. R2 does not need
 public access: the Worker serves the content. Keep the bucket private.
 
+## Runtime deadlines, caching and timings
+
+The runtime changes below are implemented in source; deployment is required to
+enable them. Existing compiled publications work as-is. No R2/D1 migration or
+content republication is required.
+
+[`snapshot-cache.mjs`](../src/snapshot-cache.mjs) caches verified compiled JSON
+in the Workers Cache API for up to one day, allowing fresh isolates in the same
+Cloudflare location to reuse renderer, header, navigation, search and shard data.
+Keys contain the revision, descriptor hash and filename under a private cache
+namespace shared by campaign hosts. These are internal entries, not HTTP routes.
+Both R2 and cached bytes must match the manifest's SHA-256 before use. A corrupt,
+failed or slow cache read falls back to R2; verified reads replace bad cache
+entries. Cache writes are bounded and finish before the result is shared, without
+retaining the first request's execution context. The parsed in-memory LRU still
+holds at most 16 objects. This cache saves storage transfers; each fresh isolate
+still parses JSON and initializes the renderer.
+
+The publication pointer is read from R2 on every request before any HTML-cache
+lookup. The runtime manifest also comes from R2 when a snapshot opens. Neither is
+stored in the immutable cache. Activation and rollback continue to take effect
+on the next request. Reader date, campaign, hostname and DM filtering still run
+after loading shared data. Navigation and HTML search initialize the search
+catalog and navigation data concurrently.
+
+[`runtime-io.mjs`](../src/runtime-io.mjs) bounds R2 object/body waits at four
+seconds and cache operations at 250 ms. A timeout releases the failed shared
+load so later requests can retry; late R2 objects are discarded and active stream
+readers are cancelled. R2/D1 binding calls themselves cannot be aborted. Late
+completions cannot restore rejected in-memory loads. D1 gets three seconds before
+search uses its existing visible page-name fallback. The Worker also bounds the
+entire response preparation at ten seconds, returning an uncached `503`. On that
+deadline it evicts the snapshot used by that request, if still current, so a
+shared initialization stranded by a cancelled request cannot block future
+requests. These limits bound asynchronous waits, not synchronous CPU execution
+or streaming an already-started media response.
+
+Browser search and navigation bound fetch **and body parsing** at twelve seconds.
+Search displays an error with its search-page link; navigation clears its busy
+state and offers “Retry loading”. Both ignore late completions after a timeout.
+Typing a newer query or closing search cancels silently and clears the timer.
+
+The existing Worker log configuration receives structured JSON diagnostics:
+
+- `request-timing`: fixed route category, HTTP status, total milliseconds,
+  `phases` for pointer, page cache, snapshot initialization, route initialization,
+  application, rendering and D1 as applicable; `failures` and phases still
+  `pending` at a deadline. Search, navigation, articles and homepages log every
+  response; other routes log only failures or requests taking at least one second.
+- `snapshot-read`: part category, R2/edge source, edge hit/miss/error/timeout,
+  cache-write outcome and milliseconds, with separate cache-read, R2 and cache-write times.
+  In-memory hits do not emit object-read events.
+
+These measurements describe overlapping/nested work: do not sum all phase
+durations. They record no query text, URL parameters, headers, SQL, transcript
+passages or provider error messages. Worker invocation correlation links the
+events to requests. No Cloudflare trace setting or additional service is needed.
+
 ## Check the site
 
 Open the [health page](https://taelgarverse.msackton.workers.dev/health) to see the
