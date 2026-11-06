@@ -8,6 +8,13 @@ then offers dragging, +/−, arrow-key panning, mouse-wheel and pinch zoom.
 dismiss it and restore focus to the expand button. Authored image links keep
 their destinations. Native inline images remain usable without JavaScript.
 
+Images displayed at 160 pixels or less in either dimension use a compact
+24-pixel expand button with a 14-pixel icon and a four-pixel corner inset.
+Larger images use the standard 32-pixel button. Controls follow the displayed
+size as the layout changes, including Obsidian previews. Compact controls keep
+an invisible 44-pixel tap target on touchscreens. This is a code/CSS update;
+existing published images need no republication.
+
 The viewer prefers an authored caption from an image callout, the image's own
 gallery list item, or a figure's `figcaption` (including generated session
 images). Captions stay formatted in the article and appear as plain text in the
