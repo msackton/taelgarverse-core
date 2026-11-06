@@ -24,23 +24,29 @@ roles and actions. Stale or malformed artifacts omit the session with a local
 warning. An orphan interactions file also reserves its session rather than
 restoring recap or generated-note evidence.
 
-One dot represents one mapped note in one session. Several mapped identities
-resolving to the same note share the dot and deduplicate shared exchanges.
-Exchange order follows the interaction collection. The strongest visible action
-selects the dot: **Encounter** (`interacted`), **Observed**, **Present**, then
-**Mentioned**. Counts distinguish these categories. A map without extracted
-exchanges supplies a **Session record**, without inferring a meeting or current
-presence. Session importance and exchange roles remain separate: a session cameo
-can be featured in its own exchange.
+The website gives each extracted exchange its own selectable widget entry,
+using the title and retained `lines` from `*-interactions.json`. Selecting an
+entry opens that exact transcript snippet immediately, with its action/role,
+session title, DR date range, and optional numbered session-note link. There is
+no session-summary step or second passage disclosure. The popup uses a wider
+reading area for snippets. The no-JavaScript list also shows each snippet directly.
 
-The popup shows the session title, DR dates, tagline when available, session
-importance, optional Mirror of the Past flag, and an optional numbered link to
-the full session note. Each extracted exchange has an expandable title, its
-action/role, and the retained passage. Passages render as escaped text with line
-breaks; editorial cut descriptions remain readable. Source comments containing
-UIDs or omitted speech, review context, review reasons, full transcript bodies,
-source paths, and entity-resolution bookkeeping are excluded from the public
-projection. There is no full-transcript route or download.
+The compiled index still groups exchanges by mapped note and session. Several
+mapped identities resolving to the same note deduplicate shared exchanges; the
+view expands these records into entries identified by campaign, session, and
+exchange ID, preserving source collection order. Entries distinguish
+**Encounter** (`interacted`), **Observed**, **Present**, and **Mentioned**. The
+summary counts transcript snippets and sessions separately. A map without
+extracted exchanges supplies a **Session record**, without inferring a meeting
+or current presence. Session importance and exchange roles remain separate: a
+session cameo can be featured in its own exchange. Map-only session records
+retain their session importance and optional Mirror of the Past flag.
+
+Passages render as escaped text with line breaks; editorial cut descriptions
+remain readable. Source comments containing UIDs or omitted speech, review
+context, review reasons, full transcript bodies, source paths, and
+entity-resolution bookkeeping are excluded from the public projection. There
+is no full-transcript route or download.
 
 Session titles and taglines retain campaign/date/DM filtering. Extracted exchange
 titles and passages receive the same conditional filtering before they reach
@@ -49,7 +55,8 @@ exchange title omits that exchange and cannot establish a visible encounter.
 Malformed conditional text omits the affected session locally.
 
 An available official session note's `descTitle`, `DR`, `DR_end`, and `tagline`
-take precedence for display. Recap Session Header titles/taglines remain optional
+take precedence for session context; they never replace an extracted exchange's
+title or passage. Recap Session Header titles/taglines remain optional
 fallbacks for mapped sessions. Without either, the title is **Session N**.
 Each record waits until its full session end date; dates remain undated when
 unknown. No exchange UID or transcript position is treated as an in-world date.
@@ -82,13 +89,14 @@ For equal or unknown dates, session identities sort numerically.
 
 ## Controls and related material
 
-Dots retain visible session titles and dates, wrap across rows, and use two
-columns on narrow screens. Mapped dots also show their action category in text.
+Snippet entries show their exchange titles, session numbers, dates, and action
+categories. Older session-only dots retain session titles and dates. Entries
+wrap across rows and use two columns on narrow screens.
 Selecting a dot opens its popup directly. A close button, Escape, an outside
 click, or selecting the dot again dismisses it; only one popup opens across
 campaigns. Popups fit the viewport and scroll for long passages. Keyboard and
-touch use the same controls. Without JavaScript, the same sessions, expandable
-passages, and session links remain available as a list.
+touch use the same controls. The existing plain HTML list remains available
+when JavaScript is disabled.
 
 **Related campaign material** remains separate from dots and encounter counts.
 Only non-session notes inside registered campaign folders contribute via

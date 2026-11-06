@@ -2,6 +2,15 @@ const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov',
 export const interactionKindLabel=kind=>({'session-reference':'Session reference',reference:'Campaign reference',observation:'Observed',presence:'Present',mention:'Mentioned','mapped-reference':'Session record'}[kind] || 'Encounter');
 export const exchangeActionLabel=action=>({interacted:'Interacted',observed:'Observed',present:'Present',mentioned:'Mentioned'}[action] || 'Recorded');
 export const exchangeRoleLabel=role=>({star:'Featured',supporting:'Supporting',cameo:'Cameo'}[role] || '');
+export function interactionEntries(events) {
+  return events.flatMap(event=>{
+    if(!event.exchanges?.length)return [event];
+    const {exchanges,...session}=event;
+    return exchanges.map(exchange=>({...session,id:event.id+':'+exchange.id,scope:'exchange',exchangeId:exchange.id,
+      kind:({interacted:'encounter',observed:'observation',present:'presence',mentioned:'mention'})[exchange.action],
+      sessionTitle:event.title,title:exchange.title,text:'',passage:exchange.passage,action:exchange.action,role:exchange.role}));
+  });
+}
 export function interactionDateLabel(event) {
   if (!event.start) return (event.sessionLabel ? event.sessionLabel+' · ' : '')+'Date unrecorded';
   if (event.precision==='year') return event.start.slice(0,4);

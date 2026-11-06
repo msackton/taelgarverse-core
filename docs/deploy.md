@@ -114,8 +114,8 @@ checkpoint even if the files are Git-ignored. They are not public asset download
 Both previews compile [campaign interactions](campaign-interactions.md) from
 validated entity/interaction maps in the original vault's `_sessions` directory,
 with recap Cast `met` membership and explicit session-note links retained for
-older sessions. One dot represents one entity per session; mapped popups include
-retained passages with action/role labels. Session metadata, mapped participation,
+older sessions. Each mapped exchange is directly selectable and opens its
+retained transcript passage with action/role labels and session context. Session metadata, mapped participation,
 and retained passages participate in fingerprints and refresh quick preview.
 Review context and unrelated recap beats remain outside the public projection.
 Fresh content publication is required to compile maps; core deployment alone

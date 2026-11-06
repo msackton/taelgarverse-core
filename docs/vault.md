@@ -796,7 +796,7 @@ Nonempty backlinks appear in the right sidebar even on short articles; on mobile
 appear in a collapsed **Linked from** section below the article.
 
 Available pages with registered `knownTo` campaigns show a **Campaign
-interactions** summary and one dot per session for the intersection of those
+interactions** summary and directly selectable transcript snippets for the intersection of those
 campaigns and the active reader context. People, divine beings, items, and
 organizations can receive mapped histories. The website reads validated v4
 entity maps and matching v1 interaction collections from the original vault's
@@ -804,9 +804,10 @@ entity maps and matching v1 interaction collections from the original vault's
 encounters, observations, presence, mentions, and map-only session records.
 Only direct `interacted` participation counts as a mapped encounter.
 
-Selecting a mapped dot opens session metadata, session importance, optional
-Mirror of the Past information, and expandable exchange titles with retained
-passages and action/role labels. Text is escaped, conditional campaign/date/DM
+Each mapped exchange is a widget entry labeled with its extracted title.
+Selecting it immediately opens its retained passage and action/role labels, with
+the session title, dates, and source-note link as context. Map-only session
+records retain their session importance and optional Mirror of the Past flag. Text is escaped, conditional campaign/date/DM
 blocks are filtered, and source comments, cut-source speech, review context,
 source paths, and full transcripts are excluded. The same passages remain
 available without JavaScript. Session notes supply preferred display metadata

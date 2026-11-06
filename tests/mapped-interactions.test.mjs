@@ -64,17 +64,44 @@ test('mapped sessions use exact notes across entity types and preserve exchange 
     assert.match(f.events('Person',ctx('1720-01-03',true))[0].exchanges[0].passage,/HIDDEN PASSAGE/);
     assert.match(f.events()[0].exchanges[0].passage,/\(\(A pause\)\)/);
     const groups=campaignInteractions(f.compile().index,f.store,f.store.resolve('Power'),ctx(),registry);
-    assert.match(interactionSummary(groups),/1 mention/);assert.doesNotMatch(interactionSummary(groups),/encounter/);
+    assert.match(interactionSummary(groups),/1 transcript snippet, 1 session/);assert.doesNotMatch(interactionSummary(groups),/encounter/);
     const doc=parseHTML('<html><body>'+interactionView(groups)+'</body></html>').document;
     assert.match(doc.querySelector('.interaction-fallback').textContent,/Discussing Power/);
     assert.equal(doc.querySelector('img'),null,'passages are escaped text');
     const root=doc.querySelector('[data-interaction-campaign]');mountInteractions(root);root.querySelector('.interaction-dot').click();
     assert.match(root.querySelector('.interaction-detail').textContent,/Mentioned/);
     assert.match(root.querySelector('.interaction-detail .interaction-passage').textContent,/Person: Hello/);
+    assert.equal(root.querySelector('.interaction-detail h4').textContent,'Discussing Power');
+    assert.equal(root.querySelector('.interaction-detail details'),null,'the snippet is visible after one click');
+    assert.equal(root.querySelector('.interaction-detail .interaction-sources a').textContent,'Session 2');
     assert.doesNotMatch(root.querySelector('.interaction-detail').textContent,/HIDDEN|PRIVATE/);
     assert.equal(root.querySelector('img'),null);
     f.map.entities[0].note='Elsewhere/Person.md';f.saveMap();f.interactions.inputs.entityMap.sha256=hash(JSON.stringify(f.map));f.saveInteractions();
     assert.equal(f.events().length,0,'exact mapped paths cannot fall back to a basename');
+  } finally {f.close();}
+});
+
+test('each mapped exchange is directly selectable with its own source passage and stable session identity',()=>{
+  const f=fixture();try {
+    f.interactions.interactions.push({...f.interactions.interactions[0],id:'i4',title:'A later conversation',lines:['Person: The second exchange.']});f.saveInteractions();
+    const groups=campaignInteractions(f.compile().index,f.store,f.store.resolve('Person'),ctx(),registry);
+    const document=parseHTML('<html><body>'+interactionView(groups)+'</body></html>').document;
+    assert.equal(document.querySelectorAll('.interaction-fallback > li').length,2);
+    assert.equal(document.querySelectorAll('.interaction-fallback .interaction-passage').length,2);
+    assert.equal(document.querySelector('.interaction-fallback details'),null);
+    const root=document.querySelector('[data-interaction-campaign]');mountInteractions(root);
+    const dots=root.querySelectorAll('.interaction-dot');assert.equal(dots.length,2);
+    assert.equal(dots[0].querySelector('.interaction-dot-title').textContent,'Talking with Person');
+    assert.equal(dots[1].querySelector('.interaction-dot-title').textContent,'A later conversation');
+    assert.match(root.querySelector('.interaction-breadcrumb').textContent,/^2 transcript snippets · 1 session/);
+    const payload=JSON.parse(root.querySelector('[data-interaction-records]').textContent);
+    assert.deepEqual(payload.events.map(event=>event.id),['mapped:trial:2:i1','mapped:trial:2:i4']);
+    assert.ok(payload.events.every(event=>event.sessionLabel==='Session 2' && !event.exchanges));
+    dots[0].click();assert.match(root.querySelector('.interaction-detail .interaction-passage').textContent,/Person: Hello/);
+    dots[1].click();assert.equal(root.querySelector('.interaction-detail .interaction-passage').textContent,'Person: The second exchange.');
+    assert.equal(root.querySelector('.interaction-detail h4').textContent,'A later conversation');
+    assert.equal(root.querySelector('.interaction-detail details'),null);
+    assert.ok(root.querySelector('.interaction-detail').classList.contains('interaction-detail--passage'));
   } finally {f.close();}
 });
 

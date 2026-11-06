@@ -1,5 +1,5 @@
 import {escapeHtml} from './common.mjs';
-import {interactionDateLabel,interactionParts,interactionKindLabel,exchangeActionLabel,exchangeRoleLabel} from './browser/interaction-groups.mjs';
+import {interactionDateLabel,interactionParts,interactionEntries,interactionKindLabel,exchangeActionLabel,exchangeRoleLabel} from './browser/interaction-groups.mjs';
 
 const referenceKinds={
   item:{label:'Items',singular:'item',path:'m12 3 9 5-9 5-9-5 9-5ZM3 8v9l9 5 9-5V8M12 13v9'},
@@ -35,19 +35,21 @@ function sourceLinks(event) {
   return session ? '<nav class="interaction-sources" aria-label="Interaction sources">'+session+'</nav>' : '';
 }
 function exchangeView(event) {
+  if(event.scope==='exchange')return '<p class="interaction-event-meta">'+escapeHtml(event.sessionTitle)+' · '+
+    escapeHtml(exchangeActionLabel(event.action)+' · '+exchangeRoleLabel(event.role))+'</p><div class="interaction-passage">'+escapeHtml(event.passage)+'</div>';
   if(!event.exchanges)return '';
   return '<p class="interaction-event-meta">'+escapeHtml(interactionKindLabel(event.kind))+' · '+escapeHtml(exchangeRoleLabel(event.importance))+' in this session'+
-    (event.examinedInMirrorOfPast ? ' · Examined in the Mirror of the Past' : '')+'</p>'+
-    (event.exchanges.length ? '<div class="interaction-exchanges">'+event.exchanges.map(exchange=>'<details class="interaction-exchange"><summary>'+escapeHtml(exchange.title)+'</summary><p class="interaction-event-meta">'+
-      escapeHtml(exchangeActionLabel(exchange.action)+' · '+exchangeRoleLabel(exchange.role))+'</p><div class="interaction-passage">'+escapeHtml(exchange.passage)+'</div></details>').join('')+'</div>' : '');
+    (event.examinedInMirrorOfPast ? ' · Examined in the Mirror of the Past' : '')+'</p>';
 }
 export function interactionSummary(groups) {
   if (!groups.length) return '';
   return '<p class="campaign-interaction-summary"><a href="#campaign-interactions">Campaign interactions</a> · '+groups.map(group=>{
     const {sessions,references}=interactionParts(group.events),facts=[];
     if(group.known)facts.push('known to party');
+    const snippets=interactionEntries(sessions).filter(event=>event.scope==='exchange').length;
+    if(snippets)facts.push(count(snippets,'transcript snippet'),count(sessions.length,'session'));
     for(const [kind,singular,plural] of [['encounter','encounter'],['observation','observation'],['presence','presence'],['mention','mention'],['mapped-reference','session record'],['session-reference','session reference']]) {
-      const number=sessions.filter(event=>event.kind===kind).length;if(number)facts.push(count(number,singular,plural));
+      const number=sessions.filter(event=>!event.exchanges?.length && event.kind===kind).length;if(number)facts.push(count(number,singular,plural));
     }
     if(references.length)facts.push(count(references.length,'reference'));
     if(!facts.length)facts.push('no recorded interactions');
@@ -60,7 +62,7 @@ export function interactionView(groups) {
   const compact=groups.every(group=>!interactionParts(group.events).sessions.length);
   return '<section id="campaign-interactions" class="campaign-interactions'+(compact ? ' campaign-interactions--compact' : '')+(knowledgeOnly ? ' campaign-interactions--knowledge-only' : '')+'" aria-label="Campaign interactions">'+
     '<h2>Campaign interactions</h2>'+groups.map(group=>{
-    const {sessions,references}=interactionParts(group.events),related=referenceView(references);
+    const {sessions:records,references}=interactionParts(group.events),sessions=interactionEntries(records),related=referenceView(references);
     const heading=campaignHeading(group);
     if(!sessions.length)return '<section class="interaction-campaign interaction-campaign--compact">'+
       heading+(!group.known && !references.length ? '<p class="interaction-empty">No recorded interactions.</p>' : '')+related+'</section>';

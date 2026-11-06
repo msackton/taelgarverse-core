@@ -1,4 +1,4 @@
-import {interactionDateLabel,interactionParts,interactionKindLabel as kindLabel,exchangeActionLabel,exchangeRoleLabel} from './interaction-groups.mjs';
+import {interactionDateLabel,interactionParts,interactionEntries,interactionKindLabel as kindLabel,exchangeActionLabel,exchangeRoleLabel} from './interaction-groups.mjs';
 
 function node(document,tag,className,text) {
   const result=document.createElement(tag);result.className=className;if(text!=null)result.textContent=text;return result;
@@ -9,7 +9,7 @@ export function mountInteractions(root) {
   if(root.dataset.interactionsMounted)return;
   const document=root.ownerDocument,payload=root.querySelector('[data-interaction-records]');
   let data;try{data=JSON.parse(payload.textContent);}catch{return;}
-  data.events=interactionParts(data.events).sessions;
+  data.events=interactionEntries(interactionParts(data.events).sessions);
   if(!data.events.length)return;
   const plot=root.querySelector('.interaction-plot'),detail=root.querySelector('.interaction-detail'),breadcrumb=root.querySelector('.interaction-breadcrumb');
   const view=document.defaultView,nativePopover=typeof detail.showPopover==='function';
@@ -49,21 +49,17 @@ export function mountInteractions(root) {
     const close=node(document,'button','interaction-popup-close','×');close.type='button';close.setAttribute('aria-label','Close interaction details');
     close.addEventListener('click',event=>{event.stopPropagation();closePopup(true);});
     const title=node(document,'h4','',current.title);title.id=detail.id+'-title';
+    detail.classList.toggle('interaction-detail--passage',current.scope==='exchange');
     detail.replaceChildren(close,node(document,'p','interaction-event-meta',current.start ? interactionDateLabel(current)+' DR' : 'Date unrecorded'),title);
     if(!current.start && current.sessionStart)detail.append(node(document,'p','interaction-event-meta','Session dates: '+current.sessionStart+(current.sessionEnd!==current.sessionStart ? '–'+current.sessionEnd : '')+' DR'));
     if(current.kind!=='session-reference' && current.text)detail.append(node(document,'p','interaction-event-text',current.text));
-    if(current.exchanges) {
+    if(current.scope==='exchange') {
+      detail.append(node(document,'p','interaction-event-meta',current.sessionTitle),
+        node(document,'p','interaction-event-meta',exchangeActionLabel(current.action)+' · '+exchangeRoleLabel(current.role)),
+        node(document,'div','interaction-passage',current.passage));
+    } else if(current.exchanges) {
       detail.append(node(document,'p','interaction-event-meta',kindLabel(current.kind)+' · '+exchangeRoleLabel(current.importance)+' in this session'+
         (current.examinedInMirrorOfPast ? ' · Examined in the Mirror of the Past' : '')));
-      const exchanges=node(document,'div','interaction-exchanges');
-      for(const exchange of current.exchanges) {
-        const item=node(document,'details','interaction-exchange');
-        item.append(node(document,'summary','',exchange.title),node(document,'p','interaction-event-meta',exchangeActionLabel(exchange.action)+' · '+exchangeRoleLabel(exchange.role)),
-          node(document,'div','interaction-passage',exchange.passage));
-        item.addEventListener('toggle',positionPopup);
-        exchanges.append(item);
-      }
-      detail.append(exchanges);
     }
     if(current.location)detail.append(node(document,'p','interaction-event-meta',current.location));
     const sessionLabel=current.sessionLabel || current.sourceTitle,sessionUrl=current.sessionUrl;
@@ -84,7 +80,10 @@ export function mountInteractions(root) {
     plot.replaceChildren();plot.dataset.density=visible.length>8 ? 'dense' : visible.length>3 ? 'medium' : 'sparse';
     const dated=visible.filter(event=>event.start),first=dated.map(event=>event.start).sort()[0],last=dated.map(event=>event.end).sort().at(-1);
     const period=first ? ' · '+first+(first!==last ? '–'+last : '') : '';
-    breadcrumb.textContent=data.events.length+' recorded '+(data.events.length===1?'session':'sessions')+period;
+    const snippets=visible.filter(event=>event.scope==='exchange').length;
+    const sessions=new Set(visible.map(event=>event.session || event.id)).size;
+    breadcrumb.textContent=(snippets ? snippets+' transcript '+(snippets===1?'snippet':'snippets')+' · '+sessions+' '+(sessions===1?'session':'sessions') :
+      data.events.length+' recorded '+(data.events.length===1?'session':'sessions'))+period;
     visible.forEach(event=>{
       const button=node(document,'button','interaction-dot');button.type='button';
       const title=event.title,dateLabel=interactionDateLabel(event);
@@ -94,7 +93,8 @@ export function mountInteractions(root) {
       const glyph=node(document,'span','interaction-glyph');glyph.setAttribute('aria-hidden','true');
       glyph.append(node(document,'span','interaction-mark '+event.kind,''));
       button.append(glyph,node(document,'span','interaction-dot-title',title),node(document,'span','interaction-dot-date',dateLabel));
-      if(event.exchanges)button.append(node(document,'span','interaction-dot-kind',kindLabel(event.kind)));
+      if(event.scope==='exchange')button.append(node(document,'span','interaction-dot-session',event.sessionLabel));
+      if(event.exchanges || event.scope==='exchange')button.append(node(document,'span','interaction-dot-kind',kindLabel(event.kind)));
       button.addEventListener('click',()=>openPopup(event,button));plot.append(button);
     });
   }
