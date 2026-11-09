@@ -311,3 +311,15 @@ test('regional publication validates full PNGs, dimensions, exact paths and excl
   f.block.details=['assets/private/detail.map-detail.json'];await fs.writeFile(path.join(f.directory,'Map.md'),fence(f.block));
   await assert.rejects(prepareMaps(f.store(),path.join(f.directory,'tiles')),/Regional manifest missing/);
 });
+
+test('map catalogue prepares local maps before the first article request',async t=>{
+  const f=await fixture(t),server=createServer(new Engine(f.settings));
+  server.listen(0,'127.0.0.1');await once(server,'listening');
+  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  const origin='http://127.0.0.1:'+server.address().port;
+  const response=await fetch(origin+'/api/maps');assert.equal(response.status,200);
+  const list=await response.json();assert.equal(list.total,2);assert.deepEqual(list.warnings,[]);
+  const detail=await (await fetch(origin+'/api/maps?id='+list.maps[0].id)).json();
+  assert.match(detail.map.config.tile.baseUrl,new RegExp('^'+origin));
+  assert.equal((await fetch(detail.map.preview)).status,200);
+});

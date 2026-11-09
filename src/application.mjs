@@ -7,10 +7,21 @@ import {searchView,searchErrorView} from './search-view.mjs';
 import {homepage} from './homepage.mjs';
 import {indexLabels} from './indexes.mjs';
 import {resolveDiagramLink} from './diagram-links.mjs';
+import {mapCatalogue} from './map-catalogue.mjs';
 
 const apiSpec = {
   openapi:'3.1.0', info:{title:'TaelgarVerse rendering API',version:'0.2.0'},
   paths:{
+    '/api/maps':{get:{summary:'List published map views or resolve one map definition',parameters:[
+      {name:'id',in:'query',schema:{type:'string'},description:'Map identity returned by the catalogue; returns a full configuration'},
+      {name:'page',in:'query',schema:{type:'string'},description:'Limit to maps authored directly in one page'},
+      {name:'revision',in:'query',schema:{type:'string'},description:'Require the current content revision; a changed revision returns 409'},
+      {name:'limit',in:'query',schema:{type:'integer',minimum:1,maximum:100,default:50}},
+      {name:'offset',in:'query',schema:{type:'integer',minimum:0,maximum:10000,default:0}},
+      {name:'context',in:'query',schema:{type:'string'}},{name:'date',in:'query',schema:{type:'string'}},
+      {name:'campaigns',in:'query',schema:{type:'string'}},{name:'dm',in:'query',schema:{type:'boolean'}}],
+      responses:{200:{description:'Version 1 map catalogue or resolved map, with source revision and absolute asset URLs'},
+        400:{description:'Invalid parameters'},404:{description:'Unavailable map or page'},409:{description:'Content revision changed'}}}},
     '/api/search':{get:{summary:'Search visible note text, titles and aliases',parameters:[
       {name:'q',in:'query',schema:{type:'string',maxLength:256},description:'Words match together; quotes request an exact phrase'},
       {name:'type',in:'query',schema:{type:'string',enum:['',...searchTypes.map(([type])=>type)]},description:'Filter by the existing vault content-type tags; empty means all content'},
@@ -75,6 +86,22 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
       if (pathname === '/health') return send(200,{status:'ok',pages:engine.store.bySlug.size,index_warnings:engine.store.warnings,context_warnings:engine.contexts.warnings,runtime,revision});
       if (pathname === '/api/contexts') return send(200,{contexts:contextOptions,warnings:engine.contexts.warnings,...(site ? {locked:true,site:site.host} : {})});
       if (pathname === '/openapi.json') return send(200,apiSpec);
+      if (pathname === '/api/maps') {
+        const currentRevision=revision??engine.store.revision??null;
+        if(url.searchParams.has('revision') && url.searchParams.get('revision')!==currentRevision)
+          throw new RenderError(409,'Content revision changed; reload the map catalogue');
+        const integer=(name,fallback,min,max)=>{
+          const raw=url.searchParams.get(name);
+          if(raw===null)return fallback;
+          if(!/^\d+$/.test(raw) || !Number.isSafeInteger(+raw) || +raw<min || +raw>max)throw new RenderError(400,'Invalid '+name);
+          return +raw;
+        };
+        const id=url.searchParams.get('id'),page=url.searchParams.get('page');
+        if(id!==null && !/^map-[a-f0-9]{32}$/.test(id) || page!==null && (!page.trim() || page.length>2048))
+          throw new RenderError(400,'Invalid map or page');
+        return send(200,await mapCatalogue(engine,{context:resolveContext(),origin:url.origin,revision:currentRevision,siteHost:site?.host,
+          id,page,limit:integer('limit',50,1,100),offset:integer('offset',0,0,10000)}));
+      }
       if (pathname === '/api/diagram-links') {
         const source = url.searchParams.get('source'), targets = url.searchParams.getAll('target');
         if (!source || !targets.length || targets.length > 100 || targets.some(target => target.length > 2048)) {

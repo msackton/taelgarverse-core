@@ -340,3 +340,80 @@ Deploy code supporting details before publishing notes that use them, and instal
 or release the plugin separately. Existing blocks without `details` keep their
 current behavior; existing snapshots need no migration. New regional manifests,
 PNGs, and block attachments require content publication to appear on the website.
+
+## Reusable viewer and map catalogue
+
+The website, Obsidian plugin and `@taelgar/maps` package build from the same
+maintained viewer and coordinate modules. The package adds no collaboration,
+character or encounter state. Its host-owned `decorate` hook is available for
+future room annotations and encounter tokens. See the
+[package guide](../packages/maps/README.md) for installation, mounting and
+Photoshop/Leaflet coordinate conversion. This does not release an Obsidian plugin.
+
+Build a local versioned archive from a pinned core checkout:
+
+```sh
+npm ci
+npm run maps:pack
+```
+
+The archive is `.cache/packages/taelgar-maps-0.1.0.tgz`. CI also builds it and
+attaches it as the **taelgar-maps** artifact. A consuming app installs the archive
+and locks its integrity; its own build bundles the viewer. `maps:build` produces
+the unpacked package. These commands do not publish to a package registry or
+change the website. Keep package versions in `packages/maps/package.json` aligned
+with changes to its public API or behavior.
+
+`GET /api/maps` lists map views authored directly in published pages and the
+current hostname's homepage. Embedded maps are listed at their source page,
+without duplicate transclusion entries. Both `taelgar-map` and legacy `leaflet`
+blocks are included. The API uses the website's page availability, comment,
+campaign/date and Behind the Curtain rules; campaign hosts enforce their normal
+locked context. These are public reading preferences, not room memberships.
+
+Parameters:
+
+- `context`, `date`, `campaigns`, `dm`: the existing website context controls.
+- `page`: optionally restrict to one source page, resolved like `/api/page`.
+- `limit` (1–100, default 50), `offset` (0–10000, default 0): list pagination.
+- `id`: return one resolved map, using an identity from the list.
+- `revision`: require the currently published content revision; mismatch is 409.
+
+The version 1 list returns `revision`, effective `context`, `total`, pagination,
+`maps` summaries and `warnings`. Each summary includes `id`, optional `blockId`,
+`title`, source `page`, a full-image `preview` URL, `sourceRevision`, and
+`coordinates`. Preview currently uses the original map image, not a thumbnail.
+A request with `id` returns `map`, including the same summary and its resolved
+`config`. Imagery, tiles, regional artwork, feature links and region links use
+absolute URLs on the requested origin. Crops, calibration, grids and geometry
+are the same values consumed by the existing viewer.
+
+A map identity combines its source note path and authored block `id`. It survives
+prose, block-order and view-setting changes. Give long-lived maps unique block
+IDs. Without one, identity uses the normalized block text and changes when the
+block changes. Duplicate identities in one visible page are omitted with a
+warning. Invalid maps and unsafe comment syntax are isolated with warnings;
+unavailable direct map requests return 404.
+
+`sourceRevision` fingerprints the resolved definition, source image hash and
+manifest. Saving clients retain both the definition and revision and explicitly
+choose when to refresh. The API resolves the current publication; it is not a
+historical snapshot or asset-retention service. Renaming a source note changes
+its map identities. Existing retention of active plus previous content remains
+unchanged.
+
+New publications add an optional, hash-verified `runtime/maps.json` containing
+only source bodies with map blocks. Filtering and resolution still happen per
+request. Existing compiled format 1/2 and legacy snapshots remain readable:
+the first catalogue request scans their existing note shards with bounded
+concurrency and reuses the discovered source bodies. Existing article requests
+do not perform this scan. No vault republication is required to test the API;
+the next ordinary content publication adds the optimized catalogue source part.
+
+For a manual regression pass after the website release, open existing tiled and
+legacy maps and check pan/zoom/Fit map, crops, hex coordinates, region toggles,
+regional detail imagery, distance/area measurement, Sketch/Undo/Clear, and mobile
+navigation. Compare the same map in Obsidian; installed plugin artifacts are
+updated only by the separate plugin release workflow. Automated checks include
+Node and compiled/legacy Worker catalogue parity, context isolation, package
+packing and the existing website/Obsidian map suites.

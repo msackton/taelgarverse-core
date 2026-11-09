@@ -100,33 +100,40 @@ export function parseMap(source, store, author, {verifyImage=true}={}) {
     image:'/assets/' + entry.target.split('/').map(encodeURIComponent).join('/')}};
 }
 
+// One resolved definition feeds HTML and the map catalogue. Reader-specific
+// links and paths must pass through the same context checks on both surfaces.
+export function resolveMap(source, env) {
+  const {entry,config,manifest} = parseMap(source,env.store,env.entry);
+  if(config.version===2){
+    const paths=[];
+    for(const target of env.store.entries??[]){
+      if(!target.note?.metadata?.mapPath || !availableInContext(target,env.context??{date:env.date,campaigns:[]}))continue;
+      let value;
+      try{if(target.mapPathError)throw new Error(target.mapPathError);value=resolveMapPath(target.note.metadata.mapPath,target.mapPathGeometry);}
+      catch{env.warnings.push('Map: invalid mapPath in '+target.id);continue;}
+      if(pathIntersectsCrop(value.points,config.crop,manifest.sourceOffset))
+        paths.push({...value,id:target.id,name:target.name??target.id,href:pageUrl(target.slug,env.date,env.context)});
+    }
+    if(paths.length){config.mapPaths=paths;config.sourceOffset=manifest.sourceOffset;}
+  }
+  if(config.regionLayers){
+    config.regionLinks={};
+    for(const layer of config.regionLayers)for(const region of layer.regions){
+      if(!region.note)continue;
+      const target=env.store.lookup(region.note).entry;
+      if(target?.note && availableInContext(target,env.context??{date:env.date,campaigns:[]}))
+        config.regionLinks[layer.key+'#'+region.id]=pageUrl(target.slug,env.date,env.context);
+    }
+  }
+  if(!config.measurement)env.warnings.push('Leaflet map: distance measurement disabled; verify image calibration, unit, and scale');
+  const tile = entry.mapTiles?.find(tile => JSON.stringify(tile.bounds) === JSON.stringify(config.bounds));
+  if (tile) config.tile = tile;
+  return {entry,config,manifest};
+}
+
 export function renderMap(source, env) {
   try {
-    const {entry,config,manifest} = parseMap(source,env.store,env.entry);
-    if(config.version===2){
-      const paths=[];
-      for(const target of env.store.entries??[]){
-        if(!target.note?.metadata?.mapPath || !availableInContext(target,env.context??{date:env.date,campaigns:[]}))continue;
-        let value;
-        try{if(target.mapPathError)throw new Error(target.mapPathError);value=resolveMapPath(target.note.metadata.mapPath,target.mapPathGeometry);}
-        catch{env.warnings.push('Map: invalid mapPath in '+target.id);continue;}
-        if(pathIntersectsCrop(value.points,config.crop,manifest.sourceOffset))
-          paths.push({...value,id:target.id,name:target.name??target.id,href:pageUrl(target.slug,env.date,env.context)});
-      }
-      if(paths.length){config.mapPaths=paths;config.sourceOffset=manifest.sourceOffset;}
-    }
-    if(config.regionLayers){
-      config.regionLinks={};
-      for(const layer of config.regionLayers)for(const region of layer.regions){
-        if(!region.note)continue;
-        const target=env.store.lookup(region.note).entry;
-        if(target?.note && availableInContext(target,env.context??{date:env.date,campaigns:[]}))
-          config.regionLinks[layer.key+'#'+region.id]=pageUrl(target.slug,env.date,env.context);
-      }
-    }
-    if(!config.measurement)env.warnings.push('Leaflet map: distance measurement disabled; verify image calibration, unit, and scale');
-    const tile = entry.mapTiles?.find(tile => JSON.stringify(tile.bounds) === JSON.stringify(config.bounds));
-    if (tile) config.tile = tile;
+    const {entry,config}=resolveMap(source,env);
     const label = 'Map: ' + path.posix.basename(entry.id,path.posix.extname(entry.id)).replace(/[-_]/g,' ');
     return '<figure class="leaflet-map" data-map="' + escapeHtml(JSON.stringify(config)) + '">' +
       '<div class="map-canvas" hidden role="region" aria-label="' + escapeHtml(label) + '" style="--map-height:' + config.height + ';--map-width:' + config.width + '"></div>' +

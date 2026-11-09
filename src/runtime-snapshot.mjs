@@ -8,6 +8,7 @@ import {loadSnapshot,SnapshotStore} from './snapshot.mjs';
 import {supportedRuntimeVersion,assetPartition,validRuntimeDescriptor} from './runtime-format.mjs';
 import {bucketText} from './runtime-io.mjs';
 import {readSnapshotPart} from './snapshot-cache.mjs';
+import {compileMapSources} from './map-catalogue.mjs';
 
 const failure=()=>new RenderError(503,'Compiled content snapshot is missing or invalid');
 
@@ -115,6 +116,21 @@ export class RuntimeSnapshot {
         interactionIndex:data.interactions,
         prepared:{contexts:this.contexts,campaignSites:CampaignSites.hydrate(data.sites),navigation,home:data.home,
           backlinkCampaigns:compactBacklinks?.campaigns || new Map(backlinks.campaigns),loadBacklinks:compactBacklinks?.load}});
+      engine.loadMapSources=()=>this.once('mapSources',async()=>{
+        if(this.index.parts.maps){
+          const sources=await this.read(this.index.parts.maps);
+          if(!Array.isArray(sources) || sources.some(source=>typeof source.id!=='string' || typeof source.body!=='string'))throw failure();
+          return sources;
+        }
+        // Existing format 1/2 publications remain usable without republishing.
+        // Bound concurrent shard reads and retain only notes containing maps.
+        const entries=store.entries.filter(entry=>entry.note),sources=[];
+        for(let start=0;start<entries.length;start+=8){
+          const loaded=await Promise.all(entries.slice(start,start+8).map(async entry=>({...entry,note:await store.getNote(entry)})));
+          sources.push(...compileMapSources({entries:loaded}));
+        }
+        return sources;
+      });
       return {engine,store,index:this.index};
     });
   }
@@ -125,7 +141,7 @@ export class RuntimeSnapshot {
     // loading route data first.
     let pathname='';
     try{if(['GET','HEAD'].includes(request.method))pathname=decodeURIComponent(url.pathname);}catch{}
-    if(pathname==='/api/page' || pathname==='/api/index' || pathname==='/api/diagram-links' || pathname.startsWith('/page/') || pathname==='/' && !url.searchParams.has('q'))return this.renderer();
+    if(pathname==='/api/maps' || pathname==='/api/page' || pathname==='/api/index' || pathname==='/api/diagram-links' || pathname.startsWith('/page/') || pathname==='/' && !url.searchParams.has('q'))return this.renderer();
     let store={bySlug:{size:this.index.pages},warnings:this.index.warnings,assets:new Map(),settings:this.index.settings};
     const engine={settings:this.index.settings,contexts:this.contexts,campaignSites:this.campaignSites};
     if(pathname.startsWith('/assets/')){

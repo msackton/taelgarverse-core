@@ -70,6 +70,13 @@ configuration is in [wrangler.json](../wrangler.json); the
 
 ## How updates reach the site
 
+The read-only `/api/maps` route exposes the public map catalogue and resolved
+viewer definitions. New content preparation adds the optional hash-verified
+`runtime/maps.json` source part; current compiled and legacy snapshots use
+their existing note shards as a compatibility fallback. Articles do not load
+this part. Catalogue responses are uncached JSON; room access and collaboration
+are outside this Worker. See [map API](maps.md#reusable-viewer-and-map-catalogue).
+
 **Website code:** merge a change into `main` in GitHub. **Test and deploy website**
 runs the shared tests and deployment-package check, then deploys the Worker and
 website files only after success. This changes page rendering, styles, and site

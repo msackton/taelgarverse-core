@@ -4,6 +4,7 @@ import {RenderError} from './common.mjs';
 import {RenderEngine} from './render-engine.mjs';
 import {createHeaderSnapshot} from './header-core/index.mjs';
 import {bucketText} from './runtime-io.mjs';
+import {compileMapSources} from './map-catalogue.mjs';
 
 export class SnapshotStore extends ContentStore {
   constructor(index,bucket,lookups,options={}) {
@@ -52,5 +53,14 @@ export async function loadSnapshot(bucket,revision,options={}) {
   const headers=createHeaderSnapshot({pages:store.entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta:index.coreMeta,registry:index.registry});
   const engine=new RenderEngine({settings:index.settings,store,headers,navigationSource:index.navigationSource,
     homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null,interactionIndex:index.interactions});
+  let mapSources;
+  engine.loadMapSources=()=>mapSources??=(async()=>{
+    const entries=store.entries.filter(entry=>entry.note),sources=[];
+    for(let start=0;start<entries.length;start+=8){
+      const loaded=await Promise.all(entries.slice(start,start+8).map(async entry=>({...entry,note:await store.getNote(entry)})));
+      sources.push(...compileMapSources({entries:loaded}));
+    }
+    return sources;
+  })().catch(error=>{mapSources=undefined;throw error;});
   return {engine,store,index};
 }

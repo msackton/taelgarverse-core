@@ -48,6 +48,7 @@ The core documentation is:
 - [Publishing pipelines](docs/publishing-pipelines.md): static export, Node website preparation, and compatibility conversion.
 - [Vault usage](docs/vault.md): input files, metadata, contexts, and rendering behavior.
 - [Cloudflare](docs/cloudflare.md): hosted resources, bindings, and snapshot storage.
+- [Maps](docs/maps.md#reusable-viewer-and-map-catalogue): reusable viewer package and published map catalogue API.
 - [Taelgarverse for Obsidian](obsidian/taelgarverse/README.md): headers, campaign interactions, Maps, optional Images, local development, and BRAT releases.
 
 ## Run locally

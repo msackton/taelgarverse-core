@@ -12,7 +12,7 @@ import {syncPublicationHosts} from './hostname-firewall.mjs';
 export const POINTER_KEY='published/current.json';
 const revisionPattern=/^[a-f0-9]{64}$/;
 const assetPattern=/^assets\/[a-f0-9]{64}$/;
-const snapshotPattern=/^revisions\/([a-f0-9]{64})\/(?:index\.json|runtime\.json|notes\/[a-f0-9]{2}\.json|runtime\/(?:render|navigation|headers|backlinks|search-metadata|assets\/[a-f0-9]{2}|(?:notes|backlinks)\/[0-9]{4,})\.json)$/;
+const snapshotPattern=/^revisions\/([a-f0-9]{64})\/(?:index\.json|runtime\.json|notes\/[a-f0-9]{2}\.json|runtime\/(?:render|navigation|headers|backlinks|search-metadata|maps|assets\/[a-f0-9]{2}|(?:notes|backlinks)\/[0-9]{4,})\.json)$/;
 // Retired objects are sweep candidates even inside active/previous revisions.
 const retiredTranscriptPattern=/^revisions\/[a-f0-9]{64}\/transcripts\/[a-f0-9]{2}\.json$/;
 

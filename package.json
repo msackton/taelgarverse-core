@@ -11,7 +11,9 @@
     "start": "node scripts/dev.mjs",
     "test": "node scripts/test.mjs",
     "publish": "node scripts/publish-content.mjs",
-    "materialize:static": "node scripts/materialize-static.mjs"
+    "materialize:static": "node scripts/materialize-static.mjs",
+    "maps:build": "node scripts/build-map-package.mjs",
+    "maps:pack": "node scripts/build-map-package.mjs --pack"
   },
   "dependencies": {
     "cheerio": "1.2.0",
