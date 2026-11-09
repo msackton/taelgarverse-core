@@ -13,7 +13,8 @@
     "publish": "node scripts/publish-content.mjs",
     "materialize:static": "node scripts/materialize-static.mjs",
     "maps:build": "node scripts/build-map-package.mjs",
-    "maps:pack": "node scripts/build-map-package.mjs --pack"
+    "maps:pack": "node scripts/build-map-package.mjs --pack",
+    "test:ui:maps": "node tests/browser/map-tools.mjs"
   },
   "dependencies": {
     "cheerio": "1.2.0",
@@ -32,6 +33,7 @@
     "linkedom": "0.18.13",
     "mermaid": "12.2.0",
     "miniflare": "5.20261012.1-beta",
+    "playwright": "1.57.0",
     "wrangler": "4.151.1"
   }
 }

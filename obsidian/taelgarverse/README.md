@@ -329,7 +329,10 @@ removes the old `taelgar-map-tools` ID from the enabled list and adds
 `main.mjs` owns plugin settings and feature registration. `features/maps.mjs`
 owns map-component state, image hashing, and cleanup through Obsidian's Component
 lifecycle. It uses core's `src/maps.mjs`, `src/browser/map-view.mjs`, and shared
-measurement modules. The map CSS scope retains `taelgar-map-tools` as an internal
+measurement and common tool modules. Note maps use the same compact Pan, Sketch,
+Select, Eraser and Measure header as the website. Sketches stay private and
+temporary; shared rooms are a separate application. The map editor retains its
+authoring controls. The map CSS scope retains `taelgar-map-tools` as an internal
 style class. Calibration belongs in the authored block, not in plugin source.
 
 `features/images.mjs` owns the opt-in image feature, Reading View roots,

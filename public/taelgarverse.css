@@ -75,7 +75,7 @@
 /* Material defaults admonition text to 80% of body copy. Keep prose-heavy
    callouts at the surrounding reading size while retaining compact captions. */
 .md-typeset .admonition:not(.image),
-.md-typeset details:not(.image) {
+.md-typeset details:not(.image):not(.map-tools-menu) {
   font-size: 0.8rem;
 }
 

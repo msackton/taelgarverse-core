@@ -1,16 +1,29 @@
 {
   "name": "@taelgar/maps",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "type": "module",
   "license": "GPL-3.0-only",
   "description": "Shared Taelgar Leaflet viewer and flat map coordinates",
   "exports": {
-    ".": "./dist/viewer.js",
+    ".": {
+      "types": "./dist/viewer.d.ts",
+      "default": "./dist/viewer.js"
+    },
     "./coordinates": "./dist/coordinates.js",
-    "./styles.css": "./dist/styles.css"
+    "./styles.css": "./dist/styles.css",
+    "./sketch": {
+      "types": "./dist/sketch.d.ts",
+      "default": "./dist/sketch.js"
+    }
   },
-  "files": ["dist", "LICENSE", "README.md"],
-  "peerDependencies": { "leaflet": "1.9.4" },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "peerDependencies": {
+    "leaflet": "1.9.4"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/msackton/taelgarverse-core.git",

@@ -39,3 +39,14 @@ even in this mode.
 
 `--live-vault` and `--integration` are separate modes and cannot be combined.
 They are not implicit prerequisites of the default suite or deployment CI.
+
+## Common map tools
+
+`npm run test:ui:maps` runs real Chromium against test-owned map figures. It checks
+local drawing, point outlines, selection/deletion, measurements, independent maps
+and a phone viewport; screenshots go to ignored `outputs/`. Set
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when Chromium is not at `/usr/bin/chromium`.
+`tests/map-sketch.test.mjs` verifies DOM-free selection and swept erasing. Package
+checks import both geometry entries without browser globals and verify declarations.
+The character manager separately tests the packed controls with real room state,
+concurrent browsers, live roles, source changes, erasing and phone touch.

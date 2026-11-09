@@ -1,7 +1,7 @@
 import {routeDistance,formatDistance,isClosedRoute,routeArea,formatArea} from '../map-distance.mjs';
 import {measurementRoutes,repairClosedRoute,shapeLabelPoint} from '../map-path.mjs';
 
-export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSketch=true}={}) {
+export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSketch=true,onActiveChange=()=>{}}={}) {
   const caption=figure.querySelector('figcaption'),doc=canvas.ownerDocument;
   const controls=doc.createElement('span');controls.className='map-measure-controls';
   const button=(text,action)=>{
@@ -109,7 +109,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     canvas.classList.toggle('map-measuring',active);help.hidden=!active;
     if(active){doubleClickZoom=map.doubleClickZoom.enabled();map.doubleClickZoom.disable();canvas.focus({preventScroll:true});}
     else{if(doubleClickZoom)map.doubleClickZoom.enable();(mode==='sketch'?sketch:toggle).focus({preventScroll:true});}
-    setTracing(tracing);
+    setTracing(tracing);onActiveChange(active);
   }
   function chooseMode(value){
     if(canvas.classList.contains('map-editing')){summary.textContent='Save or cancel map editing before measuring or sketching.';return;}
@@ -205,5 +205,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     layers.remove();preview.remove();controls.remove();help.remove();
   };
   dispose.stop=()=>{if(active)setActive(false);};
+  dispose.activate=()=>{if(!active || mode!=='measure')chooseMode('measure');};
+  dispose.elements={toggle,sketch,trace,close,undo,clear,summary,help,controls};
   return dispose;
 }

@@ -1,0 +1,10 @@
+export type MapPoint = {x:number;y:number};
+export type SketchDrawing = {id:string;color:string;width:number;closed:boolean;points:MapPoint[];segments?:MapPoint[][]};
+export type EraserPoint = MapPoint & {radius:number};
+export type SketchCommand = {type:'addDrawing';drawing:SketchDrawing}|{type:'removeDrawings';ids:string[]}|{type:'eraseDrawings';trail:EraserPoint[]}|{type:'clearDrawings'};
+export function drawingPaths(drawing:SketchDrawing):MapPoint[][];
+export function hitDrawing(drawings:SketchDrawing[],point:MapPoint,tolerance:number):string|undefined;
+export function drawingsInBox(drawings:SketchDrawing[],box:MapPoint&{width:number;height:number}):string[];
+export function eraserRadius(speed:number,previous?:number):number;
+export function eraseDrawings(drawings:SketchDrawing[],trail:EraserPoint[]):SketchDrawing[];
+export function applySketchCommand(drawings:SketchDrawing[],command:SketchCommand):SketchDrawing[];

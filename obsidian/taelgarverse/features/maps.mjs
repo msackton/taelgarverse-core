@@ -54,12 +54,12 @@ class MapChild extends MarkdownRenderChild {
       if(this.disposed || this.sequence!==sequence)return;
       const figure=doc.createElement('figure');figure.className='leaflet-map';figure.dataset.map=JSON.stringify(config);
       const canvas=doc.createElement('div');canvas.className='map-canvas';canvas.hidden=true;
-      canvas.setAttribute('role','region');canvas.setAttribute('aria-label','Interactive Taelgar map');
+      canvas.tabIndex=0;canvas.setAttribute('role','region');canvas.setAttribute('aria-label','Interactive Taelgar map');
       canvas.style.setProperty('--map-height',config.height);canvas.style.setProperty('--map-width',config.width);
       const caption=doc.createElement('figcaption'),status=doc.createElement('span');status.className='map-status';status.setAttribute('role','status');
       const original=doc.createElement('a');original.href=config.image;original.textContent=config.version===2?'Open full source image':'Open map image';original.target='_blank';original.rel='noopener';
       caption.append(status,original);figure.append(canvas,caption);element.replaceChildren(figure);
-      this.dispose=mountMap(figure,{openRegionNote:note=>this.plugin.app.workspace.openLinkText(note,this.context.sourcePath,false),decorate:baseline?context=>{
+      this.dispose=mountMap(figure,{tools:{},openRegionNote:note=>this.plugin.app.workspace.openLinkText(note,this.context.sourcePath,false),decorate:baseline?context=>{
         this.towns=mountTownPlacement({...context,figure,manifest:baseline.manifest,app:this.plugin.app,sourcePath:this.context.sourcePath,
           onSaved:(file,location)=>{for(const child of this.plugin.maps)child.towns?.updateNote(file,location);}});
         this.paths=mountNotePaths({...context,figure,manifest:baseline.manifest,app:this.plugin.app,sourcePath:this.context.sourcePath});

@@ -8,27 +8,39 @@ change a route's measured distance.
 
 The shared website and Obsidian viewer hides Leaflet's default attribution badge.
 
-Choose **Measure distance**, then click or tap points along a route. **Undo**
-removes the last point, **Clear** removes the route and exits tracing mode, and **Done measuring** leaves
-the result visible while returning to ordinary navigation. Maps remain draggable
-and zoomable while measuring. Keyboard users can pan with arrow keys and add the
-map center with Enter or Space; Backspace undoes a point and Escape finishes.
-The center crosshair appears only with visible keyboard focus in point mode. Each map,
-including repeated note embeds, has its own measurement state. Measurements stay
-in the current browser page and are not saved to notes or published content.
+Website and Obsidian note maps share a compact header with **Pan**, **Sketch**,
+**Select**, **Eraser** and **Measure**, plus zoom, Fit map, available Layers and
+Fullscreen. The character manager mounts this same strip in its room header.
+Options for the active tool open over the map rather than adding another row.
+The Obsidian map editor retains its authoring controls and legacy caption tools.
 
-Choose **Sketch** to draw temporary shapes without distance or area readings.
-Sketch enters freehand mode every time you choose it; turn off **Trace path** to
-add point outlines or pan. **Clear** and **Close shape** leave Sketch ready for
-another freehand drawing. **Close shape** fills an outline, **Undo** removes the last sketch
-action, and **Done sketching** returns to navigation with drawings still visible.
-Sketches and measurements remain separate when switching tools, and **Clear**
-removes both. Each map keeps its own drawings only until it unloads; nothing is
-saved. Sketch also works when a map's measurement calibration is unavailable.
-Closed shapes receive labels **1**, **2**, **3**, and so on inside their outlines,
-including freehand shapes. Each tool numbers its own shapes in drawing order;
-measurement labels match the numbered area readings. Undo updates the labels,
-and Clear removes them and restarts numbering.
+Choose **Measure**, then click or tap points along a route. Its **Options** menu
+contains Trace path, Close shape, Undo and Clear measurements. Choose Pan or press
+Escape to finish while leaving the result visible. Maps remain draggable and
+zoomable in point mode. Keyboard users can pan with arrow keys and add the map
+center with Enter or Space; Backspace undoes a point. The center crosshair appears
+only with visible keyboard focus in point mode. Every map has independent local
+measurements; they are never saved to notes, published content or shared rooms.
+
+Choose **Sketch** to draw without distance or area readings. Its Options menu
+contains Trace path, color, stroke width, Close shape and Clear sketches. Drag to
+trace; turn Trace path off to click points or pan. Return to the first point or
+choose Close shape to fill an outline. Choose Pan or press Escape to finish an
+open point outline. Undo removes a draft point or your most recent added stroke.
+Sketch works even when measurement calibration is unavailable. Closed sketches
+retain numbered labels in drawing order.
+
+**Select** clicks nearby ink or drags a box across drawings; Shift adds or toggles
+selection. Delete selected, Delete or Backspace removes the selection. Empty
+space or Escape clears it. **Eraser** removes portions of open strokes while
+dragging, retaining disconnected fragments. Its brush grows with pointer speed
+from 10 to 42 screen pixels independently of zoom. Filled shapes erase as whole
+objects. Selection and brush previews stay local.
+
+The **Temporary** label on website and Obsidian maps means sketches disappear
+when the map unloads. Clearing sketches does not clear measurements. Shared room
+hosts instead supply saved drawings and persist sketch commands; their label is
+**Shared**. Room access and persistence belong to the character manager.
 
 For a winding river or road, turn on **Trace path** while measuring and drag
 with a mouse, pen, or one finger. The total includes the sampled bends rather
@@ -344,9 +356,12 @@ PNGs, and block attachments require content publication to appear on the website
 ## Reusable viewer and map catalogue
 
 The website, Obsidian plugin and `@taelgar/maps` package build from the same
-maintained viewer and coordinate modules. The package adds no collaboration,
-character or encounter state. Its host-owned `decorate` hook is available for
-future room annotations and encounter tokens. See the
+maintained viewer, tool controller and geometry modules. `map-tools.mjs` owns
+controls and gestures; DOM-free `map-sketch.mjs` owns selection, partial erasing
+and sketch commands. The package adds no room access, network or encounter state.
+Hosts mount the common controls with `tools`, supply drawings and an `onCommand`
+adapter, and refresh the document with `updateTools`. The `decorate` hook remains
+available for host overlays. See the
 [package guide](../packages/maps/README.md) for installation, mounting and
 Photoshop/Leaflet coordinate conversion. This does not release an Obsidian plugin.
 
@@ -357,7 +372,7 @@ npm ci
 npm run maps:pack
 ```
 
-The archive is `.cache/packages/taelgar-maps-0.1.1.tgz`. CI also builds it and
+The archive is `.cache/packages/taelgar-maps-0.2.0.tgz`. CI also builds it and
 attaches it as the **taelgar-maps** artifact. A consuming app installs the archive
 and locks its integrity; its own build bundles the viewer. `maps:build` produces
 the unpacked package. These commands do not publish to a package registry or

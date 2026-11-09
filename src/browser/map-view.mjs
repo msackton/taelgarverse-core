@@ -3,12 +3,13 @@ import {addMapRegions} from './map-regions.mjs';
 import {addMapFeaturePaths} from './map-feature-paths.mjs';
 import L from 'leaflet';
 import {addMeasurement} from './map-measurement.mjs';
+import {addMapTools} from './map-tools.mjs';
 import {addMapBaseline,cropInset} from './map-baseline.mjs';
 import {cropBounds} from '../map-core.mjs';
 
 const blank = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
-export function mountMap(figure,{decorate,openRegionNote,baseImagePane,allowSketch=true}={}) {
+export function mountMap(figure,{decorate,openRegionNote,baseImagePane,allowSketch=true,tools}={}) {
   const canvas = figure.querySelector('.map-canvas'), status = figure.querySelector('.map-status');
   let map,observer,disposeMeasurement,disposeBaseline,disposeDecoration,disposeRegions,disposePaths,disposeDetails,fit;
   try {
@@ -65,11 +66,12 @@ export function mountMap(figure,{decorate,openRegionNote,baseImagePane,allowSket
     if(config.version===2)disposeBaseline=addMapBaseline(L,map,canvas,figure,config);
     if(config.version===2)disposeRegions=addMapRegions(L,map,canvas,figure,config,openRegionNote);
     if(config.version===2)disposePaths=addMapFeaturePaths(L,map,canvas,config);
-    disposeMeasurement=addMeasurement(L,map,canvas,figure,config.measurement,viewBounds,{allowSketch});
+    if(tools)fit.remove();
+    disposeMeasurement=tools?addMapTools(L,map,canvas,figure,config,viewBounds,tools):addMeasurement(L,map,canvas,figure,config.measurement,viewBounds,{allowSketch});
     // Host-only authoring controls stay outside serialized map definitions and
     // website bundles. Their lifetime follows the mounted map.
     disposeDecoration=decorate?.({L,map,canvas,config});
-    status.textContent = 'Drag to pan; use +/− or pinch to zoom. ';
+    status.textContent = tools?'':'Drag to pan; use +/− or pinch to zoom. ';
     if(config.measurement===null)status.textContent+='Distance measurement unavailable for this map. ';
     // Host controls can change the height of a flex-based editor canvas. Fit
     // after they mount so the initial view includes the complete rectangle.
@@ -84,8 +86,9 @@ export function mountMap(figure,{decorate,openRegionNote,baseImagePane,allowSket
     observer.observe(canvas);
     figure.dataset.mapReady = 'true';
     let disposed=false;
-    const dispose=()=>{disposed=true;observer.disconnect();disposeDecoration?.();disposeDetails?.();disposePaths?.();disposeRegions?.();disposeMeasurement?.();disposeBaseline?.();map.remove();fit.remove();delete figure.dataset.mapReady;};
+    const dispose=()=>{disposed=true;observer.disconnect();disposeDecoration?.();disposeDetails?.();disposePaths?.();disposeRegions?.();disposeMeasurement?.();disposeBaseline?.();map.off();map.stop?.();map.remove();fit.remove();delete figure.dataset.mapReady;};
     dispose.stopTools=()=>disposeMeasurement?.stop?.();
+    dispose.updateTools=value=>{tools={...tools,...value};disposeMeasurement?.update?.(value);};
     // Editor changes keep the image and Leaflet map alive. Only committed
     // crop/grid changes need new controls.
     dispose.update=next=>{
@@ -94,12 +97,13 @@ export function mountMap(figure,{decorate,openRegionNote,baseImagePane,allowSket
         JSON.stringify(next.bounds)!==JSON.stringify(config.bounds) || JSON.stringify(next.tile)!==JSON.stringify(config.tile))
         throw new Error('An in-place map update must keep the same source.');
       const oldCrop=JSON.stringify(config.crop);
+      if(tools)tools={...tools,...disposeMeasurement?.getState?.()};
       disposeBaseline?.();disposeMeasurement?.();config=next;viewBounds=cameraBounds(config);
       figure.dataset.map=JSON.stringify(config);map.setMaxBounds(viewBounds);sizeMap();
       if(imageLayer)imageLayer.getElement().style.clipPath=cropInset(config.crop,{x:0,y:0,width:config.bounds[1][1],height:config.bounds[1][0]});
       tileLayer?.redraw();
       disposeBaseline=addMapBaseline(L,map,canvas,figure,config);
-      disposeMeasurement=addMeasurement(L,map,canvas,figure,config.measurement,viewBounds,{allowSketch});
+      disposeMeasurement=tools?addMapTools(L,map,canvas,figure,config,viewBounds,tools):addMeasurement(L,map,canvas,figure,config.measurement,viewBounds,{allowSketch});
       disposeRegions?.update(config);
       disposePaths?.update(config);
       if(disposeDetails)disposeDetails.update(config);else if(config.detailLayers?.length)disposeDetails=addMapDetails(L,map,canvas,figure,config);

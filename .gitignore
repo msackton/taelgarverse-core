@@ -162,3 +162,6 @@ public/generated/
 wrangler.local.json
 .dev.vars
 .dev.vars.*
+
+# Local screenshots and test artifacts
+/outputs/

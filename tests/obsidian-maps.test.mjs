@@ -14,6 +14,7 @@ import {codeMirrorHost} from './helpers/codemirror-host.mjs';
 const require=createRequire(import.meta.url);
 await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
 const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export {default} from './obsidian/taelgarverse/main.mjs'; export {obsidianMapConfig} from './obsidian/taelgarverse/features/maps.mjs';",resolveDir:ROOT},write:false,bundle:true,
+  plugins:[{name:'shared-tools-host',setup(builder){builder.onLoad({filter:/\/browser\/map-tools\.mjs$/},()=>({contents:`export function addMapTools(L,map,canvas,figure,config,bounds,options){globalThis.__mapTools.push(options);return ()=>{globalThis.__mapToolsDisposed++;};}`,loader:'js'}));}}],
   platform:'node',format:'cjs',external:['obsidian','leaflet','@codemirror/view','@codemirror/state'],logLevel:'silent'});
 
 function host(){
@@ -57,7 +58,7 @@ function host(){
     map(){maps++;return {invalidateSize(){},setMinZoom(){},setView(){},fitBounds(){},on(){},off(){},remove(){removed++;},doubleClickZoom:handler(),dragging:handler(),touchZoom:handler(),boxZoom:handler()};},
     imageOverlay(){return {on(){return this;},addTo(){return this;}};},layerGroup(){return {addTo(){return this;},clearLayers(){},remove(){this.clearLayers();}};}};
   const cm=codeMirrorHost();
-  const module={exports:{}},context={module,exports:module.exports,Buffer,TextDecoder,TextEncoder,structuredClone,crypto:globalThis.crypto,console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},
+  const module={exports:{}},context={__mapTools:[],__mapToolsDisposed:0,module,exports:module.exports,Buffer,TextDecoder,TextEncoder,structuredClone,crypto:globalThis.crypto,console,setTimeout,clearTimeout,setInterval:()=>0,clearInterval(){},
     ResizeObserver:class{observe(){}disconnect(){disconnected++;}},
     require:name=>name==='obsidian'?{Plugin,Component,ItemView:class{},PluginSettingTab:class{},Setting:class{},Notice:class{},MarkdownRenderChild,TFile}:name==='leaflet'?L:
       name==='@codemirror/view'?cm.view:name==='@codemirror/state'?cm.state:require(name)};
@@ -66,7 +67,7 @@ function host(){
   const app={workspace:{on(){return {};},onLayoutReady(fn){fn();},iterateAllLeaves(){}},
     metadataCache:{getFirstLinkpathDest:(image,source)=>{assert.equal(image,'local map.png');assert.equal(source,'Places/Map.md');return file;}},
     vault:{readBinary:async()=>{reads++;if(fail)throw new Error('read failed');if(resolve)return await new Promise(r=>{resolve=r;});return Uint8Array.from([1,2,3,4]).buffer;},getResourcePath:()=> 'app://local/assets/local%20map.png'}};
-  return {...module.exports,TFile,doc,app,file,get reads(){return reads;},set fail(value){fail=value;},
+  return {...module.exports,TFile,doc,app,file,get toolMounts(){return context.__mapTools;},get toolsDisposed(){return context.__mapToolsDisposed;},get reads(){return reads;},set fail(value){fail=value;},
     defer(){resolve=true;},release(){resolve(Uint8Array.from([1,2,3,4]).buffer);},get counts(){return {maps,removed,disconnected};}};
 }
 const source='image: [[local map.png]]\nbounds: [[0,0],[100,200]]\nunit: miles\nscale: 0.5\n';
@@ -135,9 +136,9 @@ test('Obsidian map components mount the shared controller and dispose observers 
   const h=host(),plugin=new h.default();plugin.app=h.app;await plugin.onload();assert.equal(plugin.language,'taelgar-map');
   let child;
   plugin.processor(source,h.doc.createElement('div'),{sourcePath:'Places/Map.md',addChild(value){child=value;}});
-  await child.onload();assert.equal(h.counts.maps,1);
+  await child.onload();assert.equal(h.counts.maps,1);assert.equal(h.toolMounts.length,1);assert.equal(h.toolMounts[0].scope,undefined,'notes use private temporary tools');
   const maps=plugin.children.find(child=>child.hashes);
-  plugin.unload();assert.deepEqual(h.counts,{maps:1,removed:1,disconnected:1});assert.equal(maps.hashes.size,0);assert.equal(maps.maps.size,0);
+  plugin.unload();assert.equal(h.toolsDisposed,1);assert.deepEqual(h.counts,{maps:1,removed:1,disconnected:1});assert.equal(maps.hashes.size,0);assert.equal(maps.maps.size,0);
 });
 
 test('an Obsidian note closed during image hashing never mounts a stale map',async()=>{
