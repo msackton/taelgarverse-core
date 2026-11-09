@@ -10,7 +10,8 @@ The shared website and Obsidian viewer hides Leaflet's default attribution badge
 
 Website and Obsidian note maps share a compact header with **Pan**, **Sketch**,
 **Select**, **Eraser** and **Measure**, plus zoom, Fit map, available Layers and
-Fullscreen. The character manager mounts this same strip in its room header.
+Fullscreen. **Open source image** is the header’s external-link icon; it opens
+the original image in a new tab. The character manager mounts this same strip in its room header.
 Options for the active tool open over the map rather than adding another row.
 The Obsidian map editor retains its authoring controls and legacy caption tools.
 
@@ -372,7 +373,7 @@ npm ci
 npm run maps:pack
 ```
 
-The archive is `.cache/packages/taelgar-maps-0.2.0.tgz`. CI also builds it and
+The archive is `.cache/packages/taelgar-maps-0.2.1.tgz`. CI also builds it and
 attaches it as the **taelgar-maps** artifact. A consuming app installs the archive
 and locks its integrity; its own build bundles the viewer. `maps:build` produces
 the unpacked package. These commands do not publish to a package registry or

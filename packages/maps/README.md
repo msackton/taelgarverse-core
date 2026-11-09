@@ -6,7 +6,7 @@ or encounter state. Website and Obsidian note sketches are private and temporary
 room hosts supply their own saved drawings and persistence adapter.
 
 From a pinned core checkout, run `npm ci` then `npm run maps:pack`. Install
-`.cache/packages/taelgar-maps-0.2.0.tgz` and retain its integrity-locked dependency.
+`.cache/packages/taelgar-maps-0.2.1.tgz` and retain its integrity-locked dependency.
 This builds a local archive; it does not publish to npm or GitHub. Bump the package
 version when its public API or behavior changes.
 
@@ -26,7 +26,8 @@ hosts, including the Obsidian map editor. `allowSketch: false`, `decorate`,
 `openRegionNote`, `baseImagePane` and the existing update hooks remain available.
 
 The common strip owns Pan, Sketch, Select, Eraser, Measure, contextual Options,
-Layers, zoom/Fit and Fullscreen. To host it in a shared room:
+Layers, zoom/Fit and Fullscreen. An existing source-image link in the caption
+moves into the header and returns to the caption when the viewer is disposed. To host it in a shared room:
 
 ```js
 const dispose = mountMap(figure, {tools: {

@@ -1,7 +1,7 @@
 import {addMeasurement} from './map-measurement.mjs';
 import {repairClosedRoute,shapeLabelPoint} from '../map-path.mjs';
 import {drawingPaths,hitDrawing,drawingsInBox,eraserRadius,eraseDrawings,applySketchCommand} from '../map-sketch.mjs';
-const icons={pan:'M8 12V5a1.5 1.5 0 013 0v6-7a1.5 1.5 0 013 0v7-5a1.5 1.5 0 013 0v6-3a1.5 1.5 0 013 0v5c0 5-3 7-6 7h-1c-2 0-3-1-4-3l-4-5a1.5 1.5 0 012-2l2 2',sketch:'M4 17l-1 4 4-1L20 7l-3-3zM14 7l3 3',select:'M4 3l14 9-7 1-3 7z',erase:'M3 15l8-11a2 2 0 013 0l7 6-9 11H8zM7 10l9 8M12 21h9',measure:'M3 16L16 3l5 5L8 21zM6 13l3 3m0-6l2 2m1-5l3 3',fit:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',fullscreen:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M8 8l-5-5m13 5l5-5M8 16l-5 5m13-5l5 5'};
+const icons={pan:'M8 12V5a1.5 1.5 0 013 0v6-7a1.5 1.5 0 013 0v7-5a1.5 1.5 0 013 0v6-3a1.5 1.5 0 013 0v5c0 5-3 7-6 7h-1c-2 0-3-1-4-3l-4-5a1.5 1.5 0 012-2l2 2',sketch:'M4 17l-1 4 4-1L20 7l-3-3zM14 7l3 3',select:'M4 3l14 9-7 1-3 7z',erase:'M3 15l8-11a2 2 0 013 0l7 6-9 11H8zM7 10l9 8M12 21h9',measure:'M3 16L16 3l5 5L8 21zM6 13l3 3m0-6l2 2m1-5l3 3',fit:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',source:'M14 3h7v7M21 3L10 14M10 3H4v17h17v-6',fullscreen:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M8 8l-5-5m13 5l5-5M8 16l-5 5m13-5l5 5'};
 export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
   const doc=canvas.ownerDocument,win=doc.defaultView,scope=options.scope??'local';
   let editable=options.editable!==false,base=options.drawings??[],pending=[],tool='pan',tracing=true,color='#b34e17',width=3,selection=[],own=[],draft=[],gesture=null,pointer=null,zooming=false,disposed=false,nextOperation=0;
@@ -47,6 +47,14 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
   button('Zoom out',()=>map.zoomOut(),{container:viewport}).textContent='−';button('Zoom in',()=>map.zoomIn(),{container:viewport}).textContent='+';
   button('Fit map',()=>map.fitBounds(bounds),{icon:'fit',container:viewport,small:true});
   const layers=menu('Layers'),movedLayers=[...figure.querySelectorAll('.map-grid-controls,.map-region-controls,.map-detail-controls')];for(const controls of movedLayers)layers.panel.append(controls);layers.details.hidden=!movedLayers.length;
+  const caption=figure.querySelector('figcaption'),sourceImage=caption.querySelector('a');
+  let restoreSourceImage=()=>{};
+  if(sourceImage){
+    const attributes=Object.fromEntries(['class','title','aria-label'].map(name=>[name,sourceImage.getAttribute(name)])),children=[...sourceImage.childNodes];
+    sourceImage.classList.add('map-tool-button','map-tool-icon');sourceImage.title='Open source image';sourceImage.setAttribute('aria-label','Open source image');
+    const text=doc.createElement('span');text.textContent='Open source image';sourceImage.replaceChildren(svg('source'),text);root.append(sourceImage);
+    restoreSourceImage=()=>{for(const [name,value] of Object.entries(attributes))if(value===null)sourceImage.removeAttribute(name);else sourceImage.setAttribute(name,value);sourceImage.replaceChildren(...children);caption.append(sourceImage);};
+  }
   button('Fullscreen',()=>{const operation=doc.fullscreenElement?doc.exitFullscreen():(options.fullscreenTarget??figure).requestFullscreen?.();operation?.catch(error=>options.onError?.(error.message));},{icon:'fullscreen',small:true});
   const label=doc.createElement('span');label.className='map-tool-scope';label.textContent=scope==='shared'?'Shared':'Temporary';label.title=scope==='shared'?'Drawings save and are shared with this room':'Sketches are private and temporary';root.append(label);
   map.zoomControl?.remove();
@@ -133,7 +141,7 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
   const menuKey=event=>{if(event.key==='Escape')for(const item of [settings,layers])if(item.details.open){event.preventDefault();event.stopPropagation();item.details.open=false;item.summary.focus();}};
   canvas.addEventListener('pointerdown',down);canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',lost);canvas.addEventListener('lostpointercapture',lost);canvas.addEventListener('click',stopClick,true);canvas.addEventListener('keydown',keydown);root.addEventListener('keydown',menuKey);doc.addEventListener('pointerdown',outside,true);
   map.on('click',click);map.on('movestart',lost);map.on('zoomstart',zoomStart);map.on('zoomend',zoomEnd);syncMode();redraw();
-  const dispose=()=>{disposed=true;cancel();measurement();saved.remove();preview.remove();brush.remove();for(const controls of movedLayers)if(controls.isConnected)figure.querySelector('figcaption').append(controls);root.remove();header?.remove();figure.classList.remove('map-with-tools');canvas.classList.remove('map-editing','map-tool-drawing');canvas.style.cursor='';for(const [name,fn] of [['pointerdown',down],['pointermove',move],['pointerup',up],['pointercancel',lost],['lostpointercapture',lost],['click',stopClick],['keydown',keydown]])canvas.removeEventListener(name,fn,name==='click');root.removeEventListener('keydown',menuKey);doc.removeEventListener('pointerdown',outside,true);map.off('click',click);map.off('movestart',lost);map.off('zoomstart',zoomStart);map.off('zoomend',zoomEnd);};
+  const dispose=()=>{disposed=true;cancel();measurement();saved.remove();preview.remove();brush.remove();restoreSourceImage();for(const controls of movedLayers)if(controls.isConnected)figure.querySelector('figcaption').append(controls);root.remove();header?.remove();figure.classList.remove('map-with-tools');canvas.classList.remove('map-editing','map-tool-drawing');canvas.style.cursor='';for(const [name,fn] of [['pointerdown',down],['pointermove',move],['pointerup',up],['pointercancel',lost],['lostpointercapture',lost],['click',stopClick],['keydown',keydown]])canvas.removeEventListener(name,fn,name==='click');root.removeEventListener('keydown',menuKey);doc.removeEventListener('pointerdown',outside,true);map.off('click',click);map.off('movestart',lost);map.off('zoomstart',zoomStart);map.off('zoomend',zoomEnd);};
   dispose.getState=()=>({drawings:view(),editable});
   dispose.update=value=>{if(value.drawings){base=value.drawings;if(gesture?.kind==='erase')gesture.preview=eraseDrawings(view(),gesture.trail);}if(value.editable!==undefined&&editable!==value.editable){editable=value.editable;if(!editable){draft=[];choose('pan');}}redraw();};
   dispose.stop=()=>choose('pan');return dispose;
