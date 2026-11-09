@@ -10,6 +10,7 @@ import {buildBacklinkIndex} from '../src/backlinks.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {Bucket} from './helpers/page-cache-fixture.mjs';
+import MarkdownIt from 'markdown-it';
 
 const fence=(data,type='taelgar-map')=>'```'+type+'\n'+(typeof data==='string'?data:JSON.stringify(data))+'\n```';
 const block=(id,extra={})=>({version:2,id,source:'[[assets/world.map.json]]',crop:{x:1010,y:2020,width:300,height:200},...extra});
@@ -135,4 +136,32 @@ test('map search filters visible titles and block IDs before pagination',async()
   const result=await catalogue(engine,'/api/maps?q=BASEMENT&limit=1');assert.equal(result.total,1);assert.equal(result.maps[0].blockId,'dungeon');
   assert.equal((await catalogue(engine,'/api/maps?q=world')).total,1);
   assert.equal((await request(engine,'/api/maps?q='+'x'.repeat(201))).status,400);
+});
+
+test('older vault-sized publications scan each note shard once without parsing ordinary prose as Markdown',async()=>{
+  const prose='Ordinary catalogue fixture prose. '+('A plain narrative about places, people and their journeys. '.repeat(70));
+  const {store,index}=fixture({extraNotes:Object.fromEntries(Array.from({length:2800},(_,i)=>[`Notes/Entry ${i}.md`,prose]))});
+  // Store metadata and prepared-note order are independent. Interleave note
+  // preparation to exercise shards beyond the 16-part runtime LRU.
+  const sourceOrder=[];
+  for(let column=0;column<64;column++)for(let row=column;row<store.entries.length;row+=64)sourceOrder.push(store.entries[row]);
+  const compiled=compileRuntime(index,new ContentStore(sourceOrder,[],store.settings)),manifest=structuredClone(compiled.manifest),render=JSON.parse(compiled.objects.get(manifest.parts.render.file));
+  delete manifest.parts.maps;
+  const objects=new Map([...compiled.objects].map(([file,json])=>['revisions/'+revision+'/'+file,json]));
+  objects.set('revisions/'+revision+'/runtime.json',JSON.stringify({...manifest,revision}));
+  objects.set('published/current.json',JSON.stringify({revision}));const bucket=new Bucket(objects);
+  const parse=MarkdownIt.prototype.parse;let proseParses=0;
+  MarkdownIt.prototype.parse=function(source,...args){if(source.startsWith('Ordinary catalogue fixture prose.'))proseParses++;return parse.call(this,source,...args);};
+  try {
+    const worker=createWorker({}, {cache:null,snapshotCache:null,requestTimeoutMs:30000,log(){}}),env={CONTENT:bucket};
+    const response=await worker.fetch(new Request('https://taelgar.org/api/maps'),env);assert.equal(response.status,200,await response.clone().text());
+    const list=await response.json();assert.equal(list.total,1);
+    const reads=bucket.calls.filter(key=>key.includes('/runtime/notes/'));
+    assert.equal(reads.length,render.noteShards.length,'each shard is read once even with interleaved metadata');
+    assert.equal(new Set(reads).size,reads.length);assert.equal(proseParses,0,'map discovery does not parse unrelated prose');
+    bucket.calls.length=0;
+    const detail=await worker.fetch(new Request('https://taelgar.org/api/maps?id='+list.maps[0].id),env);assert.equal(detail.status,200);
+    assert.equal((await detail.json()).map.config.measurement.xScale,.6);
+    assert.deepEqual(bucket.calls,['published/current.json'],'subsequent map selections reuse discovered sources');
+  } finally { MarkdownIt.prototype.parse=parse; }
 });

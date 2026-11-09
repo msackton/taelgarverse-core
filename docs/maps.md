@@ -418,3 +418,10 @@ navigation. Compare the same map in Obsidian; installed plugin artifacts are
 updated only by the separate plugin release workflow. Automated checks include
 Node and compiled/legacy Worker catalogue parity, context isolation, package
 packing and the existing website/Obsidian map suites.
+
+For existing compiled snapshots without `runtime/maps.json`, first access scans
+each prepared note shard once, with at most eight shard reads in flight. A cheap
+language check skips full Markdown parsing for ordinary prose. Discovered map
+sources are retained per snapshot for later searches and selections. Future
+content publications include the dedicated map-source part and skip note reads
+entirely; no content republication is required for the fallback fix.

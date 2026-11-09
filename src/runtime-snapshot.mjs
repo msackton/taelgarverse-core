@@ -123,11 +123,27 @@ export class RuntimeSnapshot {
           return sources;
         }
         // Existing format 1/2 publications remain usable without republishing.
-        // Bound concurrent shard reads and retain only notes containing maps.
-        const entries=store.entries.filter(entry=>entry.note),sources=[];
-        for(let start=0;start<entries.length;start+=8){
-          const loaded=await Promise.all(entries.slice(start,start+8).map(async entry=>({...entry,note:await store.getNote(entry)})));
-          sources.push(...compileMapSources({entries:loaded}));
+        // Read each shard once, even when entry order differs from shard order.
+        // Batching notes would repeatedly evict/reload large shards from the LRU.
+        const groups=new Map(),sources=[];
+        for(const entry of store.entries){
+          if(!entry.note)continue;
+          const descriptor=this.index.version===1 ? entry.note.prepared : data.noteShards[entry.note.prepared];
+          if(!validRuntimeDescriptor(descriptor))throw failure();
+          if(!groups.has(descriptor.file))groups.set(descriptor.file,{descriptor,entries:[]});
+          groups.get(descriptor.file).entries.push(entry);
+        }
+        const shards=[...groups.values()];
+        for(let start=0;start<shards.length;start+=8){
+          const batches=await Promise.all(shards.slice(start,start+8).map(async({descriptor,entries})=>{
+            const shard=await this.read(descriptor),loaded=entries.map(entry=>{
+              const note=Object.hasOwn(shard,entry.id)?shard[entry.id]:null;
+              if(!note || typeof note.body!=='string')throw failure();
+              return {...entry,note};
+            });
+            return compileMapSources({entries:loaded});
+          }));
+          for(const batch of batches)sources.push(...batch);
         }
         return sources;
       });

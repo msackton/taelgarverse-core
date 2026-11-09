@@ -7,7 +7,9 @@ import {resolveMap} from './maps.mjs';
 import {RenderError,pageUrl} from './common.mjs';
 
 const hash=value=>createHash('sha256').update(value).digest('hex');
-const fences=body=>scanFencedCodeBlocks(body).filter(block=>['taelgar-map','leaflet'].includes(block.language));
+// Most published notes contain no map. Avoid a full Markdown parse just to
+// establish that fact; keep the shared scanner authoritative for candidates.
+const fences=body=>/taelgar-map|leaflet/i.test(body) ? scanFencedCodeBlocks(body).filter(block=>['taelgar-map','leaflet'].includes(block.language)) : [];
 
 // Optional publication optimization. Keep the original body so comment/date/
 // campaign filtering happens for each request, before any definition is exposed.
