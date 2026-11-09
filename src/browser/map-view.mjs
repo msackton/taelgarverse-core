@@ -86,7 +86,13 @@ export function mountMap(figure,{decorate,openRegionNote,baseImagePane,allowSket
     observer.observe(canvas);
     figure.dataset.mapReady = 'true';
     let disposed=false;
-    const dispose=()=>{disposed=true;observer.disconnect();disposeDecoration?.();disposeDetails?.();disposePaths?.();disposeRegions?.();disposeMeasurement?.();disposeBaseline?.();map.off();map.stop?.();map.remove();fit.remove();delete figure.dataset.mapReady;};
+    const dispose=()=>{
+      disposed=true;observer.disconnect();
+      disposeDecoration?.();disposeDetails?.();disposePaths?.();disposeRegions?.();disposeMeasurement?.();disposeBaseline?.();
+      // Leaflet 1.9's pan animator can retain callbacks after a source swap.
+      // Stop dragging and detach those callbacks before removing its pane.
+      map.dragging?.disable();map._panAnim?.off();map.off();map.stop?.();map.remove();fit.remove();delete figure.dataset.mapReady;
+    };
     dispose.stopTools=()=>disposeMeasurement?.stop?.();
     dispose.updateTools=value=>{tools={...tools,...value};disposeMeasurement?.update?.(value);};
     // Editor changes keep the image and Leaflet map alive. Only committed
