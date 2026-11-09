@@ -6,7 +6,7 @@ or encounter state. Website and Obsidian note sketches are private and temporary
 room hosts supply their own saved drawings and persistence adapter.
 
 From a pinned core checkout, run `npm ci` then `npm run maps:pack`. Install
-`.cache/packages/taelgar-maps-0.2.1.tgz` and retain its integrity-locked dependency.
+`.cache/packages/taelgar-maps-0.2.2.tgz` and retain its integrity-locked dependency.
 This builds a local archive; it does not publish to npm or GitHub. Bump the package
 version when its public API or behavior changes.
 
@@ -57,3 +57,6 @@ geometry uses Photoshop `[x,y]`: subtract the API's `coordinates.sourceOffset`
 before `coreToLatLng(point, config.bounds[1][0])`; add it back on reverse
 conversion. Legacy maps keep authored Leaflet coordinates. Measurements use
 resolved calibration independently of zoom and tile size.
+
+The tool strip inherits the host palette, including website light/dark appearance
+and Obsidian theme colors, for text, surfaces, hover, selection and menus.

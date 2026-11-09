@@ -27,7 +27,21 @@ try{
  await toolbar.getByRole('button',{name:'Sketch',exact:true}).click();await toolbar.getByText('Options',{exact:true}).click();await toolbar.getByLabel('Trace path',{exact:true}).uncheck();await toolbar.getByText('Options',{exact:true}).click();box=await canvas.boundingBox();
  for(const [x,y] of [[.32,.48],[.43,.30],[.55,.47],[.45,.64]])await page.mouse.click(box.x+box.width*x,box.y+box.height*y);
  await toolbar.getByText('Options',{exact:true}).click();await toolbar.getByRole('button',{name:'Close shape',exact:true}).click();assert.equal(await first.locator('.map-sketch-path').count(),1);assert.equal(await first.locator('.map-shape-label-sketch').textContent(),'1');assert.ok((await first.locator('.map-widget-header').boundingBox()).height<=70,'opening Options does not grow the header');await first.screenshot({path:path.join(outputs,'taelgar-core-map-tools.png')});
+ // Contrast follows manual appearance and the operating-system preference, including hover.
+ const contrast=locator=>locator.evaluate(element=>{
+   const rgb=value=>value.match(/[\d.]+/g).map(Number),luminance=channels=>channels.slice(0,3).map(v=>v/255).map(v=>v<=.04045?v/12.92:((v+.055)/1.055)**2.4).reduce((sum,v,i)=>sum+v*[.2126,.7152,.0722][i],0);
+   let background;for(let node=element;node;node=node.parentElement){const channels=rgb(getComputedStyle(node).backgroundColor);if((channels[3]??1)===1){background=channels;break;}}
+   const foreground=luminance(rgb(getComputedStyle(element).color)),back=luminance(background);return (Math.max(foreground,back)+.05)/(Math.min(foreground,back)+.05);
+ });
+ for(const [theme,scheme] of [['light','light'],['dark','light'],[null,'dark'],['light','dark']]){
+   await page.emulateMedia({colorScheme:scheme});await page.evaluate(theme=>{if(theme)document.documentElement.dataset.theme=theme;else delete document.documentElement.dataset.theme;},theme);
+   const pan=toolbar.getByRole('button',{name:'Pan',exact:true}),options=toolbar.locator('summary[aria-label="Options"]');await pan.hover();
+   for(const element of [pan,sourceImage,toolbar.getByRole('button',{name:'Sketch',exact:true}),options,toolbar.locator('.map-tool-popover label').first(),toolbar.locator('.map-tool-help')])assert.ok(await contrast(element)>=4.5,`${theme??'system'} / ${scheme}: map control text must remain readable`);
+   await options.hover();assert.ok(await contrast(options)>=4.5,'menu hover keeps readable text');
+   if(theme==='dark')await first.screenshot({path:path.join(outputs,'taelgar-core-map-tools-dark.png')});
+ }
+ await page.emulateMedia({colorScheme:'light'});
  await toolbar.getByText('Options',{exact:true}).click();await toolbar.getByRole('button',{name:'Measure',exact:true}).click();box=await canvas.boundingBox();await page.mouse.click(box.x+box.width*.35,box.y+box.height*.4);await page.mouse.click(box.x+box.width*.6,box.y+box.height*.6);await toolbar.getByText(/^Total:/).waitFor();assert.equal(await first.locator('.map-sketch-path').count(),1);
  await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await toolbar.getByRole('button',{name:'Pan',exact:true}).click();await first.screenshot({path:path.join(outputs,'taelgar-core-map-tools-phone.png')});assert.deepEqual(errors,[]);
- console.log('Core browser tools passed: sketch, point/close shape, selection/delete, local measurement, independent maps and phone layout.');
+ console.log('Core browser tools passed: sketch, point/close shape, selection/delete, local measurement, independent maps, light/dark/system contrast and phone layout.');
 }catch(error){await page?.screenshot({path:path.join(outputs,'taelgar-core-map-tools-failure.png'),fullPage:true});throw error;}finally{await browser.close();await new Promise(resolve=>server.close(resolve));}

@@ -43,8 +43,8 @@ They are not implicit prerequisites of the default suite or deployment CI.
 ## Common map tools
 
 `npm run test:ui:maps` runs real Chromium against test-owned map figures. It checks
-local drawing, point outlines, selection/deletion, measurements, independent maps
-and a phone viewport; screenshots go to ignored `outputs/`. Set
+local drawing, point outlines, selection/deletion, measurements, independent maps,
+light/dark/system appearance contrast including hover, and a phone viewport; screenshots go to ignored `outputs/`. Set
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` when Chromium is not at `/usr/bin/chromium`.
 `tests/map-sketch.test.mjs` verifies DOM-free selection and swept erasing. Package
 checks import both geometry entries without browser globals and verify declarations.
