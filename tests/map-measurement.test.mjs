@@ -52,7 +52,7 @@ test('invalid explicit calibration never falls back to a plausible but incorrect
   }
 });
 
-function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=false}={}) {
+function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=false,allowSketch=true}={}) {
   let focus,enabled=zoomEnabled;const frames=new Map();let nextFrame=0;
   class Element {
     constructor(){this.children=[];this.listeners={};this.attributes={};this.hidden=false;this.disabled=false;this.classes=new Set();this.classList={contains:value=>this.classes.has(value),toggle:(value,on)=>on?this.classes.add(value):this.classes.delete(value)};}
@@ -83,7 +83,7 @@ function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=
     polyline:points=>makeLayer('path',points),circleMarker:point=>makeLayer('marker',point)};
   const items=kind=>groups.flatMap(group=>group.children).filter(item=>item.kind===kind);
   const bounds={contains:point=>point.lat>=0 && point.lng>=0 && point.lat<=100 && point.lng<=100};
-  const dispose=addMeasurement(L,map,canvas,figure,calibrated?{xScale:scale,yScale:scale,unit:'miles'}:null,bounds);
+  const dispose=addMeasurement(L,map,canvas,figure,calibrated?{xScale:scale,yScale:scale,unit:'miles'}:null,bounds,{allowSketch});
   const controls=caption.children[0], [toggle,sketch,trace,close,undo,clear,summary]=controls.children,help=figure.children[0];
   return {canvas,map,toggle,sketch,trace,close,undo,clear,summary,help,dispose,groups,frames,flush:()=>{for(const [id,fn] of frames){frames.delete(id);fn();}},
     click:point=>events.click({latlng:point}),
@@ -386,4 +386,14 @@ test('freehand batches display frames, reuses preview geometry, and preserves ev
   h.pointer('pointerdown',60,60);h.pointer('pointermove',70,60);assert.equal(h.frames.size,1);
   h.viewChange();assert.equal(h.frames.size,0);assert.equal(h.paths.length,2,'a view change discards unfinished work');
   h.pointer('pointerdown',60,60);h.pointer('pointermove',70,60);h.dispose();assert.equal(h.frames.size,0);assert.equal(h.paths.length,0);
+});
+
+
+test('shared hosts can hide temporary sketching and finish measurement before their own drawing tool',()=>{
+  const h=setup({allowSketch:false});assert.equal(h.sketch.hidden,true);assert.equal(h.toggle.hidden,false);
+  h.toggle.click();h.click({lat:10,lng:10});h.click({lat:10,lng:30});
+  assert.match(h.summary.textContent,/10 miles/);assert.equal(h.toggle.attributes['aria-pressed'],'true');
+  h.dispose.stop();assert.equal(h.toggle.attributes['aria-pressed'],'false');
+  assert.match(h.summary.textContent,/10 miles/);h.dispose();
+  const normal=setup();assert.equal(normal.sketch.hidden,false);normal.dispose();
 });

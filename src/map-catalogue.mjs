@@ -31,7 +31,7 @@ function absoluteConfig(config,origin) {
   return result;
 }
 
-export async function mapCatalogue(engine,{context,origin,revision=null,siteHost,page,id,limit=50,offset=0}={}) {
+export async function mapCatalogue(engine,{context,origin,revision=null,siteHost,page,id,q='',limit=50,offset=0}={}) {
   if(!context?.date)throw new RenderError(400,'A map context is required');
   let selected;
   if(page){selected=engine.store.resolve(page);if(!availableInContext(selected,context))throw new RenderError(404,'Page is not available in this context');}
@@ -70,5 +70,6 @@ export async function mapCatalogue(engine,{context,origin,revision=null,siteHost
   maps.sort((a,b)=>a.page.id.localeCompare(b.page.id)||a.id.localeCompare(b.id));
   const base={version:1,revision,context,warnings:[...new Set(warnings)]};
   if(id){const map=maps.find(map=>map.id===id);if(!map)throw new RenderError(404,'Map is not available in this context');return {...base,map};}
-  return {...base,total:maps.length,offset,limit,maps:maps.slice(offset,offset+limit).map(({config,...summary})=>summary)};
+  const query=q.trim().toLowerCase(),selectedMaps=query?maps.filter(map=>[map.title,map.page.title,map.page.id,map.blockId??''].some(value=>value.toLowerCase().includes(query))):maps;
+  return {...base,total:selectedMaps.length,offset,limit,maps:selectedMaps.slice(offset,offset+limit).map(({config,...summary})=>summary)};
 }

@@ -13,6 +13,7 @@ const apiSpec = {
   openapi:'3.1.0', info:{title:'TaelgarVerse rendering API',version:'0.2.0'},
   paths:{
     '/api/maps':{get:{summary:'List published map views or resolve one map definition',parameters:[
+      {name:'q',in:'query',schema:{type:'string',maxLength:200},description:'Filter map title, source page or block ID before pagination'},
       {name:'id',in:'query',schema:{type:'string'},description:'Map identity returned by the catalogue; returns a full configuration'},
       {name:'page',in:'query',schema:{type:'string'},description:'Limit to maps authored directly in one page'},
       {name:'revision',in:'query',schema:{type:'string'},description:'Require the current content revision; a changed revision returns 409'},
@@ -96,11 +97,12 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
           if(!/^\d+$/.test(raw) || !Number.isSafeInteger(+raw) || +raw<min || +raw>max)throw new RenderError(400,'Invalid '+name);
           return +raw;
         };
-        const id=url.searchParams.get('id'),page=url.searchParams.get('page');
+        const id=url.searchParams.get('id'),page=url.searchParams.get('page'),q=url.searchParams.get('q')??'';
+        if(q.length>200)throw new RenderError(400,'Map search is limited to 200 characters');
         if(id!==null && !/^map-[a-f0-9]{32}$/.test(id) || page!==null && (!page.trim() || page.length>2048))
           throw new RenderError(400,'Invalid map or page');
         return send(200,await mapCatalogue(engine,{context:resolveContext(),origin:url.origin,revision:currentRevision,siteHost:site?.host,
-          id,page,limit:integer('limit',50,1,100),offset:integer('offset',0,0,10000)}));
+          id,page,q,limit:integer('limit',50,1,100),offset:integer('offset',0,0,10000)}));
       }
       if (pathname === '/api/diagram-links') {
         const source = url.searchParams.get('source'), targets = url.searchParams.getAll('target');

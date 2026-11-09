@@ -1,7 +1,7 @@
 import {routeDistance,formatDistance,isClosedRoute,routeArea,formatArea} from '../map-distance.mjs';
 import {measurementRoutes,repairClosedRoute,shapeLabelPoint} from '../map-path.mjs';
 
-export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
+export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSketch=true}={}) {
   const caption=figure.querySelector('figcaption'),doc=canvas.ownerDocument;
   const controls=doc.createElement('span');controls.className='map-measure-controls';
   const button=(text,action)=>{
@@ -12,6 +12,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
   let active=false,mode='measure',tracing=false,actions=drawings.measure,stroke=null,pointer=null,lastScreen=null,doubleClickZoom=false,panState;
   const toggle=button('Measure distance',()=>chooseMode('measure'));toggle.setAttribute('aria-pressed','false');toggle.hidden=!options;
   const sketch=button('Sketch',()=>chooseMode('sketch'));sketch.setAttribute('aria-pressed','false');
+  sketch.hidden=!allowSketch;
   const trace=button('Trace path',()=>setTracing(!tracing));trace.setAttribute('aria-pressed','false');
   const close=button('Close shape',()=>{
     const route=measurementRoutes(actions).at(-1);
@@ -196,11 +197,13 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds) {
   const pointerEvents={pointerdown:startStroke,pointermove:moveStroke,pointerup:endStroke,pointercancel:cancelStroke,lostpointercapture:cancelStroke};
   for(const [name,handler] of Object.entries(pointerEvents))canvas.addEventListener(name,handler);
   help.hidden=true;draw();
-  return ()=>{
+  const dispose=()=>{
     disposed=true;finishStroke(false);active=false;setTracing(false);
     if(doubleClickZoom)map.doubleClickZoom.enable();
     map.off('click',click);map.off('movestart zoomstart',viewChange);figure.removeEventListener('keydown',keydown);
     for(const [name,handler] of Object.entries(pointerEvents))canvas.removeEventListener(name,handler);
     layers.remove();preview.remove();controls.remove();help.remove();
   };
+  dispose.stop=()=>{if(active)setActive(false);};
+  return dispose;
 }

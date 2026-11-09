@@ -5,7 +5,7 @@ used by TaelgarVerse's website and Obsidian plugin. No vault, server renderer,
 character manager, or collaboration state is included.
 
 From a pinned taelgarverse-core checkout, run `npm ci` then `npm run maps:pack`.
-Install the resulting `.cache/packages/taelgar-maps-0.1.0.tgz` in the consuming app
+Install the resulting `.cache/packages/taelgar-maps-0.1.1.tgz` in the consuming app
 and retain its integrity-locked dependency. This command only builds a local
 archive; it does not publish to npm or GitHub. Package version changes accompany
 public API/behavior changes; the archive is built from the maintained sources.
@@ -16,7 +16,7 @@ import {coreToLatLng, routeDistance} from '@taelgar/maps/coordinates';
 import '@taelgar/maps/styles.css';
 
 figure.dataset.map = JSON.stringify(definition.config);
-const dispose = mountMap(figure, {decorate: ({L, map, canvas, config}) => {
+const dispose = mountMap(figure, {allowSketch: false, decorate: ({L, map, canvas, config}) => {
   // Install host-owned controls/overlays and return their cleanup function.
   return () => {};
 }});
@@ -34,3 +34,9 @@ config.bounds[1][0])`; add the offset on conversion back. Legacy maps retain the
 authored Leaflet coordinates. Measurements use the resolved `config.measurement`
 scales, independent of zoom and tile size. The mounting API retains its existing
 `decorate`, `openRegionNote`, `baseImagePane` and disposer/update hooks.
+
+`allowSketch: false` hides the viewer's temporary local Sketch tool when a host
+provides persistent shared drawing controls. Measurement remains available.
+The default is true, preserving website and Obsidian behavior.
+The returned disposer has `stopTools()` to finish local measurement before a host
+starts drawing, and retains the existing update and cleanup methods.

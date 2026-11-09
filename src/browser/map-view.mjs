@@ -8,7 +8,7 @@ import {cropBounds} from '../map-core.mjs';
 
 const blank = 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=';
 
-export function mountMap(figure,{decorate,openRegionNote,baseImagePane}={}) {
+export function mountMap(figure,{decorate,openRegionNote,baseImagePane,allowSketch=true}={}) {
   const canvas = figure.querySelector('.map-canvas'), status = figure.querySelector('.map-status');
   let map,observer,disposeMeasurement,disposeBaseline,disposeDecoration,disposeRegions,disposePaths,disposeDetails,fit;
   try {
@@ -65,7 +65,7 @@ export function mountMap(figure,{decorate,openRegionNote,baseImagePane}={}) {
     if(config.version===2)disposeBaseline=addMapBaseline(L,map,canvas,figure,config);
     if(config.version===2)disposeRegions=addMapRegions(L,map,canvas,figure,config,openRegionNote);
     if(config.version===2)disposePaths=addMapFeaturePaths(L,map,canvas,config);
-    disposeMeasurement=addMeasurement(L,map,canvas,figure,config.measurement,viewBounds);
+    disposeMeasurement=addMeasurement(L,map,canvas,figure,config.measurement,viewBounds,{allowSketch});
     // Host-only authoring controls stay outside serialized map definitions and
     // website bundles. Their lifetime follows the mounted map.
     disposeDecoration=decorate?.({L,map,canvas,config});
@@ -85,6 +85,7 @@ export function mountMap(figure,{decorate,openRegionNote,baseImagePane}={}) {
     figure.dataset.mapReady = 'true';
     let disposed=false;
     const dispose=()=>{disposed=true;observer.disconnect();disposeDecoration?.();disposeDetails?.();disposePaths?.();disposeRegions?.();disposeMeasurement?.();disposeBaseline?.();map.remove();fit.remove();delete figure.dataset.mapReady;};
+    dispose.stopTools=()=>disposeMeasurement?.stop?.();
     // Editor changes keep the image and Leaflet map alive. Only committed
     // crop/grid changes need new controls.
     dispose.update=next=>{
@@ -98,7 +99,7 @@ export function mountMap(figure,{decorate,openRegionNote,baseImagePane}={}) {
       if(imageLayer)imageLayer.getElement().style.clipPath=cropInset(config.crop,{x:0,y:0,width:config.bounds[1][1],height:config.bounds[1][0]});
       tileLayer?.redraw();
       disposeBaseline=addMapBaseline(L,map,canvas,figure,config);
-      disposeMeasurement=addMeasurement(L,map,canvas,figure,config.measurement,viewBounds);
+      disposeMeasurement=addMeasurement(L,map,canvas,figure,config.measurement,viewBounds,{allowSketch});
       disposeRegions?.update(config);
       disposePaths?.update(config);
       if(disposeDetails)disposeDetails.update(config);else if(config.detailLayers?.length)disposeDetails=addMapDetails(L,map,canvas,figure,config);

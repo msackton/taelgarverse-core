@@ -129,3 +129,10 @@ test('format 1 and legacy raw-note publications expose the same existing maps',a
   const compiled=await read(objects);objects.delete(prefix+'runtime.json');
   assert.deepEqual(compiled,await read(objects));assert.equal(compiled.total,0);
 });
+
+test('map search filters visible titles and block IDs before pagination',async()=>{
+  const {engine}=fixture({body:fence(block('world'))+'\n\n'+fence(block('dungeon',{title:'Castle basement'}))});
+  const result=await catalogue(engine,'/api/maps?q=BASEMENT&limit=1');assert.equal(result.total,1);assert.equal(result.maps[0].blockId,'dungeon');
+  assert.equal((await catalogue(engine,'/api/maps?q=world')).total,1);
+  assert.equal((await request(engine,'/api/maps?q='+'x'.repeat(201))).status,400);
+});

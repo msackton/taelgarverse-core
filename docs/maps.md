@@ -357,7 +357,7 @@ npm ci
 npm run maps:pack
 ```
 
-The archive is `.cache/packages/taelgar-maps-0.1.0.tgz`. CI also builds it and
+The archive is `.cache/packages/taelgar-maps-0.1.1.tgz`. CI also builds it and
 attaches it as the **taelgar-maps** artifact. A consuming app installs the archive
 and locks its integrity; its own build bundles the viewer. `maps:build` produces
 the unpacked package. These commands do not publish to a package registry or
@@ -375,6 +375,7 @@ Parameters:
 
 - `context`, `date`, `campaigns`, `dm`: the existing website context controls.
 - `page`: optionally restrict to one source page, resolved like `/api/page`.
+- `q` (up to 200 characters): filter map titles, source pages and block IDs before pagination.
 - `limit` (1–100, default 50), `offset` (0–10000, default 0): list pagination.
 - `id`: return one resolved map, using an identity from the list.
 - `revision`: require the currently published content revision; mismatch is 409.
