@@ -16,7 +16,7 @@ Options for the active tool open over the map rather than adding another row.
 The Obsidian map editor retains its authoring controls and legacy caption tools.
 
 Choose **Measure**, then click or tap points along a route. Its **Options** menu
-contains Trace path, Close shape, Undo and Clear measurements. Choose Pan or press
+contains Trace path, Close shape and Undo. The header’s Clear icon clears measurements. Choose Pan or press
 Escape to finish while leaving the result visible. Maps remain draggable and
 zoomable in point mode. Keyboard users can pan with arrow keys and add the map
 center with Enter or Space; Backspace undoes a point. The center crosshair appears
@@ -24,7 +24,8 @@ only with visible keyboard focus in point mode. Every map has independent local
 measurements; they are never saved to notes, published content or shared rooms.
 
 Choose **Sketch** to draw without distance or area readings. Its Options menu
-contains Trace path, color, stroke width, Close shape and Clear sketches. Drag to
+contains Trace path, color, stroke width and Close shape. The header’s Clear icon
+clears sketches in Sketch, Select or Eraser mode, with confirmation in shared rooms. Drag to
 trace; turn Trace path off to click points or pan. Return to the first point or
 choose Close shape to fill an outline. Choose Pan or press Escape to finish an
 open point outline. Undo removes a draft point or your most recent added stroke.
@@ -373,7 +374,7 @@ npm ci
 npm run maps:pack
 ```
 
-The archive is `.cache/packages/taelgar-maps-0.2.2.tgz`. CI also builds it and
+The archive is `.cache/packages/taelgar-maps-0.2.3.tgz`. CI also builds it and
 attaches it as the **taelgar-maps** artifact. A consuming app installs the archive
 and locks its integrity; its own build bundles the viewer. `maps:build` produces
 the unpacked package. These commands do not publish to a package registry or

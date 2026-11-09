@@ -1,7 +1,7 @@
 import {addMeasurement} from './map-measurement.mjs';
 import {repairClosedRoute,shapeLabelPoint} from '../map-path.mjs';
 import {drawingPaths,hitDrawing,drawingsInBox,eraserRadius,eraseDrawings,applySketchCommand} from '../map-sketch.mjs';
-const icons={pan:'M8 12V5a1.5 1.5 0 013 0v6-7a1.5 1.5 0 013 0v7-5a1.5 1.5 0 013 0v6-3a1.5 1.5 0 013 0v5c0 5-3 7-6 7h-1c-2 0-3-1-4-3l-4-5a1.5 1.5 0 012-2l2 2',sketch:'M4 17l-1 4 4-1L20 7l-3-3zM14 7l3 3',select:'M4 3l14 9-7 1-3 7z',erase:'M3 15l8-11a2 2 0 013 0l7 6-9 11H8zM7 10l9 8M12 21h9',measure:'M3 16L16 3l5 5L8 21zM6 13l3 3m0-6l2 2m1-5l3 3',fit:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',source:'M14 3h7v7M21 3L10 14M10 3H4v17h17v-6',fullscreen:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M8 8l-5-5m13 5l5-5M8 16l-5 5m13-5l5 5'};
+const icons={pan:'M8 12V5a1.5 1.5 0 013 0v6-7a1.5 1.5 0 013 0v7-5a1.5 1.5 0 013 0v6-3a1.5 1.5 0 013 0v5c0 5-3 7-6 7h-1c-2 0-3-1-4-3l-4-5a1.5 1.5 0 012-2l2 2',sketch:'M4 17l-1 4 4-1L20 7l-3-3zM14 7l3 3',select:'M4 3l14 9-7 1-3 7z',erase:'M3 15l8-11a2 2 0 013 0l7 6-9 11H8zM7 10l9 8M12 21h9',measure:'M3 16L16 3l5 5L8 21zM6 13l3 3m0-6l2 2m1-5l3 3',fit:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',clear:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',source:'M14 3h7v7M21 3L10 14M10 3H4v17h17v-6',fullscreen:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M8 8l-5-5m13 5l5-5M8 16l-5 5m13-5l5 5'};
 export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
   const doc=canvas.ownerDocument,win=doc.defaultView,scope=options.scope??'local';
   let editable=options.editable!==false,base=options.drawings??[],pending=[],tool='pan',tracing=true,color='#b34e17',width=3,selection=[],own=[],draft=[],gesture=null,pointer=null,zooming=false,disposed=false,nextOperation=0;
@@ -40,9 +40,9 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
   const weight=doc.createElement('select');weight.setAttribute('aria-label','Stroke width');for(const value of [1,2,3,5,8]){const o=doc.createElement('option');o.value=String(value);o.textContent=value+' px';o.selected=value===width;weight.append(o);}field('Stroke',weight);weight.addEventListener('change',()=>{width=+weight.value;});
   const close=button('Close shape',()=>finishDraft(true),{container:sketchPanel});
   const help=doc.createElement('p');help.className='map-tool-help';sketchPanel.append(help);
-  button(scope==='shared'?'Clear shared drawings…':'Clear sketches',()=>{if(scope==='shared'&&!win.confirm('Clear all shared drawings on this map?'))return;draft=[];emit({type:'clearDrawings'});settings.details.open=false;},{container:sketchPanel});
+
   const measurement=addMeasurement(L,map,canvas,figure,config.measurement,bounds,{allowSketch:false,onActiveChange:active=>{if(!active&&tool==='measure'){tool='pan';syncMode();}}});
-  const measured=measurement.elements;measured.toggle.hidden=true;measured.clear.textContent='Clear measurements';measurePanel.append(measured.trace,measured.close,measured.undo,measured.clear,measured.help);context.append(measured.summary);measured.controls.remove();
+  const measured=measurement.elements;measured.toggle.hidden=true;measured.clear.textContent='Clear measurements';measurePanel.append(measured.trace,measured.close,measured.undo,measured.help);context.append(measured.summary);measured.controls.remove();
   const viewport=doc.createElement('span');viewport.className='map-tool-viewport';root.append(viewport);
   button('Zoom out',()=>map.zoomOut(),{container:viewport}).textContent='−';button('Zoom in',()=>map.zoomIn(),{container:viewport}).textContent='+';
   button('Fit map',()=>map.fitBounds(bounds),{icon:'fit',container:viewport,small:true});
@@ -55,10 +55,13 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
     const text=doc.createElement('span');text.textContent='Open source image';sourceImage.replaceChildren(svg('source'),text);root.append(sourceImage);
     restoreSourceImage=()=>{for(const [name,value] of Object.entries(attributes))if(value===null)sourceImage.removeAttribute(name);else sourceImage.setAttribute(name,value);sourceImage.replaceChildren(...children);caption.append(sourceImage);};
   }
+  const clear=button('Clear annotations',()=>{if(tool==='measure')measured.clear.click();else if(['sketch','select','erase'].includes(tool))clearSketches();},{icon:'clear',small:true});
   button('Fullscreen',()=>{const operation=doc.fullscreenElement?doc.exitFullscreen():(options.fullscreenTarget??figure).requestFullscreen?.();operation?.catch(error=>options.onError?.(error.message));},{icon:'fullscreen',small:true});
   const label=doc.createElement('span');label.className='map-tool-scope';label.textContent=scope==='shared'?'Shared':'Temporary';label.title=scope==='shared'?'Drawings save and are shared with this room':'Sketches are private and temporary';root.append(label);
   map.zoomControl?.remove();
   function controls(){
+    const clearingSketches=['sketch','select','erase'].includes(tool),clearLabel=tool==='measure'?'Clear measurements':clearingSketches?scope==='shared'?'Clear shared drawings':'Clear sketches':'Clear annotations';
+    clear.disabled=tool!=='measure'&&!clearingSketches;clear.title=clear.disabled?'Choose Sketch or Measure to clear its annotations':clearLabel;clear.setAttribute('aria-label',clearLabel);clear.querySelector('span').textContent=clearLabel;
     const drawings=view();selection=selection.filter(id=>drawings.some(d=>d.id===id));
     for(const [name,node] of modeButtons){node.setAttribute('aria-pressed',String(tool===name));node.hidden=!editable&&['sketch','select','erase'].includes(name);node.disabled=name==='measure'&&!config.measurement;}
     selectedCount.hidden=tool!=='select';selectedCount.textContent=selection.length+' selected';remove.hidden=tool!=='select'||!selection.length;remove.disabled=!editable;
@@ -67,6 +70,10 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
     close.hidden=tool!=='sketch'||draft.length<3;trace.closest('label').hidden=tool!=='sketch';picker.closest('label').hidden=tool!=='sketch';weight.closest('label').hidden=tool!=='sketch';
     help.textContent=tool==='erase'?'Drag to erase parts of strokes. Move faster for a larger brush. Filled shapes erase as a whole.':tracing?'Drag to sketch. Return to the start to close a shape.':'Click or tap to add points; drag to pan. Close shape fills the outline. Choose Pan or press Escape to finish.';
     if(settings.details.hidden)settings.details.open=false;
+  }
+  function clearSketches(){
+    if(scope==='shared'&&!win.confirm('Clear all shared drawings on this map?'))return;
+    draft=[];selection=[];own=[];cancel();if(view().length)emit({type:'clearDrawings'});settings.details.open=false;canvas.focus({preventScroll:true});
   }
   function emit(command){
     if(disposed||!editable)return Promise.resolve();

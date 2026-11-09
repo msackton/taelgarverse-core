@@ -42,6 +42,10 @@ try{
  }
  await page.emulateMedia({colorScheme:'light'});
  await toolbar.getByText('Options',{exact:true}).click();await toolbar.getByRole('button',{name:'Measure',exact:true}).click();box=await canvas.boundingBox();await page.mouse.click(box.x+box.width*.35,box.y+box.height*.4);await page.mouse.click(box.x+box.width*.6,box.y+box.height*.6);await toolbar.getByText(/^Total:/).waitFor();assert.equal(await first.locator('.map-sketch-path').count(),1);
+ await toolbar.getByRole('button',{name:'Clear measurements',exact:true}).click();assert.equal(await first.locator('.map-measure-line').count(),0);assert.equal(await first.locator('.map-sketch-path').count(),1,'clearing measurements preserves sketches');
+ for(const [x,y] of [[.35,.4],[.6,.6]])await page.mouse.click(box.x+box.width*x,box.y+box.height*y);
+ await toolbar.getByRole('button',{name:'Sketch',exact:true}).click();const clearSketches=toolbar.getByRole('button',{name:'Clear sketches',exact:true}),clearBox=await clearSketches.boundingBox(),toolbarBox=await toolbar.boundingBox();assert.ok(clearBox.x>toolbarBox.x+toolbarBox.width*.65,'Clear stays on the right');
+ await clearSketches.click();assert.equal(await first.locator('.map-sketch-path').count(),0);assert.ok(await first.locator('.map-measure-line').count()>0,'clearing sketches preserves measurements');
  await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await toolbar.getByRole('button',{name:'Pan',exact:true}).click();await first.screenshot({path:path.join(outputs,'taelgar-core-map-tools-phone.png')});assert.deepEqual(errors,[]);
- console.log('Core browser tools passed: sketch, point/close shape, selection/delete, local measurement, independent maps, light/dark/system contrast and phone layout.');
+ console.log('Core browser tools passed: sketch, point/close shape, selection/delete, separate header clearing, local measurement, independent maps, light/dark/system contrast and phone layout.');
 }catch(error){await page?.screenshot({path:path.join(outputs,'taelgar-core-map-tools-failure.png'),fullPage:true});throw error;}finally{await browser.close();await new Promise(resolve=>server.close(resolve));}
