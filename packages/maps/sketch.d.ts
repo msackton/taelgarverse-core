@@ -3,6 +3,7 @@ export type SketchDrawing = {id:string;color:string;width:number;closed:boolean;
 export type EraserPoint = MapPoint & {radius:number};
 export type SketchPatch={id:string;expected:SketchDrawing|null;drawing:SketchDrawing|null;index:number};
 export type SketchChange={id:string;before:SketchDrawing|null;after:SketchDrawing|null;beforeIndex:number;afterIndex:number};
+export type SketchReceipt={changes:SketchChange[];undoable?:boolean};
 export type SketchCommand = {type:'addDrawing';drawing:SketchDrawing}|{type:'removeDrawings';ids:string[]}|{type:'eraseDrawings';trail:EraserPoint[]}|{type:'clearDrawings'}|{type:'patchDrawings';patches:SketchPatch[]};
 export function drawingPaths(drawing:SketchDrawing):MapPoint[][];
 export function hitDrawing(drawings:SketchDrawing[],point:MapPoint,tolerance:number):string|undefined;

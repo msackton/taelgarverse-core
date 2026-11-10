@@ -6,7 +6,7 @@ or encounter state. Website and Obsidian note sketches are private and temporary
 room hosts supply their own saved drawings and persistence adapter.
 
 From a pinned core checkout, run `npm ci` then `npm run maps:pack`. Install
-`.cache/packages/taelgar-maps-0.3.0.tgz` and retain its integrity-locked dependency.
+`.cache/packages/taelgar-maps-0.3.1.tgz` and retain its integrity-locked dependency.
 This builds a local archive; it does not publish to npm or GitHub. Bump the package
 version when its public API or behavior changes.
 
@@ -67,6 +67,12 @@ Undo/Redo and Clear appear together in the header. Measurements use local histor
 sketch history emits `patchDrawings` with per-drawing expected/replacement values
 and original indices. Shared hosts must validate these values and apply the
 whole patch atomically; `patchDrawings(drawings, patches, {strict: true})` checks
-for changed geometry. Unrelated drawings are preserved. A failed save leaves
-history in place; scene/source changes remount the controller and reset history.
+for changed geometry. Unrelated drawings are preserved. A failed undo/redo leaves
+history in place; rejected edits are not recorded; scene/source changes remount the controller and reset history.
 Fullscreen note maps fill the window below the toolbar.
+
+Shared save adapters may return `{changes, undoable?}` with the canonical
+`sketchChanges(before, after)` from the accepted command. This keeps history
+consistent with server geometry and command ordering. A multi-command adapter
+combines only its own changes and marks history unavailable if another edit
+changes the same drawing between commands.

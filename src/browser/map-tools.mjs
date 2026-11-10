@@ -120,7 +120,8 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
     const before=view(),after=applySketchCommand(before,command),entry=remember?record({changes:sketchChanges(before,after),beforeDraft,afterDraft:draft}):null;
     if(!options.onCommand){base=after;redraw();return Promise.resolve(true);}
     const operation={id:++nextOperation,command};pending.push(operation);redraw();
-    return Promise.resolve().then(()=>options.onCommand(command)).then(()=>true).catch(error=>{if(entry){const index=past.indexOf(entry);if(index>=0)past.splice(index,1);}options.onError?.(error instanceof Error?error.message:'The drawing could not be saved.');return false;}).finally(()=>{if(disposed)return;pending=pending.filter(p=>p!==operation);redraw();});
+    const forget=()=>{if(entry){const index=past.indexOf(entry);if(index>=0)past.splice(index,1);}};
+    return Promise.resolve().then(()=>options.onCommand(command)).then(receipt=>{if(entry&&Array.isArray(receipt?.changes)){entry.changes=receipt.changes;if(!entry.changes.length||receipt.undoable===false)forget();}return true;}).catch(error=>{forget();options.onError?.(error instanceof Error?error.message:'The drawing could not be saved.');return false;}).finally(()=>{if(disposed)return;pending=pending.filter(p=>p!==operation);redraw();});
   }
   function commit(points,closed=false){
     if(points.length<(closed?3:2))return;
