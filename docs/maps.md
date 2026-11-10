@@ -19,7 +19,10 @@ legacy caption tools.
 Choose **Measure** and drag with a mouse, pen, or one finger. Releasing the
 pointer closes the outline only if its endpoint is within ten screen pixels
 of its start (after tracing more than twenty pixels away). A closed outline
-shows area and perimeter; other traces remain open and show distance. Clicking
+shows area and perimeter; other traces remain open and show distance. Lines
+and shapes share sequential measurement numbers. Each line gets a numbered
+marker halfway along its path and its own calibrated distance in the readout;
+shapes list their individual perimeter and area. Clicking
 without dragging adds no points. Results appear inside the map, so they do not
 change the toolbar's height while drawing. Clear removes local measurements;
 Undo and Redo restore traces or clearing. Choose Pan or press Escape to move
@@ -372,7 +375,7 @@ npm ci
 npm run maps:pack
 ```
 
-The archive is `.cache/packages/taelgar-maps-0.3.3.tgz`. CI also builds it and
+The archive is `.cache/packages/taelgar-maps-0.3.4.tgz`. CI also builds it and
 attaches it as the **taelgar-maps** artifact. A consuming app installs the archive
 and locks its integrity; its own build bundles the viewer. `maps:build` produces
 the unpacked package. These commands do not publish to a package registry or

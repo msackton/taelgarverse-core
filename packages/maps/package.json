@@ -1,6 +1,6 @@
 {
   "name": "@taelgar/maps",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "type": "module",
   "license": "GPL-3.0-only",
   "description": "Shared Taelgar Leaflet viewer and flat map coordinates",

@@ -1,7 +1,7 @@
 import {routeDistance,formatDistance,isClosedRoute,routeArea,formatArea} from '../map-distance.mjs';
-import {measurementRoutes,repairClosedRoute,shapeLabelPoint} from '../map-path.mjs';
+import {measurementRoutes,repairClosedRoute,shapeLabelPoint,routeLabelPoint} from '../map-path.mjs';
 
-export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSketch=true,onActiveChange=()=>{},history=false,onHistoryChange=()=>{},traceOnly=false,autoClose=false}={}) {
+export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSketch=true,onActiveChange=()=>{},history=false,onHistoryChange=()=>{},traceOnly=false,autoClose=false,individualReadings=false}={}) {
   const caption=figure.querySelector('figcaption'),doc=canvas.ownerDocument;
   const controls=doc.createElement('span');controls.className='map-measure-controls';
   const button=(text,action)=>{
@@ -61,13 +61,18 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
       const visible=kind===mode?routes:measurementRoutes(drawings[kind]),color=kind==='sketch'?'#b34e17':'#126c9a';
       let number=0;
       for(const route of visible){
+        const numbered=individualReadings&&kind==='measure'&&route.length>1;
+        if(numbered)number++;
         if(isClosedRoute(route)){
-          number++;
+          if(!numbered)number++;
           if(routeArea(route,options || {})!==null){
             L.polygon(route,{className:'map-measure-area',stroke:false,fillColor:color,fillOpacity:0.15,smoothFactor:0,interactive:false}).addTo(layers);
             const icon=L.divIcon({className:'map-shape-label map-shape-label-'+kind,html:String(number),iconSize:[24,24],iconAnchor:[12,12]});
             L.marker(shapeLabelPoint(route),{icon,interactive:false,keyboard:false,title:'Shape '+number}).addTo(layers);
           }
+        }else if(numbered){
+          const icon=L.divIcon({className:'map-shape-label map-line-label map-line-label-measure',html:String(number),iconSize:[24,24],iconAnchor:[12,12]});
+          L.marker(routeLabelPoint(route,options || {}),{icon,interactive:false,keyboard:false,title:'Line '+number}).addTo(layers);
         }
         if(route.length>1)L.polyline(route,{className:'map-measure-line',color,weight:3,smoothFactor:0,interactive:false}).addTo(layers);
       }
@@ -85,7 +90,10 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     summary.textContent=mode==='sketch'?(count?'Temporary sketch.':active?(tracing?'Drag to sketch.':'Choose a starting point.'):''):
       routes.some(route=>route.length>1) ? 'Total: '+formatDistance(length,options.unit) :
       count ? 'Start point set.'+(active?' Add another point.':'') : active ? traceOnly?'Drag to trace. Return near the start to close.':tracing?'Drag to trace a path.':'Choose a starting point.' : '';
-    areaText=mode==='measure' && closed.length?' · '+areas.map((area,i)=>
+    areaText=mode==='measure'&&individualReadings?routes.filter(route=>route.length>1).map((route,i)=>{
+      const closed=isClosedRoute(route),area=closed?routeArea(route,options || {}):null;
+      return ' · '+(closed?'Shape':'Line')+' '+(i+1)+': '+(closed?'Perimeter: ':'')+formatDistance(routeDistance(route,options || {}),options.unit)+(closed?' · Area: '+(area===null?'unavailable (outline must not cross or retrace itself)':formatArea(area,options.unit)):'');
+    }).join(''):mode==='measure' && closed.length?' · '+areas.map((area,i)=>
       (areas.length===1?'Area':'Area '+(i+1))+': '+(area===null?'unavailable (outline must not cross or retrace itself)':formatArea(area,options.unit))).join(' · '):'';
     summary.textContent+=areaText;
     help.textContent=traceOnly&&mode==='measure'?'Drag with a mouse, pen, or one finger to trace. Release near the start to close the shape. Choose Pan to move the map.':tracing?(mode==='sketch'?'Drag with a mouse, pen, or one finger to draw.':'Drag with a mouse, pen, or one finger to follow a road or river.')+' Undo removes the last stroke. Turn off Trace path to pan or add points.':

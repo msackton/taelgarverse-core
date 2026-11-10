@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {routeDistance,formatDistance,measurementOptions,routeArea,formatArea} from '../src/map-distance.mjs';
 import {addMeasurement} from '../src/browser/map-measurement.mjs';
-import {measurementRoutes,repairClosedRoute,shapeLabelPoint} from '../src/map-path.mjs';
+import {measurementRoutes,repairClosedRoute,shapeLabelPoint,routeLabelPoint} from '../src/map-path.mjs';
 
 test('planar measurement uses calibration once for every segment, regardless of coordinate origin',()=>{
   const points=[{lat:1000,lng:-200},{lat:1003,lng:-196},{lat:1003,lng:-186}];
@@ -52,7 +52,7 @@ test('invalid explicit calibration never falls back to a plausible but incorrect
   }
 });
 
-function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=false,allowSketch=true,traceOnly=false,autoClose=false,history=false}={}) {
+function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=false,allowSketch=true,traceOnly=false,autoClose=false,history=false,individualReadings=false}={}) {
   let focus,enabled=zoomEnabled;const frames=new Map();let nextFrame=0;
   class Element {
     constructor(){this.children=[];this.listeners={};this.attributes={};this.hidden=false;this.disabled=false;this.classes=new Set();this.classList={contains:value=>this.classes.has(value),toggle:(value,on)=>on?this.classes.add(value):this.classes.delete(value)};}
@@ -83,7 +83,7 @@ function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=
     polyline:points=>makeLayer('path',points),circleMarker:point=>makeLayer('marker',point)};
   const items=kind=>groups.flatMap(group=>group.children).filter(item=>item.kind===kind);
   const bounds={contains:point=>point.lat>=0 && point.lng>=0 && point.lat<=100 && point.lng<=100};
-  const dispose=addMeasurement(L,map,canvas,figure,calibrated?{xScale:scale,yScale:scale,unit:'miles'}:null,bounds,{allowSketch,traceOnly,autoClose,history});
+  const dispose=addMeasurement(L,map,canvas,figure,calibrated?{xScale:scale,yScale:scale,unit:'miles'}:null,bounds,{allowSketch,traceOnly,autoClose,history,individualReadings});
   const controls=caption.children[0], [toggle,sketch,trace,close,undo,clear,summary]=controls.children,help=figure.children[0];
   return {canvas,map,toggle,sketch,trace,close,undo,clear,summary,help,dispose,groups,frames,flush:()=>{for(const [id,fn] of frames){frames.delete(id);fn();}},
     click:point=>events.click({latlng:point}),
@@ -430,4 +430,26 @@ test('trace-only measurement snaps only endpoints within ten screen pixels at di
     ui.pointer('pointerdown',20,20);ui.pointer('pointermove',60,20);ui.pointer('pointermove',60,60);ui.pointer('pointermove',20,60);ui.pointer('pointerup',20,20+gap/screenScale);
     assert.equal(ui.polygons.length,gap<=10?1:0,`endpoint ${gap} screen pixels away at scale ${screenScale}`);ui.dispose();
   }
+});
+
+
+test('line numbers sit halfway along the calibrated route, including its bends',()=>{
+  const route=[{lat:0,lng:0},{lat:0,lng:30},{lat:10,lng:30}];
+  assert.deepEqual(routeLabelPoint(route),{lat:0,lng:20});
+  assert.deepEqual(routeLabelPoint(route,{xScale:2,yScale:1}),{lat:0,lng:17.5});
+  assert.deepEqual(routeLabelPoint([{lat:2,lng:3},{lat:2,lng:3}]),{lat:2,lng:3});
+});
+
+test('each measured line and shape has its own number and calibrated distance across undo, redo and clearing',()=>{
+  const ui=setup({traceOnly:true,autoClose:true,history:true,individualReadings:true,screenScale:1});ui.toggle.click();
+  ui.pointer('pointerdown',10,10);ui.pointer('pointerup',30,10);
+  ui.pointer('pointerdown',40,30);ui.pointer('pointerup',40,70);
+  assert.match(ui.summary.textContent,/Total: 30 miles · Line 1: 10 miles · Line 2: 20 miles/);
+  assert.deepEqual(ui.labels.map(label=>label.icon.html),['1','2']);assert.deepEqual(ui.labels.map(label=>label.title),['Line 1','Line 2']);
+  assert.deepEqual(ui.labels.map(label=>label.point),[{lat:10,lng:20},{lat:50,lng:40}]);
+  ui.pointer('pointerdown',60,60);ui.pointer('pointermove',80,60);ui.pointer('pointermove',80,80);ui.pointer('pointermove',60,80);ui.pointer('pointerup',60,61);
+  assert.match(ui.summary.textContent,/Shape 3: Perimeter: 40 miles · Area: 100 square miles/);assert.deepEqual(ui.labels.map(label=>label.icon.html),['1','2','3']);
+  ui.dispose.undo();assert.deepEqual(ui.labels.map(label=>label.icon.html),['1','2']);assert.doesNotMatch(ui.summary.textContent,/Shape 3/);
+  ui.dispose.redo();assert.deepEqual(ui.labels.map(label=>label.icon.html),['1','2','3']);
+  ui.clear.click();assert.equal(ui.labels.length,0);ui.dispose.undo();assert.deepEqual(ui.labels.map(label=>label.icon.html),['1','2','3']);assert.match(ui.summary.textContent,/Line 2: 20 miles/);ui.dispose();
 });

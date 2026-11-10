@@ -1,6 +1,6 @@
 // Point clicks extend the current route. Each freehand stroke starts a separate
 // route so lifting the pointer never invents an untraced connecting segment.
-import {isClosedRoute} from './map-distance.mjs';
+import {isClosedRoute,routeDistance} from './map-distance.mjs';
 
 export function measurementRoutes(actions,stroke) {
   const routes=[];
@@ -10,6 +10,17 @@ export function measurementRoutes(actions,stroke) {
     else routes.at(-1).push(...action.points);
   }
   return routes;
+}
+
+// Place a line's number halfway along its measured bends, on the line itself.
+export function routeLabelPoint(points,options={}) {
+  let remaining=routeDistance(points,options)/2;
+  for(let i=1;i<points.length;i++){
+    const a=points[i-1],b=points[i],length=routeDistance([a,b],options);
+    if(length>0&&remaining<=length){const ratio=remaining/length;return {lat:a.lat+(b.lat-a.lat)*ratio,lng:a.lng+(b.lng-a.lng)*ratio};}
+    remaining-=length;
+  }
+  return points[0];
 }
 
 // Prefer the area centroid. For concave shapes whose centroid falls outside,
