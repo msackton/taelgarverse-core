@@ -1,5 +1,5 @@
 import {routeDistance,formatDistance,isClosedRoute,routeArea,formatArea} from '../map-distance.mjs';
-import {measurementRoutes,repairClosedRoute,shapeLabelPoint,routeLabelPoint} from '../map-path.mjs';
+import {measurementRoutes,repairClosedRoute,shapeLabelPoint,routeLabelPoint,traceBoundaryPoint} from '../map-path.mjs';
 
 export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSketch=true,onActiveChange=()=>{},history=false,onHistoryChange=()=>{},traceOnly=false,autoClose=false,individualReadings=false}={}) {
   const caption=figure.querySelector('figcaption'),doc=canvas.ownerDocument;
@@ -163,7 +163,13 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
   function sample(event,force=false){
     if(!stroke || event.pointerId!==pointer)return;
     const point=map.mouseEventToLatLng(event);
-    if(!imageBounds.contains(point)){if(!traceOnly)finishStroke(true);return;}
+    if(!imageBounds.contains(point)){
+      if(traceOnly){
+        const last=stroke.at(-1),edge=traceBoundaryPoint({x:last.lng,y:last.lat},{x:point.lng,y:point.lat},{x:imageBounds.getWest(),y:imageBounds.getSouth(),width:imageBounds.getEast()-imageBounds.getWest(),height:imageBounds.getNorth()-imageBounds.getSouth()});
+        if(last.lng!==edge.x||last.lat!==edge.y)stroke.push({lat:edge.y,lng:edge.x});
+      }
+      finishStroke(true,!traceOnly);return;
+    }
     // Ignore subpixel pointer jitter, without smoothing away real bends.
     if(!force && Math.hypot(event.clientX-lastScreen[0],event.clientY-lastScreen[1])<1)return;
     const last=stroke.at(-1);
@@ -177,17 +183,17 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     for(const item of samples?.length?samples:[event])sample(item);
     if(stroke)scheduleStroke();else draw();
   }
-  function finishStroke(commit){
+  function finishStroke(commit,allowClose=true){
     clearPreview();
     if(!stroke)return;
     if(commit&&(!traceOnly||stroke.length>1)){
-      if(autoClose&&mode==='measure'&&stroke.length>=3&&nearStart(stroke.at(-1),stroke)){
+      if(allowClose&&autoClose&&mode==='measure'&&stroke.length>=3&&nearStart(stroke.at(-1),stroke)){
         const closed=closeRoute(stroke,true);
         // A straight trace remains a distance; closing it would double it.
         if(routeArea(closed,options || {})!==null)stroke=closed;
       }
-      else if(stroke.length>=3 && !isClosedRoute(stroke) && nearStart(stroke.at(-1),stroke))stroke=closeRoute(stroke);
-      else if(isClosedRoute(stroke))stroke=closeRoute(stroke);
+      else if(allowClose&&stroke.length>=3 && !isClosedRoute(stroke) && nearStart(stroke.at(-1),stroke))stroke=closeRoute(stroke);
+      else if(allowClose&&isClosedRoute(stroke))stroke=closeRoute(stroke);
       actions.push({kind:'stroke',points:stroke});
     }
     const oldPointer=pointer;stroke=null;pointer=null;lastScreen=null;

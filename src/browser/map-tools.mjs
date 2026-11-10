@@ -1,5 +1,5 @@
 import {addMeasurement} from './map-measurement.mjs';
-import {repairClosedRoute,shapeLabelPoint} from '../map-path.mjs';
+import {repairClosedRoute,shapeLabelPoint,traceBoundaryPoint} from '../map-path.mjs';
 import {drawingPaths,hitDrawing,drawingsInBox,eraserRadius,eraseDrawings,applySketchCommand,sketchChanges,sketchHistoryCommand,canPatchDrawings} from '../map-sketch.mjs';
 const icons={pan:'M8 12V5a1.5 1.5 0 013 0v6-7a1.5 1.5 0 013 0v7-5a1.5 1.5 0 013 0v6-3a1.5 1.5 0 013 0v5c0 5-3 7-6 7h-1c-2 0-3-1-4-3l-4-5a1.5 1.5 0 012-2l2 2',sketch:'M4 17l-1 4 4-1L20 7l-3-3zM14 7l3 3',select:'M4 3l14 9-7 1-3 7z',erase:'M3 15l8-11a2 2 0 013 0l7 6-9 11H8zM7 10l9 8M12 21h9',measure:'M3 16L16 3l5 5L8 21zM6 13l3 3m0-6l2 2m1-5l3 3',fit:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',undo:'M9 5L3 11l6 6M3 11h10a7 7 0 017 7',redo:'M15 5l6 6-6 6M21 11H11a7 7 0 00-7 7',clear:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',source:'M14 3h7v7M21 3L10 14M10 3H4v17h17v-6',fullscreen:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M8 8l-5-5m13 5l5-5M8 16l-5 5m13-5l5 5'};
 export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
@@ -169,12 +169,14 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
     if(!gesture||pointer!==event.pointerId)return;event.preventDefault();
     if(gesture.kind==='select'){gesture.end=point(event,false);gesture.moved ||= Math.hypot(event.clientX-gesture.screen.x,event.clientY-gesture.screen.y)>=5;redraw();return;}
     const samples=event.getCoalescedEvents?.();
-    for(const e of samples?.length?samples:[event]){const distance=Math.hypot(e.clientX-gesture.last.x,e.clientY-gesture.last.y);if(distance<(gesture.kind==='erase'?3:1))continue;const p=point(e);
+    for(const e of samples?.length?samples:[event]){const distance=Math.hypot(e.clientX-gesture.last.x,e.clientY-gesture.last.y);if(distance<(gesture.kind==='erase'?3:1))continue;const raw=point(e,false);
+      if(gesture.kind==='sketch'&&!onMap(raw)){const points=gesture.points;points.push(traceBoundaryPoint(points.at(-1),raw,extent));commit(points,false);cancel();return;}
+      const p=point(e);
       if(gesture.kind==='sketch')gesture.points.push(p);else{gesture.radius=eraserRadius(distance/Math.max(1,e.timeStamp-gesture.time),gesture.radius);gesture.time=e.timeStamp;const previous=gesture.trail.at(-1),next={...p,radius:Math.min(100000,gesture.radius*units())};gesture.trail.push(next);gesture.preview=eraseDrawings(gesture.preview,[previous,next]);brushAt(p,gesture.radius);}gesture.last={x:e.clientX,y:e.clientY};}
     redraw();
   }
   function up(event){
-    if(!gesture||pointer!==event.pointerId)return;move(event);const finished=gesture;
+    if(!gesture||pointer!==event.pointerId)return;move(event);if(!gesture)return;const finished=gesture;
     if(finished.kind==='sketch'){const points=finished.points,first=project(points[0]),last=project(points.at(-1));commit(points,points.length>=3&&Math.hypot(first.x-last.x,first.y-last.y)<=10);}
     else if(finished.kind==='select'){
       if(finished.moved){const a=finished.start,b=finished.end,ids=drawingsInBox(view(),{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(a.x-b.x),height:Math.abs(a.y-b.y)});selection=finished.additive?[...new Set([...selection,...ids])]:ids;}

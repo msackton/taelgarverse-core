@@ -18,7 +18,9 @@ export function mountMap(figure,{decorate,openRegionNote,baseImagePane,allowSket
     const cameraBounds=value=>value.version===2?L.latLngBounds(cropBounds(value.crop,value.bounds[1][0])):bounds;
     let viewBounds=cameraBounds(config);
     canvas.hidden = false;
-    map = L.map(canvas,{crs:L.CRS.Simple,attributionControl:false,minZoom:config.minZoom,maxZoom:config.maxZoom,
+    // ResizeObserver below owns sizing. Leaflet's window resize listener also
+    // schedules a delayed pan, which can interrupt drawing after fullscreen.
+    map = L.map(canvas,{crs:L.CRS.Simple,trackResize:false,attributionControl:false,minZoom:config.minZoom,maxZoom:config.maxZoom,
       zoomSnap:config.version===2?.25:1,zoomDelta:config.version===2?.5:1,
       scrollWheelZoom:false,maxBounds:config.version===2?viewBounds:viewBounds.pad(0.1),maxBoundsViscosity:config.version===2?1:0.8});
     const sizeMap = () => {

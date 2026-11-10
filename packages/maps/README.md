@@ -6,7 +6,7 @@ or encounter state. Website and Obsidian note sketches are private and temporary
 room hosts supply their own saved drawings and persistence adapter.
 
 From a pinned core checkout, run `npm ci` then `npm run maps:pack`. Install
-`.cache/packages/taelgar-maps-0.3.4.tgz` and retain its integrity-locked dependency.
+`.cache/packages/taelgar-maps-0.3.5.tgz` and retain its integrity-locked dependency.
 This builds a local archive; it does not publish to npm or GitHub. Bump the package
 version when its public API or behavior changes.
 
@@ -29,7 +29,8 @@ The common strip owns Pan, Sketch, Select, Eraser, Measure, Sketch Options,
 Layers, zoom/Fit and Fullscreen. The right-side Clear icon clears only the active
 kind of annotation: local measurements in Measure, sketches in drawing modes.
 Measure traces only and closes shapes only when released within ten screen pixels of their start; its readout stays on
-the canvas. Lines and shapes share sequential measurement numbers, with each
+the canvas. Tracing past the map edge finishes the stroke at the boundary;
+it never slides along the edge or connects across the outside. Lines and shapes share sequential measurement numbers, with each
 line’s distance and each shape’s perimeter and area listed separately. Line
 numbers sit halfway along their traced path. Eraser and Measure have no Options menu.
 It is disabled in Pan; shared sketch clearing keeps its confirmation. An existing source-image link in the caption

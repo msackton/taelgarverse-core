@@ -2,6 +2,16 @@
 // route so lifting the pointer never invents an untraced connecting segment.
 import {isClosedRoute,routeDistance} from './map-distance.mjs';
 
+// Intersect a segment leaving a rectangle with its edge. The start is inside.
+export function traceBoundaryPoint(a,b,{x,y,width,height}) {
+  let t=1;
+  for(const [start,end,min,max] of [[a.x,b.x,x,x+width],[a.y,b.y,y,y+height]]){
+    if(end<min)t=Math.min(t,(min-start)/(end-start));
+    else if(end>max)t=Math.min(t,(max-start)/(end-start));
+  }
+  return {x:Math.max(x,Math.min(x+width,a.x+t*(b.x-a.x))),y:Math.max(y,Math.min(y+height,a.y+t*(b.y-a.y)))};
+}
+
 export function measurementRoutes(actions,stroke) {
   const routes=[];
   for(const action of [...actions,...(stroke?[{kind:'stroke',points:stroke}]:[])]){

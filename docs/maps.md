@@ -64,7 +64,10 @@ connecting segment. Zoom buttons remain available; zoom in for finer tracing.
 A cancelled stroke or a view change discards the unfinished stroke without
 changing completed measurements. The live stroke refreshes once per display
 frame without rebuilding completed drawings. Releasing the pointer immediately
-commits the final result.
+commits the final result. Crossing the map boundary finishes a trace at its
+intersection with the edge. Moving outside or back inside while still pressed
+does not draw along the border or add a connecting segment. Start another stroke
+to continue drawing.
 
 Nearby automatic closure uses the same outline repair as Sketch's **Close shape**:
 accidental crossings, loops, touches and retraced overshoots keep the larger
@@ -375,7 +378,7 @@ npm ci
 npm run maps:pack
 ```
 
-The archive is `.cache/packages/taelgar-maps-0.3.4.tgz`. CI also builds it and
+The archive is `.cache/packages/taelgar-maps-0.3.5.tgz`. CI also builds it and
 attaches it as the **taelgar-maps** artifact. A consuming app installs the archive
 and locks its integrity; its own build bundles the viewer. `maps:build` produces
 the unpacked package. These commands do not publish to a package registry or

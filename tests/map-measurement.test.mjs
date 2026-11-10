@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {routeDistance,formatDistance,measurementOptions,routeArea,formatArea} from '../src/map-distance.mjs';
 import {addMeasurement} from '../src/browser/map-measurement.mjs';
-import {measurementRoutes,repairClosedRoute,shapeLabelPoint,routeLabelPoint} from '../src/map-path.mjs';
+import {measurementRoutes,repairClosedRoute,shapeLabelPoint,routeLabelPoint,traceBoundaryPoint} from '../src/map-path.mjs';
 
 test('planar measurement uses calibration once for every segment, regardless of coordinate origin',()=>{
   const points=[{lat:1000,lng:-200},{lat:1003,lng:-196},{lat:1003,lng:-186}];
@@ -82,7 +82,7 @@ function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=
     divIcon:options=>options,marker:(point,options)=>makeLayer('label',point,options),polygon:points=>makeLayer('polygon',points),
     polyline:points=>makeLayer('path',points),circleMarker:point=>makeLayer('marker',point)};
   const items=kind=>groups.flatMap(group=>group.children).filter(item=>item.kind===kind);
-  const bounds={contains:point=>point.lat>=0 && point.lng>=0 && point.lat<=100 && point.lng<=100};
+  const bounds={getWest:()=>0,getSouth:()=>0,getEast:()=>100,getNorth:()=>100,contains:point=>point.lat>=0 && point.lng>=0 && point.lat<=100 && point.lng<=100};
   const dispose=addMeasurement(L,map,canvas,figure,calibrated?{xScale:scale,yScale:scale,unit:'miles'}:null,bounds,{allowSketch,traceOnly,autoClose,history,individualReadings});
   const controls=caption.children[0], [toggle,sketch,trace,close,undo,clear,summary]=controls.children,help=figure.children[0];
   return {canvas,map,toggle,sketch,trace,close,undo,clear,summary,help,dispose,groups,frames,flush:()=>{for(const [id,fn] of frames){frames.delete(id);fn();}},
@@ -419,8 +419,7 @@ test('trace-only measurement cancels interrupted gestures and preserves straight
   ui.pointer('pointerdown',20,20);ui.pointer('pointermove',40,20);ui.pointer('pointerup',60,20);
   assert.equal(ui.polygons.length,0);assert.equal(routeDistance(ui.paths[0],{xScale:.5,yScale:.5}),20);
   ui.clear.click();ui.pointer('pointerdown',20,20);ui.pointer('pointermove',60,20);ui.pointer('pointermove',60,60);
-  ui.pointer('pointermove',120,120);assert.equal(ui.polygons.length,0,'leaving the image does not commit before release');
-  ui.pointer('pointerup',120,120);assert.equal(ui.polygons.length,0,'release away from the start keeps the trace open');ui.dispose();
+  ui.pointer('pointermove',120,120);assert.equal(ui.polygons.length,0,'leaving the image keeps the clipped trace open');assert.deepEqual(ui.paths[0].at(-1),{lat:100,lng:100});const clipped=structuredClone(ui.paths);ui.pointer('pointermove',10,10);ui.pointer('pointerup',10,10);assert.deepEqual(ui.paths,clipped,'reentering while still pressed does not connect across the outside');ui.dispose();
 });
 
 
@@ -452,4 +451,14 @@ test('each measured line and shape has its own number and calibrated distance ac
   ui.dispose.undo();assert.deepEqual(ui.labels.map(label=>label.icon.html),['1','2']);assert.doesNotMatch(ui.summary.textContent,/Shape 3/);
   ui.dispose.redo();assert.deepEqual(ui.labels.map(label=>label.icon.html),['1','2','3']);
   ui.clear.click();assert.equal(ui.labels.length,0);ui.dispose.undo();assert.deepEqual(ui.labels.map(label=>label.icon.html),['1','2','3']);assert.match(ui.summary.textContent,/Line 2: 20 miles/);ui.dispose();
+});
+
+
+test('traces intersect the first crossed map edge without sliding along it',()=>{
+  const box={x:10,y:20,width:100,height:60};
+  assert.deepEqual(traceBoundaryPoint({x:60,y:40},{x:160,y:60},box),{x:110,y:50});
+  assert.deepEqual(traceBoundaryPoint({x:60,y:40},{x:-40,y:60},box),{x:10,y:50});
+  assert.deepEqual(traceBoundaryPoint({x:60,y:40},{x:80,y:120},box),{x:70,y:80});
+  assert.deepEqual(traceBoundaryPoint({x:60,y:40},{x:80,y:-40},box),{x:65,y:20});
+  assert.deepEqual(traceBoundaryPoint({x:110,y:40},{x:160,y:60},box),{x:110,y:40});
 });
