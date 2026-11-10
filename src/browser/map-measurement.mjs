@@ -1,7 +1,7 @@
 import {routeDistance,formatDistance,isClosedRoute,routeArea,formatArea} from '../map-distance.mjs';
 import {measurementRoutes,repairClosedRoute,shapeLabelPoint} from '../map-path.mjs';
 
-export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSketch=true,onActiveChange=()=>{},history=false,onHistoryChange=()=>{}}={}) {
+export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSketch=true,onActiveChange=()=>{},history=false,onHistoryChange=()=>{},traceOnly=false,autoClose=false}={}) {
   const caption=figure.querySelector('figcaption'),doc=canvas.ownerDocument;
   const controls=doc.createElement('span');controls.className='map-measure-controls';
   const button=(text,action)=>{
@@ -45,7 +45,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
       L.circleMarker(stroke[0],style).addTo(preview);strokeEnd=L.circleMarker(stroke.at(-1),style).addTo(preview);
     }else{strokeLine.setLatLngs(stroke);strokeEnd.setLatLng(stroke.at(-1));}
     undo.disabled=false;close.hidden=true;clear.hidden=false;
-    summary.textContent=mode==='sketch'?'Temporary sketch.':baseLength+strokeLength>0?'Total: '+formatDistance(baseLength+strokeLength,options.unit)+areaText:'Start point set. Add another point.';
+    summary.textContent=mode==='sketch'?'Temporary sketch.':baseLength+strokeLength>0?'Total: '+formatDistance(baseLength+strokeLength,options.unit)+areaText:traceOnly?'Drag to trace a shape. Release to close.':'Start point set. Add another point.';
   }
   function scheduleStroke(){
     if(!doc.defaultView?.requestAnimationFrame){drawStroke();return;}
@@ -84,18 +84,18 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     const length=baseLength=routes.reduce((n,route)=>n+routeDistance(route,options || {}),0);
     summary.textContent=mode==='sketch'?(count?'Temporary sketch.':active?(tracing?'Drag to sketch.':'Choose a starting point.'):''):
       routes.some(route=>route.length>1) ? 'Total: '+formatDistance(length,options.unit) :
-      count ? 'Start point set.'+(active?' Add another point.':'') : active ? tracing?'Drag to trace a path.':'Choose a starting point.' : '';
+      count ? 'Start point set.'+(active?' Add another point.':'') : active ? traceOnly?'Drag to trace a shape. Release to close.':tracing?'Drag to trace a path.':'Choose a starting point.' : '';
     areaText=mode==='measure' && closed.length?' · '+areas.map((area,i)=>
       (areas.length===1?'Area':'Area '+(i+1))+': '+(area===null?'unavailable (outline must not cross or retrace itself)':formatArea(area,options.unit))).join(' · '):'';
     summary.textContent+=areaText;
-    help.textContent=tracing?(mode==='sketch'?'Drag with a mouse, pen, or one finger to draw.':'Drag with a mouse, pen, or one finger to follow a road or river.')+' Undo removes the last stroke. Turn off Trace path to pan or add points.':
+    help.textContent=traceOnly&&mode==='measure'?'Drag with a mouse, pen, or one finger to trace. Release to close the shape. Choose Pan to move the map.':tracing?(mode==='sketch'?'Drag with a mouse, pen, or one finger to draw.':'Drag with a mouse, pen, or one finger to follow a road or river.')+' Undo removes the last stroke. Turn off Trace path to pan or add points.':
       'Click or tap to add points. Drag to pan. Keyboard: arrow keys pan, Enter adds the center, Escape finishes.';
-    help.textContent+=mode==='sketch'?' Return to the start or choose Close shape to fill an outline. Clear removes all sketches and measurements; nothing is saved.':' Return to the start or choose Close shape to measure the enclosed area.';
+    if(!autoClose||mode!=='measure')help.textContent+=mode==='sketch'?' Return to the start or choose Close shape to fill an outline. Clear removes all sketches and measurements; nothing is saved.':' Return to the start or choose Close shape to measure the enclosed area.';
     if(mode==='measure' && options?.hexMiles)help.textContent+=' Each hex is '+options.hexMiles+' miles across.';
     if(stroke)drawStroke();remember();onHistoryChange();
   }
   function setTracing(value) {
-    finishStroke(false);tracing=value;
+    finishStroke(false);tracing=traceOnly&&active&&mode==='measure'?true:value;
     trace.setAttribute('aria-pressed',String(tracing));canvas.classList.toggle('map-tracing',active && tracing);
     if(active && tracing && !panState){
       panState=['dragging','touchZoom','boxZoom'].map(key=>[key,Boolean(map[key]?.enabled())]);
@@ -119,7 +119,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     if(canvas.classList.contains('map-editing')){summary.textContent='Save or cancel map editing before measuring or sketching.';return;}
     if(value===mode && active){setActive(false);return;}
     if(active)setActive(false);
-    if(value==='sketch')tracing=true;
+    if(value==='sketch'||traceOnly&&value==='measure')tracing=true;
     else if(mode!==value)tracing=false;
     mode=value;actions=drawings[mode];setActive(true);
   }
@@ -155,7 +155,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
   function sample(event,force=false){
     if(!stroke || event.pointerId!==pointer)return;
     const point=map.mouseEventToLatLng(event);
-    if(!imageBounds.contains(point)){finishStroke(true);return;}
+    if(!imageBounds.contains(point)){if(!traceOnly)finishStroke(true);return;}
     // Ignore subpixel pointer jitter, without smoothing away real bends.
     if(!force && Math.hypot(event.clientX-lastScreen[0],event.clientY-lastScreen[1])<1)return;
     const last=stroke.at(-1);
@@ -172,8 +172,13 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
   function finishStroke(commit){
     clearPreview();
     if(!stroke)return;
-    if(commit){
-      if(stroke.length>=3 && !isClosedRoute(stroke) && nearStart(stroke.at(-1),stroke))stroke=closeRoute(stroke);
+    if(commit&&(!traceOnly||stroke.length>1)){
+      if(autoClose&&mode==='measure'&&stroke.length>=3){
+        const closed=closeRoute(stroke,true);
+        // A straight trace remains a distance; closing it would double it.
+        if(routeArea(closed,options || {})!==null)stroke=closed;
+      }
+      else if(stroke.length>=3 && !isClosedRoute(stroke) && nearStart(stroke.at(-1),stroke))stroke=closeRoute(stroke);
       else if(isClosedRoute(stroke))stroke=closeRoute(stroke);
       actions.push({kind:'stroke',points:stroke});
     }

@@ -39,7 +39,7 @@
 .map-detail-controls select { max-width:18rem; }
 
 /* Shared tool strip follows the host's website, Obsidian or room palette. */
-.map-widget-header,.map-tools {
+.map-with-tools,.map-widget-header,.map-tools {
   --map-ui-surface:var(--surface,var(--background-secondary,var(--surface-control,#fffef8)));
   --map-ui-text:var(--text,var(--text-normal,var(--ink,#23372f)));
   --map-ui-muted:var(--muted,var(--text-muted,#607267));
@@ -76,6 +76,8 @@
 .map-tool-popover .map-grid-controls,.map-tool-popover .map-region-controls,.map-tool-popover .map-detail-controls { display:flex; flex-direction:column; align-items:flex-start; margin-bottom:12px; }
 .map-tool-help,.map-tool-popover .map-measure-help { flex-basis:100%; margin:0; font:12px/1.5 system-ui,sans-serif; color:var(--map-ui-muted); }
 .map-with-tools .map-canvas { border-radius:0 0 4px 4px; }
+.map-tool-readout { position:absolute; z-index:500; left:12px; bottom:12px; max-width:calc(100% - 24px); box-sizing:border-box; padding:7px 10px; border:1px solid var(--map-ui-border); border-radius:5px; background:var(--map-ui-surface); color:var(--map-ui-text); font:12px/1.4 system-ui,sans-serif; pointer-events:none; }
+.map-tool-readout[hidden] { display:none; }
 .map-canvas.map-tool-drawing { touch-action:none; user-select:none; -webkit-user-select:none; }
 .map-sketch-path { filter:drop-shadow(0 0 1px #fff8); }
 .map-tools :focus-visible { outline:2px solid var(--map-ui-focus); outline-offset:2px; }

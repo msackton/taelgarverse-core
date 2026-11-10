@@ -6,7 +6,7 @@ or encounter state. Website and Obsidian note sketches are private and temporary
 room hosts supply their own saved drawings and persistence adapter.
 
 From a pinned core checkout, run `npm ci` then `npm run maps:pack`. Install
-`.cache/packages/taelgar-maps-0.3.1.tgz` and retain its integrity-locked dependency.
+`.cache/packages/taelgar-maps-0.3.2.tgz` and retain its integrity-locked dependency.
 This builds a local archive; it does not publish to npm or GitHub. Bump the package
 version when its public API or behavior changes.
 
@@ -25,9 +25,11 @@ The default call without `tools` retains the legacy caption controls for existin
 hosts, including the Obsidian map editor. `allowSketch: false`, `decorate`,
 `openRegionNote`, `baseImagePane` and the existing update hooks remain available.
 
-The common strip owns Pan, Sketch, Select, Eraser, Measure, contextual Options,
+The common strip owns Pan, Sketch, Select, Eraser, Measure, Sketch Options,
 Layers, zoom/Fit and Fullscreen. The right-side Clear icon clears only the active
 kind of annotation: local measurements in Measure, sketches in drawing modes.
+Measure traces only and closes shapes on pointer release; its readout stays on
+the canvas. Eraser and Measure have no Options menu.
 It is disabled in Pan; shared sketch clearing keeps its confirmation. An existing source-image link in the caption
 moves into the header and returns to the caption when the viewer is disposed. To host it in a shared room:
 

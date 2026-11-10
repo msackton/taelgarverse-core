@@ -52,7 +52,7 @@ test('invalid explicit calibration never falls back to a plausible but incorrect
   }
 });
 
-function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=false,allowSketch=true}={}) {
+function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=false,allowSketch=true,traceOnly=false,autoClose=false,history=false}={}) {
   let focus,enabled=zoomEnabled;const frames=new Map();let nextFrame=0;
   class Element {
     constructor(){this.children=[];this.listeners={};this.attributes={};this.hidden=false;this.disabled=false;this.classes=new Set();this.classList={contains:value=>this.classes.has(value),toggle:(value,on)=>on?this.classes.add(value):this.classes.delete(value)};}
@@ -83,7 +83,7 @@ function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=
     polyline:points=>makeLayer('path',points),circleMarker:point=>makeLayer('marker',point)};
   const items=kind=>groups.flatMap(group=>group.children).filter(item=>item.kind===kind);
   const bounds={contains:point=>point.lat>=0 && point.lng>=0 && point.lat<=100 && point.lng<=100};
-  const dispose=addMeasurement(L,map,canvas,figure,calibrated?{xScale:scale,yScale:scale,unit:'miles'}:null,bounds,{allowSketch});
+  const dispose=addMeasurement(L,map,canvas,figure,calibrated?{xScale:scale,yScale:scale,unit:'miles'}:null,bounds,{allowSketch,traceOnly,autoClose,history});
   const controls=caption.children[0], [toggle,sketch,trace,close,undo,clear,summary]=controls.children,help=figure.children[0];
   return {canvas,map,toggle,sketch,trace,close,undo,clear,summary,help,dispose,groups,frames,flush:()=>{for(const [id,fn] of frames){frames.delete(id);fn();}},
     click:point=>events.click({latlng:point}),
@@ -396,4 +396,29 @@ test('shared hosts can hide temporary sketching and finish measurement before th
   h.dispose.stop();assert.equal(h.toggle.attributes['aria-pressed'],'false');
   assert.match(h.summary.textContent,/10 miles/);h.dispose();
   const normal=setup();assert.equal(normal.sketch.hidden,false);normal.dispose();
+});
+
+
+test('trace-only measurement closes on release, ignores clicks and stays ready after Clear',()=>{
+  const ui=setup({traceOnly:true,autoClose:true,history:true});ui.toggle.click();
+  ui.click({lat:20,lng:20});ui.pointer('pointerdown',20,20);ui.pointer('pointerup',20,20);
+  assert.equal(ui.paths.length,0);assert.equal(ui.dispose.canUndo(),false);
+  const trace=()=>{ui.pointer('pointerdown',20,20);ui.pointer('pointermove',60,20);ui.pointer('pointermove',60,60);ui.pointer('pointerup',20,60);};
+  trace();assert.equal(ui.polygons.length,1);assert.match(ui.summary.textContent,/Area: 400 square miles/);
+  assert.deepEqual(ui.paths[0][0],ui.paths[0].at(-1));
+  ui.clear.click();assert.equal(ui.paths.length,0);assert.equal(ui.canvas.classList.contains('map-tracing'),true);
+  ui.dispose.undo();assert.equal(ui.polygons.length,1);ui.dispose.redo();assert.equal(ui.polygons.length,0);
+  trace();assert.equal(ui.polygons.length,1);ui.dispose.undo();assert.equal(ui.paths.length,0);
+  ui.dispose.redo();assert.equal(ui.polygons.length,1);ui.dispose();
+});
+
+test('trace-only measurement cancels interrupted gestures and preserves straight-line distance',()=>{
+  const ui=setup({traceOnly:true,autoClose:true,history:true});ui.toggle.click();
+  ui.pointer('pointerdown',20,20);ui.pointer('pointermove',60,20);ui.pointer('pointercancel',60,20);
+  assert.equal(ui.paths.length,0);assert.equal(ui.dispose.canUndo(),false);
+  ui.pointer('pointerdown',20,20);ui.pointer('pointermove',40,20);ui.pointer('pointerup',60,20);
+  assert.equal(ui.polygons.length,0);assert.equal(routeDistance(ui.paths[0],{xScale:.5,yScale:.5}),20);
+  ui.clear.click();ui.pointer('pointerdown',20,20);ui.pointer('pointermove',60,20);ui.pointer('pointermove',60,60);
+  ui.pointer('pointermove',120,120);assert.equal(ui.polygons.length,0,'leaving the image does not commit before release');
+  ui.pointer('pointerup',120,120);assert.equal(ui.polygons.length,1,'release closes the valid part of the trace');ui.dispose();
 });

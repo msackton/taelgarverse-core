@@ -12,16 +12,18 @@ Website and Obsidian note maps share a compact header with **Pan**, **Sketch**,
 **Select**, **Eraser** and **Measure**, plus zoom, Fit map, available Layers and
 Fullscreen. **Open source image** is the header’s external-link icon; it opens
 the original image in a new tab. The character manager mounts this same strip in its room header.
-Options for the active tool open over the map rather than adding another row.
-The Obsidian map editor retains its authoring controls and legacy caption tools.
+Options appear only for Sketch and open over the map. Eraser and Measure have
+no Options menu. The Obsidian map editor retains its authoring controls and
+legacy caption tools.
 
-Choose **Measure**, then click or tap points along a route. Its **Options** menu
-contains Trace path and Close shape. The header’s Clear icon clears measurements. Choose Pan or press
-Escape to finish while leaving the result visible. Maps remain draggable and
-zoomable in point mode. Keyboard users can pan with arrow keys and add the map
-center with Enter or Space; Backspace undoes a point. The center crosshair appears
-only with visible keyboard focus in point mode. Every map has independent local
-measurements; they are never saved to notes, published content or shared rooms.
+Choose **Measure** and drag with a mouse, pen, or one finger. Releasing the
+pointer closes the traced outline with a straight segment to its start and
+shows its area and perimeter. A straight trace remains a distance. Clicking
+without dragging adds no points. Results appear inside the map, so they do not
+change the toolbar's height while drawing. Clear removes local measurements;
+Undo and Redo restore traces or clearing. Choose Pan or press Escape to move
+the map again. Each map has independent measurements; they are never saved to
+notes, published content or shared rooms.
 
 Choose **Sketch** to draw without distance or area readings. Its Options menu
 contains Trace path, color, stroke width and Close shape. The header’s Clear icon
@@ -52,44 +54,31 @@ when the map unloads. Clearing sketches does not clear measurements. Shared room
 hosts instead supply saved drawings and persist sketch commands; their label is
 **Shared**. Room access and persistence belong to the character manager.
 
-For a winding river or road, turn on **Trace path** while measuring and drag
-with a mouse, pen, or one finger. The total includes the sampled bends rather
-than a straight chord between the start and end. Each stroke is one Undo action.
-Separate strokes add to the total without inserting a straight connecting
-segment. Switch off Trace path to pan or add point segments; zoom buttons remain
-available. Zoom in for finer tracing. A cancelled stroke or a view change during
-drawing discards the unfinished stroke without changing completed measurements.
-The live stroke refreshes once per display frame without rebuilding completed
-drawings. All accepted pointer samples still contribute to its geometry and
-distance; releasing the pointer immediately commits the final result.
+Trace samples preserve bends rather than measuring only the chord between the
+start and end. Each trace is one Undo action. Separate traces do not gain a
+connecting segment. Zoom buttons remain available; zoom in for finer tracing.
+A cancelled stroke or a view change discards the unfinished stroke without
+changing completed measurements. The live stroke refreshes once per display
+frame without rebuilding completed drawings. Releasing the pointer immediately
+commits the final result.
 
-To measure a region, draw its outline and return to the start, or choose
-**Close shape** to add a straight segment back to the first point. An endpoint
-within 10 screen pixels of the start snaps closed after the outline has extended
-more than 20 screen pixels away; this avoids closing short open paths by accident.
-Small outlines can always be closed explicitly. A closed outline gains a light
-fill and an **Area** reading in **square miles**, alongside its perimeter distance.
-Point routes and freehand traces use the same calculation. Undo removes an
-explicit closing segment (or an entire trace), and Clear removes area results.
-Further points start a separate route after a closed outline.
+Automatic closure uses the same outline repair as Sketch's **Close shape**:
+accidental crossings, loops, touches and retraced overshoots keep the larger
+enclosed region. Valid concave outlines retain their bends. The corrected line,
+fill, distance and area use the same outline. Traces without a valid enclosed
+area remain distance traces.
 
-**Close shape** repairs accidental crossings, loops, touches, and retraced
-overshoots, keeping the larger enclosed region at each crossing. Sketch applies
-the same forgiving correction when an outline snaps closed. Valid concave
-outlines retain their bends. An already closed invalid outline can also be
-repaired with **Close shape**. The corrected line, fill, distance, and area use
-the same outline; Undo restores the original outline for an explicit closure,
-or removes the freehand stroke for automatic closure.
-
-Automatic closure while measuring applies only small corrections: a
-6-screen-pixel radius and loops representing at most 15% of the outline's
-perimeter. For larger misdrawn overlaps, choose **Close shape** explicitly.
+Legacy caption controls, including the Obsidian map editor, retain point-based
+measurement, an optional Trace path toggle and manual Close shape. Their
+near-start snapping trims only small loops (a 6-screen-pixel radius and at most
+15% of the perimeter); explicit Close shape applies the more forgiving repair.
 
 Area uses the polygon's original bends and the calibrated horizontal and vertical
 scales, without a projection. Concave outlines and either drawing direction are
-supported. Outlines that still cross, touch, retrace, or enclose no area keep
-their distance but report that area is unavailable. Multiple outlines show separate numbered
-areas; overlapping outlines are not combined into a union or interpreted as holes.
+supported. Legacy closed outlines that still cross, touch, retrace, or enclose
+no area keep their distance but report that area is unavailable. Multiple closed
+outlines show separate numbered areas; overlapping outlines are not combined
+into a union or interpreted as holes.
 Maps authored with other units show square units instead of square miles.
 
 The [Taelgarverse Obsidian plugin](../obsidian/taelgarverse/README.md) uses the
@@ -382,7 +371,7 @@ npm ci
 npm run maps:pack
 ```
 
-The archive is `.cache/packages/taelgar-maps-0.3.1.tgz`. CI also builds it and
+The archive is `.cache/packages/taelgar-maps-0.3.2.tgz`. CI also builds it and
 attaches it as the **taelgar-maps** artifact. A consuming app installs the archive
 and locks its integrity; its own build bundles the viewer. `maps:build` produces
 the unpacked package. These commands do not publish to a package registry or
