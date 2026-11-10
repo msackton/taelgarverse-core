@@ -17,8 +17,9 @@ no Options menu. The Obsidian map editor retains its authoring controls and
 legacy caption tools.
 
 Choose **Measure** and drag with a mouse, pen, or one finger. Releasing the
-pointer closes the traced outline with a straight segment to its start and
-shows its area and perimeter. A straight trace remains a distance. Clicking
+pointer closes the outline only if its endpoint is within ten screen pixels
+of its start (after tracing more than twenty pixels away). A closed outline
+shows area and perimeter; other traces remain open and show distance. Clicking
 without dragging adds no points. Results appear inside the map, so they do not
 change the toolbar's height while drawing. Clear removes local measurements;
 Undo and Redo restore traces or clearing. Choose Pan or press Escape to move
@@ -62,7 +63,7 @@ changing completed measurements. The live stroke refreshes once per display
 frame without rebuilding completed drawings. Releasing the pointer immediately
 commits the final result.
 
-Automatic closure uses the same outline repair as Sketch's **Close shape**:
+Nearby automatic closure uses the same outline repair as Sketch's **Close shape**:
 accidental crossings, loops, touches and retraced overshoots keep the larger
 enclosed region. Valid concave outlines retain their bends. The corrected line,
 fill, distance and area use the same outline. Traces without a valid enclosed
@@ -371,7 +372,7 @@ npm ci
 npm run maps:pack
 ```
 
-The archive is `.cache/packages/taelgar-maps-0.3.2.tgz`. CI also builds it and
+The archive is `.cache/packages/taelgar-maps-0.3.3.tgz`. CI also builds it and
 attaches it as the **taelgar-maps** artifact. A consuming app installs the archive
 and locks its integrity; its own build bundles the viewer. `maps:build` produces
 the unpacked package. These commands do not publish to a package registry or

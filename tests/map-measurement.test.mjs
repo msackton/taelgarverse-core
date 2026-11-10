@@ -399,11 +399,11 @@ test('shared hosts can hide temporary sketching and finish measurement before th
 });
 
 
-test('trace-only measurement closes on release, ignores clicks and stays ready after Clear',()=>{
-  const ui=setup({traceOnly:true,autoClose:true,history:true});ui.toggle.click();
+test('trace-only measurement closes near the start on release, ignores clicks and stays ready after Clear',()=>{
+  const ui=setup({traceOnly:true,autoClose:true,history:true,screenScale:1});ui.toggle.click();
   ui.click({lat:20,lng:20});ui.pointer('pointerdown',20,20);ui.pointer('pointerup',20,20);
   assert.equal(ui.paths.length,0);assert.equal(ui.dispose.canUndo(),false);
-  const trace=()=>{ui.pointer('pointerdown',20,20);ui.pointer('pointermove',60,20);ui.pointer('pointermove',60,60);ui.pointer('pointerup',20,60);};
+  const trace=()=>{ui.pointer('pointerdown',20,20);ui.pointer('pointermove',60,20);ui.pointer('pointermove',60,60);ui.pointer('pointermove',20,60);ui.pointer('pointerup',20,25);};
   trace();assert.equal(ui.polygons.length,1);assert.match(ui.summary.textContent,/Area: 400 square miles/);
   assert.deepEqual(ui.paths[0][0],ui.paths[0].at(-1));
   ui.clear.click();assert.equal(ui.paths.length,0);assert.equal(ui.canvas.classList.contains('map-tracing'),true);
@@ -420,5 +420,14 @@ test('trace-only measurement cancels interrupted gestures and preserves straight
   assert.equal(ui.polygons.length,0);assert.equal(routeDistance(ui.paths[0],{xScale:.5,yScale:.5}),20);
   ui.clear.click();ui.pointer('pointerdown',20,20);ui.pointer('pointermove',60,20);ui.pointer('pointermove',60,60);
   ui.pointer('pointermove',120,120);assert.equal(ui.polygons.length,0,'leaving the image does not commit before release');
-  ui.pointer('pointerup',120,120);assert.equal(ui.polygons.length,1,'release closes the valid part of the trace');ui.dispose();
+  ui.pointer('pointerup',120,120);assert.equal(ui.polygons.length,0,'release away from the start keeps the trace open');ui.dispose();
+});
+
+
+test('trace-only measurement snaps only endpoints within ten screen pixels at different zoom levels',()=>{
+  for(const screenScale of [.5,2])for(const gap of [9,10,11]){
+    const ui=setup({traceOnly:true,autoClose:true,screenScale});ui.toggle.click();
+    ui.pointer('pointerdown',20,20);ui.pointer('pointermove',60,20);ui.pointer('pointermove',60,60);ui.pointer('pointermove',20,60);ui.pointer('pointerup',20,20+gap/screenScale);
+    assert.equal(ui.polygons.length,gap<=10?1:0,`endpoint ${gap} screen pixels away at scale ${screenScale}`);ui.dispose();
+  }
 });

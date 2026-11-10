@@ -42,7 +42,7 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
   const close=button('Close shape',()=>finishDraft(true),{container:sketchPanel});
   const help=doc.createElement('p');help.className='map-tool-help';sketchPanel.append(help);
 
-  modeButtons.get('measure').title='Drag to trace a shape; release to close it';
+  modeButtons.get('measure').title='Drag to trace; release near the start to close a shape';
   const measurement=addMeasurement(L,map,canvas,figure,config.measurement,bounds,{allowSketch:false,history:true,traceOnly:true,autoClose:true,onHistoryChange:()=>{if(measurementReady)controls();},onActiveChange:active=>{if(!active&&tool==='measure'){tool='pan';syncMode();}}});
   const measured=measurement.elements;measured.toggle.hidden=true;measured.clear.textContent='Clear measurements';measured.summary.classList.add('map-tool-readout');canvas.append(measured.summary);measured.controls.remove();measured.help.remove();
   const viewport=doc.createElement('span');viewport.className='map-tool-viewport';root.append(viewport);

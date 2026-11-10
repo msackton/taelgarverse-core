@@ -45,7 +45,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
       L.circleMarker(stroke[0],style).addTo(preview);strokeEnd=L.circleMarker(stroke.at(-1),style).addTo(preview);
     }else{strokeLine.setLatLngs(stroke);strokeEnd.setLatLng(stroke.at(-1));}
     undo.disabled=false;close.hidden=true;clear.hidden=false;
-    summary.textContent=mode==='sketch'?'Temporary sketch.':baseLength+strokeLength>0?'Total: '+formatDistance(baseLength+strokeLength,options.unit)+areaText:traceOnly?'Drag to trace a shape. Release to close.':'Start point set. Add another point.';
+    summary.textContent=mode==='sketch'?'Temporary sketch.':baseLength+strokeLength>0?'Total: '+formatDistance(baseLength+strokeLength,options.unit)+areaText:traceOnly?'Drag to trace. Return near the start to close.':'Start point set. Add another point.';
   }
   function scheduleStroke(){
     if(!doc.defaultView?.requestAnimationFrame){drawStroke();return;}
@@ -84,11 +84,11 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     const length=baseLength=routes.reduce((n,route)=>n+routeDistance(route,options || {}),0);
     summary.textContent=mode==='sketch'?(count?'Temporary sketch.':active?(tracing?'Drag to sketch.':'Choose a starting point.'):''):
       routes.some(route=>route.length>1) ? 'Total: '+formatDistance(length,options.unit) :
-      count ? 'Start point set.'+(active?' Add another point.':'') : active ? traceOnly?'Drag to trace a shape. Release to close.':tracing?'Drag to trace a path.':'Choose a starting point.' : '';
+      count ? 'Start point set.'+(active?' Add another point.':'') : active ? traceOnly?'Drag to trace. Return near the start to close.':tracing?'Drag to trace a path.':'Choose a starting point.' : '';
     areaText=mode==='measure' && closed.length?' · '+areas.map((area,i)=>
       (areas.length===1?'Area':'Area '+(i+1))+': '+(area===null?'unavailable (outline must not cross or retrace itself)':formatArea(area,options.unit))).join(' · '):'';
     summary.textContent+=areaText;
-    help.textContent=traceOnly&&mode==='measure'?'Drag with a mouse, pen, or one finger to trace. Release to close the shape. Choose Pan to move the map.':tracing?(mode==='sketch'?'Drag with a mouse, pen, or one finger to draw.':'Drag with a mouse, pen, or one finger to follow a road or river.')+' Undo removes the last stroke. Turn off Trace path to pan or add points.':
+    help.textContent=traceOnly&&mode==='measure'?'Drag with a mouse, pen, or one finger to trace. Release near the start to close the shape. Choose Pan to move the map.':tracing?(mode==='sketch'?'Drag with a mouse, pen, or one finger to draw.':'Drag with a mouse, pen, or one finger to follow a road or river.')+' Undo removes the last stroke. Turn off Trace path to pan or add points.':
       'Click or tap to add points. Drag to pan. Keyboard: arrow keys pan, Enter adds the center, Escape finishes.';
     if(!autoClose||mode!=='measure')help.textContent+=mode==='sketch'?' Return to the start or choose Close shape to fill an outline. Clear removes all sketches and measurements; nothing is saved.':' Return to the start or choose Close shape to measure the enclosed area.';
     if(mode==='measure' && options?.hexMiles)help.textContent+=' Each hex is '+options.hexMiles+' miles across.';
@@ -173,7 +173,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     clearPreview();
     if(!stroke)return;
     if(commit&&(!traceOnly||stroke.length>1)){
-      if(autoClose&&mode==='measure'&&stroke.length>=3){
+      if(autoClose&&mode==='measure'&&stroke.length>=3&&nearStart(stroke.at(-1),stroke)){
         const closed=closeRoute(stroke,true);
         // A straight trace remains a distance; closing it would double it.
         if(routeArea(closed,options || {})!==null)stroke=closed;
