@@ -6,7 +6,7 @@ or encounter state. Website and Obsidian note sketches are private and temporary
 room hosts supply their own saved drawings and persistence adapter.
 
 From a pinned core checkout, run `npm ci` then `npm run maps:pack`. Install
-`.cache/packages/taelgar-maps-0.3.7.tgz` and retain its integrity-locked dependency.
+`.cache/packages/taelgar-maps-0.3.8.tgz` and retain its integrity-locked dependency.
 This builds a local archive; it does not publish to npm or GitHub. Bump the package
 version when its public API or behavior changes.
 
@@ -92,3 +92,6 @@ Pulses last 2.2 seconds, stay anchored during zoom/pan and never enter sketch
 history. Disable ping while disconnected with `updateTools({pingEnabled:false})`.
 The host owns authentication and broadcast; local website/Obsidian maps do not
 show Ping.
+
+Dropdowns use centered SVG chevrons that rotate when opened, inherit the host
+palette, and respect reduced-motion preferences.
