@@ -16,18 +16,27 @@ Options appear only for Sketch and open over the map. Eraser and Measure have
 no Options menu. The Obsidian map editor retains its authoring controls and
 legacy caption tools.
 
-Choose **Measure** and drag with a mouse, pen, or one finger. Releasing the
-pointer closes the outline only if its endpoint is within ten screen pixels
-of its start (after tracing more than twenty pixels away). A closed outline
-shows area and perimeter; other traces remain open and show distance. Lines
-and shapes share sequential measurement numbers. Each line gets a numbered
-marker halfway along its path and its own calibrated distance in the readout;
-shapes list their individual perimeter and area. Clicking
-without dragging adds no points. Results appear inside the map, so they do not
-change the toolbar's height while drawing. Clear removes local measurements;
-Undo and Redo restore traces or clearing. Choose Pan or press Escape to move
-the map again. Each map has independent measurements; they are never saved to
-notes, published content or shared rooms.
+The split **Measure: Line ▾** button toggles measuring on or off. Its chevron
+opens just **Straight line** and **Trace**, with the current choice checked.
+Choosing a mode enters Measure immediately. The browser remembers the last
+choice across maps and reloads; the first-use default is Straight line. On
+narrow screens the button keeps the mode name visible alongside the ruler icon.
+The mode menu supports arrow keys, Enter, Escape and Tab.
+
+**Straight line** drags between two endpoints, ignoring intermediate pointer
+bends. Release to keep the numbered line and its distance. **Trace** follows
+mouse, pen or finger movement. Releasing closes an outline only if its endpoint
+is within ten screen pixels of its start (after tracing more than twenty pixels
+away). Other traces remain open. Switching modes preserves completed
+measurements and their Undo/Redo history.
+
+Lines and shapes share sequential measurement numbers. Each line gets a marker
+halfway along its path and its own calibrated distance; shapes list their
+individual perimeter and area. Clicking without dragging adds no points.
+Results stay inside the map without changing the toolbar height. Clear removes
+measurements; Undo and Redo restore lines, traces or clearing. Choose Pan or
+press Escape to move the map again. Each map has independent temporary
+measurements; they are never saved to notes, published content or shared rooms.
 
 Choose **Sketch** to draw without distance or area readings. Its Options menu
 contains Trace path, color, stroke width and Close shape. The header’s Clear icon
@@ -378,7 +387,7 @@ npm ci
 npm run maps:pack
 ```
 
-The archive is `.cache/packages/taelgar-maps-0.3.5.tgz`. CI also builds it and
+The archive is `.cache/packages/taelgar-maps-0.3.6.tgz`. CI also builds it and
 attaches it as the **taelgar-maps** artifact. A consuming app installs the archive
 and locks its integrity; its own build bundles the viewer. `maps:build` produces
 the unpacked package. These commands do not publish to a package registry or

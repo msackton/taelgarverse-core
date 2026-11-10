@@ -4,6 +4,8 @@ import {drawingPaths,hitDrawing,drawingsInBox,eraserRadius,eraseDrawings,applySk
 const icons={pan:'M8 12V5a1.5 1.5 0 013 0v6-7a1.5 1.5 0 013 0v7-5a1.5 1.5 0 013 0v6-3a1.5 1.5 0 013 0v5c0 5-3 7-6 7h-1c-2 0-3-1-4-3l-4-5a1.5 1.5 0 012-2l2 2',sketch:'M4 17l-1 4 4-1L20 7l-3-3zM14 7l3 3',select:'M4 3l14 9-7 1-3 7z',erase:'M3 15l8-11a2 2 0 013 0l7 6-9 11H8zM7 10l9 8M12 21h9',measure:'M3 16L16 3l5 5L8 21zM6 13l3 3m0-6l2 2m1-5l3 3',fit:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',undo:'M9 5L3 11l6 6M3 11h10a7 7 0 017 7',redo:'M15 5l6 6-6 6M21 11H11a7 7 0 00-7 7',clear:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',source:'M14 3h7v7M21 3L10 14M10 3H4v17h17v-6',fullscreen:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M8 8l-5-5m13 5l5-5M8 16l-5 5m13-5l5 5'};
 export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
   const doc=canvas.ownerDocument,win=doc.defaultView,scope=options.scope??'local';
+  const measurePreference='taelgar.map.measureMode';let measureMode='line';
+  try{if(win.localStorage.getItem(measurePreference)==='trace')measureMode='trace';}catch{}
   let editable=options.editable!==false,base=options.drawings??[],pending=[],tool='pan',tracing=true,color='#b34e17',width=3,selection=[],draft=[],gesture=null,pointer=null,zooming=false,disposed=false,nextOperation=0,measurementReady=false,historyBusy=false;
   const past=[],future=[];
   const saved=L.layerGroup().addTo(map),preview=L.layerGroup().addTo(map),brush=L.layerGroup().addTo(map);
@@ -29,6 +31,11 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
     node.addEventListener('click',event=>{if(activated&&event.detail!==0){activated=false;return;}activated=false;if(!node.disabled)action();});container.append(node);return node;
   };
   const modeButtons=new Map();for(const [name,label] of [['pan','Pan'],['sketch','Sketch'],['select','Select'],['erase','Eraser'],['measure','Measure']])modeButtons.set(name,button(label,()=>choose(name),{icon:name}));
+  const measureMain=modeButtons.get('measure'),measureSplit=doc.createElement('span');measureSplit.className='map-measure-split';measureSplit.setAttribute('role','group');measureSplit.setAttribute('aria-label','Measurement');root.insertBefore(measureSplit,measureMain);measureSplit.append(measureMain);measureMain.classList.add('map-measure-main');
+  const measureToggle=button('Measurement mode',()=>measureMenu.hidden?openMeasureMenu():closeMeasureMenu(),{container:measureSplit,small:true});measureToggle.classList.add('map-measure-toggle');measureToggle.insertBefore(doc.createTextNode('⌄'),measureToggle.firstChild);measureToggle.setAttribute('aria-haspopup','menu');measureToggle.setAttribute('aria-expanded','false');
+  const measureMenu=doc.createElement('div');measureMenu.className='map-tool-popover map-measure-menu';measureMenu.hidden=true;measureMenu.setAttribute('role','menu');measureMenu.setAttribute('aria-label','Measurement mode');measureSplit.append(measureMenu);
+  const measureChoices=new Map();for(const [value,label] of [['line','Straight line'],['trace','Trace']]){const node=button(label,()=>pickMeasureMode(value),{container:measureMenu});node.setAttribute('role','menuitemradio');node.tabIndex=-1;measureChoices.set(value,node);}
+  measureSplit.addEventListener('keydown',measureMenuKey);
   const context=doc.createElement('span');context.className='map-tool-context';root.append(context);
   const selectedCount=doc.createElement('span');selectedCount.className='map-tool-selection';selectedCount.setAttribute('aria-live','polite');context.append(selectedCount);
   const remove=button('Delete selected',()=>emit({type:'removeDrawings',ids:selection}),{container:context});
@@ -42,8 +49,7 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
   const close=button('Close shape',()=>finishDraft(true),{container:sketchPanel});
   const help=doc.createElement('p');help.className='map-tool-help';sketchPanel.append(help);
 
-  modeButtons.get('measure').title='Drag to trace; release near the start to close a shape';
-  const measurement=addMeasurement(L,map,canvas,figure,config.measurement,bounds,{allowSketch:false,history:true,traceOnly:true,autoClose:true,individualReadings:true,onHistoryChange:()=>{if(measurementReady)controls();},onActiveChange:active=>{if(!active&&tool==='measure'){tool='pan';syncMode();}}});
+  const measurement=addMeasurement(L,map,canvas,figure,config.measurement,bounds,{allowSketch:false,history:true,traceOnly:true,autoClose:true,individualReadings:true,strokeMode:measureMode,onHistoryChange:()=>{if(measurementReady)controls();},onActiveChange:active=>{if(!active&&tool==='measure'){tool='pan';syncMode();}}});
   const measured=measurement.elements;measured.toggle.hidden=true;measured.clear.textContent='Clear measurements';measured.summary.classList.add('map-tool-readout');canvas.append(measured.summary);measured.controls.remove();measured.help.remove();
   const viewport=doc.createElement('span');viewport.className='map-tool-viewport';root.append(viewport);
   button('Zoom out',()=>map.zoomOut(),{container:viewport}).textContent='−';button('Zoom in',()=>map.zoomIn(),{container:viewport}).textContent='+';
@@ -82,6 +88,10 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
     clear.disabled=tool!=='measure'&&!clearingSketches;clear.title=clear.disabled?'Choose Sketch or Measure to clear its annotations':clearLabel;clear.setAttribute('aria-label',clearLabel);clear.querySelector('span').textContent=clearLabel;
     const drawings=view();selection=selection.filter(id=>drawings.some(d=>d.id===id));
     for(const [name,node] of modeButtons){node.setAttribute('aria-pressed',String(tool===name));node.hidden=!editable&&['sketch','select','erase'].includes(name);node.disabled=name==='measure'&&!config.measurement;}
+    const measureLabel='Measure: '+(measureMode==='line'?'Line':'Trace'),text=measureMain.querySelector('span');
+    if(measureMain.getAttribute('aria-label')!==measureLabel){const prefix=doc.createElement('span');prefix.className='map-measure-prefix';prefix.textContent='Measure: ';text.replaceChildren(prefix,doc.createTextNode(measureMode==='line'?'Line':'Trace'));measureMain.setAttribute('aria-label',measureLabel);}
+    measureMain.title=measureMode==='line'?'Measure: Line. Drag between two endpoints.':'Measure: Trace. Release near the start to close a shape.';measureToggle.disabled=!config.measurement;measureToggle.dataset.active=String(tool==='measure');
+    for(const [value,node] of measureChoices)node.setAttribute('aria-checked',String(measureMode===value));
     selectedCount.hidden=tool!=='select';selectedCount.textContent=selection.length+' selected';remove.hidden=tool!=='select'||!selection.length;remove.disabled=!editable;
     const drawingMode=['sketch','select','erase'].includes(tool);
     undo.disabled=tool==='measure'?!measurement.canUndo():!drawingMode||!editable||historyBusy||pending.length>0||!historyAvailable(true);redo.disabled=tool==='measure'?!measurement.canRedo():!drawingMode||!editable||historyBusy||pending.length>0||!historyAvailable(false);
@@ -90,6 +100,16 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
     close.hidden=tool!=='sketch'||draft.length<3;trace.closest('label').hidden=tool!=='sketch';picker.closest('label').hidden=tool!=='sketch';weight.closest('label').hidden=tool!=='sketch';
     help.textContent=tool==='erase'?'Drag to erase parts of strokes. Move faster for a larger brush. Filled shapes erase as a whole.':tracing?'Drag to sketch. Return to the start to close a shape.':'Click or tap to add points; drag to pan. Close shape fills the outline. Choose Pan or press Escape to finish.';
     if(settings.details.hidden)settings.details.open=false;
+  }
+  function closeMeasureMenu(focus=false){measureMenu.hidden=true;measureToggle.setAttribute('aria-expanded','false');if(focus)measureToggle.focus();}
+  function openMeasureMenu(){if(measureToggle.disabled)return;for(const item of [settings,layers])item.details.open=false;measureMenu.hidden=false;measureToggle.setAttribute('aria-expanded','true');measureChoices.get(measureMode).focus();}
+  function pickMeasureMode(value){measureMode=value;try{win.localStorage.setItem(measurePreference,value);}catch{}measurement.setStrokeMode(value);closeMeasureMenu();if(tool!=='measure')choose('measure');else controls();canvas.focus({preventScroll:true});}
+  function measureMenuKey(event){
+    if(event.target===measureToggle&&['ArrowDown','ArrowUp'].includes(event.key)){event.preventDefault();openMeasureMenu();return;}
+    if(measureMenu.hidden)return;
+    if(['ArrowDown','ArrowUp','Home','End'].includes(event.key)){event.preventDefault();const nodes=[...measureChoices.values()],index=nodes.indexOf(doc.activeElement);nodes[event.key==='Home'?0:event.key==='End'?nodes.length-1:(index+(event.key==='ArrowDown'?1:-1)+nodes.length)%nodes.length].focus();}
+    else if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeMeasureMenu(true);}
+    else if(event.key==='Tab')closeMeasureMenu(true);
   }
   const sameDraft=(a,b)=>a.length===b.length&&a.every((p,i)=>p.x===b[i].x&&p.y===b[i].y);
   function record(entry){
@@ -138,6 +158,7 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
     canvas.style.cursor=editing&&tool!=='select'?'crosshair':'';controls();
   }
   function choose(next){
+    closeMeasureMenu();
     if(next===tool&&['sketch','measure'].includes(tool))next='pan';
     if(!editable&&['sketch','select','erase'].includes(next))return;
     if(tool==='sketch'&&next!=='sketch')finishDraft();measurement.stop();cancel();tool=next;syncMode();if(tool==='measure')measurement.activate();
@@ -188,7 +209,7 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
   const lost=()=>{if(gesture)cancel();};
   const zoomStart=()=>{zooming=true;cancel();},zoomEnd=()=>{zooming=false;};
   const keydown=event=>{if(event.target!==canvas||!editable||tool==='measure')return;if((event.ctrlKey||event.metaKey)&&['z','y'].includes(event.key.toLowerCase())){event.preventDefault();void historyAction(!(event.shiftKey||event.key.toLowerCase()==='y'));return;}if(event.key==='Escape'){event.preventDefault();if(tool==='select'){selection=[];redraw();}else choose('pan');}else if(tool==='select'&&['Delete','Backspace'].includes(event.key)){event.preventDefault();if(selection.length)emit({type:'removeDrawings',ids:selection});}else if(tool==='select'&&(event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='a'){event.preventDefault();selection=view().map(d=>d.id);redraw();}else if(tool==='sketch'&&event.key==='Backspace'){event.preventDefault();undo.click();}else if(tool==='sketch'&&!tracing&&['Enter',' '].includes(event.key)){event.preventDefault();click({latlng:map.getCenter()});}};
-  const outside=event=>{if(!root.contains(event.target))for(const item of [settings,layers])item.details.open=false;};
+  const outside=event=>{if(!measureSplit.contains(event.target))closeMeasureMenu();if(!root.contains(event.target))for(const item of [settings,layers])item.details.open=false;};
   const menuKey=event=>{if(event.key==='Escape')for(const item of [settings,layers])if(item.details.open){event.preventDefault();event.stopPropagation();item.details.open=false;item.summary.focus();}};
   canvas.addEventListener('pointerdown',down);canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',lost);canvas.addEventListener('lostpointercapture',lost);canvas.addEventListener('click',stopClick,true);canvas.addEventListener('keydown',keydown);root.addEventListener('keydown',menuKey);doc.addEventListener('pointerdown',outside,true);
   map.on('click',click);map.on('movestart',lost);map.on('zoomstart',zoomStart);map.on('zoomend',zoomEnd);measurementReady=true;syncMode();redraw();

@@ -52,7 +52,7 @@ test('invalid explicit calibration never falls back to a plausible but incorrect
   }
 });
 
-function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=false,allowSketch=true,traceOnly=false,autoClose=false,history=false,individualReadings=false}={}) {
+function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=false,allowSketch=true,traceOnly=false,autoClose=false,history=false,individualReadings=false,strokeMode='trace'}={}) {
   let focus,enabled=zoomEnabled;const frames=new Map();let nextFrame=0;
   class Element {
     constructor(){this.children=[];this.listeners={};this.attributes={};this.hidden=false;this.disabled=false;this.classes=new Set();this.classList={contains:value=>this.classes.has(value),toggle:(value,on)=>on?this.classes.add(value):this.classes.delete(value)};}
@@ -83,7 +83,7 @@ function setup({scale=0.5,zoomEnabled=true,screenScale,calibrated=true,animated=
     polyline:points=>makeLayer('path',points),circleMarker:point=>makeLayer('marker',point)};
   const items=kind=>groups.flatMap(group=>group.children).filter(item=>item.kind===kind);
   const bounds={getWest:()=>0,getSouth:()=>0,getEast:()=>100,getNorth:()=>100,contains:point=>point.lat>=0 && point.lng>=0 && point.lat<=100 && point.lng<=100};
-  const dispose=addMeasurement(L,map,canvas,figure,calibrated?{xScale:scale,yScale:scale,unit:'miles'}:null,bounds,{allowSketch,traceOnly,autoClose,history,individualReadings});
+  const dispose=addMeasurement(L,map,canvas,figure,calibrated?{xScale:scale,yScale:scale,unit:'miles'}:null,bounds,{allowSketch,traceOnly,autoClose,history,individualReadings,strokeMode});
   const controls=caption.children[0], [toggle,sketch,trace,close,undo,clear,summary]=controls.children,help=figure.children[0];
   return {canvas,map,toggle,sketch,trace,close,undo,clear,summary,help,dispose,groups,frames,flush:()=>{for(const [id,fn] of frames){frames.delete(id);fn();}},
     click:point=>events.click({latlng:point}),
@@ -461,4 +461,27 @@ test('traces intersect the first crossed map edge without sliding along it',()=>
   assert.deepEqual(traceBoundaryPoint({x:60,y:40},{x:80,y:120},box),{x:70,y:80});
   assert.deepEqual(traceBoundaryPoint({x:60,y:40},{x:80,y:-40},box),{x:65,y:20});
   assert.deepEqual(traceBoundaryPoint({x:110,y:40},{x:160,y:60},box),{x:110,y:40});
+});
+
+
+test('straight measurement keeps only its endpoints and live distance across a wandering drag',()=>{
+  const ui=setup({traceOnly:true,autoClose:true,history:true,individualReadings:true,strokeMode:'line'});ui.toggle.click();
+  ui.pointer('pointerdown',10,10);ui.pointer('pointermove',40,10);ui.pointer('pointermove',40,50);ui.pointer('pointermove',10,50);ui.pointer('pointerup',10,30);
+  assert.deepEqual(ui.paths,[[{lat:10,lng:10},{lat:30,lng:10}]]);assert.equal(ui.polygons.length,0);assert.match(ui.summary.textContent,/Line 1: 10 miles/);
+  ui.dispose.undo();assert.equal(ui.paths.length,0);ui.dispose.redo();assert.equal(ui.paths.length,1);
+  ui.pointer('pointerdown',50,50);ui.pointer('pointermove',80,80);ui.pointer('pointerup',50,50);assert.equal(ui.paths.length,1,'returning exactly to the start adds no zero-length line');ui.dispose();
+});
+
+test('switching measure modes keeps completed lines, shapes and their history',()=>{
+  const ui=setup({traceOnly:true,autoClose:true,history:true,individualReadings:true,screenScale:1,strokeMode:'line'});ui.toggle.click();
+  ui.pointer('pointerdown',10,10);ui.pointer('pointerup',30,10);ui.dispose.setStrokeMode('trace');
+  ui.pointer('pointerdown',50,50);ui.pointer('pointermove',80,50);ui.pointer('pointermove',80,80);ui.pointer('pointermove',50,80);ui.pointer('pointerup',50,51);
+  assert.equal(ui.polygons.length,1);assert.match(ui.summary.textContent,/Line 1: 10 miles.*Shape 2:/);
+  ui.dispose.setStrokeMode('line');ui.dispose.undo();assert.equal(ui.paths.length,1);ui.dispose.redo();assert.equal(ui.polygons.length,1);
+  ui.clear.click();ui.dispose.undo();assert.equal(ui.paths.length,2);ui.dispose();
+});
+
+test('straight measurement clips the anchored line at the boundary instead of following pointer bends',()=>{
+  const ui=setup({traceOnly:true,history:true,strokeMode:'line'});ui.toggle.click();ui.pointer('pointerdown',20,20);ui.pointer('pointermove',20,80);ui.pointer('pointermove',120,80);
+  assert.deepEqual(ui.paths,[[{lat:20,lng:20},{lat:68,lng:100}]]);ui.pointer('pointermove',30,30);ui.pointer('pointerup',30,30);assert.equal(ui.paths.length,1);ui.dispose();
 });

@@ -1,7 +1,7 @@
 import {routeDistance,formatDistance,isClosedRoute,routeArea,formatArea} from '../map-distance.mjs';
 import {measurementRoutes,repairClosedRoute,shapeLabelPoint,routeLabelPoint,traceBoundaryPoint} from '../map-path.mjs';
 
-export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSketch=true,onActiveChange=()=>{},history=false,onHistoryChange=()=>{},traceOnly=false,autoClose=false,individualReadings=false}={}) {
+export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSketch=true,onActiveChange=()=>{},history=false,onHistoryChange=()=>{},traceOnly=false,autoClose=false,individualReadings=false,strokeMode='trace'}={}) {
   const caption=figure.querySelector('figcaption'),doc=canvas.ownerDocument;
   const controls=doc.createElement('span');controls.className='map-measure-controls';
   const button=(text,action)=>{
@@ -14,6 +14,8 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
   function restore(from,to){if(stroke){finishStroke(false);draw();return;}if(!from.length)return;to.push(snapshot());const value=from.pop();drawings.measure.splice(0,drawings.measure.length,...value.measure);drawings.sketch.splice(0,drawings.sketch.length,...value.sketch);replaying=true;draw();replaying=false;}
   function undoAction(){if(history)restore(past,future);else{if(stroke)finishStroke(false);else actions.pop();draw();}}
   let active=false,mode='measure',tracing=false,actions=drawings.measure,stroke=null,pointer=null,lastScreen=null,doubleClickZoom=false,panState;
+  const straight=()=>mode==='measure'&&strokeMode==='line';
+  const prompt=()=>straight()?'Drag between two endpoints.':'Drag to trace. Return near the start to close.';
   const toggle=button('Measure distance',()=>chooseMode('measure'));toggle.setAttribute('aria-pressed','false');toggle.hidden=!options;
   const sketch=button('Sketch',()=>chooseMode('sketch'));sketch.setAttribute('aria-pressed','false');
   sketch.hidden=!allowSketch;
@@ -45,7 +47,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
       L.circleMarker(stroke[0],style).addTo(preview);strokeEnd=L.circleMarker(stroke.at(-1),style).addTo(preview);
     }else{strokeLine.setLatLngs(stroke);strokeEnd.setLatLng(stroke.at(-1));}
     undo.disabled=false;close.hidden=true;clear.hidden=false;
-    summary.textContent=mode==='sketch'?'Temporary sketch.':baseLength+strokeLength>0?'Total: '+formatDistance(baseLength+strokeLength,options.unit)+areaText:traceOnly?'Drag to trace. Return near the start to close.':'Start point set. Add another point.';
+    summary.textContent=mode==='sketch'?'Temporary sketch.':baseLength+strokeLength>0?'Total: '+formatDistance(baseLength+strokeLength,options.unit)+areaText:traceOnly?prompt():'Start point set. Add another point.';
   }
   function scheduleStroke(){
     if(!doc.defaultView?.requestAnimationFrame){drawStroke();return;}
@@ -89,14 +91,14 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     const length=baseLength=routes.reduce((n,route)=>n+routeDistance(route,options || {}),0);
     summary.textContent=mode==='sketch'?(count?'Temporary sketch.':active?(tracing?'Drag to sketch.':'Choose a starting point.'):''):
       routes.some(route=>route.length>1) ? 'Total: '+formatDistance(length,options.unit) :
-      count ? 'Start point set.'+(active?' Add another point.':'') : active ? traceOnly?'Drag to trace. Return near the start to close.':tracing?'Drag to trace a path.':'Choose a starting point.' : '';
+      count ? 'Start point set.'+(active?' Add another point.':'') : active ? traceOnly?prompt():tracing?'Drag to trace a path.':'Choose a starting point.' : '';
     areaText=mode==='measure'&&individualReadings?routes.filter(route=>route.length>1).map((route,i)=>{
       const closed=isClosedRoute(route),area=closed?routeArea(route,options || {}):null;
       return ' · '+(closed?'Shape':'Line')+' '+(i+1)+': '+(closed?'Perimeter: ':'')+formatDistance(routeDistance(route,options || {}),options.unit)+(closed?' · Area: '+(area===null?'unavailable (outline must not cross or retrace itself)':formatArea(area,options.unit)):'');
     }).join(''):mode==='measure' && closed.length?' · '+areas.map((area,i)=>
       (areas.length===1?'Area':'Area '+(i+1))+': '+(area===null?'unavailable (outline must not cross or retrace itself)':formatArea(area,options.unit))).join(' · '):'';
     summary.textContent+=areaText;
-    help.textContent=traceOnly&&mode==='measure'?'Drag with a mouse, pen, or one finger to trace. Release near the start to close the shape. Choose Pan to move the map.':tracing?(mode==='sketch'?'Drag with a mouse, pen, or one finger to draw.':'Drag with a mouse, pen, or one finger to follow a road or river.')+' Undo removes the last stroke. Turn off Trace path to pan or add points.':
+    help.textContent=traceOnly&&mode==='measure'?straight()?'Drag with a mouse, pen, or one finger between two endpoints. Release to keep the straight line. Choose Pan to move the map.':'Drag with a mouse, pen, or one finger to trace. Release near the start to close the shape. Choose Pan to move the map.':tracing?(mode==='sketch'?'Drag with a mouse, pen, or one finger to draw.':'Drag with a mouse, pen, or one finger to follow a road or river.')+' Undo removes the last stroke. Turn off Trace path to pan or add points.':
       'Click or tap to add points. Drag to pan. Keyboard: arrow keys pan, Enter adds the center, Escape finishes.';
     if(!autoClose||mode!=='measure')help.textContent+=mode==='sketch'?' Return to the start or choose Close shape to fill an outline. Clear removes all sketches and measurements; nothing is saved.':' Return to the start or choose Close shape to measure the enclosed area.';
     if(mode==='measure' && options?.hexMiles)help.textContent+=' Each hex is '+options.hexMiles+' miles across.';
@@ -165,7 +167,8 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     const point=map.mouseEventToLatLng(event);
     if(!imageBounds.contains(point)){
       if(traceOnly){
-        const last=stroke.at(-1),edge=traceBoundaryPoint({x:last.lng,y:last.lat},{x:point.lng,y:point.lat},{x:imageBounds.getWest(),y:imageBounds.getSouth(),width:imageBounds.getEast()-imageBounds.getWest(),height:imageBounds.getNorth()-imageBounds.getSouth()});
+        const last=straight()?stroke[0]:stroke.at(-1),edge=traceBoundaryPoint({x:last.lng,y:last.lat},{x:point.lng,y:point.lat},{x:imageBounds.getWest(),y:imageBounds.getSouth(),width:imageBounds.getEast()-imageBounds.getWest(),height:imageBounds.getNorth()-imageBounds.getSouth()});
+        if(straight())stroke=[stroke[0]];
         if(last.lng!==edge.x||last.lat!==edge.y)stroke.push({lat:edge.y,lng:edge.x});
       }
       finishStroke(true,!traceOnly);return;
@@ -173,7 +176,9 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     // Ignore subpixel pointer jitter, without smoothing away real bends.
     if(!force && Math.hypot(event.clientX-lastScreen[0],event.clientY-lastScreen[1])<1)return;
     const last=stroke.at(-1);
-    if(last.lat!==point.lat || last.lng!==point.lng){strokeLength+=routeDistance([last,point],options || {});stroke.push({lat:point.lat,lng:point.lng});}
+    if(straight()){
+      const first=stroke[0];stroke=first.lat===point.lat&&first.lng===point.lng?[first]:[first,{lat:point.lat,lng:point.lng}];strokeLength=routeDistance(stroke,options || {});
+    }else if(last.lat!==point.lat || last.lng!==point.lng){strokeLength+=routeDistance([last,point],options || {});stroke.push({lat:point.lat,lng:point.lng});}
     lastScreen=[event.clientX,event.clientY];
   }
   function moveStroke(event){
@@ -229,6 +234,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     layers.remove();preview.remove();controls.remove();help.remove();
   };
   dispose.stop=()=>{if(active)setActive(false);};
+  dispose.setStrokeMode=value=>{if(!['line','trace'].includes(value))return;finishStroke(false);strokeMode=value;draw();};
   dispose.undo=undoAction;dispose.redo=()=>restore(future,past);dispose.canUndo=()=>Boolean(stroke||past.length);dispose.canRedo=()=>Boolean(future.length);
   dispose.activate=()=>{if(!active || mode!=='measure')chooseMode('measure');};
   dispose.elements={toggle,sketch,trace,close,undo,clear,summary,help,controls};
