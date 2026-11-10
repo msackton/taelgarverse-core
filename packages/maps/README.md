@@ -6,7 +6,7 @@ or encounter state. Website and Obsidian note sketches are private and temporary
 room hosts supply their own saved drawings and persistence adapter.
 
 From a pinned core checkout, run `npm ci` then `npm run maps:pack`. Install
-`.cache/packages/taelgar-maps-0.3.6.tgz` and retain its integrity-locked dependency.
+`.cache/packages/taelgar-maps-0.3.7.tgz` and retain its integrity-locked dependency.
 This builds a local archive; it does not publish to npm or GitHub. Bump the package
 version when its public API or behavior changes.
 
@@ -84,3 +84,11 @@ Shared save adapters may return `{changes, undoable?}` with the canonical
 consistent with server geometry and command ordering. A multi-command adapter
 combines only its own changes and marks history unavailable if another edit
 changes the same drawing between commands.
+
+Shared hosts can provide `onPing(point)` and `pingEnabled` to add Ping to the
+strip for all room roles. Call `dispose.showPing({x,y})` when the host receives
+a live ping. Coordinates are source-local pixels and respect the visible crop.
+Pulses last 2.2 seconds, stay anchored during zoom/pan and never enter sketch
+history. Disable ping while disconnected with `updateTools({pingEnabled:false})`.
+The host owns authentication and broadcast; local website/Obsidian maps do not
+show Ping.

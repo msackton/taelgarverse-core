@@ -387,7 +387,7 @@ npm ci
 npm run maps:pack
 ```
 
-The archive is `.cache/packages/taelgar-maps-0.3.6.tgz`. CI also builds it and
+The archive is `.cache/packages/taelgar-maps-0.3.7.tgz`. CI also builds it and
 attaches it as the **taelgar-maps** artifact. A consuming app installs the archive
 and locks its integrity; its own build bundles the viewer. `maps:build` produces
 the unpacked package. These commands do not publish to a package registry or
@@ -455,3 +455,8 @@ language check skips full Markdown parsing for ordinary prose. Discovered map
 sources are retained per snapshot for later searches and selections. Future
 content publications include the dedicated map-source part and skip note reads
 entirely; no content republication is required for the fallback fix.
+
+The common toolbar exposes Ping only to shared hosts that supply `onPing`. The
+host broadcasts source-local coordinates and calls `showPing` on recipients;
+core renders a brief pulse without saving a sketch. `pingEnabled` follows the
+host connection. Ordinary website and Obsidian note maps omit Ping.

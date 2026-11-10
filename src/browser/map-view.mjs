@@ -96,6 +96,7 @@ export function mountMap(figure,{decorate,openRegionNote,baseImagePane,allowSket
       map.dragging?.disable();map._panAnim?.off();map.off();map.stop?.();map.remove();fit.remove();delete figure.dataset.mapReady;
     };
     dispose.stopTools=()=>disposeMeasurement?.stop?.();
+    dispose.showPing=point=>{if(!disposed)disposeMeasurement?.showPing?.(point);};
     dispose.updateTools=value=>{tools={...tools,...value};disposeMeasurement?.update?.(value);};
     // Editor changes keep the image and Leaflet map alive. Only committed
     // crop/grid changes need new controls.

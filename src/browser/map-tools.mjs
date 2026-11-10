@@ -1,9 +1,10 @@
 import {addMeasurement} from './map-measurement.mjs';
 import {repairClosedRoute,shapeLabelPoint,traceBoundaryPoint} from '../map-path.mjs';
 import {drawingPaths,hitDrawing,drawingsInBox,eraserRadius,eraseDrawings,applySketchCommand,sketchChanges,sketchHistoryCommand,canPatchDrawings} from '../map-sketch.mjs';
-const icons={pan:'M8 12V5a1.5 1.5 0 013 0v6-7a1.5 1.5 0 013 0v7-5a1.5 1.5 0 013 0v6-3a1.5 1.5 0 013 0v5c0 5-3 7-6 7h-1c-2 0-3-1-4-3l-4-5a1.5 1.5 0 012-2l2 2',sketch:'M4 17l-1 4 4-1L20 7l-3-3zM14 7l3 3',select:'M4 3l14 9-7 1-3 7z',erase:'M3 15l8-11a2 2 0 013 0l7 6-9 11H8zM7 10l9 8M12 21h9',measure:'M3 16L16 3l5 5L8 21zM6 13l3 3m0-6l2 2m1-5l3 3',fit:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',undo:'M9 5L3 11l6 6M3 11h10a7 7 0 017 7',redo:'M15 5l6 6-6 6M21 11H11a7 7 0 00-7 7',clear:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',source:'M14 3h7v7M21 3L10 14M10 3H4v17h17v-6',fullscreen:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M8 8l-5-5m13 5l5-5M8 16l-5 5m13-5l5 5'};
+const icons={pan:'M8 12V5a1.5 1.5 0 013 0v6-7a1.5 1.5 0 013 0v7-5a1.5 1.5 0 013 0v6-3a1.5 1.5 0 013 0v5c0 5-3 7-6 7h-1c-2 0-3-1-4-3l-4-5a1.5 1.5 0 012-2l2 2',sketch:'M4 17l-1 4 4-1L20 7l-3-3zM14 7l3 3',select:'M4 3l14 9-7 1-3 7z',erase:'M3 15l8-11a2 2 0 013 0l7 6-9 11H8zM7 10l9 8M12 21h9',measure:'M3 16L16 3l5 5L8 21zM6 13l3 3m0-6l2 2m1-5l3 3',ping:'M12 3v4m0 10v4M3 12h4m10 0h4M19 12a7 7 0 11-14 0 7 7 0 0114 0z',fit:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5',undo:'M9 5L3 11l6 6M3 11h10a7 7 0 017 7',redo:'M15 5l6 6-6 6M21 11H11a7 7 0 00-7 7',clear:'M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7',source:'M14 3h7v7M21 3L10 14M10 3H4v17h17v-6',fullscreen:'M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5M8 8l-5-5m13 5l5-5M8 16l-5 5m13-5l5 5'};
 export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
   const doc=canvas.ownerDocument,win=doc.defaultView,scope=options.scope??'local';
+  const canPing=scope==='shared'&&typeof options.onPing==='function',pingTimers=new Map();
   const measurePreference='taelgar.map.measureMode';let measureMode='line';
   try{if(win.localStorage.getItem(measurePreference)==='trace')measureMode='trace';}catch{}
   let editable=options.editable!==false,base=options.drawings??[],pending=[],tool='pan',tracing=true,color='#b34e17',width=3,selection=[],draft=[],gesture=null,pointer=null,zooming=false,disposed=false,nextOperation=0,measurementReady=false,historyBusy=false;
@@ -31,6 +32,7 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
     node.addEventListener('click',event=>{if(activated&&event.detail!==0){activated=false;return;}activated=false;if(!node.disabled)action();});container.append(node);return node;
   };
   const modeButtons=new Map();for(const [name,label] of [['pan','Pan'],['sketch','Sketch'],['select','Select'],['erase','Eraser'],['measure','Measure']])modeButtons.set(name,button(label,()=>choose(name),{icon:name}));
+  if(canPing){modeButtons.set('ping',button('Ping',()=>choose('ping'),{icon:'ping'}));}
   const measureMain=modeButtons.get('measure'),measureSplit=doc.createElement('span');measureSplit.className='map-measure-split';measureSplit.setAttribute('role','group');measureSplit.setAttribute('aria-label','Measurement');root.insertBefore(measureSplit,measureMain);measureSplit.append(measureMain);measureMain.classList.add('map-measure-main');
   const measureToggle=button('Measurement mode',()=>measureMenu.hidden?openMeasureMenu():closeMeasureMenu(),{container:measureSplit,small:true});measureToggle.classList.add('map-measure-toggle');measureToggle.insertBefore(doc.createTextNode('⌄'),measureToggle.firstChild);measureToggle.setAttribute('aria-haspopup','menu');measureToggle.setAttribute('aria-expanded','false');
   const measureMenu=doc.createElement('div');measureMenu.className='map-tool-popover map-measure-menu';measureMenu.hidden=true;measureMenu.setAttribute('role','menu');measureMenu.setAttribute('aria-label','Measurement mode');measureSplit.append(measureMenu);
@@ -87,7 +89,7 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
     const clearingSketches=['sketch','select','erase'].includes(tool),clearLabel=tool==='measure'?'Clear measurements':clearingSketches?scope==='shared'?'Clear shared drawings':'Clear sketches':'Clear annotations';
     clear.disabled=tool!=='measure'&&!clearingSketches;clear.title=clear.disabled?'Choose Sketch or Measure to clear its annotations':clearLabel;clear.setAttribute('aria-label',clearLabel);clear.querySelector('span').textContent=clearLabel;
     const drawings=view();selection=selection.filter(id=>drawings.some(d=>d.id===id));
-    for(const [name,node] of modeButtons){node.setAttribute('aria-pressed',String(tool===name));node.hidden=!editable&&['sketch','select','erase'].includes(name);node.disabled=name==='measure'&&!config.measurement;}
+    for(const [name,node] of modeButtons){node.setAttribute('aria-pressed',String(tool===name));node.hidden=!editable&&['sketch','select','erase'].includes(name);node.disabled=name==='measure'&&!config.measurement||name==='ping'&&options.pingEnabled===false;}
     const measureLabel='Measure: '+(measureMode==='line'?'Line':'Trace'),text=measureMain.querySelector('span');
     if(measureMain.getAttribute('aria-label')!==measureLabel){const prefix=doc.createElement('span');prefix.className='map-measure-prefix';prefix.textContent='Measure: ';text.replaceChildren(prefix,doc.createTextNode(measureMode==='line'?'Line':'Trace'));measureMain.setAttribute('aria-label',measureLabel);}
     measureMain.title=measureMode==='line'?'Measure: Line. Drag between two endpoints.':'Measure: Trace. Release near the start to close a shape.';measureToggle.disabled=!config.measurement;measureToggle.dataset.active=String(tool==='measure');
@@ -153,12 +155,14 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
   function finishDraft(closed=false){const points=draft;while(past.at(-1)?.changes.length===0)past.pop();for(let i=future.length-1;i>=0;i--)if(!future[i].changes.length)future.splice(i,1);draft=[];if(points.length>=2)commit(points,closed);redraw();}
   function syncMode(){
     const editing=editable&&['sketch','select','erase'].includes(tool),drawing=editing&&(tool!=='sketch'||tracing);
-    canvas.classList.toggle('map-editing',editing);canvas.classList.toggle('map-tool-drawing',drawing);
-    for(const name of ['dragging','touchZoom','doubleClickZoom'])map[name]?.[drawing?'disable':'enable']();
-    canvas.style.cursor=editing&&tool!=='select'?'crosshair':'';controls();
+    canvas.classList.toggle('map-editing',editing||tool==='ping');canvas.classList.toggle('map-tool-drawing',drawing||tool==='ping');
+    for(const name of ['dragging','touchZoom','doubleClickZoom'])map[name]?.[drawing||tool==='ping'?'disable':'enable']();
+    canvas.style.cursor=tool==='ping'||editing&&tool!=='select'?'crosshair':'';controls();
   }
   function choose(next){
     closeMeasureMenu();
+    if(next==='ping'&&(!canPing||options.pingEnabled===false))return;
+    if(next===tool&&next==='ping')next='pan';
     if(next===tool&&['sketch','measure'].includes(tool))next='pan';
     if(!editable&&['sketch','select','erase'].includes(next))return;
     if(tool==='sketch'&&next!=='sketch')finishDraft();measurement.stop();cancel();tool=next;syncMode();if(tool==='measure')measurement.activate();
@@ -177,17 +181,26 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
   }
   function cancel(){const old=pointer;gesture=null;pointer=null;brush.clearLayers();if(old!==null&&canvas.hasPointerCapture(old))canvas.releasePointerCapture(old);redraw();}
   const brushAt=(p,r)=>{brush.clearLayers();L.circleMarker(convert(p),{radius:r,color:'#284c3c',weight:1.5,fillColor:'#fff',fillOpacity:.45,interactive:false,className:'map-sketch-eraser'}).addTo(brush);};
+  function sendPing(p){if(canPing&&options.pingEnabled!==false&&onMap(p))Promise.resolve().then(()=>options.onPing(p)).catch(error=>{if(!disposed)options.onError?.(error instanceof Error?error.message:'The ping could not be sent.');});}
+  function showPing(p){
+    if(disposed||!canPing||!p||!Number.isFinite(p.x)||!Number.isFinite(p.y)||!onMap(p))return;
+    if(pingTimers.size>=12){const [layer,timer]=pingTimers.entries().next().value;win.clearTimeout(timer);layer.remove();pingTimers.delete(layer);}
+    const marker=L.marker(convert(p),{icon:L.divIcon({className:'map-shared-ping',html:'<span class="map-ping-ring"></span><span class="map-ping-center"></span>',iconSize:[48,48],iconAnchor:[24,24]}),interactive:false,keyboard:false}).addTo(map);
+    marker.getElement()?.setAttribute('aria-hidden','true');pingTimers.set(marker,win.setTimeout(()=>{marker.remove();pingTimers.delete(marker);},2200));
+  }
   function down(event){
-    if(!editable||!['sketch','select','erase'].includes(tool)||tool==='sketch'&&!tracing||zooming||event.button!==0||event.isPrimary===false||event.target.closest?.('.leaflet-control'))return;
+    if((tool==='ping'?options.pingEnabled===false:!editable||!['sketch','select','erase'].includes(tool)||tool==='sketch'&&!tracing)||zooming||event.button!==0||event.isPrimary===false||event.target.closest?.('.leaflet-control'))return;
     const p=point(event,false);if(tool!=='select'&&!onMap(p))return;
     event.preventDefault();event.stopPropagation();canvas.focus({preventScroll:true});pointer=event.pointerId;canvas.setPointerCapture(pointer);const screen={x:event.clientX,y:event.clientY};
-    if(tool==='select')gesture={kind:'select',start:p,end:p,screen,additive:event.shiftKey,moved:false};
+    if(tool==='ping')gesture={kind:'ping',start:p,screen,moved:false};
+    else if(tool==='select')gesture={kind:'select',start:p,end:p,screen,additive:event.shiftKey,moved:false};
     else if(tool==='erase'){gesture={kind:'erase',trail:[{...p,radius:Math.min(100000,10*units())}],last:screen,time:event.timeStamp,radius:10};gesture.preview=eraseDrawings(view(),gesture.trail);brushAt(p,10);}
     else gesture={kind:'sketch',points:[p],last:screen};redraw();
   }
   function move(event){
     if(tool==='erase'&&editable&&!gesture)brushAt(point(event,false),10);
     if(!gesture||pointer!==event.pointerId)return;event.preventDefault();
+    if(gesture.kind==='ping'){gesture.moved ||= Math.hypot(event.clientX-gesture.screen.x,event.clientY-gesture.screen.y)>=8;return;}
     if(gesture.kind==='select'){gesture.end=point(event,false);gesture.moved ||= Math.hypot(event.clientX-gesture.screen.x,event.clientY-gesture.screen.y)>=5;redraw();return;}
     const samples=event.getCoalescedEvents?.();
     for(const e of samples?.length?samples:[event]){const distance=Math.hypot(e.clientX-gesture.last.x,e.clientY-gesture.last.y);if(distance<(gesture.kind==='erase'?3:1))continue;const raw=point(e,false);
@@ -198,23 +211,25 @@ export function addMapTools(L,map,canvas,figure,config,bounds,options={}){
   }
   function up(event){
     if(!gesture||pointer!==event.pointerId)return;move(event);if(!gesture)return;const finished=gesture;
-    if(finished.kind==='sketch'){const points=finished.points,first=project(points[0]),last=project(points.at(-1));commit(points,points.length>=3&&Math.hypot(first.x-last.x,first.y-last.y)<=10);}
+    if(finished.kind==='ping'){if(!finished.moved)sendPing(finished.start);}
+    else if(finished.kind==='sketch'){const points=finished.points,first=project(points[0]),last=project(points.at(-1));commit(points,points.length>=3&&Math.hypot(first.x-last.x,first.y-last.y)<=10);}
     else if(finished.kind==='select'){
       if(finished.moved){const a=finished.start,b=finished.end,ids=drawingsInBox(view(),{x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),width:Math.abs(a.x-b.x),height:Math.abs(a.y-b.y)});selection=finished.additive?[...new Set([...selection,...ids])]:ids;}
       else{const projected=view().map(d=>({...d,points:d.points.map(project),...(d.segments?{segments:d.segments.map(path=>path.map(project))}:{})})),id=hitDrawing(projected,map.mouseEventToContainerPoint(event),8);selection=id?finished.additive?selection.includes(id)?selection.filter(v=>v!==id):[...selection,id]:[id]:finished.additive?selection:[];}
     }else emit({type:'eraseDrawings',trail:finished.trail});cancel();
   }
   const click=event=>{if(tool!=='sketch'||tracing||!editable)return;const p=source(event.latlng);if(!onMap(p))return;if(draft.length>=3&&Math.hypot(project(p).x-project(draft[0]).x,project(p).y-project(draft[0]).y)<=10){finishDraft(true);return;}const beforeDraft=draft;draft=[...draft,p];record({changes:[],beforeDraft,afterDraft:draft});redraw();};
-  const stopClick=event=>{if(editable&&(['select','erase'].includes(tool)||tool==='sketch'&&tracing)){event.preventDefault();event.stopImmediatePropagation();}};
+  const stopClick=event=>{if(tool==='ping'||editable&&(['select','erase'].includes(tool)||tool==='sketch'&&tracing)){event.preventDefault();event.stopImmediatePropagation();}};
   const lost=()=>{if(gesture)cancel();};
   const zoomStart=()=>{zooming=true;cancel();},zoomEnd=()=>{zooming=false;};
-  const keydown=event=>{if(event.target!==canvas||!editable||tool==='measure')return;if((event.ctrlKey||event.metaKey)&&['z','y'].includes(event.key.toLowerCase())){event.preventDefault();void historyAction(!(event.shiftKey||event.key.toLowerCase()==='y'));return;}if(event.key==='Escape'){event.preventDefault();if(tool==='select'){selection=[];redraw();}else choose('pan');}else if(tool==='select'&&['Delete','Backspace'].includes(event.key)){event.preventDefault();if(selection.length)emit({type:'removeDrawings',ids:selection});}else if(tool==='select'&&(event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='a'){event.preventDefault();selection=view().map(d=>d.id);redraw();}else if(tool==='sketch'&&event.key==='Backspace'){event.preventDefault();undo.click();}else if(tool==='sketch'&&!tracing&&['Enter',' '].includes(event.key)){event.preventDefault();click({latlng:map.getCenter()});}};
+  const keydown=event=>{if(event.target!==canvas)return;if(tool==='ping'){if(event.key==='Escape'){event.preventDefault();choose('pan');}else if(['Enter',' '].includes(event.key)){event.preventDefault();sendPing(source(map.getCenter()));}return;}if(!editable||tool==='measure')return;if((event.ctrlKey||event.metaKey)&&['z','y'].includes(event.key.toLowerCase())){event.preventDefault();void historyAction(!(event.shiftKey||event.key.toLowerCase()==='y'));return;}if(event.key==='Escape'){event.preventDefault();if(tool==='select'){selection=[];redraw();}else choose('pan');}else if(tool==='select'&&['Delete','Backspace'].includes(event.key)){event.preventDefault();if(selection.length)emit({type:'removeDrawings',ids:selection});}else if(tool==='select'&&(event.ctrlKey||event.metaKey)&&event.key.toLowerCase()==='a'){event.preventDefault();selection=view().map(d=>d.id);redraw();}else if(tool==='sketch'&&event.key==='Backspace'){event.preventDefault();undo.click();}else if(tool==='sketch'&&!tracing&&['Enter',' '].includes(event.key)){event.preventDefault();click({latlng:map.getCenter()});}};
   const outside=event=>{if(!measureSplit.contains(event.target))closeMeasureMenu();if(!root.contains(event.target))for(const item of [settings,layers])item.details.open=false;};
   const menuKey=event=>{if(event.key==='Escape')for(const item of [settings,layers])if(item.details.open){event.preventDefault();event.stopPropagation();item.details.open=false;item.summary.focus();}};
   canvas.addEventListener('pointerdown',down);canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',lost);canvas.addEventListener('lostpointercapture',lost);canvas.addEventListener('click',stopClick,true);canvas.addEventListener('keydown',keydown);root.addEventListener('keydown',menuKey);doc.addEventListener('pointerdown',outside,true);
   map.on('click',click);map.on('movestart',lost);map.on('zoomstart',zoomStart);map.on('zoomend',zoomEnd);measurementReady=true;syncMode();redraw();
-  const dispose=()=>{disposed=true;doc.removeEventListener('fullscreenchange',fullscreenChanged);if(fullscreenFrame!==undefined)win.cancelAnimationFrame(fullscreenFrame);if(fullscreenActive)map.options.zoomSnap=fullscreenView.snap;cancel();measurement();measured.summary.remove();saved.remove();preview.remove();brush.remove();restoreSourceImage();for(const controls of movedLayers)if(controls.isConnected)figure.querySelector('figcaption').append(controls);root.remove();header?.remove();figure.classList.remove('map-with-tools');canvas.classList.remove('map-editing','map-tool-drawing');canvas.style.cursor='';for(const [name,fn] of [['pointerdown',down],['pointermove',move],['pointerup',up],['pointercancel',lost],['lostpointercapture',lost],['click',stopClick],['keydown',keydown]])canvas.removeEventListener(name,fn,name==='click');root.removeEventListener('keydown',menuKey);doc.removeEventListener('pointerdown',outside,true);map.off('click',click);map.off('movestart',lost);map.off('zoomstart',zoomStart);map.off('zoomend',zoomEnd);};
+  const dispose=()=>{disposed=true;for(const [layer,timer] of pingTimers){win.clearTimeout(timer);layer.remove();}pingTimers.clear();doc.removeEventListener('fullscreenchange',fullscreenChanged);if(fullscreenFrame!==undefined)win.cancelAnimationFrame(fullscreenFrame);if(fullscreenActive)map.options.zoomSnap=fullscreenView.snap;cancel();measurement();measured.summary.remove();saved.remove();preview.remove();brush.remove();restoreSourceImage();for(const controls of movedLayers)if(controls.isConnected)figure.querySelector('figcaption').append(controls);root.remove();header?.remove();figure.classList.remove('map-with-tools');canvas.classList.remove('map-editing','map-tool-drawing');canvas.style.cursor='';for(const [name,fn] of [['pointerdown',down],['pointermove',move],['pointerup',up],['pointercancel',lost],['lostpointercapture',lost],['click',stopClick],['keydown',keydown]])canvas.removeEventListener(name,fn,name==='click');root.removeEventListener('keydown',menuKey);doc.removeEventListener('pointerdown',outside,true);map.off('click',click);map.off('movestart',lost);map.off('zoomstart',zoomStart);map.off('zoomend',zoomEnd);};
   dispose.getState=()=>({drawings:view(),editable});
-  dispose.update=value=>{if(value.drawings){base=value.drawings;if(gesture?.kind==='erase')gesture.preview=eraseDrawings(view(),gesture.trail);}if(value.editable!==undefined&&editable!==value.editable){editable=value.editable;if(!editable){draft=[];choose('pan');}}redraw();};
+  dispose.showPing=showPing;
+  dispose.update=value=>{if(value.pingEnabled!==undefined){options.pingEnabled=value.pingEnabled;if(!value.pingEnabled&&tool==='ping')choose('pan');}if(value.drawings){base=value.drawings;if(gesture?.kind==='erase')gesture.preview=eraseDrawings(view(),gesture.trail);}if(value.editable!==undefined&&editable!==value.editable){editable=value.editable;if(!editable&&tool!=='ping'){draft=[];choose('pan');}}redraw();};
   dispose.stop=()=>choose('pan');return dispose;
 }
