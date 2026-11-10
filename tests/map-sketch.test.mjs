@@ -32,3 +32,13 @@ test('optimistic commands are immutable and repeated drawing IDs are idempotent'
  const withShape=applySketchCommand(drawings,{type:'addDrawing',drawing:box});assert.deepEqual(applySketchCommand(withShape,{type:'removeDrawings',ids:['line']}),[box]);assert.deepEqual(drawings,[line]);
  assert.deepEqual(applySketchCommand(withShape,{type:'clearDrawings'}),[]);
 });
+
+test('history restores erased fragments and clears without replacing unrelated drawings',async()=>{
+ const {sketchChanges,sketchHistoryCommand,patchDrawings}=await import('../src/map-sketch.mjs');
+ const erased=eraseDrawings([line],[{x:150,y:100,radius:10}]),changes=sketchChanges([line],erased),other={...line,id:'other'};
+ const undo=sketchHistoryCommand(changes,true),restored=patchDrawings([...erased,other],undo.patches,{strict:true});assert.deepEqual(restored,[line,other]);assert.equal(patchDrawings(restored,undo.patches,{strict:true}),restored);
+ assert.deepEqual(patchDrawings(restored,sketchHistoryCommand(changes,false).patches,{strict:true}),[...erased,other]);
+ const rounded=erased.map(d=>({...d,points:d.points.map(p=>({...p,x:p.x+1e-10}))}));assert.deepEqual(patchDrawings(rounded,undo.patches,{strict:true}),[line]);
+ assert.throws(()=>patchDrawings([{...line,color:'#000000'}],undo.patches,{strict:true}),/changed since/);
+ const cleared=sketchHistoryCommand(sketchChanges([line,box],[]),true);assert.deepEqual(patchDrawings([other],cleared.patches,{strict:true}),[line,box,other]);
+});

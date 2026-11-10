@@ -1,14 +1,18 @@
 import {routeDistance,formatDistance,isClosedRoute,routeArea,formatArea} from '../map-distance.mjs';
 import {measurementRoutes,repairClosedRoute,shapeLabelPoint} from '../map-path.mjs';
 
-export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSketch=true,onActiveChange=()=>{}}={}) {
+export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSketch=true,onActiveChange=()=>{},history=false,onHistoryChange=()=>{}}={}) {
   const caption=figure.querySelector('figcaption'),doc=canvas.ownerDocument;
   const controls=doc.createElement('span');controls.className='map-measure-controls';
   const button=(text,action)=>{
     const element=doc.createElement('button');element.type='button';element.textContent=text;
     element.addEventListener('click',action);controls.append(element);return element;
   };
-  const drawings={measure:[],sketch:[]};
+  const drawings={measure:[],sketch:[]},past=[],future=[];let committed={measure:[],sketch:[]},replaying=false;
+  const snapshot=()=>({measure:drawings.measure.slice(),sketch:drawings.sketch.slice()});
+  function remember(){const next=snapshot();if(history&&!replaying&&['measure','sketch'].some(kind=>next[kind].length!==committed[kind].length||next[kind].some((action,i)=>action!==committed[kind][i]))){past.push(committed);if(past.length>50)past.shift();future.length=0;}committed=next;}
+  function restore(from,to){if(stroke){finishStroke(false);draw();return;}if(!from.length)return;to.push(snapshot());const value=from.pop();drawings.measure.splice(0,drawings.measure.length,...value.measure);drawings.sketch.splice(0,drawings.sketch.length,...value.sketch);replaying=true;draw();replaying=false;}
+  function undoAction(){if(history)restore(past,future);else{if(stroke)finishStroke(false);else actions.pop();draw();}}
   let active=false,mode='measure',tracing=false,actions=drawings.measure,stroke=null,pointer=null,lastScreen=null,doubleClickZoom=false,panState;
   const toggle=button('Measure distance',()=>chooseMode('measure'));toggle.setAttribute('aria-pressed','false');toggle.hidden=!options;
   const sketch=button('Sketch',()=>chooseMode('sketch'));sketch.setAttribute('aria-pressed','false');
@@ -19,7 +23,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     if(stroke || !route || route.length<3 || (isClosedRoute(route) && routeArea(route,options || {})!==null))return;
     actions.push({kind:'close',points:closeRoute(route,true)});setTracing(mode==='sketch');
   });
-  const undo=button('Undo',()=>{if(stroke)finishStroke(false);else actions.pop();draw();});
+  const undo=button('Undo',undoAction);
   const clear=button('Clear',()=>{drawings.measure.length=0;drawings.sketch.length=0;setTracing(active && mode==='sketch');(active?canvas:options?toggle:sketch).focus({preventScroll:true});});
   const summary=doc.createElement('span');summary.className='map-measure-summary';summary.setAttribute('role','status');
   summary.setAttribute('aria-atomic','true');
@@ -88,7 +92,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
       'Click or tap to add points. Drag to pan. Keyboard: arrow keys pan, Enter adds the center, Escape finishes.';
     help.textContent+=mode==='sketch'?' Return to the start or choose Close shape to fill an outline. Clear removes all sketches and measurements; nothing is saved.':' Return to the start or choose Close shape to measure the enclosed area.';
     if(mode==='measure' && options?.hexMiles)help.textContent+=' Each hex is '+options.hexMiles+' miles across.';
-    if(stroke)drawStroke();
+    if(stroke)drawStroke();remember();onHistoryChange();
   }
   function setTracing(value) {
     finishStroke(false);tracing=value;
@@ -191,7 +195,8 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     // behavior intact. Only the map itself accepts point/undo shortcuts.
     if(event.target!==canvas)return;
     if(event.key==='Enter' || event.key===' '){event.preventDefault();add(map.getCenter());}
-    else if(event.key==='Backspace'){event.preventDefault();if(stroke)finishStroke(false);else actions.pop();draw();}
+    else if(event.key==='Backspace'){event.preventDefault();undoAction();}
+    else if(history&&(event.ctrlKey||event.metaKey)&&['z','y'].includes(event.key.toLowerCase())){event.preventDefault();if(event.key.toLowerCase()==='y'||event.shiftKey)restore(future,past);else undoAction();}
   };
   map.on('click',click);map.on('movestart zoomstart',viewChange);figure.addEventListener('keydown',keydown);
   const pointerEvents={pointerdown:startStroke,pointermove:moveStroke,pointerup:endStroke,pointercancel:cancelStroke,lostpointercapture:cancelStroke};
@@ -205,6 +210,7 @@ export function addMeasurement(L,map,canvas,figure,options,imageBounds,{allowSke
     layers.remove();preview.remove();controls.remove();help.remove();
   };
   dispose.stop=()=>{if(active)setActive(false);};
+  dispose.undo=undoAction;dispose.redo=()=>restore(future,past);dispose.canUndo=()=>Boolean(stroke||past.length);dispose.canRedo=()=>Boolean(future.length);
   dispose.activate=()=>{if(!active || mode!=='measure')chooseMode('measure');};
   dispose.elements={toggle,sketch,trace,close,undo,clear,summary,help,controls};
   return dispose;

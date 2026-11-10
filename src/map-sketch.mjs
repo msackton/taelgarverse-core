@@ -49,6 +49,25 @@ export function applySketchCommand(drawings,command){
     case 'removeDrawings':{const ids=new Set(command.ids);return drawings.filter(d=>!ids.has(d.id));}
     case 'eraseDrawings':return eraseDrawings(drawings,command.trail);
     case 'clearDrawings':return [];
+    case 'patchDrawings':return patchDrawings(drawings,command.patches);
     default:throw new Error('Unknown sketch command');
   }
+}
+
+export function sameDrawing(a,b){
+  if(a===b)return true;if(!a||!b||a.id!==b.id||a.color!==b.color||a.width!==b.width||a.closed!==b.closed)return false;
+  const aa=drawingPaths(a),bb=drawingPaths(b);return aa.length===bb.length&&aa.every((path,i)=>path.length===bb[i].length&&path.every((p,j)=>Math.abs(p.x-bb[i][j].x)<=1e-7&&Math.abs(p.y-bb[i][j].y)<=1e-7));
+}
+export function sketchChanges(before,after){
+  const a=new Map(before.map((d,index)=>[d.id,{drawing:d,index}])),b=new Map(after.map((d,index)=>[d.id,{drawing:d,index}]));
+  return [...new Set([...a.keys(),...b.keys()])].flatMap(id=>sameDrawing(a.get(id)?.drawing,b.get(id)?.drawing)?[]:[{id,before:a.get(id)?.drawing??null,after:b.get(id)?.drawing??null,beforeIndex:a.get(id)?.index??0,afterIndex:b.get(id)?.index??0}]);
+}
+export const sketchHistoryCommand=(changes,undo)=>({type:'patchDrawings',patches:changes.map(change=>({id:change.id,expected:undo?change.after:change.before,drawing:undo?change.before:change.after,index:undo?change.beforeIndex:change.afterIndex}))});
+export function canPatchDrawings(drawings,patches){const current=new Map(drawings.map(d=>[d.id,d]));return patches.every(p=>sameDrawing(current.get(p.id)??null,p.expected)||sameDrawing(current.get(p.id)??null,p.drawing));}
+export function patchDrawings(drawings,patches,{strict=false}={}){
+  if(!canPatchDrawings(drawings,patches)){if(strict)throw new Error('A drawing changed since this edit. Undo or redo is no longer available.');return drawings;}
+  const current=new Map(drawings.map(d=>[d.id,d]));if(patches.every(p=>sameDrawing(current.get(p.id)??null,p.drawing)))return drawings;
+  const ids=new Set(patches.map(p=>p.id)),result=drawings.filter(d=>!ids.has(d.id));
+  for(const patch of patches.filter(p=>p.drawing).sort((a,b)=>a.index-b.index))result.splice(Math.min(patch.index,result.length),0,patch.drawing);
+  return result;
 }

@@ -6,7 +6,7 @@ or encounter state. Website and Obsidian note sketches are private and temporary
 room hosts supply their own saved drawings and persistence adapter.
 
 From a pinned core checkout, run `npm ci` then `npm run maps:pack`. Install
-`.cache/packages/taelgar-maps-0.2.3.tgz` and retain its integrity-locked dependency.
+`.cache/packages/taelgar-maps-0.3.0.tgz` and retain its integrity-locked dependency.
 This builds a local archive; it does not publish to npm or GitHub. Bump the package
 version when its public API or behavior changes.
 
@@ -62,3 +62,11 @@ resolved calibration independently of zoom and tile size.
 
 The tool strip inherits the host palette, including website light/dark appearance
 and Obsidian theme colors, for text, surfaces, hover, selection and menus.
+
+Undo/Redo and Clear appear together in the header. Measurements use local history;
+sketch history emits `patchDrawings` with per-drawing expected/replacement values
+and original indices. Shared hosts must validate these values and apply the
+whole patch atomically; `patchDrawings(drawings, patches, {strict: true})` checks
+for changed geometry. Unrelated drawings are preserved. A failed save leaves
+history in place; scene/source changes remount the controller and reset history.
+Fullscreen note maps fill the window below the toolbar.

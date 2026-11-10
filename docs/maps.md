@@ -16,7 +16,7 @@ Options for the active tool open over the map rather than adding another row.
 The Obsidian map editor retains its authoring controls and legacy caption tools.
 
 Choose **Measure**, then click or tap points along a route. Its **Options** menu
-contains Trace path, Close shape and Undo. The header’s Clear icon clears measurements. Choose Pan or press
+contains Trace path and Close shape. The header’s Clear icon clears measurements. Choose Pan or press
 Escape to finish while leaving the result visible. Maps remain draggable and
 zoomable in point mode. Keyboard users can pan with arrow keys and add the map
 center with Enter or Space; Backspace undoes a point. The center crosshair appears
@@ -28,7 +28,9 @@ contains Trace path, color, stroke width and Close shape. The header’s Clear i
 clears sketches in Sketch, Select or Eraser mode, with confirmation in shared rooms. Drag to
 trace; turn Trace path off to click points or pan. Return to the first point or
 choose Close shape to fill an outline. Choose Pan or press Escape to finish an
-open point outline. Undo removes a draft point or your most recent added stroke.
+open point outline. Undo and Redo sit beside Clear and follow the active annotation type. They
+restore points, strokes, erasing, deletion and clearing. Shared undo checks the
+affected drawings before changing them, so concurrent edits are retained.
 Sketch works even when measurement calibration is unavailable. Closed sketches
 retain numbered labels in drawing order.
 
@@ -38,6 +40,12 @@ space or Escape clears it. **Eraser** removes portions of open strokes while
 dragging, retaining disconnected fragments. Its brush grows with pointer speed
 from 10 to 42 screen pixels independently of zoom. Filled shapes erase as whole
 objects. Selection and brush previews stay local.
+
+Fullscreen fills the window below the toolbar, overriding the embedded map height.
+Leaving fullscreen restores the authored dimensions.
+
+Undo/redo history stays in the current browser and resets when the map unloads.
+It retains up to 50 changes; sketch history also has a bounded geometry budget.
 
 The **Temporary** label on website and Obsidian maps means sketches disappear
 when the map unloads. Clearing sketches does not clear measurements. Shared room
@@ -374,7 +382,7 @@ npm ci
 npm run maps:pack
 ```
 
-The archive is `.cache/packages/taelgar-maps-0.2.3.tgz`. CI also builds it and
+The archive is `.cache/packages/taelgar-maps-0.3.0.tgz`. CI also builds it and
 attaches it as the **taelgar-maps** artifact. A consuming app installs the archive
 and locks its integrity; its own build bundles the viewer. `maps:build` produces
 the unpacked package. These commands do not publish to a package registry or
