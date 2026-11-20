@@ -1,4 +1,3 @@
-export const CALENDAR_REGISTRY='_scripts/session_note_campaigns.json';
 export const drMonthNames=['January','February','March','April','May','June','July','August','September','October','November','December'];
 export const drWeekdays=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
 export const weekdayAnchor={date:'1715-05-02',weekday:0,source:'Campaigns/Addermarch Campaign/Addermarch - Session 03.md',corroboration:'Campaigns/Dunmari Frontier Campaign/Session Notes/Session 95 (DuFr).md'};

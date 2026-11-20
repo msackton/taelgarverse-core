@@ -76,8 +76,14 @@ function sessionSources(store,registry,identities,campaign,number) {
   }
   return {candidates:candidates.map(entry=>entry.slug),...(preferred ? {preferred} : {})};
 }
+function recapCampaign(bundle,registry,identities) {
+  const declared=identities.get(normalize(bundle.campaign));
+  const directory=String(bundle.key).split('/').slice(0,-3).join('/');
+  const owner=Object.values(registry.campaigns || {}).find(c=>c.sessionBundleDirectory===directory)?.code;
+  return owner && declared && owner!==declared ? null : owner || declared;
+}
 function recapIdentity(bundle,registry,identities) {
-  const campaign=identities.get(normalize(bundle.campaign));
+  const campaign=recapCampaign(bundle,registry,identities);
   if(campaign && bundle.number!=null)return campaign+':'+bundle.number;
   // An unreadable recap must not quietly restore generated-note evidence.
   // Its standard artifact directory can still reserve the session identity.
@@ -128,14 +134,14 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=null) {
   const append=(target,record)=>{(byTarget[target] ||= []).push(record);};
   for (const bundle of bundles || []) {
     if(bundle.invalid)continue;
-    const campaign=identities.get(normalize(bundle.campaign));
+    const campaign=recapCampaign(bundle,registry,identities);
     if (!campaign) {warnings.push(bundle.key+': unknown campaign '+bundle.campaign);continue;}
     const key=campaign+':'+bundle.number,items=recaps.get(key) || [];
     items.push(bundle);recaps.set(key,items);
   }
   for (const [identity,items] of recaps) {
     if (items.length!==1) {warnings.push(items.map(item=>item.key).join(', ')+': duplicate recap identity '+identity);continue;}
-    const bundle=items[0],campaign=identities.get(normalize(bundle.campaign));
+    const bundle=items[0],campaign=recapCampaign(bundle,registry,identities);
     const period=interactionDate(bundle.date),until=interactionDate(bundle.end) || period;
     if(period && until.end<period.start){warnings.push(bundle.key+': inverted session dates');continue;}
     const sources=sessionSources(store,registry,identities,campaign,bundle.number);

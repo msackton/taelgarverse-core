@@ -1,5 +1,5 @@
 // Generated from trusted vault CustomJS. No runtime evaluation or global prototype changes.
-export const headerRevision = "661c012727b13bdc084ad4e9f661aed2b73f1f748cd2a696509c5eb5a0b42ddc";
+export const headerRevision = "6487d6f7b083aadf8c264293f3f3cfb88f4988ceeb1b4edfdab4e13e5003f6e9";
 export function instantiate({customJS,app}) {
   const window = {app};
   const console = {log(){},warn(){},error(){}};
@@ -122,6 +122,15 @@ export function instantiate({customJS,app}) {
 
         if (dateMetadata && dateMetadata.pageTargetDate) {
             return this.normalizeDate(dateMetadata.pageTargetDate, false);
+        }
+
+        if (typeof window.TaelgarverseCalendar?.getCurrentDate === "function") {
+            try {
+                const currentDate = window.TaelgarverseCalendar.getCurrentDate();
+                if (currentDate) return this.normalizeDate(currentDate, false);
+            } catch (e) {
+                // The new calendar may still be loading; use the existing calendars below.
+            }
         }
 
         if (window.FantasyCalendarAPI == undefined || window.FantasyCalendarAPI.getCalendars().length == 0) {
@@ -384,7 +393,7 @@ export function instantiate({customJS,app}) {
 
     getCampaignConfig(codeOrAlias) {
         // `loadMetadata.js` populates this from the authoritative
-        // `_scripts/session_note_campaigns.json` registry.
+        // campaign registry.
 
         const normalize = (value) => (value ?? "").toString().trim()
         const normalizeKey = (value) => normalize(value).toLowerCase()
@@ -722,7 +731,7 @@ export function instantiate({customJS,app}) {
             else if (frontmatter.name) {
                 selectedDescriptiveName = frontmatter.name
             } else if (frontmatter.campaign && frontmatter.sessionNumber) {
-                selectedDescriptiveName = frontmatter.campaign + " " + frontmatter.sessionNumber
+                selectedDescriptiveName = (this.getCampaignConfig(frontmatter.campaign)?.name || frontmatter.campaign) + " " + frontmatter.sessionNumber
             }
         }
 
@@ -2781,7 +2790,7 @@ class WhereaboutsManager {
             let partyLabel = campaignCode
             try {
                 let cfg = NameManager.getCampaignConfig(campaignCode)
-                if (cfg?.partyPage) partyLabel = `[[${cfg.partyPage}]]`
+                if (cfg?.partyPage) partyLabel = `[[${cfg.partyPage}|${cfg.partyPage.split("/").pop()}]]`
             } catch (e) {
                 // ignore
             }
@@ -3113,17 +3122,34 @@ class WhereaboutsManager {
 
     async invoke() {
         const metadataFilePath = app.vault.configDir + "/metadata.json";
-        const campaignRegistryPath = "_scripts/session_note_campaigns.json";
-        const [metadataFile, campaignRegistryFile] = await Promise.all([
+        const [metadataFile, indexFile] = await Promise.all([
             app.vault.adapter.read(metadataFilePath),
-            app.vault.adapter.read(campaignRegistryPath)
+            app.vault.adapter.read("_sessions/campaign-registry.json")
         ])
-
+        const index = JSON.parse(indexFile)
+        if (!index || typeof index !== "object" || Array.isArray(index) || !Object.keys(index).length) {
+            throw new Error("Expected a nonempty campaign index")
+        }
+        const entries = Object.create(null)
+        const seenPaths = new Set()
+        for (const [id, path] of Object.entries(index)) {
+            if (!/^[a-z][a-z0-9]*$/.test(id) || typeof path !== "string" || !path.endsWith(".md") ||
+                path.split("/").some(part => !part || part === ".." || part === ".") || seenPaths.has(path)) {
+                throw new Error(id + ": invalid or duplicate index path " + path)
+            }
+            const file = app.vault.getAbstractFileByPath(path)
+            const fields = file && app.metadataCache.getFileCache(file)?.frontmatter
+            if (typeof fields?.name !== "string" || !fields.name.trim()) {
+                throw new Error(id + ": missing index note or name in " + path)
+            }
+            seenPaths.add(path)
+            entries[id] = {
+                name: fields.name, code: id, campaignRoot: fields.campaignDirectory,
+                notePattern: fields.notePattern, partyPage: fields.partyPage?.replace(/\.md$/, "")
+            }
+        }
         const coreMeta = JSON.parse(metadataFile)
-        const campaignRegistry = this.normalizeCampaignRegistry(JSON.parse(campaignRegistryFile))
-
-        // All runtime consumers receive campaign data derived from the canonical registry.
-        // The legacy metadata.json list can remain temporarily for older external consumers.
+        const campaignRegistry = this.normalizeCampaignRegistry({ campaigns: entries })
         coreMeta.campaigns = campaignRegistry
         customJS.state.coreMeta = coreMeta
         customJS.state.campaignRegistry = campaignRegistry

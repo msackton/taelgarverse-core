@@ -1,3 +1,4 @@
+import {readVaultCampaigns} from '../src/vault-campaigns.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -49,7 +50,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     for(const entry of store.entries)if(entry.mapPathError)
       throw new Error(entry.id+': '+entry.mapPathError);
     const homeSource=settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null;
-    const registry=JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'_scripts/session_note_campaigns.json'),'utf8'));
+    const registry=readVaultCampaigns(settings.vault_dir);
     const campaignHomes=readCampaignHomes(settings);
     new CampaignSites(campaignHomes,new Contexts(store,registry,settings));
     return {store,homeSource,registry,campaignHomes};

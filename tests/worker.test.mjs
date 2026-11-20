@@ -81,7 +81,7 @@ test('published campaign homes select per-host content and lock Worker APIs with
   const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
   const storage=new LocalBucket([...uploads,{key:'revisions/'+report.revision+'/index.json',file:indexFile},{key:'published/current.json',file:report.pointerFile}]);
   const app=createWorker(), environment={...env,CONTENT:storage};
-  for(const [host,id,title] of [['dunmar','dunmar-frontier','Dunmar home'],['combined','custom','Combined home'],['historic','custom','Historic home'],['addermarch','addermarch','Addermarch home'],['www','modern','Welcome to the fixture site'],['combined','custom','Combined home'],['dunmar','dunmar-frontier','Dunmar home']]) {
+  for(const [host,id,title] of [['dunmar','dufr','Dunmar home'],['combined','custom','Combined home'],['historic','custom','Historic home'],['addermarch','adma','Addermarch home'],['www','modern','Welcome to the fixture site'],['combined','custom','Combined home'],['dunmar','dufr','Dunmar home']]) {
     const home=await app.fetch(new Request('https://'+host+'.taelgar.org/'),environment);
     assert.equal(home.status,200);const $=load(await home.text());assert.equal($('main h1').first().text(),title);
     const response=await app.fetch(new Request('https://'+host+'.taelgar.org/api/page?page=Example'+(host==='www'?'':'&context=modern&date=9999-01-01&campaigns=all')),environment);

@@ -1,3 +1,4 @@
+import {writeCampaignIndex} from './helpers/write-campaign-index.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -24,7 +25,7 @@ test('noPublish notes and stubs are absent from local/export stores, publication
     'String.md':'---\nnoPublish: "true"\n---\nA string is not a boolean.',
   };
   for(const root of [vault,exported])for(const [relative,source] of Object.entries(sources))write(root,relative,source);
-  write(vault,'_scripts/session_note_campaigns.json','{"campaigns":{}}');write(vault,'.obsidian/metadata.json','{}');
+  writeCampaignIndex(vault);write(vault,'.obsidian/metadata.json','{}');
   const settings={vault_dir:vault,source_dir:exported,default_date:'1750-01-01',campaigns:[],home_source:null,nav_source:null};
   for(const source_dir of [vault,exported]){
     const store=new Store({...settings,source_dir});

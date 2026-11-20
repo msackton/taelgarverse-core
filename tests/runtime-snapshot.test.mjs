@@ -1,3 +1,4 @@
+import {writeCampaignIndex} from './helpers/write-campaign-index.mjs';
 import {testSettings} from './helpers/test-settings.mjs';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
@@ -48,7 +49,7 @@ before(async()=>{
   fs.mkdirSync(path.join(directory,'.obsidian'));fs.mkdirSync(path.join(directory,'_scripts'));fs.mkdirSync(path.join(directory,'_website'));
   const {input}=headerFixture();
   fs.writeFileSync(path.join(directory,'.obsidian/metadata.json'),JSON.stringify(input.coreMeta));
-  fs.writeFileSync(path.join(directory,'_scripts/session_note_campaigns.json'),JSON.stringify({campaigns:{frontier:{code:'dufr',name:'Frontier',campaignRoot:'Campaigns/Frontier'},adder:{code:'adma',name:'Adder'}}}));
+  writeCampaignIndex(directory,{campaigns:{frontier:{code:'dufr',name:'Frontier',campaignRoot:'Campaigns/Frontier'},adder:{code:'adma',name:'Adder'}}});
   const notes={
     'Person.md':'---\ntags: [person]\nborn: 1700-01-01\naliases: [Traveler]\n---\n> [!taelgar-header]\n\n# Person body\n\n[[Future]] [[Other]] [[Twin]]\n\n![[Other#Section]]\n\n%% hidden note %%\n%%^Campaign:dufr%%frontier paragraph%%^End%%',
     'Other.md':'---\naliases: [Twin]\n---\n## Section\n\nA nested paragraph. [[Person]] ![[Third]]\n\n%% secret nested %%',
@@ -93,7 +94,7 @@ test('compiled and legacy snapshots produce identical dynamic HTML, APIs, embeds
   const current=new Bucket(),legacy=new Bucket(objects,{legacy:true}),worker=createWorker(),old=createWorker();
   const routes=['/health','/api/contexts','/','/?q=Person','/?q=&type=person','/api/search?q=Person',
     '/page/person','/api/page?page=Person','/page/other?date=1730-01-01&campaigns=all&dm=1',
-    '/page/person?context=frontier&dm=1','/page/future?pov=0','/page/future?pov=1','/page/person?date=1720-01-01&campaigns=adma,dufr&pov=0',
+    '/page/person?context=dufr&dm=1','/page/future?pov=0','/page/future?pov=1','/page/person?date=1720-01-01&campaigns=adma,dufr&pov=0',
     'https://frontier.taelgar.org/','https://frontier.taelgar.org/page/person?context=modern&pov=0',
     'https://missing.taelgar.org/','/page/missing','/api/page?page=Twin','/docs','/openapi.json','/missing','/%ZZ'];
   for(const url of routes){

@@ -313,17 +313,17 @@ test('context API, campaign filtering and context links survive navigation',asyn
   assert.equal(catalogue.contexts.find(c=>c.id==='modern').date,'1720-01-02');
   const result = await (await fetch(base + '/api/page?page=Example&context=dunmar-frontier')).json();
   assert.deepEqual(result.campaigns,['dufr']);
-  assert.equal(result.context.id,'dunmar-frontier');
+  assert.equal(result.context.id,'dufr');
   assert.match(result.html,/selected campaign text/);
-  assert.match(result.html,/\/page\/places\/first-town\?context=dunmar-frontier/);
+  assert.match(result.html,/\/page\/places\/first-town\?context=dufr/);
   const html = await (await fetch(base + '/page/people/example?context=dunmar-frontier')).text();
   const $ = load(html,{},false);
-  assert.equal($('header select option[selected]').val(),'dunmar-frontier');
+  assert.equal($('header select option[selected]').val(),'dufr');
   assert.equal($('main form').length,0);
   assert.equal($('[data-custom-date]').is('[hidden]'),true);
   const home = load(await (await fetch(base + '/?context=dunmar-frontier&q=Example')).text(),{},false);
-  assert.match(home('main li a').first().attr('href'),/context=dunmar-frontier/);
-  assert.equal(home('main form input[name=context]').val(),'dunmar-frontier');
+  assert.match(home('main li a').first().attr('href'),/context=dufr/);
+  assert.equal(home('main form input[name=context]').val(),'dufr');
   assert.match((await fetch(base + '/theme/context.js')).headers.get('content-type'),/javascript/);
 });
 test('unavailable-in-date page retains the header for switching context',async () => {
@@ -361,7 +361,7 @@ test('See Behind the Curtain is explicit, survives navigation, and leaves the de
   assert.match($('.dm-only-block').text(),/Behind the Curtain.*secret body/s);
   assert.match(result.html,/selected campaign text/);
   assert.doesNotMatch(result.html,/other campaign text|Addermarch-only text|later body/);
-  assert.match($('a[href^="/page/"]').first().attr('href'),/context=dunmar-frontier&dm=1/);
+  assert.match($('a[href^="/page/"]').first().attr('href'),/context=dufr&dm=1/);
   const article = load(await (await fetch(base + '/page/people/example?context=dunmar-frontier&dm=1')).text(),{},false);
   assert.equal(article('header input[name=dm]').is(':checked'),true);
   assert.match(article('.site-brand').attr('href'),/dm=1/);
@@ -396,7 +396,7 @@ test('site navigation, breadcrumbs, page TOC and lazy branch links retain contex
   const children = load(branch.html,{},false);
   assert.equal(branch.title,'Places');
   assert.equal(children('a').length,2);
-  children('a').each((_,el)=>assert.match(children(el).attr('href'),/context=dunmar-frontier&dm=1/));
+  children('a').each((_,el)=>assert.match(children(el).attr('href'),/context=dufr&dm=1/));
   const section = await fetch(base + places.find('.nav-placeholder a').attr('href'));
   assert.equal(section.status,200);
   const folder = load(await section.text(),{},false);
@@ -418,9 +418,9 @@ test('homepage renders authored Markdown with context links and keeps search sep
   assert.equal($('.layout--home').length,1);
   assert.match($('main').text(),/Website introduction|Addermarch homepage content/);
   assert.doesNotMatch($('main').text(),/Private homepage note|Up to 100 matching pages/);
-  assert.equal($('main a[href="/page/people/example?context=addermarch"]').length,1);
+  assert.equal($('main a[href="/page/people/example?context=adma"]').length,1);
   assert.equal($('main form[role="search"]').length,0);
-  assert.equal($('#header-search input[name="context"]').val(),'addermarch');
+  assert.equal($('#header-search input[name="context"]').val(),'adma');
   assert.equal(engine.store.entries.some(entry=>entry.id.startsWith('_website/')),false);
   const finder = load(await (await fetch(base + '/?q=&context=addermarch')).text());
   assert.equal(finder('main h1').text(),'Browse pages');

@@ -1,3 +1,4 @@
+import {writeCampaignIndex} from './helpers/write-campaign-index.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
@@ -33,7 +34,8 @@ test('publication migrates legacy headers on its copy; Node, R2 and compiled Wor
  t.after(async()=>{assert.ok(isInside(path.join(ROOT,'.cache'),directory));await fs.rm(directory,{recursive:true});});
  const vault=path.join(directory,'vault');await fs.mkdir(path.join(vault,'.obsidian'),{recursive:true});await fs.mkdir(path.join(vault,'_scripts'));
  const settings=testSettings();
- for(const file of ['.obsidian/metadata.json','_scripts/session_note_campaigns.json'])await fs.copyFile(path.join(settings.vault_dir,file),path.join(vault,file));
+ writeCampaignIndex(vault);
+ for(const file of ['.obsidian/metadata.json'])await fs.copyFile(path.join(settings.vault_dir,file),path.join(vault,file));
  for(const [name,header] of Object.entries(forms))await fs.writeFile(path.join(vault,name+'.md'),yaml+header+'\nAuthored prose.\n');
  const working=path.join(directory,'working');await copyWorkingVault(vault,working);
  const config={...settings,vault_dir:vault,source_dir:working,nav_source:null,home_source:null};
@@ -107,7 +109,8 @@ test('header conversion failure writes diagnostics and stops preparation before 
  const directory=await fs.mkdtemp(path.join(ROOT,'.cache/header-failure-'));
  t.after(async()=>{assert.ok(isInside(path.join(ROOT,'.cache'),directory));await fs.rm(directory,{recursive:true});});
  const vault=path.join(directory,'vault'),settings=testSettings();await fs.mkdir(path.join(vault,'.obsidian'),{recursive:true});await fs.mkdir(path.join(vault,'_scripts'));
- for(const file of ['.obsidian/metadata.json','_scripts/session_note_campaigns.json'])await fs.copyFile(path.join(settings.vault_dir,file),path.join(vault,file));
+ writeCampaignIndex(vault);
+ for(const file of ['.obsidian/metadata.json'])await fs.copyFile(path.join(settings.vault_dir,file),path.join(vault,file));
  const source=yaml+'```taelgar-header\nkeep\n```\n';await fs.writeFile(path.join(vault,'Unsafe.md'),source);
  const output=path.join(directory,'package'),logs=[];
  await assert.rejects(prepareContent({...settings,vault_dir:vault,source_dir:vault,nav_source:null,home_source:null},output,{commit:'a'.repeat(40),dirty:false},{},undefined,undefined,{log:message=>logs.push(message)}),/Legacy header conversion needs review/);

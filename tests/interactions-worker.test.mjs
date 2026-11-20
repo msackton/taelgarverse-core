@@ -1,3 +1,4 @@
+import {writeCampaignIndex} from './helpers/write-campaign-index.mjs';
 import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -21,7 +22,7 @@ test('publication compiles session encounters without beat data, Worker matches 
     fs.mkdirSync(path.join(vault,'_scripts'));
     fs.mkdirSync(path.join(vault,'.obsidian'));
     fs.copyFileSync(path.join(original.vault_dir,'.obsidian','metadata.json'),path.join(vault,'.obsidian','metadata.json'));
-    fs.writeFileSync(path.join(vault,'_scripts','session_note_campaigns.json'),JSON.stringify({campaigns:{cleenseau:{code:'clee',name:'Cleenseau',aliases:[],partyPage:'Party',campaignRoot:'Campaigns/Clee'},other:{code:'other',name:'Other',campaignRoot:'Campaigns/Other'}}}));
+    writeCampaignIndex(vault,{campaigns:{cleenseau:{code:'clee',name:'Cleenseau',aliases:[],partyPage:'Party',campaignRoot:'Campaigns/Clee'},other:{code:'other',name:'Other',campaignRoot:'Campaigns/Other'}}});
     fs.writeFileSync(path.join(vault,'Person.md'),'---\nheaderVersion: 2023.11.25\ntags: [person]\nname: Person\nspecies: human\nwhereabouts: Inn\nknownTo: [clee]\ncampaignInfo: [{campaign: clee, date: 1720-01-01, type: fought alongside}]\n---\n# Person\n> [!taelgar-header]\n\nPerson biography.');
     fs.writeFileSync(path.join(vault,'Party.md'),'# Party');fs.writeFileSync(path.join(vault,'Inn.md'),'# Inn');
     fs.writeFileSync(path.join(vault,'World.md'),'# World\n[[Person]]');

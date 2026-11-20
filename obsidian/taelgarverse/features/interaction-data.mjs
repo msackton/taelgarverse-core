@@ -35,20 +35,11 @@ export async function obsidianInteractions(app) {
     return file && byPath.has(file.path) ? {status:'found',entry:byPath.get(file.path)} : lookup(raw);
   };
   const recaps=files.filter(file=>/^_sessions\/[^/]+\/[^/]+\/cleaned\/[^/]+-session-recap\.md$/.test(file.path));
-  const owners=new Map(Object.entries(registry.campaigns)
-    .filter(([,campaign])=>campaign.sessionBundleDirectory)
-    .map(([id,campaign])=>[campaign.sessionBundleDirectory,id]));
-  const identities=campaignIdentities(registry);
   const bundles=[],warnings=[];
   await readFiles(recaps,async file=>{
     try {
       const bundle=parseSessionRecap(await app.vault.cachedRead(file),file.path);
-      // Historical recaps label campaigns in prose. The registered bundle
-      // directory still identifies their owner when the label has changed.
-      const owner=owners.get(file.path.split('/').slice(0,-3).join('/'));
-      const declared=identities.get(String(bundle.campaign).trim().toLowerCase());
-      if(owner && declared && owner!==declared)throw new Error('recap campaign conflicts with bundle directory');
-      bundles.push(owner ? {...bundle,campaign:owner} : bundle);
+      bundles.push(bundle);
     } catch(error){warnings.push(file.path+': '+error.message);bundles.push({key:file.path,invalid:true});}
   });
   bundles.sort((a,b)=>a.key.localeCompare(b.key));

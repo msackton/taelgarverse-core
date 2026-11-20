@@ -1,3 +1,4 @@
+import {writeCampaignIndex} from './helpers/write-campaign-index.mjs';
 import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -43,7 +44,7 @@ async function fixture(t,{width=2308,height=96,sourceOffset=[0,0]}={}){
   await fs.writeFile(path.join(directory,'assets/maps/recipe.json'),'{}');
   const {input}=headerFixture();
   await fs.writeFile(path.join(directory,'.obsidian/metadata.json'),JSON.stringify(input.coreMeta));
-  await fs.writeFile(path.join(directory,'_scripts/session_note_campaigns.json'),JSON.stringify(input.registry));
+  writeCampaignIndex(directory,input.registry);
   const settings={...testSettings(),vault_dir:directory,source_dir:directory,home_source:null,nav_source:null};
   return {directory,image,imageFile,manifestFile,manifest,block,settings,store:()=>new Store(settings)};
 }

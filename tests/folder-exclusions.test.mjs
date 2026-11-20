@@ -1,3 +1,4 @@
+import {writeCampaignIndex} from './helpers/write-campaign-index.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -33,7 +34,7 @@ function fixture(t) {
     write(root,'Campaigns/Cleenseau Campaign/Chats Archive/Public.md','# Archive');
     write(root,'Campaigns/Cleenseau Campaign/Chats-extra/Public.md','# Extra');
   }
-  write(vault,'_scripts/session_note_campaigns.json','{"campaigns":{}}');
+  writeCampaignIndex(vault);
   write(vault,'.obsidian/metadata.json','{}');
   const marker=write(vault,chats+'/.nopublish','Excluded from publication.');
   const settings={vault_dir:vault,source_dir:exported,default_date:'1750-01-01',campaigns:[],home_source:null,nav_source:null};

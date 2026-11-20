@@ -13,7 +13,7 @@ for (const [page,date] of [['Zahara','1730-01-20'],['Zahara','1730-02-01'],['See
   }
   console.log('PASS '+page+' / '+date+' / both viewing preferences');
 }
-const article=await fetch(base+'/page/things/ships/vindristjarna?context=dunmar-frontier&dm=1');
+const article=await fetch(base+'/page/things/ships/vindristjarna?context=dufr&dm=1');
 assert.equal(article.status,200);assert.match(await article.text(),/Site navigation/);
 for (const file of ['material.css','preview.css','context.js','navigation.js'])assert.equal((await fetch(base+'/theme/'+file)).status,200);
 console.log('Worker smoke check passed: article parity, page shell, themes, navigation.');
