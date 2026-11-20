@@ -2,11 +2,13 @@ import {Component} from 'obsidian';
 import {createHeaderSnapshot} from '../../../src/header-core/index.mjs';
 import {Contexts} from '../../../src/contexts.mjs';
 
+import {readCampaignRegistry, registryPath} from './campaign-registry.mjs';
+
 export async function readObsidianSnapshot(app) {
   const [coreMeta,registry] = await Promise.all([
-    app.vault.adapter.read((app.vault.configDir || '.obsidian') + '/metadata.json'),
-    app.vault.adapter.read('_scripts/session_note_campaigns.json'),
-  ]).then(values => values.map(value=>JSON.parse(value)));
+    app.vault.adapter.read((app.vault.configDir || '.obsidian') + '/metadata.json').then(JSON.parse),
+    readCampaignRegistry(app),
+  ]);
   const pages = app.vault.getMarkdownFiles().map(file => ({path:file.path,metadata:app.metadataCache.getFileCache(file)?.frontmatter || {}}));
   const runtime = createHeaderSnapshot({pages,coreMeta,registry},{
     resolveLink:target=>app.metadataCache.getFirstLinkpathDest(target,app.vault.getRoot().path)?.path,
@@ -23,7 +25,7 @@ export class ObsidianSnapshotService extends Component {
     for(const [target,names] of [[this.app.metadataCache,['changed','resolved']],[this.app.vault,['create','rename','delete']]])
       if(target?.on)for(const name of names)this.registerEvent(target.on(name,invalidate));
     if(this.app.vault.on)this.registerEvent(this.app.vault.on('modify',file=>{
-      if(file?.path===(this.app.vault.configDir || '.obsidian')+'/metadata.json' || file?.path==='_scripts/session_note_campaigns.json')this.invalidate();
+      if(file?.path===(this.app.vault.configDir || '.obsidian')+'/metadata.json' || file?.path===registryPath)this.invalidate();
     }));
   }
   subscribe(listener){

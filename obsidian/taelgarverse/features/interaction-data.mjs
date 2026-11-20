@@ -1,3 +1,4 @@
+import {readCampaignRegistry} from '../services/campaign-registry.mjs';
 import {ContentStore} from '../../../src/content-store.mjs';
 import {scanHeaderCallouts} from '../../../src/header-callout.mjs';
 import {buildBacklinkCampaigns} from '../../../src/campaign-ownership.mjs';
@@ -19,7 +20,7 @@ async function readFiles(files,read) {
   }));return values;
 }
 export async function obsidianInteractions(app) {
-  const registry=JSON.parse(await app.vault.adapter.read('_scripts/session_note_campaigns.json'));
+  const registry=await readCampaignRegistry(app);
   const files=app.vault.getMarkdownFiles().filter(file=>!file.path.split('/').some(part=>part.startsWith('.'))).sort((a,b)=>a.path.localeCompare(b.path));
   const byPath=new Map(),entries=files.filter(file=>!file.path.split('/').some(part=>part.startsWith('_'))).map(file=>{
     // Obsidian indexes the author's local notes; knownTo pages need not carry a person tag.
@@ -34,11 +35,20 @@ export async function obsidianInteractions(app) {
     return file && byPath.has(file.path) ? {status:'found',entry:byPath.get(file.path)} : lookup(raw);
   };
   const recaps=files.filter(file=>/^_sessions\/[^/]+\/[^/]+\/cleaned\/[^/]+-session-recap\.md$/.test(file.path));
+  const owners=new Map(Object.entries(registry.campaigns)
+    .filter(([,campaign])=>campaign.sessionBundleDirectory)
+    .map(([id,campaign])=>[campaign.sessionBundleDirectory,id]));
+  const identities=campaignIdentities(registry);
   const bundles=[],warnings=[];
   await readFiles(recaps,async file=>{
     try {
       const bundle=parseSessionRecap(await app.vault.cachedRead(file),file.path);
-      bundles.push(bundle);
+      // Historical recaps label campaigns in prose. The registered bundle
+      // directory still identifies their owner when the label has changed.
+      const owner=owners.get(file.path.split('/').slice(0,-3).join('/'));
+      const declared=identities.get(String(bundle.campaign).trim().toLowerCase());
+      if(owner && declared && owner!==declared)throw new Error('recap campaign conflicts with bundle directory');
+      bundles.push(owner ? {...bundle,campaign:owner} : bundle);
     } catch(error){warnings.push(file.path+': '+error.message);bundles.push({key:file.path,invalid:true});}
   });
   bundles.sort((a,b)=>a.key.localeCompare(b.key));

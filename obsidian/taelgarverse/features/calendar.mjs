@@ -1,6 +1,6 @@
 import {Component,ItemView,Setting} from 'obsidian';
 import {calendarContext} from '../../../src/campaign-calendar-context.mjs';
-import {CALENDAR_REGISTRY} from '../../../src/campaign-calendar.mjs';
+import {readCampaignRegistry, registryPath} from '../services/campaign-registry.mjs';
 import {mountCampaignCalendar} from '../../../src/browser/campaign-calendar.mjs';
 import {readFolderExclusions} from '../../../src/folder-exclusions.mjs';
 import {validateDate} from '../../../src/common.mjs';
@@ -58,7 +58,7 @@ export class CalendarFeature extends Component {
       this.ribbon=this.plugin.addRibbonIcon('calendar-days','Open campaign calendar',()=>{void this.open();});
       const invalidate=()=>{if(!this.enabled)return;clearTimeout(this.timer);this.timer=setTimeout(()=>{this.ready=this.refresh();},180);};
       for(const [target,names] of [[this.app.metadataCache,['changed','resolved']],[this.app.vault,['rename','delete']]])if(target?.on)for(const name of names)this.events.registerEvent(target.on(name,invalidate));
-      if(this.app.vault.on)this.events.registerEvent(this.app.vault.on('modify',file=>{if(file.path===CALENDAR_REGISTRY)invalidate();}));
+      if(this.app.vault.on)this.events.registerEvent(this.app.vault.on('modify',file=>{if(file.path===registryPath)invalidate();}));
       this.ready=this.refresh();
     }else{
       const hadContext=!!this.state;
@@ -77,7 +77,7 @@ export class CalendarFeature extends Component {
     if(!this.app.vault.getMarkdownFiles || !this.app.vault.adapter?.read)return;
     let state;
     try{
-      const registry=JSON.parse(await this.app.vault.adapter.read(CALENDAR_REGISTRY));
+      const registry=await readCampaignRegistry(this.app);
       const excluded=readFolderExclusions(this.app.vault.adapter.getBasePath?.());
       const notes=this.app.vault.getMarkdownFiles().filter(file=>!excluded.some(folder=>!folder || file.path.startsWith(folder+'/')))
         .map(file=>({path:file.path,metadata:this.app.metadataCache.getFileCache(file)?.frontmatter??{}}));

@@ -132,7 +132,7 @@ campaign API, use Fantasy Calendar or the Taelgar Calendarium calendar.
 Without those, use the latest campaign session date, falling back to DR
 1750-01-01. Headers refresh after metadata changes and detect calendar/override
 date changes within two seconds. The vault's `.obsidian/metadata.json` (or its
-custom configuration-folder equivalent) and `_scripts/session_note_campaigns.json`
+custom configuration-folder equivalent) and `_sessions/campaign-registry.json` and its campaign index notes
 are required when headers, indexes, or relationships load a shared snapshot.
 Maps and Calendar can run without header display metadata.
 
@@ -217,8 +217,8 @@ interaction inputs. Links open full session notes and
 campaign references natively in Obsidian; beat and transcript links are omitted,
 including modified clicks to open another pane.
 
-Interactions require `_scripts/session_note_campaigns.json`. Session membership
-come from local `_sessions/<campaign>/<session>/cleaned/*-session-recap.md` files;
+Interactions require `_sessions/campaign-registry.json` and its campaign index notes. Session membership
+comes from local `_sessions/<campaign>/<session>/cleaned/*-session-recap.md` files;
 sessions without those files use the official session-note fallback.
 They do not require a website connection, Dataview, CustomJS, or header display
 metadata. Dates follow the header's override, note date, calendar, and fallback

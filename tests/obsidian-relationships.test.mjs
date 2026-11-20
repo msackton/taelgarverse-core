@@ -1,3 +1,4 @@
+import {indexedCampaigns} from './helpers/indexed-campaigns.mjs';
 import {serviceExports,attachServices} from './helpers/obsidian-services.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -31,10 +32,11 @@ function host(enabled=false,extraNotes={}){
   vm.runInNewContext(compiled.outputFiles[0].text,globals);
   const notes={'People/Alice.md':{tags:['person']},'People/Bob.md':{tags:['person']},'Places/Town.md':{tags:['place']},...extraNotes};
   const fixture=headerFixture({baseNotes:notes}),files=Object.entries(notes).map(([path,metadata])=>({path,metadata,stat:{mtime:1,size:10}}));
+  const indexed=indexedCampaigns(fixture.input.registry);
   const cache=emitter(),vault=emitter(),workspace=emitter(),commands=[],opened=[];let reads=0,ribbons=0,closed=0;
   const app={metadataCache:{on:cache.on,getFileCache:file=>({frontmatter:file.metadata}),
       getFirstLinkpathDest:target=>files.find(f=>f.path===target||f.path.endsWith('/'+target+'.md'))},
-    vault:{on:vault.on,getRoot:()=>({path:''}),adapter:{read:async file=>JSON.stringify(file.endsWith('metadata.json')?fixture.input.coreMeta:fixture.input.registry)},getMarkdownFiles:()=>files,getAbstractFileByPath:path=>files.find(f=>f.path===path),
+    vault:{on:vault.on,getRoot:()=>({path:''}),adapter:{read:async file=>JSON.stringify(file.endsWith('metadata.json')?fixture.input.coreMeta:indexed.index)},getMarkdownFiles:()=>files,getAbstractFileByPath:path=>files.find(f=>f.path===path) || indexed.files.get(path),
       cachedRead:async file=>{reads++;return file.path.includes('Alice')?'Alice met [[Bob]].':'Bob traveled.';}},
     workspace:{on:workspace.on,detachLeavesOfType(){closed++;},getLeaf:()=>({openFile:async(...args)=>opened.push(args)})}};
   const plugin={app,settings:{relationshipsEnabled:enabled},

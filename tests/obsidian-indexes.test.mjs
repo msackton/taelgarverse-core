@@ -1,3 +1,4 @@
+import {indexedCampaigns} from './helpers/indexed-campaigns.mjs';
 import {serviceExports,attachServices} from './helpers/obsidian-services.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -50,13 +51,14 @@ function host(settings={}) {
     require:name=>name==='@codemirror/state'?cm.state:name==='@codemirror/view'?cm.view:name==='obsidian'?{Component,MarkdownRenderChild,MarkdownRenderer}:require(name)};
   vm.runInNewContext(compiled.outputFiles[0].text,globals);
   const {input}=headerFixture(),metadata=new Map(Object.entries(structuredClone(indexNotes)).map(([path,metadata])=>[path,{...metadata,pageTargetDate:'1720-01-01'}]));
+  const indexed=indexedCampaigns(input.registry);
   const files=[...metadata.keys()].map(path=>({path,basename:path.split('/').at(-1).slice(0,-3)}));
   const images=[{path:'portraits/alice.png',basename:'alice'}];
   const cache=events(),vault=events(),bodies=new Map();
-  const app={metadataCache:{...cache,getFileCache:file=>file && {frontmatter:metadata.get(file.path)},
+  const app={metadataCache:{...cache,getFileCache:file=>file && {frontmatter:file.metadata ?? metadata.get(file.path)},
     getFirstLinkpathDest:(target,source)=>[...files,...images].find(file=>file.path===target || file.path===target+'.md' || file.basename===target || metadata.get(file.path)?.aliases?.includes(target))},
-    vault:{...vault,configDir:'.obsidian',getRoot:()=>({path:''}),getMarkdownFiles:()=>files,getAbstractFileByPath:path=>files.find(file=>file.path===path),
-      adapter:{read:async path=>JSON.stringify(path.endsWith('metadata.json')?input.coreMeta:input.registry)},
+    vault:{...vault,configDir:'.obsidian',getRoot:()=>({path:''}),getMarkdownFiles:()=>files,getAbstractFileByPath:path=>files.find(file=>file.path===path) || indexed.files.get(path),
+      adapter:{read:async path=>JSON.stringify(path.endsWith('metadata.json')?input.coreMeta:indexed.index)},
       cachedRead:async file=>bodies.get(file.path) ?? indexSources(Object.fromEntries(metadata))[file.path].replace('Authored prose.',file.path==='People/Alice.md' ? "Alice's first authored sentence. A second sentence." : 'Authored prose.'),
       getResourcePath:file=>'app://local/'+file.path},
     workspace:{openLinkText:(...args)=>opened.push(args)}};

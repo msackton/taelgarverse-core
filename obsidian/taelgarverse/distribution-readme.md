@@ -108,7 +108,7 @@ exit-code check. Untagged notes and excluded tag types are skipped. Website
 publication converts legacy headers on its working copy without changing the vault.
 
 Header blocks require the Taelgar vault's `metadata.json` in its Obsidian
-configuration folder and `_scripts/session_note_campaigns.json`. Dataview and
+configuration folder and `_sessions/campaign-registry.json` and its campaign index notes. Dataview and
 CustomJS are not required for these blocks; existing body queries still need
 their existing plugins. Dates follow an active CustomJS override, the note's
 `pageTargetDate`, the campaign selected in Taelgarverse, Fantasy Calendar, or
@@ -196,8 +196,8 @@ interaction inputs. Links open full session notes and
 campaign references natively in Obsidian; beat and transcript links are omitted,
 including modified clicks to open another pane.
 
-Interactions require `_scripts/session_note_campaigns.json`. Session membership
-come from local `_sessions/<campaign>/<session>/cleaned/*-session-recap.md` files;
+Interactions require `_sessions/campaign-registry.json` and its campaign index notes. Session membership
+comes from local `_sessions/<campaign>/<session>/cleaned/*-session-recap.md` files;
 sessions without those files use the official session-note fallback.
 They do not require a website connection, Dataview, CustomJS, or header display
 metadata. Dates follow the header's override, note date, calendar, and fallback

@@ -1,3 +1,4 @@
+import {indexedCampaigns} from './helpers/indexed-campaigns.mjs';
 import {serviceExports,attachServices} from './helpers/obsidian-services.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,10 +16,11 @@ const require=createRequire(import.meta.url);
 const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export * from './obsidian/taelgarverse/features/interactions.mjs'; export * from './obsidian/taelgarverse/features/interaction-data.mjs';"+serviceExports,resolveDir:ROOT},write:false,
   bundle:true,platform:'node',format:'cjs',external:['obsidian','@codemirror/state','@codemirror/view'],logLevel:'silent'});
 const registry={campaigns:{cleenseau:{name:'Cleenseau',code:'clee',aliases:['Clee'],campaignRoot:'Campaigns/Clee',notePattern:'Session {session_padded}.md'},other:{name:'Other',code:'other',aliases:['OTH'],campaignRoot:'Campaigns/Other'}}};
+const indexed=indexedCampaigns(registry);
 const recap=(campaign,text)=>['## Session Header','- Campaign: '+campaign,'- Session Number: 1','- Desc Title: At the Inn','- Tagline: '+text,'- DR Date: 1748-01-01','## Recap',
   '### recap-001 | Meeting','- Date: 1748-01-01','- NPCs: Person','- Polished Transcript: beat-transcripts/meeting.md','#### Short',text,'#### Long','Unused narrative.','## Cast','### NPCs','- [[Person]] (met): innkeeper'].join('\n');
 const initial={
-  'People/Person.md':'---\ntags: [person]\nknownTo: [Clee, OTH, clee]\nexcludePublish: all\npageTargetDate: 1748-01-02\n---\n# Person\nBiography.',
+  'People/Person.md':'---\ntags: [person]\nknownTo: [Clee, OTHER, clee]\nexcludePublish: all\npageTargetDate: 1748-01-02\n---\n# Person\nBiography.',
   'Places/Inn.md':'---\ntags: [place]\nknownTo: clee\n---\n# Inn',
   'World.md':'# World\n[[Person]]',
   'Campaigns/Clee/Session 01.md':'---\ntags: [session-note]\ncampaign: Clee\nsessionNumber: 1\nDR: 1748-01-01\n---\n[[Person]]',
@@ -56,10 +58,10 @@ function host({automatic=false,notes={}}={}) {
   const texts=new Map(Object.entries({...initial,...notes})),files=new Map(),metadata=new Map(),reads=[],opened=[];
   for(const [p,text] of texts){files.set(p,{path:p,basename:path.posix.basename(p,'.md'),extension:'md'});metadata.set(p,parseNote(text).metadata);}
   const cache=events(),vault=events(),workspace=events();let defer,release;
-  const app={metadataCache:{...cache,getFileCache(file){const source=texts.get(file.path);return {frontmatter:metadata.get(file.path),links:[...source.matchAll(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g)].map(match=>({link:match[1],position:{start:{offset:match.index},end:{offset:match.index+match[0].length}}}))};},
+  const app={metadataCache:{...cache,getFileCache(file){if(file.metadata)return {frontmatter:file.metadata};const source=texts.get(file.path);return {frontmatter:metadata.get(file.path),links:[...source.matchAll(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g)].map(match=>({link:match[1],position:{start:{offset:match.index},end:{offset:match.index+match[0].length}}}))};},
     getFirstLinkpathDest:target=>[...files.values()].find(file=>file.path===target || file.path===target+'.md' || file.basename===target)},
-    vault:{...vault,getName:()=> 'Test Vault',getMarkdownFiles:()=>[...files.values()],getAbstractFileByPath:p=>files.get(p),
-      adapter:{async read(){if(defer)await defer;return JSON.stringify(registry);}},cachedRead:async file=>{reads.push(file.path);return texts.get(file.path);}},
+    vault:{...vault,getName:()=> 'Test Vault',getMarkdownFiles:()=>[...files.values()],getAbstractFileByPath:p=>files.get(p) || indexed.files.get(p),
+      adapter:{async read(){if(defer)await defer;return JSON.stringify(indexed.index);}},cachedRead:async file=>{reads.push(file.path);return texts.get(file.path);}},
     workspace:{...workspace,onLayoutReady:fn=>fn(),iterateAllLeaves:fn=>leaves.forEach(fn),openLinkText:(...args)=>opened.push(args)}};
   const view={file:files.get('People/Person.md'),mode:'preview',getMode(){return this.mode;},getViewType:()=> 'markdown',previewMode:{containerEl:dom.document.querySelector('.markdown-preview-view')}};
   const leaves=[{view}],processors=new Map(),extensions=[];

@@ -620,7 +620,7 @@ Notes omitted by `noPublish`, stub tags or folder markers are not published.
 If the latest included session has no full date, the campaign cannot be selected,
 even if an older session has one. A flashback can move the campaign's date backward.
 
-Campaign names and codes come from `_scripts/session_note_campaigns.json`.
+The website reads campaign names and codes from `_scripts/session_note_campaigns.json`. The Obsidian plugin reads campaign IDs from `_sessions/campaign-registry.json` and display names from the linked index notes.
 For example, **Dunmar Frontier** uses the code **`dufr`** in comment markers. The note's `campaign` property can match the registered name,
 code, ID, or alias.
 

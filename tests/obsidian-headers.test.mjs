@@ -1,3 +1,4 @@
+import {indexedCampaigns} from './helpers/indexed-campaigns.mjs';
 import {serviceExports,attachServices} from './helpers/obsidian-services.mjs';
 import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
@@ -21,6 +22,7 @@ const sources=JSON.parse(fs.readFileSync(new URL('./fixtures/bio-blocks.json',im
 const coreMeta=JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'.obsidian/metadata.json'),'utf8'));
 const registry=JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'_scripts/session_note_campaigns.json'),'utf8'));
 
+const indexed=indexedCampaigns(registry);
 function events(){
   const callbacks=new Map();return {on(name,callback){const list=callbacks.get(name)||new Set();list.add(callback);callbacks.set(name,list);return ()=>list.delete(callback);},
     trigger(name){for(const callback of callbacks.get(name)||[])callback();},get count(){return [...callbacks.values()].reduce((n,list)=>n+list.size,0);}};
@@ -47,11 +49,11 @@ function host(extraSources={}){
   const files=Object.keys(notes).map(p=>({path:p,basename:path.posix.basename(p,'.md')}));
   const metadata=new Map(Object.entries(notes).map(([p,source])=>[p,{...parseNote(source).metadata,pageTargetDate:'1720-01-01'}]));
   const cacheEvents=events(),vaultEvents=events();
-  const app={metadataCache:{...cacheEvents,on:cacheEvents.on,getFileCache:file=>({frontmatter:metadata.get(file?.path)}),
+  const app={metadataCache:{...cacheEvents,on:cacheEvents.on,getFileCache:file=>({frontmatter:file?.metadata ?? metadata.get(file?.path)}),
     getFirstLinkpathDest:target=>files.find(file=>file.path===target || file.path===target+'.md' || file.basename===target)},
-    vault:{...vaultEvents,on:vaultEvents.on,configDir:'.obsidian',getRoot:()=>({path:''}),getMarkdownFiles:()=>files,getAbstractFileByPath:p=>files.find(file=>file.path===p),
+    vault:{...vaultEvents,on:vaultEvents.on,configDir:'.obsidian',getRoot:()=>({path:''}),getMarkdownFiles:()=>files,getAbstractFileByPath:p=>files.find(file=>file.path===p) || indexed.files.get(p),
       cachedRead:async file=>notes[file.path],
-      adapter:{read:async p=>JSON.stringify(p.endsWith('metadata.json')?coreMeta:registry)}}};
+      adapter:{read:async p=>JSON.stringify(p.endsWith('metadata.json')?coreMeta:indexed.index)}}};
   const processors=new Map(),postprocessors=[],extensions=[];
   const commands=[];
   const plugin={app,addCommand:command=>commands.push(command),registerMarkdownCodeBlockProcessor:(type,processor)=>processors.set(type,processor),

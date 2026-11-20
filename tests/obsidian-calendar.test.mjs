@@ -1,3 +1,4 @@
+import {indexedCampaigns} from './helpers/indexed-campaigns.mjs';
 import {serviceExports} from './helpers/obsidian-services.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -10,6 +11,7 @@ import {ROOT} from '../src/config.mjs';
 const require=createRequire(import.meta.url);
 const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export * from './obsidian/taelgarverse/features/calendar.mjs';"+serviceExports,resolveDir:ROOT},write:false,bundle:true,platform:'node',format:'cjs',external:['obsidian'],logLevel:'silent'});
 const registry={campaigns:{alpha:{name:'Alpha',code:'a',campaignRoot:'Campaigns/A'},beta:{name:'Beta',code:'b',campaignRoot:'Campaigns/B'}}};
+const indexed=indexedCampaigns(registry);
 function emitter(){const listeners=new Map(),calls=[];return {
   on(name,callback){const list=listeners.get(name)??new Set();list.add(callback);listeners.set(name,list);return ()=>list.delete(callback);},
   trigger(name,...args){calls.push([name,...args]);for(const callback of listeners.get(name)??[])callback(...args);},calls,
@@ -40,9 +42,9 @@ function host(saved={}){
   ];
   const commands=[],views=new Map();let saves=0,renders=0,ribbons=0,reads=0,closed=0;
   const app={metadataCache:{...cache,getFileCache:file=>({frontmatter:file.metadata})},
-    vault:{...vault,adapter:{read:async()=>{reads++;return JSON.stringify(registry);}},getMarkdownFiles:()=>files,cachedRead(){throw new Error('The minimal calendar must not read event bodies');}},
+    vault:{...vault,getAbstractFileByPath:path=>indexed.files.get(path),adapter:{read:async()=>{reads++;return JSON.stringify(indexed.index);}},getMarkdownFiles:()=>files,cachedRead(){throw new Error('The minimal calendar must not read event bodies');}},
     workspace:{...workspace,detachLeavesOfType(){closed++;}},setting:{open(){},openTabById(){}}};
-  const plugin={app,manifest:{id:'taelgarverse'},settings:{calendarEnabled:true,calendarCampaign:'alpha',imageViewer:true,...saved},saveData:async()=>{saves++;},registerView:(id,factory)=>views.set(id,factory),addCommand:command=>commands.push(command),
+  const plugin={app,manifest:{id:'taelgarverse'},settings:{calendarEnabled:true,calendarCampaign:'a',imageViewer:true,...saved},saveData:async()=>{saves++;},registerView:(id,factory)=>views.set(id,factory),addCommand:command=>commands.push(command),
     addRibbonIcon(){ribbons++;return {remove(){ribbons--;}};}};
   const dates=new module.exports.ObsidianDateService(app);dates.onload();dates.subscribe(()=>{renders++;});
   const feature=new module.exports.CalendarFeature(plugin);feature.onload();
@@ -53,18 +55,18 @@ function host(saved={}){
 test('regular campaign setting supplies query dates and all campaign dots without event-body reads',async()=>{
   const h=host();try{
     await h.feature.ready;assert.equal(h.globals.TaelgarverseCalendar.getCurrentDate(),'1748-07-23');
-    const data=await h.feature.data();assert.equal(data.campaigns.length,2);assert.equal(data.campaigns.find(c=>c.id==='beta').date,'1715-05-02');
+    const data=await h.feature.data();assert.equal(data.campaigns.length,2);assert.equal(data.campaigns.find(c=>c.id==='b').date,'1715-05-02');
     const copy=h.globals.TaelgarverseCalendar.getCampaignDates();copy[0].date='1700-01-01';
     assert.equal(h.globals.TaelgarverseCalendar.getCurrentDate(),'1748-07-23');
     h.feature.renderSettings({},()=>{});const campaign=h.settings.find(item=>item.name==='Active campaign');
-    assert.equal(campaign.kind,'dropdown');assert.equal(campaign.options.alpha,'Alpha');assert.equal(campaign.options.custom,'Custom');
+    assert.equal(campaign.kind,'dropdown');assert.equal(campaign.options.a,'Alpha');assert.equal(campaign.options.custom,'Custom');
     assert.equal(h.settings.some(item=>item.button==='Open calendar'),false);
     assert.equal(h.settings.some(item=>item.name==='Current date'),false);
     assert.equal(h.settings.some(item=>/source|world events/i.test(item.name)),false);
-    const before=h.renders;await campaign.change('beta');
+    const before=h.renders;await campaign.change('b');
     assert.equal(h.globals.TaelgarverseCalendar.getCurrentDate(),'1715-05-02');assert.ok(h.renders>before,'open header and index children refresh immediately');
     assert.equal(h.plugin.settings.imageViewer,true);assert.ok(h.workspace.calls.some(([name])=>name==='dataview:refresh-views'));
-    await h.feature.selectCampaign('alpha');
+    await h.feature.selectCampaign('a');
     h.files[0].metadata.DR_end='1748-07-24';h.cache.trigger('changed',h.files[0]);await pause(230);await h.feature.ready;
     assert.equal(h.globals.TaelgarverseCalendar.getCurrentDate(),'1748-07-24');assert.equal(h.commands[0].id,'open-campaign-calendar');
   }finally{h.dispose();}
@@ -103,11 +105,11 @@ test('turning off during an asynchronous load cannot publish the calendar API af
   const h=host({calendarEnabled:false});let release;
   try{
     const previous={getCurrentDate:()=> '1700-01-01'};h.globals.TaelgarverseCalendar=previous;
-    h.plugin.app.vault.adapter.read=()=>new Promise(resolve=>{release=()=>resolve(JSON.stringify(registry));});
+    h.plugin.app.vault.adapter.read=()=>new Promise(resolve=>{release=()=>resolve(JSON.stringify(indexed.index));});
     const enabling=h.feature.setEnabled(true);await pause(0);
     await h.feature.setEnabled(false);release();await enabling;
     assert.equal(h.globals.TaelgarverseCalendar,previous);assert.equal(h.ribbons,0);assert.equal(h.feature.state,null);
-    h.plugin.app.vault.adapter.read=async()=>JSON.stringify(registry);
+    h.plugin.app.vault.adapter.read=async()=>JSON.stringify(indexed.index);
     await h.feature.setEnabled(true);assert.notEqual(h.globals.TaelgarverseCalendar,previous);
     await h.feature.setEnabled(false);assert.equal(h.globals.TaelgarverseCalendar,previous);
   }finally{h.dispose();}
@@ -130,7 +132,7 @@ test('Custom settings validate and remember a manual date and refresh query cons
     assert.equal(h.globals.TaelgarverseCalendar.getCurrentDate(),'1748-04-06');
     h.files[0].metadata.DR_end='1749-01-01';h.feature.ready=h.feature.refresh();await h.feature.ready;
     assert.equal(h.globals.TaelgarverseCalendar.getCurrentDate(),'1748-04-06','session edits do not move the custom date');
-    await h.feature.selectCampaign('beta');assert.equal(h.globals.TaelgarverseCalendar.getCurrentDate(),'1715-05-02');
+    await h.feature.selectCampaign('b');assert.equal(h.globals.TaelgarverseCalendar.getCurrentDate(),'1715-05-02');
     await h.feature.selectCampaign('custom');assert.equal(h.globals.TaelgarverseCalendar.getCurrentDate(),'1748-04-06');
     saved={...h.plugin.settings};
   }finally{h.dispose();}
@@ -143,7 +145,7 @@ test('unavailable active dates remain explicit while other campaigns and moon br
   const h=host();await h.feature.ready;
   h.files[0].metadata.DR=null;delete h.files[0].metadata.DR_end;h.feature.ready=h.feature.refresh();await h.feature.ready;
   assert.throws(()=>h.globals.TaelgarverseCalendar.getCurrentDate(),/no full DR date/);
-  const data=await h.feature.data();assert.equal(data.context,null);assert.match(data.error,/no full DR date/);assert.equal(data.campaigns.find(c=>c.id==='beta').available,true);
+  const data=await h.feature.data();assert.equal(data.context,null);assert.match(data.error,/no full DR date/);assert.equal(data.campaigns.find(c=>c.id==='b').available,true);
   h.dispose();
   const pending=host();pending.dispose();await pending.feature.ready;assert.equal(pending.globals.TaelgarverseCalendar,undefined);
 });
@@ -153,8 +155,8 @@ test('switching campaigns with an open calendar cannot deadlock its date provide
   try{
     await h.feature.ready;
     h.feature.views.add({calendar:{refresh(){rendering=h.feature.data();return rendering;},dispose(){}}});
-    await Promise.race([h.feature.selectCampaign('beta'),pause(800).then(()=>{throw new Error('Context refresh deadlocked');})]);
-    assert.equal((await rendering).context.id,'beta');
+    await Promise.race([h.feature.selectCampaign('b'),pause(800).then(()=>{throw new Error('Context refresh deadlocked');})]);
+    assert.equal((await rendering).context.id,'b');
     h.feature.ready=h.feature.refresh();await h.feature.ready;assert.equal((await rendering).context.date,'1715-05-02');
   }finally{h.dispose();}
 });

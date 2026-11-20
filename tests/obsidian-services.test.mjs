@@ -1,3 +1,4 @@
+import {indexedCampaigns} from './helpers/indexed-campaigns.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -35,16 +36,17 @@ function host(){
     require:name=>name==='obsidian'?{Component,MarkdownRenderChild:class extends Component{},ItemView:class{},Setting:class{},Notice:class{}}:require(name)};
   vm.runInNewContext(bundled.outputFiles[0].text,globals);
   const {input}=headerFixture({baseNotes:{'People/Alice.md':{tags:['person'],affiliations:['Guild']},'Groups/Guild.md':{tags:['group']}}});
+  const indexed=indexedCampaigns(input.registry);
   const files=input.pages.map(page=>({path:page.path,basename:page.path.split('/').at(-1).replace(/\.md$/,''),metadata:structuredClone(page.metadata)}));
   const cache=events(),vault=events(),workspace=events(),reads=[];
   const app={metadataCache:{...cache,getFileCache:file=>({frontmatter:file.metadata}),getFirstLinkpathDest:target=>files.find(file=>file.path===target || file.basename===target)},
-    vault:{...vault,configDir:'custom-config',getRoot:()=>({path:''}),getMarkdownFiles:()=>files,getAbstractFileByPath:path=>files.find(file=>file.path===path),
-      adapter:{read:async path=>{reads.push(path);return JSON.stringify(path==='custom-config/metadata.json'?input.coreMeta:input.registry);}},cachedRead:async()=>''},
+    vault:{...vault,configDir:'custom-config',getRoot:()=>({path:''}),getMarkdownFiles:()=>files,getAbstractFileByPath:path=>files.find(file=>file.path===path) || indexed.files.get(path),
+      adapter:{read:async path=>{reads.push(path);return JSON.stringify(path==='custom-config/metadata.json'?input.coreMeta:indexed.index);}},cachedRead:async()=>''},
     workspace:{...workspace,detachLeavesOfType(){}},
   };
   const plugin={app,settings:{relationshipsEnabled:true,calendarEnabled:false},saveData:async()=>{},addCommand(){},registerView(){},registerMarkdownCodeBlockProcessor(){},registerMarkdownPostProcessor(){},addRibbonIcon:()=>({remove(){}})};
   const disposeServices=attachServices(plugin,module.exports),features=[];
-  return {api:module.exports,globals,plugin,app,input,files,reads,cache,vault,workspace,intervals,timeouts,
+  return {api:module.exports,globals,plugin,app,input,indexed,files,reads,cache,vault,workspace,intervals,timeouts,
     flush(){const callbacks=[...timeouts.values()];timeouts.clear();for(const callback of callbacks)callback();},
     tick(){for(const callback of intervals.values())callback();},
     feature(Type){const feature=new Type(plugin);features.push(feature);feature.load();return feature;},
@@ -66,7 +68,7 @@ test('snapshot consumers coalesce reads, share immutable metadata, and invalidat
     assert.equal(updated.runtime.resolve('Alice').metadata.name,'Updated Alice');
     assert.equal(first.runtime.resolve('Alice').metadata.name,undefined,'existing renders keep their original frozen input');
     assert.throws(()=>{updated.runtime.resolve('Alice').metadata.name='Mutated';},TypeError);
-    for(const path of ['custom-config/metadata.json','_scripts/session_note_campaigns.json']){
+    for(const path of ['custom-config/metadata.json','_sessions/campaign-registry.json']){
       h.vault.trigger('modify',{path});h.flush();assert.equal(h.plugin.snapshots.snapshot,null);
       await h.plugin.snapshots.getSnapshot();
     }
@@ -80,7 +82,7 @@ test('snapshot invalidation during a read cannot restore stale metadata and fail
   try{
     const normal=h.app.vault.adapter.read;
     h.app.vault.adapter.read=path=>path==='custom-config/metadata.json' && !release?
-      new Promise(resolve=>{release=()=>resolve(JSON.stringify({...h.input.coreMeta,generation:'stale'}));}):Promise.resolve(JSON.stringify(path==='custom-config/metadata.json'?{...h.input.coreMeta,generation:'fresh'}:h.input.registry));
+      new Promise(resolve=>{release=()=>resolve(JSON.stringify({...h.input.coreMeta,generation:'stale'}));}):Promise.resolve(JSON.stringify(path==='custom-config/metadata.json'?{...h.input.coreMeta,generation:'fresh'}:h.indexed.index));
     const stale=h.plugin.snapshots.getSnapshot();h.plugin.snapshots.invalidate();
     const fresh=await h.plugin.snapshots.getSnapshot();release();
     assert.equal(await stale,fresh);assert.equal(fresh.runtime.coreMeta.generation,'fresh');
@@ -93,7 +95,7 @@ test('snapshot invalidation during a read cannot restore stale metadata and fail
 
 test('unloading the snapshot service rejects pending readers and cancels queued notifications',async()=>{
   const h=host();let release,notifications=0;
-  h.app.vault.adapter.read=path=>path==='custom-config/metadata.json'?new Promise(resolve=>{release=()=>resolve(JSON.stringify(h.input.coreMeta));}):Promise.resolve(JSON.stringify(h.input.registry));
+  h.app.vault.adapter.read=path=>path==='custom-config/metadata.json'?new Promise(resolve=>{release=()=>resolve(JSON.stringify(h.input.coreMeta));}):Promise.resolve(JSON.stringify(h.indexed.index));
   h.plugin.snapshots.subscribe(()=>{notifications++;});
   const pending=h.plugin.snapshots.getSnapshot();h.plugin.snapshots.invalidate();h.dispose();release();
   await assert.rejects(pending,/snapshot service has unloaded/);h.flush();
