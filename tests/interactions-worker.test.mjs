@@ -137,7 +137,7 @@ test('publication compiles session encounters without beat data, Worker matches 
     const response=await createWorker().fetch(new Request('https://cleenseau.taelgar.org/api/page?page=Person'),env);
     assert.equal(response.status,404); // No configured campaign host silently falls back.
     const worker=createWorker();
-    const api=await worker.fetch(new Request('https://www.taelgar.org/api/page?page=Person&context=cleenseau'),env);
+    const api=await worker.fetch(new Request('https://www.taelgar.org/api/page?page=Person&context=clee'),env);
     assert.equal(api.status,200);
     const result=await api.json();
     assert.equal(result.interactions[0].events.length,3);

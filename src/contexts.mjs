@@ -2,18 +2,6 @@ import {RenderError, dateKey, validateDate} from './common.mjs';
 
 const normalize = value => String(value ?? '').trim().toLowerCase();
 const asList = value => Array.isArray(value) ? value : value ? [value] : [];
-// Bookmarks from the published site used folder-style context IDs.
-const oldContextIds = new Map(Object.entries({
-  addermarch:'adma', cleenseau:'clee', 'dunmar-frontier':'dufr', 'great-library':'grli',
-  'mawar-adventures':'mawar', 'into-the-chasm':'chasm', 'lost-in-the-feywild':'feywild',
-  'labyrinths-of-the-lost':'lablost', 'oskars-adventures':'oskar',
-}));
-const oldSelectionIds = new Map([
-  ...oldContextIds, ['itc','chasm'], ['dgnt','dragonets'], ['gl','grli'],
-  ['ll','lablost'], ['litf','feywild'], ['great library','grli'],
-  ['dunmar frontier','dufr'], ['dunmari frontier','dufr'], ['dunmar frontier campaign','dufr'],
-  ['dragonets campaign','dragonets'],
-]);
 function fullDate(value) {
   const date = String(value ?? '');
   try { return validateDate(date); } catch { return null; }
@@ -87,7 +75,6 @@ export class Contexts {
   }
 
   resolve(id, date, selectedCampaigns) {
-    if (!this.byId.has(id) && oldContextIds.has(id)) id = oldContextIds.get(id);
     const context = this.byId.get(id ?? (date === undefined && selectedCampaigns === undefined ? 'modern' : 'custom'));
     if (!context) throw new RenderError(400,'Unknown context');
     if (!context.available) throw new RenderError(400,context.label + ': ' + context.unavailableReason);
@@ -97,7 +84,7 @@ export class Contexts {
       const campaigns = new Set();
       for (const name of selected) {
         if (name === 'all') continue;
-        const code = this.campaignIdentities.get(name) || this.campaignIdentities.get(oldSelectionIds.get(name));
+        const code = this.campaignIdentities.get(name);
         if (!code) throw new RenderError(400,'Unknown campaign selection');
         campaigns.add(code);
       }

@@ -130,7 +130,7 @@ following the shared header core's date precedence.
 ~~~http
 GET /api/contexts
 GET /api/page?page=Zahara&context=modern
-GET /api/page?page=Zahara&context=into-the-chasm
+GET /api/page?page=Zahara&context=chasm
 GET /api/page?page=Zahara&context=custom&date=1730-01-20
 GET /api/page?page=Zahara&context=custom&date=1730-01-20&campaigns=all
 ~~~
@@ -138,7 +138,7 @@ GET /api/page?page=Zahara&context=custom&date=1730-01-20&campaigns=all
 The context selector lives in the header on article and page-finder pages.
 Selecting Custom reveals the date and campaign pickers, with All campaigns or
 an individual subset. See [Custom campaign selections](docs/custom-contexts.md).
-Named context links retain their ID,
+Named context links use the current campaign ID,
 so campaign dates advance after the source snapshot is refreshed. Custom links
 retain the explicit date and campaign selection. Unknown/undated presets or mismatched date overrides
 return 400; use Custom for manual dates. Unavailable article dates retain the
@@ -164,8 +164,8 @@ preference available to every visitor, with no login or special role required.
 The existing `dm` API parameter is retained for compatibility.
 
 ~~~http
-GET /api/page?page=Zahara&context=dunmar-frontier&dm=1
-GET /page/people/zimkovans/zahara?context=dunmar-frontier&dm=1
+GET /api/page?page=Zahara&context=dufr&dm=1
+GET /page/people/zimkovans/zahara?context=dufr&dm=1
 ~~~
 
 ## Homepage

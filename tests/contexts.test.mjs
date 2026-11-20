@@ -128,15 +128,18 @@ test('header shows selector and hides/disables date input except Custom',() => {
   }
 });
 
-test('old bookmarks return canonical IDs without adding aliases to the campaign index', () => {
+test('campaign bookmarks use current IDs and reject retired spellings', () => {
   const registry = {campaigns:{
     dufr:{code:'dufr',name:'Dunmari Frontier Campaign'},
     chasm:{code:'chasm',name:'Into the Chasm'},
     dragonets:{code:'dragonets',name:'Dragonets'},
   }};
   const contexts = new Contexts({entries:[session('dufr',{DR:'1748-01-01'})]},registry,settings);
-  assert.equal(contexts.resolve('dunmar-frontier').id,'dufr');
-  assert.deepEqual(contexts.resolve('custom','1748-01-01','Dunmar Frontier,itc,dgnt').campaigns,
+  assert.equal(contexts.resolve('dufr').id,'dufr');
+  assert.throws(()=>contexts.resolve('dunmar-frontier'),{status:400});
+  assert.deepEqual(contexts.resolve('custom','1748-01-01','dufr,chasm,dragonets').campaigns,
     ['chasm','dragonets','dufr']);
-  assert.equal(contexts.list().some(row=>row.id==='dunmar-frontier'),false);
+  for (const retired of ['dunmar-frontier','Dunmar Frontier','itc','dgnt']) {
+    assert.throws(()=>contexts.resolve('custom','1748-01-01',retired),{status:400});
+  }
 });

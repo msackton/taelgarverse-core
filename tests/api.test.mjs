@@ -54,7 +54,7 @@ after(async () => {
   if (directory && isInside(path.join(ROOT,'.cache'),directory)) fs.rmSync(directory,{recursive:true});
 });
 test('Node renders maps in context and repeated note embeds, loads local map assets only when needed',async()=>{
-  for (const [context,dm,count] of [['modern','0',1],['dunmar-frontier','0',2],['modern','1',2]]) {
+  for (const [context,dm,count] of [['modern','0',1],['dufr','0',2],['modern','1',2]]) {
     const $ = load(await (await fetch(base+'/page/maps?context='+context+'&dm='+dm)).text());
     assert.equal($('.leaflet-map').length,count);
     assert.equal($('script[src="/theme/maps.js"]').length,1);
@@ -177,15 +177,15 @@ for (const page of ['Hidden','Secret','Hidden World','Hidden Nested','../README'
 test('publication omits noPublish notes and retains formerly ignored paths and tags',() => {
   assert.throws(()=>engine.store.resolve('Hidden'),{status:404});
   for (const page of ['CampaignHidden','Invisible','Drawing','_Loose']) assert.ok(render(page).html,page);
-  assert.ok(engine.render('CampaignHidden',undefined,'dunmar-frontier').html);
-  assert.ok(engine.render('CampaignHidden',undefined,'addermarch').html);
+  assert.ok(engine.render('CampaignHidden',undefined,'dufr').html);
+  assert.ok(engine.render('CampaignHidden',undefined,'adma').html);
 });
 
 test('website and API ignore excludePublish and enforce packaging and birth/creation dates',async()=>{
   for (const dm of ['0','1']) {
     for (const [page,query,status] of [
       ['Hidden','context=modern',404], ['Hidden','date=1800-01-01',404],
-      ['CampaignHidden','context=dunmar-frontier',200], ['CampaignHidden','context=addermarch',200],
+      ['CampaignHidden','context=dufr',200], ['CampaignHidden','context=adma',200],
       ['CampaignHidden','context=modern',200], ['CampaignHidden','date=1730-01-01',200],
       ['Unborn','date=1730-04-01',404], ['Unborn','date=1730-04-02',200],
       ['Unbuilt','date=1730-04-01',404], ['Unbuilt','date=1730-04-02',200],
@@ -236,7 +236,7 @@ test('audio players and exported drawings resolve to published assets with seeka
   assert.equal($('img').first().attr('src'),'/assets/assets/excalidraw/drawing.png');
   assert.equal($('a:has(img)').attr('href'),'https://example.test/drawing');
   assert.equal($('a').filter((_,el)=>$(el).text()==='Download song').attr('href'),'/assets/assets/audio/song.mp3');
-  assert.equal(load(engine.render('Media',undefined,'dunmar-frontier').html)('audio').length,3);
+  assert.equal(load(engine.render('Media',undefined,'dufr').html)('audio').length,3);
   for (const [index,mime] of [[0,'audio/mpeg'],[1,'audio/mp4']]) {
     const url = base + $('audio').eq(index).attr('src');
     const full = await fetch(url), bytes = await full.text();
@@ -311,17 +311,18 @@ test('context API, campaign filtering and context links survive navigation',asyn
   assert.equal(response.status,200);
   const catalogue = await response.json();
   assert.equal(catalogue.contexts.find(c=>c.id==='modern').date,'1720-01-02');
-  const result = await (await fetch(base + '/api/page?page=Example&context=dunmar-frontier')).json();
+  assert.equal((await fetch(base + '/api/page?page=Example&context=dunmar-frontier')).status,400);
+  const result = await (await fetch(base + '/api/page?page=Example&context=dufr')).json();
   assert.deepEqual(result.campaigns,['dufr']);
   assert.equal(result.context.id,'dufr');
   assert.match(result.html,/selected campaign text/);
   assert.match(result.html,/\/page\/places\/first-town\?context=dufr/);
-  const html = await (await fetch(base + '/page/people/example?context=dunmar-frontier')).text();
+  const html = await (await fetch(base + '/page/people/example?context=dufr')).text();
   const $ = load(html,{},false);
   assert.equal($('header select option[selected]').val(),'dufr');
   assert.equal($('main form').length,0);
   assert.equal($('[data-custom-date]').is('[hidden]'),true);
-  const home = load(await (await fetch(base + '/?context=dunmar-frontier&q=Example')).text(),{},false);
+  const home = load(await (await fetch(base + '/?context=dufr&q=Example')).text(),{},false);
   assert.match(home('main li a').first().attr('href'),/context=dufr/);
   assert.equal(home('main form input[name=context]').val(),'dufr');
   assert.match((await fetch(base + '/theme/context.js')).headers.get('content-type'),/javascript/);
@@ -335,22 +336,22 @@ test('unavailable-in-date page retains the header for switching context',async (
   assert.match($('main').text(),/Page unavailable/);
 });
 test('campaign blocks appear only for the selected campaign, never Modern or Custom',async () => {
-  for (const [context,date] of [['dunmar-frontier',undefined],['addermarch',undefined],['modern',undefined],['custom','1720-01-02']]) {
+  for (const [context,date] of [['dufr',undefined],['adma',undefined],['modern',undefined],['custom','1720-01-02']]) {
     const params = new URLSearchParams({page:'Example',context});
     if (date) params.set('date',date);
     const response = await fetch(base + '/api/page?' + params);
     assert.equal(response.status,200);
     const result = await response.json(), content = text(result);
-    assert.equal(content.includes('selected campaign text'),context === 'dunmar-frontier');
-    assert.equal(content.includes('Addermarch-only text'),context === 'addermarch');
+    assert.equal(content.includes('selected campaign text'),context === 'dufr');
+    assert.equal(content.includes('Addermarch-only text'),context === 'adma');
     assert.doesNotMatch(content,/secret body|other campaign text/);
     assert.match(content,/Fixture biography/);
-    assert.deepEqual(result.campaigns,context === 'dunmar-frontier' ? ['dufr'] : context === 'addermarch' ? ['adma'] : []);
+    assert.deepEqual(result.campaigns,context === 'dufr' ? ['dufr'] : context === 'adma' ? ['adma'] : []);
   }
 });
 
 test('See Behind the Curtain is explicit, survives navigation, and leaves the default response unchanged',async () => {
-  const params = new URLSearchParams({page:'Example',context:'dunmar-frontier',dm:'1'});
+  const params = new URLSearchParams({page:'Example',context:'dufr',dm:'1'});
   const response = await fetch(base + '/api/page?' + params);
   assert.equal(response.status,200);
   const result = await response.json(), $ = load(result.html,{},false);
@@ -362,16 +363,16 @@ test('See Behind the Curtain is explicit, survives navigation, and leaves the de
   assert.match(result.html,/selected campaign text/);
   assert.doesNotMatch(result.html,/other campaign text|Addermarch-only text|later body/);
   assert.match($('a[href^="/page/"]').first().attr('href'),/context=dufr&dm=1/);
-  const article = load(await (await fetch(base + '/page/people/example?context=dunmar-frontier&dm=1')).text(),{},false);
+  const article = load(await (await fetch(base + '/page/people/example?context=dufr&dm=1')).text(),{},false);
   assert.equal(article('header input[name=dm]').is(':checked'),true);
   assert.match(article('.site-brand').attr('href'),/dm=1/);
-  const home = load(await (await fetch(base + '/?context=dunmar-frontier&dm=1&q=Example')).text(),{},false);
+  const home = load(await (await fetch(base + '/?context=dufr&dm=1&q=Example')).text(),{},false);
   assert.equal(home('main form input[name=dm]').val(),'1');
   assert.match(home('main li a').first().attr('href'),/dm=1/);
   const unavailable = load(await (await fetch(base + '/page/future?context=modern&dm=1')).text(),{},false);
   assert.equal(unavailable('header input[name=dm]').is(':checked'),true);
   for (const value of ['', '&dm=0', '&dm=false']) {
-    const player = await (await fetch(base + '/api/page?page=Example&context=dunmar-frontier' + value)).json();
+    const player = await (await fetch(base + '/api/page?page=Example&context=dufr' + value)).json();
     assert.equal(player.dm,false);
     assert.doesNotMatch(player.html,/private ordinary comment|secret body|dm-note-popup|dm-only-block/);
   }
@@ -379,7 +380,7 @@ test('See Behind the Curtain is explicit, survives navigation, and leaves the de
 });
 
 test('site navigation, breadcrumbs, page TOC and lazy branch links retain context',async()=>{
-  const response = await fetch(base + '/page/people/example?context=dunmar-frontier&dm=1');
+  const response = await fetch(base + '/page/people/example?context=dufr&dm=1');
   const $ = load(await response.text(),{},false);
   assert.equal($('.site-sidebar nav[aria-label="Site navigation"]').length,1);
   assert.equal($('.site-sidebar a[aria-current="page"]').text(),'Example');
@@ -409,7 +410,7 @@ test('site navigation, breadcrumbs, page TOC and lazy branch links retain contex
 });
 
 test('homepage renders authored Markdown with context links and keeps search separate',async()=>{
-  const response = await fetch(base + '/?context=addermarch');
+  const response = await fetch(base + '/?context=adma');
   assert.equal(response.status,200);
   const $ = load(await response.text());
   assert.equal($('main h1').text(),'Welcome to the fixture site');
@@ -422,7 +423,7 @@ test('homepage renders authored Markdown with context links and keeps search sep
   assert.equal($('main form[role="search"]').length,0);
   assert.equal($('#header-search input[name="context"]').val(),'adma');
   assert.equal(engine.store.entries.some(entry=>entry.id.startsWith('_website/')),false);
-  const finder = load(await (await fetch(base + '/?q=&context=addermarch')).text());
+  const finder = load(await (await fetch(base + '/?q=&context=adma')).text());
   assert.equal(finder('main h1').text(),'Browse pages');
   assert.equal(finder('main .search-results').length,1);
   assert.doesNotMatch(finder('main').text(),/Website introduction/);
@@ -462,7 +463,7 @@ test('Mermaid pages load the local browser bundle only when visible diagrams exi
   assert.equal(article('script[type="module"][src="/theme/diagrams.js"]').length,1);
   assert.equal(article('.mermaid-source[open]').length,1);
   assert.equal(article('.page-toc a[href="#family"]').length,1);
-  const campaign = await (await fetch(base + '/api/page?page=Diagrams&context=dunmar-frontier')).json();
+  const campaign = await (await fetch(base + '/api/page?page=Diagrams&context=dufr')).json();
   assert.equal(load(campaign.html)('.mermaid-diagram').length,2);
   const ordinary = load(await (await fetch(base + '/page/media')).text());
   assert.equal(ordinary('script[src="/theme/diagrams.js"]').length,0);
@@ -473,7 +474,7 @@ test('Mermaid pages load the local browser bundle only when visible diagrams exi
 });
 
 test('Node API and right page navigation expose the same filtered backlinks, including empty articles',async()=>{
-  for (const query of ['date=1729-12-31','date=1730-01-01&dm=1','context=dunmar-frontier','context=addermarch&dm=1',
+  for (const query of ['date=1729-12-31','date=1730-01-01&dm=1','context=dufr','context=adma&dm=1',
     'context=custom&date=1730-01-01&campaigns=all&dm=1','date=1730-01-01&campaigns=adma,dufr','date=1730-01-01&campaigns=adma']) {
     const response=await fetch(base+'/api/page?page=Backlink%20Target&'+query);
     assert.equal(response.status,200);
@@ -519,7 +520,7 @@ test('Custom campaigns filter article blocks and persist through article, search
     assert.equal(unavailable('header select option[selected]').val(),'custom');
     assert.equal(new URL(unavailable('.site-brand').attr('href'),'https://example.test').searchParams.get('campaigns'),expected);
   }
-  for (const query of ['context=modern&campaigns=all','context=custom&campaigns=unknown','context=dunmar-frontier&campaigns=adma']) {
+  for (const query of ['context=modern&campaigns=all','context=custom&campaigns=unknown','context=dufr&campaigns=adma']) {
     assert.equal((await fetch(base+'/api/page?page=Example&'+query)).status,400);
   }
   assert.equal((await fetch(base+'/api/page?page=CampaignHidden&date=1720-01-02&campaigns=all')).status,200);

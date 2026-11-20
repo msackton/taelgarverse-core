@@ -105,7 +105,7 @@ test('published campaign homes select per-host content and lock Worker APIs with
 });
 
 test('Worker renders context-filtered maps and serves packaged tile assets without fetching the original image',async()=>{
-  for (const [context,dm,count] of [['modern','0',1],['dunmar-frontier','0',2],['modern','1',2]]) {
+  for (const [context,dm,count] of [['modern','0',1],['dufr','0',2],['modern','1',2]]) {
     const $ = load(await (await request('/page/maps?context='+context+'&dm='+dm)).text());
     assert.equal($('.leaflet-map').length,count);
     assert.equal($('script[src="/theme/maps.js"]').length,1);
@@ -252,7 +252,7 @@ test('Worker rejects unavailable pages before reading any note body and permits 
   }
   assert.equal([...isolated.calls.keys()].some(key=>key.includes('/notes/')),false);
   for (const [page,query] of [
-    ['CampaignHidden','context=dunmar-frontier'],['CampaignHidden','context=modern'],['CampaignHidden','context=addermarch'],
+    ['CampaignHidden','context=dufr'],['CampaignHidden','context=modern'],['CampaignHidden','context=adma'],
     ['Unborn','date=1730-04-02'],['Unbuilt','date=1730-04-02'],['Invisible','context=modern'],['Drawing','context=modern'],
     ['POV%20Year','date=1740-01-01'],['POV%20Plural','date=1740-01-01'],
   ]) assert.equal((await fetch('/api/page?page='+page+'&'+query)).status,200,page);
@@ -271,7 +271,7 @@ test('published website Markdown renders like Node without exposing website file
   assert.equal(index.navigationSource,fs.readFileSync(engine.settings.nav_source,'utf8'));
   assert.equal(index.entries.some(entry=>entry.id.startsWith('_website/')),false);
   assert.doesNotMatch(JSON.stringify(index),/Unpublished website planning/);
-  await Promise.all(['context=modern','context=addermarch','context=dunmar-frontier&dm=1','context=custom&date=1750-01-01&campaigns=all'].map(async query=>{
+  await Promise.all(['context=modern','context=adma','context=dufr&dm=1','context=custom&date=1750-01-01&campaigns=all'].map(async query=>{
     const url='https://example.test/?'+query;
     const response=await app.fetch(new Request(url),environment);
     assert.equal(response.status,200);
@@ -285,7 +285,7 @@ test('published website Markdown renders like Node without exposing website file
     assert.equal($('.home-entry').length,3);
     assert.equal($('main a[href="https://example.org/"]').length,1);
     assert.equal($('main').text().includes('Private homepage note'),query.includes('dm=1'));
-    assert.equal($('main').text().includes('Addermarch homepage content'),query.includes('addermarch') || query.includes('campaigns=all'));
+    assert.equal($('main').text().includes('Addermarch homepage content'),query.includes('adma') || query.includes('campaigns=all'));
     assert.equal($('main a').filter((_,a)=>$(a).text()==='Conditional link').length,1);
   }));
   assert.equal([...storage.calls.keys()].some(key=>key.includes('/notes/')),false);
@@ -353,13 +353,13 @@ test('Worker filters article, generated header and DM links from metadata withou
     {key:'published/current.json',file:report.pointerFile}]);
   const app=createWorker(), environment={...env,CONTENT:isolated};
   for (const [query,campaignVisible,bornVisible,activeVisible] of [
-    ['context=dunmar-frontier',true,false,false],
-    ['context=addermarch',true,false,false],
+    ['context=dufr',true,false,false],
+    ['context=adma',true,false,false],
     ['date=1730-04-01',true,false,false],
     ['date=1730-04-02',true,true,false],
     ['date=1740-01-01',true,true,true],
     ['context=modern',true,false,false],
-    ['context=dunmar-frontier',true,false,false],
+    ['context=dufr',true,false,false],
   ]) for (const dm of [false,true]) {
     const response=await app.fetch(new Request('https://example.test/api/page?page=Linked&'+query+'&dm='+Number(dm)),environment);
     assert.equal(response.status,200);
@@ -466,7 +466,7 @@ test('Worker keeps unlisted articles searchable and renders context-filtered Mer
   assert.doesNotMatch($('.site-sidebar').text(),/More pages/);
   const finder = load(await (await request('/?q=Diagrams&context=modern')).text());
   assert.equal(finder('main a[href="/page/diagrams?context=modern"]').length,1);
-  const campaign = await (await request('/api/page?page=Diagrams&context=dunmar-frontier')).json();
+  const campaign = await (await request('/api/page?page=Diagrams&context=dufr')).json();
   assert.equal(load(campaign.html)('.mermaid-diagram').length,2);
   assert.equal(await (await request('/theme/diagrams.js')).text(),'/generated/diagrams.js');
 });
@@ -487,7 +487,7 @@ test('Worker reads backlinks from the publication index without fetching referri
     {key:'published/current.json',file:report.pointerFile}]);
   const app=createWorker(), environment={...env,CONTENT:storage};
   const fetch=url=>app.fetch(new Request('https://example.test'+url),environment);
-  for (const query of ['date=1729-12-31','date=1730-01-01&dm=1','context=dunmar-frontier','context=addermarch&dm=1','date=1729-12-31',
+  for (const query of ['date=1729-12-31','date=1730-01-01&dm=1','context=dufr','context=adma&dm=1','date=1729-12-31',
     'context=custom&date=1730-01-01&campaigns=all&dm=1','date=1730-01-01&campaigns=adma,dufr','date=1730-01-01&campaigns=adma']) {
     const response=await fetch('/api/page?page=Backlink%20Target&'+query);
     assert.equal(response.status,200);
