@@ -8,7 +8,12 @@ const oldContextIds = new Map(Object.entries({
   'mawar-adventures':'mawar', 'into-the-chasm':'chasm', 'lost-in-the-feywild':'feywild',
   'labyrinths-of-the-lost':'lablost', 'oskars-adventures':'oskar',
 }));
-const oldSelectionIds = new Map([...oldContextIds, ['itc','chasm'], ['dgnt','dragonets'], ['gl','grli'], ['ll','lablost'], ['litf','feywild']]);
+const oldSelectionIds = new Map([
+  ...oldContextIds, ['itc','chasm'], ['dgnt','dragonets'], ['gl','grli'],
+  ['ll','lablost'], ['litf','feywild'], ['great library','grli'],
+  ['dunmar frontier','dufr'], ['dunmari frontier','dufr'], ['dunmar frontier campaign','dufr'],
+  ['dragonets campaign','dragonets'],
+]);
 function fullDate(value) {
   const date = String(value ?? '');
   try { return validateDate(date); } catch { return null; }

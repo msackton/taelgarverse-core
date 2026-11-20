@@ -30,7 +30,7 @@ the view, add a full DR date, for example `date: 1748-05-05`. An explicit
 `date: modern` has the same behavior as omitting the field.
 
 `campaigns` accepts a YAML list or comma-separated string. Use canonical lowercase
-campaign IDs from `_sessions/campaign-registry.json`; use these IDs in homepage frontmatter. `campaigns: all` selects every
+campaign IDs from `_sessions/campaign-registry.json`. `campaigns: all` selects every
 registered campaign; `campaigns: []` selects shared content without campaign
 blocks. Campaigns without a dated session can be included in a multi-campaign
 page, which uses Modern or its explicit date. An optional `title` labels the locked

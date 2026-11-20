@@ -127,3 +127,16 @@ test('header shows selector and hides/disables date input except Custom',() => {
     assert.equal($('#context-date').is('[disabled]'),id!=='custom');
   }
 });
+
+test('old bookmarks return canonical IDs without adding aliases to the campaign index', () => {
+  const registry = {campaigns:{
+    dufr:{code:'dufr',name:'Dunmari Frontier Campaign'},
+    chasm:{code:'chasm',name:'Into the Chasm'},
+    dragonets:{code:'dragonets',name:'Dragonets'},
+  }};
+  const contexts = new Contexts({entries:[session('dufr',{DR:'1748-01-01'})]},registry,settings);
+  assert.equal(contexts.resolve('dunmar-frontier').id,'dufr');
+  assert.deepEqual(contexts.resolve('custom','1748-01-01','Dunmar Frontier,itc,dgnt').campaigns,
+    ['chasm','dragonets','dufr']);
+  assert.equal(contexts.list().some(row=>row.id==='dunmar-frontier'),false);
+});
