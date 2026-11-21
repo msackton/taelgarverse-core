@@ -504,11 +504,11 @@ test('Node recap reader imports only supported recap files and ignores private s
     const registered={campaigns:{clee:registry.campaigns.cleenseau}};
     fs.mkdirSync(path.join(directory,'_sessions/cleenseau/cleenseau-012.10'));
     const inventory=readVaultSessionBundles(directory,registered);
-    const bundle=inventory.find('clee','012.1');
-    assert.equal(bundle,'_sessions/cleenseau/cleenseau-012.1');
-    assert.deepEqual(inventory.identify(bundle),{campaign:'clee',number:'12.1'});
-    assert.equal(inventory.find('clee','12.10'),'_sessions/cleenseau/cleenseau-012.10');
-    assert.equal(inventory.find('clee','12'),null);
+    assert.deepEqual([...inventory.entries()],[
+      ['_sessions/cleenseau/cleenseau-012.1',{campaign:'clee',number:'12.1'}],
+      ['_sessions/cleenseau/cleenseau-012.10',{campaign:'clee',number:'12.10'}],
+    ]);
+    assert.deepEqual(inventory.identify('_sessions/cleenseau/cleenseau-012.1'),{campaign:'clee',number:'12.1'});
     assert.equal(inventory.identify('_sessions/to-process/cleenseau-012.1'),null);
     const result=readInteractionBundles({vault_dir:directory},registered);assert.equal(result.bundles.length,1);
     assert.equal(result.bundles[0].campaign,'clee');assert.equal(result.bundles[0].number,'12.1');assert.equal(result.bundles[0].scenes,undefined);

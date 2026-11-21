@@ -23,7 +23,6 @@ export function indexSessionBundles(registry, listFolders) {
   }
   return {
     entries: () => byPath.entries(),
-    find: (campaign, number) => bySession.get(campaign + ':' + sessionNumber(number)) ?? null,
     identify: path => byPath.get(path) ?? null,
   };
 }
