@@ -11,13 +11,15 @@ export function mountImageControls(root,viewer,{include=()=>true,portal=false}={
     if (disposed) return;
     for (const {image,control,host} of records.values()) {
       const rect = image.getBoundingClientRect(), parent = host.getBoundingClientRect();
+      const compact = Math.min(rect.width,rect.height)<=160, size = compact ? 24 : 32, inset = compact ? 4 : 6;
+      control.classList.toggle('image-zoom-control--compact',compact);
       control.hidden = !image.getClientRects().length || rect.width<32 || rect.height<32;
       if (portal) {
         const viewport=root.getBoundingClientRect();
         control.hidden ||= rect.right<viewport.left || rect.left>viewport.right || rect.bottom<viewport.top || rect.top>viewport.bottom;
       }
-      control.style.left = (rect.right-(portal?0:parent.left+host.clientLeft)-38)+'px';
-      control.style.top = (rect.top-(portal?0:parent.top+host.clientTop)+6)+'px';
+      control.style.left = (rect.right-(portal?0:parent.left+host.clientLeft)-size-inset)+'px';
+      control.style.top = (rect.top-(portal?0:parent.top+host.clientTop)+inset)+'px';
     }
   };
   const schedule = () => {if (!disposed && frame===undefined) frame=win.requestAnimationFrame(position);};

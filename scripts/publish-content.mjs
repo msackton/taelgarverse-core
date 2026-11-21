@@ -248,6 +248,7 @@ export function buildFingerprint(settings, options, config={}) {
     new URL('../src/session-bundles.mjs', import.meta.url),
     new URL('../src/vault-session-bundles.mjs', import.meta.url),
     new URL('../src/recap-parser.mjs', import.meta.url),
+    new URL('../src/mapped-sessions.mjs', import.meta.url),
     new URL('../src/campaign-ownership.mjs', import.meta.url),
     new URL('../src/markdown.mjs', import.meta.url), new URL('../src/comments.mjs', import.meta.url),
     new URL('../src/common.mjs', import.meta.url), new URL('./build-runtime.mjs', import.meta.url)]) {

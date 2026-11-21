@@ -5,27 +5,30 @@ import {RenderEngine} from './render-engine.mjs';
 import {hydrateHeaderSnapshot} from './header-core/snapshot.mjs';
 import {RenderError} from './common.mjs';
 import {loadSnapshot,SnapshotStore} from './snapshot.mjs';
-import {supportedRuntimeVersion,runtimeHash,assetPartition,validRuntimeDescriptor} from './runtime-format.mjs';
+import {supportedRuntimeVersion,assetPartition,validRuntimeDescriptor} from './runtime-format.mjs';
+import {bucketText} from './runtime-io.mjs';
+import {readSnapshotPart} from './snapshot-cache.mjs';
+import {compileMapSources} from './map-catalogue.mjs';
 
 const failure=()=>new RenderError(503,'Compiled content snapshot is missing or invalid');
 
-export async function openSnapshot(bucket,revision) {
-  const object=await bucket.get('revisions/'+revision+'/runtime.json');
-  if(!object){
-    const legacy=await loadSnapshot(bucket,revision);
+export async function openSnapshot(bucket,revision,options={}) {
+  const text=await bucketText(bucket,'revisions/'+revision+'/runtime.json',options.timeoutMs);
+  if(text===null){
+    const legacy=await loadSnapshot(bucket,revision,options);
     return {forRequest:async()=>legacy};
   }
-  const manifest=await object.json();
+  const manifest=JSON.parse(text);
   if(!supportedRuntimeVersion(manifest.version) || manifest.revision!==revision || !manifest.parts || !manifest.assets ||
     !Number.isSafeInteger(manifest.pages) || !manifest.contexts || !Array.isArray(manifest.sites) ||
     ['search','navigation','headers','backlinks','render'].some(name=>!validRuntimeDescriptor(manifest.parts[name])) ||
     Object.values(manifest.assets).some(value=>!validRuntimeDescriptor(value)))throw failure();
-  return new RuntimeSnapshot(bucket,manifest);
+  return new RuntimeSnapshot(bucket,manifest,options);
 }
 
 export class RuntimeSnapshot {
-  constructor(bucket,index) {
-    this.bucket=bucket;this.index=index;this.revision=index.revision;
+  constructor(bucket,index,options={}) {
+    this.bucket=bucket;this.index=index;this.revision=index.revision;this.options=options;
     this.parts=new Map();this.cache=new Map();this.pending=new Map();
     this.contexts=Contexts.hydrate(index.contexts,index.settings);
     this.campaignSites=CampaignSites.hydrate(index.sites);
@@ -36,11 +39,7 @@ export class RuntimeSnapshot {
     const key=descriptor.file;
     if(this.cache.has(key)){const value=this.cache.get(key);this.cache.delete(key);this.cache.set(key,value);return value;}
     if(!this.pending.has(key))this.pending.set(key,(async()=>{
-      const object=await this.bucket.get('revisions/'+this.revision+'/'+key);
-      if(!object)throw failure();
-      const text=object.text ? await object.text() : JSON.stringify(await object.json());
-      if(runtimeHash(text)!==descriptor.sha256)throw failure();
-      const value=JSON.parse(text);
+      const value=await readSnapshotPart(this.bucket,this.revision,descriptor,this.options);
       this.cache.set(key,value);
       while(this.cache.size>16)this.cache.delete(this.cache.keys().next().value);
       return value;
@@ -108,7 +107,7 @@ export class RuntimeSnapshot {
       if(this.index.version===2 && (!Array.isArray(data.noteShards) || data.noteShards.some(value=>!validRuntimeDescriptor(value)) ||
         data.entries.some(entry=>entry.note && (!Number.isSafeInteger(entry.note.prepared) || entry.note.prepared<0 || !data.noteShards[entry.note.prepared]))))throw failure();
       if(data.interactions && (data.interactions.version!==2 || !data.interactions.byTarget || typeof data.interactions.byTarget!=='object' || Array.isArray(data.interactions.byTarget)))throw failure();
-      const store=new SnapshotStore({entries:data.entries,warnings:this.index.warnings,settings:this.index.settings,revision:this.revision},this.bucket,data.lookups);
+      const store=new SnapshotStore({entries:data.entries,warnings:this.index.warnings,settings:this.index.settings,revision:this.revision},this.bucket,data.lookups,this.options);
       store.getNote=entry=>this.getNote(entry,data.noteShards);
       const navigation=await this.navigation(store,compiledNavigation);
       const compactBacklinks=this.index.version===2 ? this.backlinkLoader(backlinks,store) : null;
@@ -117,6 +116,37 @@ export class RuntimeSnapshot {
         interactionIndex:data.interactions,
         prepared:{contexts:this.contexts,campaignSites:CampaignSites.hydrate(data.sites),navigation,home:data.home,
           backlinkCampaigns:compactBacklinks?.campaigns || new Map(backlinks.campaigns),loadBacklinks:compactBacklinks?.load}});
+      engine.loadMapSources=()=>this.once('mapSources',async()=>{
+        if(this.index.parts.maps){
+          const sources=await this.read(this.index.parts.maps);
+          if(!Array.isArray(sources) || sources.some(source=>typeof source.id!=='string' || typeof source.body!=='string'))throw failure();
+          return sources;
+        }
+        // Existing format 1/2 publications remain usable without republishing.
+        // Read each shard once, even when entry order differs from shard order.
+        // Batching notes would repeatedly evict/reload large shards from the LRU.
+        const groups=new Map(),sources=[];
+        for(const entry of store.entries){
+          if(!entry.note)continue;
+          const descriptor=this.index.version===1 ? entry.note.prepared : data.noteShards[entry.note.prepared];
+          if(!validRuntimeDescriptor(descriptor))throw failure();
+          if(!groups.has(descriptor.file))groups.set(descriptor.file,{descriptor,entries:[]});
+          groups.get(descriptor.file).entries.push(entry);
+        }
+        const shards=[...groups.values()];
+        for(let start=0;start<shards.length;start+=8){
+          const batches=await Promise.all(shards.slice(start,start+8).map(async({descriptor,entries})=>{
+            const shard=await this.read(descriptor),loaded=entries.map(entry=>{
+              const note=Object.hasOwn(shard,entry.id)?shard[entry.id]:null;
+              if(!note || typeof note.body!=='string')throw failure();
+              return {...entry,note};
+            });
+            return compileMapSources({entries:loaded});
+          }));
+          for(const batch of batches)sources.push(...batch);
+        }
+        return sources;
+      });
       return {engine,store,index:this.index};
     });
   }
@@ -127,15 +157,16 @@ export class RuntimeSnapshot {
     // loading route data first.
     let pathname='';
     try{if(['GET','HEAD'].includes(request.method))pathname=decodeURIComponent(url.pathname);}catch{}
-    if(pathname==='/api/page' || pathname==='/api/index' || pathname==='/api/diagram-links' || pathname.startsWith('/page/') || pathname==='/' && !url.searchParams.has('q'))return this.renderer();
+    if(pathname==='/api/maps' || pathname==='/api/page' || pathname==='/api/index' || pathname==='/api/diagram-links' || pathname.startsWith('/page/') || pathname==='/' && !url.searchParams.has('q'))return this.renderer();
     let store={bySlug:{size:this.index.pages},warnings:this.index.warnings,assets:new Map(),settings:this.index.settings};
     const engine={settings:this.index.settings,contexts:this.contexts,campaignSites:this.campaignSites};
     if(pathname.startsWith('/assets/')){
       const target=pathname.slice(8),descriptor=this.index.assets[assetPartition(target)];
       if(descriptor){const entries=await this.read(descriptor);store.assets=new Map(entries.map(entry=>[entry.target,entry]));}
     }
-    if(pathname==='/api/search' || pathname==='/' || pathname.startsWith('/browse/') || pathname==='/api/navigation')store=await this.searchStore();
-    if(pathname==='/' || pathname.startsWith('/browse/') || pathname==='/api/navigation')engine.navigation=await this.navigation();
+    if(pathname==='/' || pathname.startsWith('/browse/') || pathname==='/api/navigation'){
+      [store,engine.navigation]=await Promise.all([this.searchStore(),this.navigation()]);
+    }else if(pathname==='/api/search')store=await this.searchStore();
     engine.store=store;
     return {engine,store,index:this.index};
   }

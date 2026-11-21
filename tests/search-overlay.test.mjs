@@ -54,6 +54,25 @@ test('active errors surface and a fresh request can recover',async()=>{
   assert.deepEqual(errors,['offline']);assert.deepEqual(seen,['recovered']);
 });
 
+test('search timeouts abort stalled work, ignore late results and leave a usable retry',async()=>{
+  const requests=[],errors=[],seen=[],timers=new Map();let id=0;
+  const controller=createSearchController({
+    search:(params,signal)=>new Promise(resolve=>requests.push({signal,resolve})),
+    onPending(){},onIdle(){},onResults:data=>seen.push(data),onError:error=>errors.push(error),
+    setDeadline:(callback,ms)=>{assert.equal(ms,12000);timers.set(++id,callback);return id;},clearDeadline:key=>timers.delete(key),
+  });
+  const pending=controller.update(new URLSearchParams({q:'slow'}),{immediate:true});
+  [...timers.values()][0]();await pending;
+  assert.equal(requests[0].signal.aborted,true);assert.equal(errors[0].name,'TimeoutError');
+  assert.match(errors[0].displayMessage,/Try again/);assert.equal(timers.size,0);
+  const retry=controller.update(new URLSearchParams({q:'slow'}),{immediate:true});
+  requests[0].resolve('obsolete');requests[1].resolve('recovered');await retry;
+  assert.deepEqual(seen,['recovered']);assert.equal(timers.size,0);
+  const closed=controller.update(new URLSearchParams({q:'closed'}),{immediate:true});
+  controller.cancel();await closed;
+  assert.equal(timers.size,0);assert.equal(errors.length,1);
+});
+
 test('excerpt highlights preserve literal text and reject malformed or overlapping ranges',()=>{
   const excerpt='🌿 <script> Green Sea';
   const pieces=highlightPieces(excerpt,[{start:3,end:11},{start:4,end:7},{start:-1,end:2},{start:12,end:17},{start:18,end:9000}]);

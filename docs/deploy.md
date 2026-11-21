@@ -42,6 +42,12 @@ the same local `--plugin --vault PATH` path, then enable Session review in the
 plugin settings. Transcript decisions and entity review are local vault writes;
 they do not deploy code or publish vault content.
 
+The reusable viewer package has a local build command, `npm run maps:pack`.
+CI saves the resulting archive as **taelgar-maps**; this does not publish an npm
+package or release the Obsidian plugin. The map catalogue API deploys through
+the normal website workflow and supports existing snapshots without a content
+republication. See [map package and API](maps.md#reusable-viewer-and-map-catalogue).
+
 The map baseline has a separate local review harness:
 `node scripts/preview-map-baseline.mjs --export .cache/map-baseline/my-export`.
 It serves only loopback at port 8878. `--export` takes the file prefix used by
@@ -111,15 +117,15 @@ validates these files, embeds geometry with the owning note, and checks for
 changes before packaging. Their content hashes invalidate the publication
 checkpoint even if the files are Git-ignored. They are not public asset downloads.
 
-Both previews compile [person campaign interactions](campaign-interactions.md)
-from recap Cast `met` membership in the original vault's `_sessions` directory,
-plus non-session campaign-folder backlinks. Each encounter is one full session;
-session notes supply the title, dates, tagline, and optional note link, with
-recap session headers as fallback metadata. Beats and transcripts are ignored.
-Session-header and Cast changes refresh quick preview and participate in
-publication fingerprints; beat-only edits do not. Session encounter records
-require a fresh content publication; older beat projections are omitted while
-session references and related material remain readable. Deploy the updated core
+Both previews compile [campaign interactions](campaign-interactions.md) from
+validated entity/interaction maps in the original vault's `_sessions` directory,
+with recap Cast `met` membership and explicit session-note links retained for
+older sessions. Each mapped exchange is directly selectable and opens its
+retained transcript passage with action/role labels and session context. Session metadata, mapped participation,
+and retained passages participate in fingerprints and refresh quick preview.
+Review context and unrelated recap beats remain outside the public projection.
+Fresh content publication is required to compile maps; core deployment alone
+does not update stored interactions. Deploy the updated core
 through GitHub before publishing new content.
 
 ### Roll out compiled runtime snapshots

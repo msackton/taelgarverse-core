@@ -11,7 +11,8 @@ export function searchParameters(entries,query,offset=0) {
 
 // A closed panel or a newer query must invalidate responses even if the
 // browser/provider finishes a request after cancellation.
-export function createSearchController({search,onPending,onResults,onError,onIdle,delay=200,setTimer=setTimeout,clearTimer=clearTimeout}) {
+export function createSearchController({search,onPending,onResults,onError,onIdle,delay=200,setTimer=setTimeout,clearTimer=clearTimeout,
+  timeoutMs=12000,setDeadline=setTimeout,clearDeadline=clearTimeout}) {
   let version=0,timer,request;
   function cancel() {
     version++;
@@ -26,11 +27,24 @@ export function createSearchController({search,onPending,onResults,onError,onIdl
     const run=async()=>{
       const controller=new AbortController();
       request=controller;
+      let deadline,abort;
       try {
-        const data=await search(snapshot,controller.signal);
+        const stopped=new Promise((_,reject)=>{
+          abort=()=>reject(controller.signal.reason);
+          controller.signal.addEventListener('abort',abort,{once:true});
+          deadline=setDeadline(()=>{
+            const error=new Error('Search timed out');error.name='TimeoutError';
+            error.displayMessage='Search took too long. Try again, or open the search page.';
+            controller.abort(error);
+          },timeoutMs);
+        });
+        const data=await Promise.race([search(snapshot,controller.signal),stopped]);
         if (current===version) onResults(data);
       } catch (error) {
         if (current===version && error.name!=='AbortError') onError(error);
+      } finally {
+        clearDeadline(deadline);controller.signal.removeEventListener('abort',abort);
+        if(request===controller)request=undefined;
       }
     };
     if (immediate) return run();

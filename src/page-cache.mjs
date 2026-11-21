@@ -1,4 +1,5 @@
 import {createHash} from 'node:crypto';
+import {withTimeout,cacheTimeoutMs} from './runtime-io.mjs';
 
 const browserPolicy='public, max-age=0, must-revalidate';
 const edgePolicy='public, max-age=86400';
@@ -7,7 +8,7 @@ const discard=response=>{response.body?.cancel().catch(()=>{});};
 
 // Only the Worker caches rendered HTML. The publication pointer must have been
 // read successfully before calling this, including on conditional requests.
-export function pageCache(request,published,core,cache=globalThis.caches?.default) {
+export function pageCache(request,published,core,cache=globalThis.caches?.default,{cacheMs=cacheTimeoutMs}={}) {
   if(!cache || !['GET','HEAD'].includes(request.method) || request.headers.has('Authorization') || request.headers.has('Range') ||
     /(?:^|,)\s*no-store\s*(?:,|$)/i.test(request.headers.get('Cache-Control') || '') ||
     !/^[a-f0-9]{40,64}$/.test(core.commit || '') || !Number.isFinite(Date.parse(core.publishedAt)))return null;
@@ -32,7 +33,11 @@ export function pageCache(request,published,core,cache=globalThis.caches?.defaul
     accepts,
     async match() {
       try{
-        const response=await cache.match(key);
+        const response=await withTimeout(async signal=>{
+          const value=await cache.match(key);
+          if(signal.aborted){if(value)discard(value);throw signal.reason;}
+          return value;
+        },cacheMs);
         if(response && accepts(response) && response.headers.get('ETag')===etag)return response;
         if(response)discard(response);
       }catch{warning('read');}
@@ -44,7 +49,7 @@ export function pageCache(request,published,core,cache=globalThis.caches?.defaul
       const copy=response.clone(),headers=new Headers(copy.headers);
       headers.set('Cache-Control',edgePolicy);headers.set('ETag',etag);
       const stored=new Response(copy.body,{status:200,headers});
-      const pending=Promise.resolve().then(()=>cache.put(key,stored)).catch(()=>{discard(stored);warning('write');});
+      const pending=withTimeout(()=>cache.put(key,stored),cacheMs).catch(()=>{discard(stored);warning('write');});
       if(context?.waitUntil)context.waitUntil(pending);
       else await pending;
     },

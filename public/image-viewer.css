@@ -19,7 +19,12 @@ html.image-viewer-open { overflow: hidden; }
 .image-viewer :is(a,button,.image-viewer-stage):focus-visible { outline: 3px solid var(--link,#00796b); outline-offset: -3px; }
 .image-zoom-host { position: relative; }
 .image-zoom-control { position: absolute; z-index: 1; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-width: 32px; padding: 0; margin: 0; border: 1px solid #fff9; border-radius: 5px; color: #fff; background: #162322c9; box-shadow: 0 1px 5px #0005; cursor: zoom-in; }
+.image-zoom-control--compact { width: 24px; height: 24px; min-width: 24px; border-radius: 4px; }
+.image-zoom-control--compact svg { width: 14px; height: 14px; }
 .image-zoom-control[hidden] { display: none; }
 .image-zoom-control:focus-visible { outline: 3px solid var(--link,#00796b); outline-offset: 2px; }
-@media (pointer: coarse) { .image-zoom-control { width: 44px; height: 44px; transform: translateX(-12px); } }
+@media (pointer: coarse) {
+  .image-zoom-control:not(.image-zoom-control--compact) { width: 44px; height: 44px; transform: translateX(-12px); }
+  .image-zoom-control--compact::after { content: ''; position: absolute; width: 44px; height: 44px; left: 50%; top: 50%; transform: translate(-50%,-50%); }
+}
 @media print { .image-zoom-control, .image-viewer { display: none !important; } }

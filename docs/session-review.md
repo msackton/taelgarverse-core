@@ -18,7 +18,7 @@ Discovery starts with the campaign registry and checks each numbered bundle's
 `cleaned` directory for the session manifest and its entity map. The registered
 directory supplies the campaign, and the bundle folder suffix supplies the
 session number. Duplicate bundle folders stop discovery with both paths.
-See [campaign interactions](campaign-interactions.md#authoritative-sources)
+See [campaign interactions](campaign-interactions.md#session-maps-on-the-website)
 for the same bundle rule in the website and Obsidian interaction views.
 
 A changed transcript or session metadata opens a confirmation screen before the

@@ -1,8 +1,8 @@
-// The Worker receives the compiled projection. Only the recap header and Cast
-// are read here, with identity supplied by the registered bundle path.
+// The Worker receives a compiled projection. Registered bundle paths supply session identity.
 import fs from 'node:fs';
 import path from 'node:path';
 import {parseSessionRecap} from './recap-parser.mjs';
+import {readMappedSession} from './mapped-sessions.mjs';
 import {readVaultSessionBundles} from './vault-session-bundles.mjs';
 import {registryPath} from './campaign-registry.mjs';
 import {readVaultCampaigns} from './vault-campaigns.mjs';
@@ -18,17 +18,40 @@ export function readInteractionBundles(settings, registry) {
   for (const [directory, identity] of readVaultSessionBundles(vault, registry).entries()) {
     const cleaned = path.join(vault, directory, 'cleaned');
     if (!fs.lstatSync(cleaned, {throwIfNoEntry: false})?.isDirectory()) continue;
-    for (const file of fs.readdirSync(cleaned, {withFileTypes: true}).sort((a,b) => a.name.localeCompare(b.name))) {
-      if (!file.isFile() || !file.name.endsWith('-session-recap.md')) continue;
-      const key = directory + '/cleaned/' + file.name;
-      const filename = path.join(cleaned, file.name);
-      if (fs.statSync(filename).size > 8 * 1024 * 1024) throw new Error('Session recap is too large: ' + key);
+    const files = fs.readdirSync(cleaned, {withFileTypes: true})
+      .filter(file => file.isFile() && /-(?:session-recap\.md|entity-map\.json|interactions\.json)$/.test(file.name))
+      .map(file => file.name).sort((a,b) => a.localeCompare(b));
+    const recaps = [], maps = [];
+    for (const file of files) {
+      const key = directory + '/cleaned/' + file;
+      const filename = path.join(cleaned, file);
+      if (fs.statSync(filename).size > 8 * 1024 * 1024) throw new Error('Session artifact is too large: ' + key);
+      if (!file.endsWith('-session-recap.md')) {
+        if (!file.endsWith('-interactions.json') || !files.includes(file.replace(/-interactions\.json$/, '-entity-map.json'))) maps.push(key);
+        continue;
+      }
       const text = fs.readFileSync(filename, 'utf8');
       try {
-        bundles.push(parseSessionRecap(text, key, identity));
+        recaps.push(parseSessionRecap(text, key, identity));
       } catch (error) {
         warnings.push(key + ': ' + error.message);
-        bundles.push({key, ...identity, invalid: true});
+        recaps.push({key, ...identity, invalid: true});
+      }
+    }
+    if (!maps.length) {
+      bundles.push(...recaps);
+      continue;
+    }
+    // A mapped session reserves its identity even when its artifacts are invalid.
+    const validRecaps = recaps.filter(recap => !recap.invalid);
+    const recap = validRecaps.length === 1 ? validRecaps[0] : null;
+    for (const key of maps) {
+      try {
+        if (!key.endsWith('-entity-map.json')) throw new Error('Interactions are missing their entity map');
+        bundles.push(readMappedSession(settings, key, identity, recap));
+      } catch (error) {
+        warnings.push(key + ': ' + error.message);
+        bundles.push({key, ...identity, mapped: true, invalid: true});
       }
     }
   }

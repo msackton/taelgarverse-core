@@ -6,6 +6,7 @@ import {buildBacklinkCampaigns} from '../src/backlinks.mjs';
 import {compileHeaderIndexes} from '../src/header-core/snapshot.mjs';
 import {compileSearchMetadata} from '../src/search-metadata.mjs';
 import {RUNTIME_VERSION,runtimeHash as hash,assetPartition} from '../src/runtime-format.mjs';
+import {compileMapSources} from '../src/map-catalogue.mjs';
 
 
 // Only immutable data is compiled here. HTML, generated biographies, Markdown
@@ -42,6 +43,7 @@ export function compileRuntime(index,sourceStore,{noteShardBytes=65536,backlinkS
     return {id,name,title,target,slug,extension,availability,searchMetadata:compileSearchMetadata(entry),note:{metadata:{}}};
   });
   const search=add('runtime/search-metadata.json',compact);
+  const maps=add('runtime/maps.json',compileMapSources(sourceStore));
   const nav=add('runtime/navigation.json',navigation.compile(presets));
   const headers=add('runtime/headers.json',compileHeaderIndexes({pages:entries.filter(entry=>entry.note).map(entry=>({path:entry.id,metadata:entry.note.metadata})),coreMeta:index.coreMeta,registry:index.registry}));
   // IDs are positions in this revision's entry table, never public URL IDs.
@@ -78,6 +80,6 @@ export function compileRuntime(index,sourceStore,{noteShardBytes=65536,backlinkS
   const assets=Object.fromEntries([...partitions].sort(([a],[b])=>a.localeCompare(b)).map(([key,items])=>[key,add('runtime/assets/'+key+'.json',items)]));
   const manifest={version:RUNTIME_VERSION,settings:index.settings,sourceVersion:index.sourceVersion,search:index.search,
     pages:store.bySlug.size,warnings:index.warnings,contexts:contexts.compile(),sites:sites.compile().map(([host,{note,...site}])=>[host,site]),
-    parts:{search,navigation:nav,headers,backlinks,render},assets};
+    parts:{search,navigation:nav,headers,backlinks,render,maps},assets};
   return {manifest,objects,digest:hash(JSON.stringify({manifest,objects:[...objects].map(([file,json])=>[file,hash(json)])}))};
 }

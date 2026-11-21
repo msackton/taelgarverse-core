@@ -26,6 +26,15 @@ jobs:
           cache-dependency-path: core/package-lock.json
       - run: npm ci
       - run: npm test
+      - name: Build reusable map package
+        run: npm run maps:pack
+      - name: Save versioned map package
+        uses: actions/upload-artifact@v4
+        with:
+          name: taelgar-maps
+          path: core/.cache/packages/taelgar-maps-*.tgz
+          if-no-files-found: error
+          include-hidden-files: true
       - name: Test local R2 and D1 publication and recovery
         run: npm test -- --integration
       - name: Check website deployment package

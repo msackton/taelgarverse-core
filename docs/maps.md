@@ -8,66 +8,93 @@ change a route's measured distance.
 
 The shared website and Obsidian viewer hides Leaflet's default attribution badge.
 
-Choose **Measure distance**, then click or tap points along a route. **Undo**
-removes the last point, **Clear** removes the route and exits tracing mode, and **Done measuring** leaves
-the result visible while returning to ordinary navigation. Maps remain draggable
-and zoomable while measuring. Keyboard users can pan with arrow keys and add the
-map center with Enter or Space; Backspace undoes a point and Escape finishes.
-The center crosshair appears only with visible keyboard focus in point mode. Each map,
-including repeated note embeds, has its own measurement state. Measurements stay
-in the current browser page and are not saved to notes or published content.
+Website and Obsidian note maps share a compact header with **Pan**, **Sketch**,
+**Select**, **Eraser** and **Measure**, plus zoom, Fit map, available Layers and
+Fullscreen. **Open source image** is the header’s external-link icon; it opens
+the original image in a new tab. The character manager mounts this same strip in its room header.
+Options appear only for Sketch and open over the map. Eraser and Measure have
+no Options menu. The Obsidian map editor retains its authoring controls and
+legacy caption tools.
 
-Choose **Sketch** to draw temporary shapes without distance or area readings.
-Sketch enters freehand mode every time you choose it; turn off **Trace path** to
-add point outlines or pan. **Clear** and **Close shape** leave Sketch ready for
-another freehand drawing. **Close shape** fills an outline, **Undo** removes the last sketch
-action, and **Done sketching** returns to navigation with drawings still visible.
-Sketches and measurements remain separate when switching tools, and **Clear**
-removes both. Each map keeps its own drawings only until it unloads; nothing is
-saved. Sketch also works when a map's measurement calibration is unavailable.
-Closed shapes receive labels **1**, **2**, **3**, and so on inside their outlines,
-including freehand shapes. Each tool numbers its own shapes in drawing order;
-measurement labels match the numbered area readings. Undo updates the labels,
-and Clear removes them and restarts numbering.
+The split **Measure: Line ▾** button toggles measuring on or off. Its chevron
+opens just **Straight line** and **Trace**, with the current choice checked.
+Choosing a mode enters Measure immediately. The browser remembers the last
+choice across maps and reloads; the first-use default is Straight line. On
+narrow screens the button keeps the mode name visible alongside the ruler icon.
+The mode menu supports arrow keys, Enter, Escape and Tab.
 
-For a winding river or road, turn on **Trace path** while measuring and drag
-with a mouse, pen, or one finger. The total includes the sampled bends rather
-than a straight chord between the start and end. Each stroke is one Undo action.
-Separate strokes add to the total without inserting a straight connecting
-segment. Switch off Trace path to pan or add point segments; zoom buttons remain
-available. Zoom in for finer tracing. A cancelled stroke or a view change during
-drawing discards the unfinished stroke without changing completed measurements.
-The live stroke refreshes once per display frame without rebuilding completed
-drawings. All accepted pointer samples still contribute to its geometry and
-distance; releasing the pointer immediately commits the final result.
+**Straight line** drags between two endpoints, ignoring intermediate pointer
+bends. Release to keep the numbered line and its distance. **Trace** follows
+mouse, pen or finger movement. Releasing closes an outline only if its endpoint
+is within ten screen pixels of its start (after tracing more than twenty pixels
+away). Other traces remain open. Switching modes preserves completed
+measurements and their Undo/Redo history.
 
-To measure a region, draw its outline and return to the start, or choose
-**Close shape** to add a straight segment back to the first point. An endpoint
-within 10 screen pixels of the start snaps closed after the outline has extended
-more than 20 screen pixels away; this avoids closing short open paths by accident.
-Small outlines can always be closed explicitly. A closed outline gains a light
-fill and an **Area** reading in **square miles**, alongside its perimeter distance.
-Point routes and freehand traces use the same calculation. Undo removes an
-explicit closing segment (or an entire trace), and Clear removes area results.
-Further points start a separate route after a closed outline.
+Lines and shapes share sequential measurement numbers. Each line gets a marker
+halfway along its path and its own calibrated distance; shapes list their
+individual perimeter and area. Clicking without dragging adds no points.
+Results stay inside the map without changing the toolbar height. Clear removes
+measurements; Undo and Redo restore lines, traces or clearing. Choose Pan or
+press Escape to move the map again. Each map has independent temporary
+measurements; they are never saved to notes, published content or shared rooms.
 
-**Close shape** repairs accidental crossings, loops, touches, and retraced
-overshoots, keeping the larger enclosed region at each crossing. Sketch applies
-the same forgiving correction when an outline snaps closed. Valid concave
-outlines retain their bends. An already closed invalid outline can also be
-repaired with **Close shape**. The corrected line, fill, distance, and area use
-the same outline; Undo restores the original outline for an explicit closure,
-or removes the freehand stroke for automatic closure.
+Choose **Sketch** to draw without distance or area readings. Its Options menu
+contains Trace path, color, stroke width and Close shape. The header’s Clear icon
+clears sketches in Sketch, Select or Eraser mode, with confirmation in shared rooms. Drag to
+trace; turn Trace path off to click points or pan. Return to the first point or
+choose Close shape to fill an outline. Choose Pan or press Escape to finish an
+open point outline. Undo and Redo sit beside Clear and follow the active annotation type. They
+restore points, strokes, erasing, deletion and clearing. Shared undo checks the
+affected drawings before changing them, so concurrent edits are retained.
+Sketch works even when measurement calibration is unavailable. Closed sketches
+retain numbered labels in drawing order.
 
-Automatic closure while measuring applies only small corrections: a
-6-screen-pixel radius and loops representing at most 15% of the outline's
-perimeter. For larger misdrawn overlaps, choose **Close shape** explicitly.
+**Select** clicks nearby ink or drags a box across drawings; Shift adds or toggles
+selection. Delete selected, Delete or Backspace removes the selection. Empty
+space or Escape clears it. **Eraser** removes portions of open strokes while
+dragging, retaining disconnected fragments. Its brush grows with pointer speed
+from 10 to 42 screen pixels independently of zoom. Filled shapes erase as whole
+objects. Selection and brush previews stay local.
+
+Fullscreen fills the window below the toolbar, overriding the embedded map height.
+Leaving fullscreen restores the authored dimensions.
+
+Undo/redo history stays in the current browser and resets when the map unloads.
+It retains up to 50 changes; sketch history also has a bounded geometry budget.
+
+The **Temporary** label on website and Obsidian maps means sketches disappear
+when the map unloads. Clearing sketches does not clear measurements. Shared room
+hosts instead supply saved drawings and persist sketch commands; their label is
+**Shared**. Room access and persistence belong to the character manager.
+
+Trace samples preserve bends rather than measuring only the chord between the
+start and end. Each trace is one Undo action. Separate traces do not gain a
+connecting segment. Zoom buttons remain available; zoom in for finer tracing.
+A cancelled stroke or a view change discards the unfinished stroke without
+changing completed measurements. The live stroke refreshes once per display
+frame without rebuilding completed drawings. Releasing the pointer immediately
+commits the final result. Crossing the map boundary finishes a trace at its
+intersection with the edge. Moving outside or back inside while still pressed
+does not draw along the border or add a connecting segment. Start another stroke
+to continue drawing.
+
+Nearby automatic closure uses the same outline repair as Sketch's **Close shape**:
+accidental crossings, loops, touches and retraced overshoots keep the larger
+enclosed region. Valid concave outlines retain their bends. The corrected line,
+fill, distance and area use the same outline. Traces without a valid enclosed
+area remain distance traces.
+
+Legacy caption controls, including the Obsidian map editor, retain point-based
+measurement, an optional Trace path toggle and manual Close shape. Their
+near-start snapping trims only small loops (a 6-screen-pixel radius and at most
+15% of the perimeter); explicit Close shape applies the more forgiving repair.
 
 Area uses the polygon's original bends and the calibrated horizontal and vertical
 scales, without a projection. Concave outlines and either drawing direction are
-supported. Outlines that still cross, touch, retrace, or enclose no area keep
-their distance but report that area is unavailable. Multiple outlines show separate numbered
-areas; overlapping outlines are not combined into a union or interpreted as holes.
+supported. Legacy closed outlines that still cross, touch, retrace, or enclose
+no area keep their distance but report that area is unavailable. Multiple closed
+outlines show separate numbered areas; overlapping outlines are not combined
+into a union or interpreted as holes.
 Maps authored with other units show square units instead of square miles.
 
 The [Taelgarverse Obsidian plugin](../obsidian/taelgarverse/README.md) uses the
@@ -340,3 +367,96 @@ Deploy code supporting details before publishing notes that use them, and instal
 or release the plugin separately. Existing blocks without `details` keep their
 current behavior; existing snapshots need no migration. New regional manifests,
 PNGs, and block attachments require content publication to appear on the website.
+
+## Reusable viewer and map catalogue
+
+The website, Obsidian plugin and `@taelgar/maps` package build from the same
+maintained viewer, tool controller and geometry modules. `map-tools.mjs` owns
+controls and gestures; DOM-free `map-sketch.mjs` owns selection, partial erasing
+and sketch commands. The package adds no room access, network or encounter state.
+Hosts mount the common controls with `tools`, supply drawings and an `onCommand`
+adapter, and refresh the document with `updateTools`. The `decorate` hook remains
+available for host overlays. See the
+[package guide](../packages/maps/README.md) for installation, mounting and
+Photoshop/Leaflet coordinate conversion. This does not release an Obsidian plugin.
+
+Build a local versioned archive from a pinned core checkout:
+
+```sh
+npm ci
+npm run maps:pack
+```
+
+The archive is `.cache/packages/taelgar-maps-0.3.8.tgz`. CI also builds it and
+attaches it as the **taelgar-maps** artifact. A consuming app installs the archive
+and locks its integrity; its own build bundles the viewer. `maps:build` produces
+the unpacked package. These commands do not publish to a package registry or
+change the website. Keep package versions in `packages/maps/package.json` aligned
+with changes to its public API or behavior.
+
+`GET /api/maps` lists map views authored directly in published pages and the
+current hostname's homepage. Embedded maps are listed at their source page,
+without duplicate transclusion entries. Both `taelgar-map` and legacy `leaflet`
+blocks are included. The API uses the website's page availability, comment,
+campaign/date and Behind the Curtain rules; campaign hosts enforce their normal
+locked context. These are public reading preferences, not room memberships.
+
+Parameters:
+
+- `context`, `date`, `campaigns`, `dm`: the existing website context controls.
+- `page`: optionally restrict to one source page, resolved like `/api/page`.
+- `q` (up to 200 characters): filter map titles, source pages and block IDs before pagination.
+- `limit` (1–100, default 50), `offset` (0–10000, default 0): list pagination.
+- `id`: return one resolved map, using an identity from the list.
+- `revision`: require the currently published content revision; mismatch is 409.
+
+The version 1 list returns `revision`, effective `context`, `total`, pagination,
+`maps` summaries and `warnings`. Each summary includes `id`, optional `blockId`,
+`title`, source `page`, a full-image `preview` URL, `sourceRevision`, and
+`coordinates`. Preview currently uses the original map image, not a thumbnail.
+A request with `id` returns `map`, including the same summary and its resolved
+`config`. Imagery, tiles, regional artwork, feature links and region links use
+absolute URLs on the requested origin. Crops, calibration, grids and geometry
+are the same values consumed by the existing viewer.
+
+A map identity combines its source note path and authored block `id`. It survives
+prose, block-order and view-setting changes. Give long-lived maps unique block
+IDs. Without one, identity uses the normalized block text and changes when the
+block changes. Duplicate identities in one visible page are omitted with a
+warning. Invalid maps and unsafe comment syntax are isolated with warnings;
+unavailable direct map requests return 404.
+
+`sourceRevision` fingerprints the resolved definition, source image hash and
+manifest. Saving clients retain both the definition and revision and explicitly
+choose when to refresh. The API resolves the current publication; it is not a
+historical snapshot or asset-retention service. Renaming a source note changes
+its map identities. Existing retention of active plus previous content remains
+unchanged.
+
+New publications add an optional, hash-verified `runtime/maps.json` containing
+only source bodies with map blocks. Filtering and resolution still happen per
+request. Existing compiled format 1/2 and legacy snapshots remain readable:
+the first catalogue request scans their existing note shards with bounded
+concurrency and reuses the discovered source bodies. Existing article requests
+do not perform this scan. No vault republication is required to test the API;
+the next ordinary content publication adds the optimized catalogue source part.
+
+For a manual regression pass after the website release, open existing tiled and
+legacy maps and check pan/zoom/Fit map, crops, hex coordinates, region toggles,
+regional detail imagery, distance/area measurement, Sketch/Undo/Clear, and mobile
+navigation. Compare the same map in Obsidian; installed plugin artifacts are
+updated only by the separate plugin release workflow. Automated checks include
+Node and compiled/legacy Worker catalogue parity, context isolation, package
+packing and the existing website/Obsidian map suites.
+
+For existing compiled snapshots without `runtime/maps.json`, first access scans
+each prepared note shard once, with at most eight shard reads in flight. A cheap
+language check skips full Markdown parsing for ordinary prose. Discovered map
+sources are retained per snapshot for later searches and selections. Future
+content publications include the dedicated map-source part and skip note reads
+entirely; no content republication is required for the fallback fix.
+
+The common toolbar exposes Ping only to shared hosts that supply `onPing`. The
+host broadcasts source-local coordinates and calls `showPing` on recipients;
+core renders a brief pulse without saving a sketch. `pingEnabled` follows the
+host connection. Ordinary website and Obsidian note maps omit Ping.
