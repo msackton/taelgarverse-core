@@ -4,6 +4,7 @@ import {parse} from 'yaml';
 import {createHash} from 'node:crypto';
 import {campaignRegistry, registryPath} from '../../../src/campaign-registry.mjs';
 import {bundleArtifactIdentity} from '../../../src/session-bundles.mjs';
+import {readVaultSessionBundles} from '../../../src/vault-session-bundles.mjs';
 import {parseNote} from '../../../src/content-store.mjs';
 
 // Discovery hints only. Guarded Python inspection validates a chosen review.
@@ -41,7 +42,7 @@ export async function discoverSessionReviews(vault){
   }
   async function inspect(file){
     const row={sessionYaml:relative(file),stage:'not mapped'};
-    const identity=bundleArtifactIdentity(registry,row.sessionYaml);
+    const identity=bundleArtifactIdentity(inventory,row.sessionYaml);
     if (identity) {
       row.campaign=registry.campaigns[identity.campaign].name;
       row.number=identity.number;
@@ -86,6 +87,7 @@ export async function discoverSessionReviews(vault){
   try{if((await fs.lstat(start)).isSymbolicLink())throw new Error('Session discovery does not follow a linked _sessions folder');}
   catch(error){if(error.code==='ENOENT')return {sessions,countsAreUnvalidated:true};throw error;}
   await readRegistry();
+  const inventory=readVaultSessionBundles(root,registry);
   await visit(start);
   return {sessions,countsAreUnvalidated:true};
 }

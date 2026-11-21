@@ -6,16 +6,29 @@ export function sessionNumber(value) {
   return match ? match[1].replace(/^0+(?=[0-9])/, '') + (match[2] ?? '') : null;
 }
 
-export function bundleArtifactIdentity(registry, artifactPath) {
-  const parts = artifactPath.split('/');
-  if (parts.at(-2) !== 'cleaned') return null;
-  const suffix = numberedBundle.exec(parts.at(-3) ?? '');
-  if (!suffix) return null;
-  const directory = parts.slice(0, -3).join('/');
-  for (const [campaign, entry] of Object.entries(registry.campaigns)) {
-    if (entry.sessionBundleDirectory === directory) {
-      return {campaign, number: sessionNumber(suffix[1] + (suffix[2] ?? ''))};
+export function indexSessionBundles(registry, listFolders) {
+  const byPath = new Map(), bySession = new Map();
+  for (const [campaign, {sessionBundleDirectory: directory}] of Object.entries(registry.campaigns)) {
+    if (!directory) continue;
+    for (const name of listFolders(directory)) {
+      const suffix = numberedBundle.exec(name);
+      if (!suffix) continue;
+      const number = sessionNumber(suffix[1] + (suffix[2] ?? ''));
+      const path = directory + '/' + name, key = campaign + ':' + number;
+      const other = bySession.get(key);
+      if (other) throw new Error('Duplicate bundles for session ' + key + ': ' + other + ', ' + path);
+      byPath.set(path, {campaign, number});
+      bySession.set(key, path);
     }
   }
-  return null;
+  return {
+    entries: () => byPath.entries(),
+    find: (campaign, number) => bySession.get(campaign + ':' + sessionNumber(number)) ?? null,
+    identify: path => byPath.get(path) ?? null,
+  };
+}
+
+export function bundleArtifactIdentity(bundles, artifactPath) {
+  const parts = artifactPath.split('/');
+  return parts.at(-2) === 'cleaned' ? bundles.identify(parts.slice(0, -2).join('/')) : null;
 }

@@ -1,4 +1,5 @@
 import {bundleArtifactIdentity} from '../../../src/session-bundles.mjs';
+import {readVaultSessionBundles} from '../../../src/vault-session-bundles.mjs';
 import {readCampaignRegistry} from '../services/campaign-registry.mjs';
 import {ContentStore} from '../../../src/content-store.mjs';
 import {scanHeaderCallouts} from '../../../src/header-callout.mjs';
@@ -22,6 +23,7 @@ async function readFiles(files,read) {
 }
 export async function obsidianInteractions(app) {
   const registry=await readCampaignRegistry(app);
+  const inventory=readVaultSessionBundles(app.vault.adapter.getBasePath(),registry);
   const files=app.vault.getMarkdownFiles().filter(file=>!file.path.split('/').some(part=>part.startsWith('.'))).sort((a,b)=>a.path.localeCompare(b.path));
   const byPath=new Map(),entries=files.filter(file=>!file.path.split('/').some(part=>part.startsWith('_'))).map(file=>{
     // Obsidian indexes the author's local notes; knownTo pages need not carry a person tag.
@@ -38,7 +40,7 @@ export async function obsidianInteractions(app) {
   const recaps=files.filter(file=>file.path.endsWith('-session-recap.md'));
   const bundles=[],warnings=[];
   await readFiles(recaps,async file=>{
-    const identity=bundleArtifactIdentity(registry,file.path);
+    const identity=bundleArtifactIdentity(inventory,file.path);
     if (!identity) return;
     try {
       bundles.push(parseSessionRecap(await app.vault.cachedRead(file),file.path,identity));

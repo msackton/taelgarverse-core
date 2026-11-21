@@ -61,6 +61,9 @@ The Node importer reads
 `<sessionBundleDirectory>/<prefix>-NNN/cleaned/*-session-recap.md`. The
 registered directory supplies the campaign ID, and the bundle folder suffix
 supplies the number. A suffix of `012.10` identifies session `12.10`.
+A campaign and session number must identify a single numbered bundle folder.
+The website importer and Obsidian features report both conflicting paths
+before reading any recaps or reviews, including when one folder is empty.
 Campaign and session labels in the recap header are display text. Encounter
 membership comes from the Cast section.
 

@@ -8,6 +8,7 @@ import {targetPath} from '../src/common.mjs';
 import {buildBacklinkIndex} from '../src/backlinks.mjs';
 import {compileInteractionIndex,campaignInteractions,interactionDate} from '../src/campaign-interactions.mjs';
 import {readInteractionBundles} from '../src/session-interactions.mjs';
+import {readVaultSessionBundles} from '../src/vault-session-bundles.mjs';
 import {parseSessionRecap as parseRecap} from '../src/recap-parser.mjs';
 import {interactionSummary,interactionView} from '../src/interaction-view.mjs';
 import {interactionDateLabel} from '../src/browser/interaction-groups.mjs';
@@ -500,7 +501,16 @@ test('Node recap reader imports only supported recap files and ignores private s
     const loose=path.join(directory,'_sessions','to-process','cleenseau-012.1','cleaned');
     fs.mkdirSync(loose,{recursive:true});
     fs.writeFileSync(path.join(loose,'ignored-session-recap.md'),recap);
-    const result=readInteractionBundles({vault_dir:directory}, {campaigns:{clee:registry.campaigns.cleenseau}});assert.equal(result.bundles.length,1);
+    const registered={campaigns:{clee:registry.campaigns.cleenseau}};
+    fs.mkdirSync(path.join(directory,'_sessions/cleenseau/cleenseau-012.10'));
+    const inventory=readVaultSessionBundles(directory,registered);
+    const bundle=inventory.find('clee','012.1');
+    assert.equal(bundle,'_sessions/cleenseau/cleenseau-012.1');
+    assert.deepEqual(inventory.identify(bundle),{campaign:'clee',number:'12.1'});
+    assert.equal(inventory.find('clee','12.10'),'_sessions/cleenseau/cleenseau-012.10');
+    assert.equal(inventory.find('clee','12'),null);
+    assert.equal(inventory.identify('_sessions/to-process/cleenseau-012.1'),null);
+    const result=readInteractionBundles({vault_dir:directory},registered);assert.equal(result.bundles.length,1);
     assert.equal(result.bundles[0].campaign,'clee');assert.equal(result.bundles[0].number,'12.1');assert.equal(result.bundles[0].scenes,undefined);
     assert.doesNotMatch(JSON.stringify(result),/private transcript|Long narrative|long account/);
     assert.deepEqual(result.warnings,[]);
@@ -511,5 +521,7 @@ test('Node recap reader imports only supported recap files and ignores private s
     assert.ok(invalid.bundles.some(bundle=>bundle.invalid && bundle.key.includes('cleenseau-013')));
     const store=storeFor({'Person.md':person,'Session.md':session.replace('12.1','13')});
     assert.equal(eventsFor(store,compileInteractionIndex(store,registry,buildBacklinkIndex(store),invalid.bundles)).some(event=>event.kind==='session-reference'),false);
+    fs.mkdirSync(path.join(directory,'_sessions/cleenseau/duplicate-012.1'));
+    assert.throws(()=>readInteractionBundles({vault_dir:directory},registered),/Duplicate bundles for session clee:12\.1:.*cleenseau-012\.1.*duplicate-012\.1/);
   } finally {const resolved=fs.realpathSync(directory);assert.ok(isInside(fs.realpathSync(path.join(ROOT,'.cache')),resolved));assert.ok(path.basename(resolved).startsWith('interactions-'));fs.rmSync(resolved,{recursive:true});}
 });

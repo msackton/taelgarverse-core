@@ -3,6 +3,8 @@ import {serviceExports,attachServices} from './helpers/obsidian-services.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
+import os from 'node:os';
+import {mkdirSync,mkdtempSync,rmSync} from 'node:fs';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
 import {setTimeout as pause} from 'node:timers/promises';
@@ -37,7 +39,7 @@ const initial={
   '_sessions/cleenseau/cleenseau-001/cleaned/cleenseau-001-source-cleaned.md':'Raw transcript is never read.',
 };
 function events(){const callbacks=new Map();return {on(name,fn){const set=callbacks.get(name)||new Set();set.add(fn);callbacks.set(name,set);return ()=>set.delete(fn);},trigger(name){for(const fn of callbacks.get(name)||[])fn();},get count(){return [...callbacks.values()].reduce((n,set)=>n+set.size,0);}};}
-function host({automatic=false,notes={}}={}) {
+function host({automatic=false,notes={},bundleFolders=[]}={}) {
   const dom=imageDOM('<div id="leaf"><div class="markdown-preview-view"><div class="markdown-preview-sizer"><p>Biography</p></div></div></div>');
   class Component {
     constructor(){this.children=new Set();this.cleanups=[];}
@@ -57,18 +59,22 @@ function host({automatic=false,notes={}}={}) {
   vm.runInNewContext(compiled.outputFiles[0].text,globals);
   const texts=new Map(Object.entries({...initial,...notes})),files=new Map(),metadata=new Map(),reads=[],opened=[];
   for(const [p,text] of texts){files.set(p,{path:p,basename:path.posix.basename(p,'.md'),extension:'md'});metadata.set(p,parseNote(text).metadata);}
+  const basePath=mkdtempSync(path.join(os.tmpdir(),'taelgar-interactions-'));
+  for(const folder of [...[...files.keys()].filter(p=>p.startsWith('_sessions/')).map(p=>path.posix.dirname(p)),...bundleFolders]) {
+    mkdirSync(path.join(basePath,folder),{recursive:true});
+  }
   const cache=events(),vault=events(),workspace=events();let defer,release;
   const app={metadataCache:{...cache,getFileCache(file){if(file.metadata)return {frontmatter:file.metadata};const source=texts.get(file.path);return {frontmatter:metadata.get(file.path),links:[...source.matchAll(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g)].map(match=>({link:match[1],position:{start:{offset:match.index},end:{offset:match.index+match[0].length}}}))};},
     getFirstLinkpathDest:target=>[...files.values()].find(file=>file.path===target || file.path===target+'.md' || file.basename===target)},
     vault:{...vault,getName:()=> 'Test Vault',getMarkdownFiles:()=>[...files.values()],getAbstractFileByPath:p=>files.get(p) || indexed.files.get(p),
-      adapter:{async read(){if(defer)await defer;return JSON.stringify(indexed.index);}},cachedRead:async file=>{reads.push(file.path);return texts.get(file.path);}},
+      adapter:{getBasePath:()=>basePath,async read(){if(defer)await defer;return JSON.stringify(indexed.index);}},cachedRead:async file=>{reads.push(file.path);return texts.get(file.path);}},
     workspace:{...workspace,onLayoutReady:fn=>fn(),iterateAllLeaves:fn=>leaves.forEach(fn),openLinkText:(...args)=>opened.push(args)}};
   const view={file:files.get('People/Person.md'),mode:'preview',getMode(){return this.mode;},getViewType:()=> 'markdown',previewMode:{containerEl:dom.document.querySelector('.markdown-preview-view')}};
   const leaves=[{view}],processors=new Map(),extensions=[];
   const plugin={app,settings:{automaticInteractions:automatic},registerMarkdownCodeBlockProcessor:(language,fn)=>processors.set(language,fn),registerMarkdownPostProcessor(fn){this.post=fn;},registerEditorExtension:value=>extensions.push(value)};
   const disposeServices=attachServices(plugin,module.exports);
   const feature=new module.exports.InteractionsFeature(plugin);feature.load();
-  const dispose=()=>{feature.unload();disposeServices();};
+  const dispose=()=>{feature.unload();disposeServices();rmSync(basePath,{recursive:true,force:true});};
   return {...dom,...module.exports,globals,app,feature,dispose,plugin,view,leaves,processors,extensions,metadata,texts,reads,opened,intervals,cache,vault,workspace,
     async settle(){await pause(15);await Promise.all([...feature.panels.values()].map(child=>child.ready));await pause(5);},
     block(source='',p='People/Person.md'){const element=dom.document.createElement('div');dom.document.body.append(element);let child;processors.get('taelgar-interactions')(source,element,{sourcePath:p,addChild(value){child=value;child.load();}});return {element,child};},
@@ -88,6 +94,14 @@ test('Obsidian indexes authoritative recaps and native campaign references, reta
     assert.equal(result.group.events[0].transcriptUrl,undefined);
     assert.ok(h.reads.every(p=>!p.includes('/Session 01.md') && !p.includes('transcript') && !p.startsWith('World') && !p.includes('_generated')));
     assert.equal(h.metadata.get('People/Person.md').excludePublish,'all','vault metadata is never modified');
+  }finally{h.dispose();}
+});
+
+test('Obsidian interactions report a duplicate bundle with an empty folder',async()=>{
+  const h=host({bundleFolders:['_sessions/cleenseau/duplicate-001']});
+  try {
+    await assert.rejects(h.obsidianInteractions(h.app),/Duplicate bundles for session clee:1:.*cleenseau-001.*duplicate-001/);
+    assert.deepEqual(h.reads,[]);
   }finally{h.dispose();}
 });
 

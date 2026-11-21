@@ -66,4 +66,6 @@ test('registered bundle names supply review identity even with conflicting or mi
   }
   const {sessions}=await discoverSessionReviews(root);
   assert.deepEqual(sessions.filter(row=>row.campaign==='Cleenseau Campaign').map(row=>row.number),['12.1','12.10']);
+  await fs.mkdir(path.join(root,'_sessions/cleenseau/duplicate-012.10'));
+  await assert.rejects(discoverSessionReviews(root),/Duplicate bundles for session clee:12\.10:.*cleenseau-012\.10.*duplicate-012\.10/);
 });
