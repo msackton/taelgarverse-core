@@ -3,7 +3,6 @@ import path from 'node:path';
 import {parse} from 'yaml';
 import {createHash} from 'node:crypto';
 import {campaignRegistry, registryPath} from '../../../src/campaign-registry.mjs';
-import {bundleArtifactIdentity} from '../../../src/session-bundles.mjs';
 import {readVaultSessionBundles} from '../../../src/vault-session-bundles.mjs';
 import {parseNote} from '../../../src/content-store.mjs';
 
@@ -13,7 +12,10 @@ export async function discoverSessionReviews(vault){
   const root=path.resolve(vault),sessions=[];
   const relative=file=>path.relative(root,file).split(path.sep).join('/');
   async function entries(folder){
-    try{return await fs.readdir(folder,{withFileTypes:true});}
+    try{
+      if(!(await fs.lstat(folder)).isDirectory())return [];
+      return await fs.readdir(folder);
+    }
     catch(error){if(error.code==='ENOENT')return [];throw error;}
   }
   async function plain(file){
@@ -27,35 +29,29 @@ export async function discoverSessionReviews(vault){
     }
     return fs.readFile(file,'utf8');
   }
-  let registry = {campaigns: {}};
   async function readRegistry() {
     let index;
     try {
       index = JSON.parse(await plain(path.join(root, registryPath)));
     } catch (error) {
-      if (error.code === 'ENOENT') return;
+      if (error.code === 'ENOENT') return {campaigns: {}};
       throw error;
     }
     const notes = new Map(await Promise.all(Object.values(index).map(async target =>
       [target, parseNote(await plain(path.join(root, target))).metadata])));
-    registry = campaignRegistry(index, target => notes.get(target));
+    return campaignRegistry(index, target => notes.get(target));
   }
-  async function inspect(file){
-    const row={sessionYaml:relative(file),stage:'not mapped'};
-    const identity=bundleArtifactIdentity(inventory,row.sessionYaml);
-    if (identity) {
-      row.campaign=registry.campaigns[identity.campaign].name;
-      row.number=identity.number;
-    }
+  async function inspect(directory,{campaign,number}){
+    const folder=path.join(root,directory,'cleaned');
+    const row={sessionYaml:relative(folder),stage:'not mapped',campaign:registry.campaigns[campaign].name,number};
     try{
+      const manifests=(await entries(folder)).filter(name=>name.endsWith('-session.yaml')).sort();
+      if(!manifests.length)return;
+      const file=path.join(folder,manifests[0]);
+      row.sessionYaml=relative(file);
+      if(manifests.length>1)throw new Error('Multiple session manifests: '+manifests.join(', '));
       const data=parse(await plain(file));
       if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('Expected a session YAML object');
-      // Loose intake manifests and standalone reviews have no registered bundle path.
-      if (!identity) {
-        row.campaign=String(data.campaign??'');
-        row.number=data.sessionNumber;
-      }
-      const folder=path.dirname(file);
       const entity=path.join(folder,path.basename(file).replace(/-session\.yaml$/,'-entity-map.json'));
       try{
         const doc=JSON.parse(await plain(entity));
@@ -74,20 +70,10 @@ export async function discoverSessionReviews(vault){
     }catch(error){row.stage='error';row.error=error.message;}
     sessions.push(row);
   }
-  async function visit(folder){
-    for(const item of (await entries(folder)).sort((a,b)=>a.name.localeCompare(b.name))){
-      const file=path.join(folder,item.name);
-      if(item.isDirectory()){
-        if((await fs.lstat(file)).isSymbolicLink())continue;
-        await visit(file);
-      }else if(item.name.endsWith('-session.yaml'))await inspect(file);
-    }
-  }
-  const start=path.join(root,'_sessions');
-  try{if((await fs.lstat(start)).isSymbolicLink())throw new Error('Session discovery does not follow a linked _sessions folder');}
-  catch(error){if(error.code==='ENOENT')return {sessions,countsAreUnvalidated:true};throw error;}
-  await readRegistry();
+  const registry=await readRegistry();
   const inventory=readVaultSessionBundles(root,registry);
-  await visit(start);
+  for(const [directory,identity] of [...inventory.entries()].sort(([left],[right])=>left.localeCompare(right))){
+    await inspect(directory,identity);
+  }
   return {sessions,countsAreUnvalidated:true};
 }
