@@ -82,8 +82,7 @@ test('campaign ownership recognizes registry identities and folders while keepin
     assert.deepEqual(buildBacklinkCampaigns(entry,registry).get('session'),['adma']);
   }
   const all = linkedFrom(compiled,sample,'target',{...context('1720-01-01',['adma','dufr']),allCampaigns:true},owners).map(link=>link.page);
-  for (const source of ['unknown','unassigned-session','campaigns/unregistered-campaign/session']) assert.ok(all.includes(source));
-  assert.equal(all.includes('other'),false); // Creation dates still apply.
+  assert.deepEqual(new Set(all),new Set(['shared','campaigns/campaigns','multi']));
 });
 
 test('person Linked from omits campaign material in every context without removing it from the index or other pages',() => {
@@ -110,7 +109,8 @@ test('person Linked from omits campaign material in every context without removi
   }
   const all = {...context('1720-01-01',['adma','dufr','other']),allCampaigns:true};
   const places = linkedFrom(compiled,sample,'place',all,owners).map(link=>link.page);
-  for (const source of ['session','unassigned-session','declared','unknown','campaigns/addermarch-campaign/handout','campaigns/unregistered/handout','adventures/letter']) assert.ok(places.includes(source),source);
+  for (const source of ['session','declared','campaigns/addermarch-campaign/handout','adventures/letter']) assert.ok(places.includes(source),source);
+  for (const source of ['unassigned-session','unknown','campaigns/unregistered/handout']) assert.ok(!places.includes(source),source);
   assert.equal(compiled.byTarget.person.length,9);
   assert.equal(JSON.stringify(compiled),before);
   assert.equal(linkedFrom(compiled,sample,'person',all).some(link=>link.page==='legacy-session'),false);

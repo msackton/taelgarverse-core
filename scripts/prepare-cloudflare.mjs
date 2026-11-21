@@ -52,7 +52,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     const homeSource=settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null;
     const registry=readVaultCampaigns(settings.vault_dir);
     const campaignHomes=readCampaignHomes(settings);
-    new CampaignSites(campaignHomes,new Contexts(store,registry,settings));
+    new CampaignSites(campaignHomes,Contexts.forWebsite(store,registry,settings));
     return {store,homeSource,registry,campaignHomes};
   });
   const materialization=materialize ? await timed('Materializing Dataview queries',()=>materialize(store)) : undefined;

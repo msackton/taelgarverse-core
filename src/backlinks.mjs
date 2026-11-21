@@ -96,7 +96,7 @@ export function linkedFrom(index, store, target, context, sourceCampaigns) {
     const source = store.bySlug.get(link.source);
     if (personCampaigns && (personCampaigns.has(link.source) || source?.note.metadata.sessionNumber != null)) return false;
     const ownership = sourceCampaigns?.get(link.source);
-    return (context.allCampaigns || !ownership || ownership.some(code=>campaigns.has(code))) &&
+    return (!ownership || ownership.some(code=>campaigns.has(code))) &&
       source?.slug !== target && availableInContext(source,context) && link.when.some(rule =>
       (!rule.campaign || campaigns.has(rule.campaign)) &&
       (!rule.campaigns || rule.campaigns.every(code=>campaigns.has(code))) &&

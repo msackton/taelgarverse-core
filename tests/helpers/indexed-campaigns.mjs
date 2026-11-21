@@ -4,7 +4,8 @@ export function indexedCampaigns(registry) {
   for(const [slug,campaign] of Object.entries(registry.campaigns)) {
     const path='Campaigns/_Index/'+campaign.code+'.md';
     index[campaign.code]=path;
-    files.set(path,{path,metadata:{name:campaign.name,campaignDirectory:campaign.campaignRoot,
+    files.set(path,{path,metadata:{name:campaign.name,canon:campaign.canon ?? 'canonical',continuity:campaign.continuity ?? ['main'],
+      campaignDirectory:campaign.campaignRoot,
       partyPage:campaign.partyPage && campaign.partyPage+'.md',notePattern:campaign.notePattern,
       sessionBundleDirectory:'_sessions/'+(campaign.sessionRoot || slug)}});
   }

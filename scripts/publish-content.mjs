@@ -228,6 +228,7 @@ export function buildFingerprint(settings, options, config={}) {
     new URL('./build-images.mjs', import.meta.url), new URL('./derivative-cache.mjs', import.meta.url), new URL('../src/images.mjs', import.meta.url),
     new URL('./image-usage.mjs', import.meta.url),
     new URL('../src/website-sources.mjs', import.meta.url), new URL('../src/campaign-sites.mjs', import.meta.url),
+    new URL('../src/campaign-registry.mjs', import.meta.url),
     new URL('../src/folder-exclusions.mjs', import.meta.url),
     new URL('./export-dataview.mjs', import.meta.url), new URL('../src/dataview-export.mjs', import.meta.url),
     new URL('./materialize-website.mjs',import.meta.url),new URL('./materialize-website-dataview.mjs',import.meta.url),new URL('./website-working-vault.mjs',import.meta.url),new URL('./convert-website.mjs',import.meta.url),

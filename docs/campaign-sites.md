@@ -30,11 +30,12 @@ the view, add a full DR date, for example `date: 1748-05-05`. An explicit
 `date: modern` has the same behavior as omitting the field.
 
 `campaigns` accepts a YAML list or comma-separated string. Use canonical lowercase
-campaign IDs from `_sessions/campaign-registry.json`. `campaigns: all` selects every
-registered campaign; `campaigns: []` selects shared content without campaign
-blocks. Campaigns without a dated session can be included in a multi-campaign
-page, which uses Modern or its explicit date. An optional `title` labels the locked
-context in the header; otherwise the selected campaign names supply the label.
+campaign IDs from `_sessions/campaign-registry.json` whose index notes have
+`canon: canonical` and `main` as their sole continuity. `campaigns: all` selects
+every eligible campaign. `campaigns: []` selects shared content without campaign
+blocks. A multi-campaign page can include eligible campaigns without a dated
+session and uses Modern or its explicit date. An optional `title` labels the
+locked context in the header. The selected campaign names supply the default label.
 The Markdown heading still controls the homepage banner.
 
 A single campaign uses the same field:

@@ -21,6 +21,13 @@ function compareSessions(a,b) {
   return 0;
 }
 export class Contexts {
+  static forWebsite(store, registry, settings) {
+    // Snapshots published before the index supplied eligibility keep their saved choices.
+    const campaigns = Object.fromEntries(Object.entries(registry.campaigns || {})
+      .filter(([,campaign]) => campaign.websiteSelectable !== false));
+    return new Contexts(store,{campaigns},settings);
+  }
+
   constructor(store, registry, settings) {
     this.settings = settings;
     this.warnings = [];

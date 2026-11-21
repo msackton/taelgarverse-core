@@ -33,7 +33,7 @@ export function compileRuntime(index,sourceStore,{noteShardBytes=65536,backlinkS
   }
   flush();
   const store=new ContentStore(entries,index.warnings,index.settings);
-  const contexts=new Contexts(store,index.registry,index.settings),sites=new CampaignSites(index.campaignHomes,contexts);
+  const contexts=Contexts.forWebsite(store,index.registry,index.settings),sites=new CampaignSites(index.campaignHomes,contexts);
   const presets=contexts.list().filter(context=>context.available && context.date);
   for(const site of sites.byHost.values())if(contexts.byId.get(site.contextId)?.available)presets.push(contexts.resolve(site.contextId,site.date,site.campaigns));
   const navigation=new Navigation(store,index.navigationSource);

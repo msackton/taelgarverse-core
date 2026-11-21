@@ -25,7 +25,7 @@ export class RenderEngine {
     this.store = store;
     this.store.settings = settings;
     this.headers = headers;
-    this.contexts = prepared?.contexts || new Contexts(this.store,this.headers.registry,settings);
+    this.contexts = prepared?.contexts || Contexts.forWebsite(this.store,this.headers.registry,settings);
     this.campaignSites = prepared?.campaignSites || new CampaignSites(campaignHomes,this.contexts);
     this.markdown = createMarkdown();
     this.notesMarkdown = createMarkdown({html:false});

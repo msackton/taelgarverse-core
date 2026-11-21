@@ -26,10 +26,13 @@ export function campaignRegistry(index, frontmatter) {
       bundleDirectories.set(directory, id);
     }
     paths.add(path);
+    const continuities = Array.isArray(fields.continuity) ? fields.continuity : [fields.continuity];
     campaigns[id] = {
       name: fields.name, code: id, campaignRoot: fields.campaignDirectory,
       notePattern: fields.notePattern, partyPage: fields.partyPage?.replace(/\.md$/, ''),
       sessionBundleDirectory: fields.sessionBundleDirectory,
+      websiteSelectable: fields.canon === 'canonical' && continuities.length > 0 &&
+        continuities.every(continuity => continuity === 'main'),
     };
   }
   return {campaigns};

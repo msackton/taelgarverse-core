@@ -599,8 +599,15 @@ from the Obsidian adapter.
 | Reader's choice | What it means |
 | --- | --- |
 | A named campaign | Use that campaign's latest session date and show text marked for that campaign. |
-| Modern | Use the latest date across the campaigns. Campaign-specific text stays hidden. |
+| Modern | Use the latest date across eligible campaigns. Campaign-specific text stays hidden. |
 | Custom | Use a date chosen by the reader and select All campaigns, an individual subset, or no campaigns. |
+
+The website includes campaigns whose index note has `canon: canonical` and
+`main` as its sole continuity. Eligible campaigns without a usable date appear
+disabled as named presets and remain available in Custom. The same eligibility
+rule applies to campaign landing pages.
+Deploy the updated website code and republish with the updated publisher to apply
+the rule to the live site. Existing publications retain their saved context lists.
 
 Dates use `YYYY-MM-DD` in the DR calendar, with no leap days. Use Custom to choose
 a date other than a campaign's current date. If no campaign has a usable date,
@@ -781,11 +788,10 @@ retains the fragment structure and reports `layout: "wide"` for that override.
 
 **Linked from** lists other articles that link to the current one. Only pages and
 passages visible in the selected view contribute links. Campaign notes contribute
-links when their campaign is selected, including Custom subsets. Modern and
-Custom without campaigns show shared reference sources. Custom All campaigns
-also includes unrecognized campaign sources. Campaign ownership comes from the
-source note's `campaign` property or its registered campaign folder. This does
-not change whether those articles can be opened directly.
+links when their campaign is selected, including in Custom All campaigns. Modern
+and Custom without campaigns show shared reference sources. Campaign ownership
+comes from the source note's `campaign` property or its registered campaign
+folder. Published campaign articles remain directly readable when their dates allow.
 Generated header relationships and links back to the same article are excluded.
 On person-tagged NPC pages, **Linked from** also excludes session notes and other
 campaign material in every view, including Modern and Behind the Curtain.

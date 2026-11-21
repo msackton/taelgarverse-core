@@ -49,7 +49,15 @@ before(async()=>{
   fs.mkdirSync(path.join(directory,'.obsidian'));fs.mkdirSync(path.join(directory,'_scripts'));fs.mkdirSync(path.join(directory,'_website'));
   const {input}=headerFixture();
   fs.writeFileSync(path.join(directory,'.obsidian/metadata.json'),JSON.stringify(input.coreMeta));
-  writeCampaignIndex(directory,{campaigns:{frontier:{code:'dufr',name:'Frontier',campaignRoot:'Campaigns/Frontier'},adder:{code:'adma',name:'Adder'}}});
+  writeCampaignIndex(directory,{campaigns:{
+    frontier:{code:'dufr',name:'Frontier',campaignRoot:'Campaigns/Frontier'},
+    adder:{code:'adma',name:'Adder'},
+    prologue:{code:'prologue',name:'Prologue'},
+    crossover:{code:'crossover',name:'Crossover',continuity:['main','alternate']},
+    alternate:{code:'alternate',name:'Alternate',continuity:['alternate']},
+    selective:{code:'selective',name:'Selective',canon:'selective'},
+    noncanon:{code:'noncanon',name:'Noncanon',canon:'noncanonical'},
+  }});
   const notes={
     'Person.md':'---\ntags: [person]\nborn: 1700-01-01\naliases: [Traveler]\n---\n> [!taelgar-header]\n\n# Person body\n\n[[Future]] [[Other]] [[Twin]]\n\n![[Other#Section]]\n\n%% hidden note %%\n%%^Campaign:dufr%%frontier paragraph%%^End%%',
     'Other.md':'---\naliases: [Twin]\n---\n## Section\n\nA nested paragraph. [[Person]] ![[Third]]\n\n%% secret nested %%',
@@ -57,6 +65,8 @@ before(async()=>{
     'Future.md':'---\nPOV: 1750s\ncreated: 1740\nexcludePublish: [adma]\n---\nFuture body.',
     'Session.md':'---\ntags: [session-note]\ncampaign: dufr\nDR: 1745-01-01\n---\nSession.',
     'Adder Session.md':'---\ntags: [session-note]\ncampaign: adma\nDR: 1740-01-01\n---\nSession.',
+    'Alternate Session.md':'---\ntags: [session-note]\ncampaign: alternate\nDR: 1850-01-01\n---\n[[Other]]',
+    'Crossover Session.md':'---\ntags: [session-note]\ncampaign: crossover\nDR: 1860-01-01\n---\n[[Other]]',
   };
   Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/backlinks.json',import.meta.url),'utf8')));
   Object.assign(notes,indexSources(featureIndexNotes),{
@@ -89,6 +99,25 @@ before(async()=>{
   objects.set('published/current.json',fs.readFileSync(report.pointerFile));
 });
 after(()=>fs.rmSync(directory,{recursive:true,force:true}));
+
+test('website presets, Modern, and Custom require main as the sole continuity',async()=>{
+  const worker=createWorker(),bucket=new Bucket();
+  const catalogue=await (await request(worker,bucket,'/api/contexts')).json();
+  assert.deepEqual(catalogue.contexts.map(context=>context.id),['modern','adma','dufr','prologue','custom']);
+  assert.equal(catalogue.contexts[0].date,'1745-01-01');
+  assert.equal(catalogue.contexts.find(context=>context.id==='prologue').available,false);
+  const html=await (await request(worker,bucket,'/')).text();
+  assert.match(html,/<option value="prologue" disabled>/);
+  assert.match(html,/name="campaigns" value="prologue" data-campaign-choice/);
+  assert.doesNotMatch(html,/(?:name="campaigns" |<option )value="(?:alternate|crossover|selective|noncanon)"/);
+  const all=await (await request(worker,bucket,'/api/page?page=Other&campaigns=all')).json();
+  assert.deepEqual(all.campaigns,['adma','dufr','prologue']);
+  assert.ok(!all.backlinks.some(link=>['alternate-session','crossover-session'].includes(link.page)));
+  assert.equal((await request(worker,bucket,'/api/page?page=Other&context=crossover')).status,400);
+  for(const campaign of ['Alternate','Crossover','selective','noncanon']) {
+    assert.equal((await request(worker,bucket,'/api/page?page=Other&campaigns='+campaign)).status,400);
+  }
+});
 
 test('compiled and legacy snapshots produce identical dynamic HTML, APIs, embeds and reader contexts',async()=>{
   const current=new Bucket(),legacy=new Bucket(objects,{legacy:true}),worker=createWorker(),old=createWorker();
