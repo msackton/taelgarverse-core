@@ -4,7 +4,7 @@ export const registryPath = '_sessions/campaign-registry.json';
 export function campaignRegistry(index, frontmatter) {
   if (!index || Array.isArray(index) || typeof index !== 'object' || !Object.keys(index).length)
     throw new Error(registryPath + ': expected a nonempty map of campaign IDs to index notes');
-  const campaigns = Object.create(null), paths = new Set();
+  const campaigns = Object.create(null), paths = new Set(), bundleDirectories = new Map();
   for (const [id, path] of Object.entries(index)) {
     if (!/^[a-z][a-z0-9]*$/.test(id) || typeof path !== 'string' || !path.endsWith('.md') ||
         path.includes('\\') || path.split('/').some(part => !part || part === '..' || part === '.') || paths.has(path))
@@ -12,11 +12,23 @@ export function campaignRegistry(index, frontmatter) {
     const fields = frontmatter(path);
     if (typeof fields?.name !== 'string' || !fields.name.trim())
       throw new Error(id + ': missing index note or name in ' + path);
+    const directory = fields.sessionBundleDirectory;
+    if (directory !== undefined && directory !== null && directory !== '') {
+      if (typeof directory !== 'string' || directory.includes('\\') ||
+          directory.split('/').some(part => !part || part === '.' || part === '..')) {
+        throw new Error(id + ': invalid sessionBundleDirectory ' + directory);
+      }
+      for (const [other, owner] of bundleDirectories) {
+        if (directory === other || directory.startsWith(other + '/') || other.startsWith(directory + '/')) {
+          throw new Error('Overlapping session bundle directories for ' + id + ' and ' + owner);
+        }
+      }
+      bundleDirectories.set(directory, id);
+    }
     paths.add(path);
     campaigns[id] = {
       name: fields.name, code: id, campaignRoot: fields.campaignDirectory,
       notePattern: fields.notePattern, partyPage: fields.partyPage?.replace(/\.md$/, ''),
-      sessionRoot: fields.sessionBundleDirectory?.replace(/^_sessions\//, ''),
       sessionBundleDirectory: fields.sessionBundleDirectory,
     };
   }

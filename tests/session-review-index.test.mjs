@@ -53,3 +53,17 @@ test('unprocessed manifests remain discoverable alongside cleaned session bundle
   await write('demo-entity-map.json',JSON.stringify({entities:[{review:{status:'automatedReviewed',confidence:'high'}},{review:{status:'humanReviewed',confidence:'low'}}]}));
   const row=(await discoverSessionReviews(root)).sessions[0];assert.equal(row.pending,1);assert.equal(row.human,1);
 });
+
+
+test('registered bundle names supply review identity even with conflicting or missing YAML values', async t => {
+  const {root}=await fixture(t);
+  await fs.writeFile(path.join(root,'_sessions/campaign-registry.json'),JSON.stringify({clee:'Index.md'}));
+  await fs.writeFile(path.join(root,'Index.md'),'---\nname: Cleenseau Campaign\nsessionBundleDirectory: _sessions/cleenseau\n---\n');
+  for (const [number,yaml] of [['012.1','campaign: dufr\nsessionNumber: 8'],['012.10','sourceType: narrative']]) {
+    const folder=path.join(root,'_sessions/cleenseau','cleenseau-'+number,'cleaned');
+    await fs.mkdir(folder,{recursive:true});
+    await fs.writeFile(path.join(folder,'historical-spelling-session.yaml'),yaml);
+  }
+  const {sessions}=await discoverSessionReviews(root);
+  assert.deepEqual(sessions.filter(row=>row.campaign==='Cleenseau Campaign').map(row=>row.number),['12.1','12.10']);
+});

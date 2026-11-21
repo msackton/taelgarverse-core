@@ -1,3 +1,4 @@
+import {sessionNumber} from './session-bundles.mjs';
 import {dateKey, pageUrl} from './common.mjs';
 import {availableInContext} from './content-store.mjs';
 import {buildBacklinkCampaigns} from './campaign-ownership.mjs';
@@ -66,7 +67,7 @@ export function interactionReferenceType(metadata) {
 }
 function sessionSources(store,registry,identities,campaign,number) {
   const candidates=[...store.bySlug.values()].filter(entry=>list(entry.note.metadata.tags).includes('session-note') &&
-    identities.get(normalize(entry.note.metadata.campaign))===campaign && String(entry.note.metadata.sessionNumber)===String(number));
+    identities.get(normalize(entry.note.metadata.campaign))===campaign && sessionNumber(entry.note.metadata.sessionNumber)===number);
   const config=Object.values(registry.campaigns || {}).find(item=>item.code===campaign);
   let preferred;
   if (config?.campaignRoot && config.notePattern && /^\d+(?:\.\d+)?$/.test(String(number))) {
@@ -76,31 +77,14 @@ function sessionSources(store,registry,identities,campaign,number) {
   }
   return {candidates:candidates.map(entry=>entry.slug),...(preferred ? {preferred} : {})};
 }
-function recapCampaign(bundle,registry,identities) {
-  const declared=identities.get(normalize(bundle.campaign));
-  const directory=String(bundle.key).split('/').slice(0,-3).join('/');
-  const owner=Object.values(registry.campaigns || {}).find(c=>c.sessionBundleDirectory===directory)?.code;
-  return owner && declared && owner!==declared ? null : owner || declared;
-}
-function recapIdentity(bundle,registry,identities) {
-  const campaign=recapCampaign(bundle,registry,identities);
-  if(campaign && bundle.number!=null)return campaign+':'+bundle.number;
-  // An unreadable recap must not quietly restore generated-note evidence.
-  // Its standard artifact directory can still reserve the session identity.
-  const parts=String(bundle.key).replaceAll('\\','/').split('/');
-  const config=Object.entries(registry.campaigns || {}).find(([id,item])=>normalize(item.sessionRoot || id)===normalize(parts[1]))?.[1];
-  const number=/-(\d+(?:\.\d+)?)$/.exec(parts[2] || '')?.[1];
-  if(parts[0]==='_sessions' && config && number)return config.code+':'+String(Number(number));
-  return null;
-}
 // A fallback belongs to the whole session, never to an NPC missing from a recap.
 // Choose the registry filename, or one unambiguous legacy metadata candidate.
 export function sessionNoteFallbacks(store,registry,bundles=[]) {
-  const identities=campaignIdentities(registry),recaps=new Set(bundles.map(bundle=>recapIdentity(bundle,registry,identities)).filter(Boolean));
+  const identities=campaignIdentities(registry),recaps=new Set(bundles.map(bundle=>bundle.campaign+':'+bundle.number));
   const sessions=new Map(),fallbacks=new Map();
   for(const entry of store.bySlug.values()) {
-    const metadata=entry.note.metadata,campaign=identities.get(normalize(metadata.campaign)),number=String(metadata.sessionNumber);
-    if(!list(metadata.tags).includes('session-note') || !campaign || !/^\d+(?:\.\d+)?$/.test(number))continue;
+    const metadata=entry.note.metadata,campaign=identities.get(normalize(metadata.campaign)),number=sessionNumber(metadata.sessionNumber);
+    if(!list(metadata.tags).includes('session-note') || !campaign || number===null)continue;
     sessions.set(campaign+':'+number,{campaign,number});
   }
   for(const [identity,{campaign,number}] of sessions) {
@@ -134,14 +118,12 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=null) {
   const append=(target,record)=>{(byTarget[target] ||= []).push(record);};
   for (const bundle of bundles || []) {
     if(bundle.invalid)continue;
-    const campaign=recapCampaign(bundle,registry,identities);
-    if (!campaign) {warnings.push(bundle.key+': unknown campaign '+bundle.campaign);continue;}
-    const key=campaign+':'+bundle.number,items=recaps.get(key) || [];
+    const key=bundle.campaign+':'+bundle.number,items=recaps.get(key) || [];
     items.push(bundle);recaps.set(key,items);
   }
   for (const [identity,items] of recaps) {
     if (items.length!==1) {warnings.push(items.map(item=>item.key).join(', ')+': duplicate recap identity '+identity);continue;}
-    const bundle=items[0],campaign=recapCampaign(bundle,registry,identities);
+    const bundle=items[0],campaign=bundle.campaign;
     const period=interactionDate(bundle.date),until=interactionDate(bundle.end) || period;
     if(period && until.end<period.start){warnings.push(bundle.key+': inverted session dates');continue;}
     const sources=sessionSources(store,registry,identities,campaign,bundle.number);

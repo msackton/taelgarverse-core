@@ -1,3 +1,4 @@
+import {bundleArtifactIdentity} from '../../../src/session-bundles.mjs';
 import {readCampaignRegistry} from '../services/campaign-registry.mjs';
 import {ContentStore} from '../../../src/content-store.mjs';
 import {scanHeaderCallouts} from '../../../src/header-callout.mjs';
@@ -34,13 +35,14 @@ export async function obsidianInteractions(app) {
     const file=app.metadataCache.getFirstLinkpathDest(raw,'');
     return file && byPath.has(file.path) ? {status:'found',entry:byPath.get(file.path)} : lookup(raw);
   };
-  const recaps=files.filter(file=>/^_sessions\/[^/]+\/[^/]+\/cleaned\/[^/]+-session-recap\.md$/.test(file.path));
+  const recaps=files.filter(file=>file.path.endsWith('-session-recap.md'));
   const bundles=[],warnings=[];
   await readFiles(recaps,async file=>{
+    const identity=bundleArtifactIdentity(registry,file.path);
+    if (!identity) return;
     try {
-      const bundle=parseSessionRecap(await app.vault.cachedRead(file),file.path);
-      bundles.push(bundle);
-    } catch(error){warnings.push(file.path+': '+error.message);bundles.push({key:file.path,invalid:true});}
+      bundles.push(parseSessionRecap(await app.vault.cachedRead(file),file.path,identity));
+    } catch(error){warnings.push(file.path+': '+error.message);bundles.push({key:file.path,...identity,invalid:true});}
   });
   bundles.sort((a,b)=>a.key.localeCompare(b.key));
   const fallbacks=sessionNoteFallbacks(store,registry,bundles);

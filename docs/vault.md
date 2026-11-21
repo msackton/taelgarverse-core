@@ -801,7 +801,8 @@ context's campaigns, without a component campaign picker. An empty intersection
 means no component. `knownTo` supplies undated party knowledge and
 `campaignInfo` retains its normal header wording. Authoritative recap entries
 supply one encounter per session for resolved NPCs explicitly marked `met` in
-the recap's Cast. Mention-only and other statuses do not qualify; combined
+the recap's Cast. The [registered bundle path](campaign-interactions.md#authoritative-sources)
+supplies the campaign and session number. Mention-only and other statuses do not qualify; combined
 statuses containing `met` do. Cast membership alone selects sessions; beats,
 their NPC lists, Short/Long text, and transcripts are ignored. The available
 session note's `descTitle`, `DR`, `DR_end`, and `tagline` supply

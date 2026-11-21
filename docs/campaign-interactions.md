@@ -52,15 +52,17 @@ date never becomes an encounter date.
 | --- | --- |
 | Person `knownTo` and `campaignInfo` | Authored header information. |
 | Recap `## Cast` / `### NPCs` | An explicit `met` status creates one session encounter for the resolved NPC. |
-| Recap `## Session Header` | Campaign/session identity and fallback title, DR dates, and tagline. |
+| Registered bundle path | Campaign and session identity. |
+| Recap `## Session Header` | Fallback title, DR dates, and tagline. |
 | Official session note | Full-session display metadata and optional note link; explicit NPC links provide legacy references only when no recap exists. |
 | Non-session articles in registered campaign folders | Supplementary related links, typed using authored tags, without inferred dates. |
 
 The Node importer reads
-`_sessions/<campaign>/<session>/cleaned/*-session-recap.md`. Campaign identity
-comes from the registry; the recap header's **Campaign** and **Session Number**
-identify the session. Fractional numbers remain intact. The session exists
-independently of any beat, NPC list in a beat, Short text, or transcript.
+`<sessionBundleDirectory>/<prefix>-NNN/cleaned/*-session-recap.md`. The
+registered directory supplies the campaign ID, and the bundle folder suffix
+supplies the number. A suffix of `012.10` identifies session `12.10`.
+Campaign and session labels in the recap header are display text. Encounter
+membership comes from the Cast section.
 
 Only Cast NPCs explicitly marked `met` qualify. Combined statuses such as
 `met, fought` or `companion, met` qualify. Mention-only and all other statuses

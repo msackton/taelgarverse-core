@@ -2,6 +2,9 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {parse} from 'yaml';
 import {createHash} from 'node:crypto';
+import {campaignRegistry, registryPath} from '../../../src/campaign-registry.mjs';
+import {bundleArtifactIdentity} from '../../../src/session-bundles.mjs';
+import {parseNote} from '../../../src/content-store.mjs';
 
 // Discovery hints only. Guarded Python inspection validates a chosen review.
 // Do not follow symlinks/junctions while browsing the local session inventory.
@@ -14,6 +17,7 @@ export async function discoverSessionReviews(vault){
   }
   async function plain(file){
     const parts=path.relative(root,file).split(path.sep);
+    if (parts[0] === '..' || path.isAbsolute(parts.join(path.sep))) throw new Error('Session discovery requires a vault path');
     let current=root;
     for(const part of parts){
       current=path.join(current,part);
@@ -22,12 +26,34 @@ export async function discoverSessionReviews(vault){
     }
     return fs.readFile(file,'utf8');
   }
+  let registry = {campaigns: {}};
+  async function readRegistry() {
+    let index;
+    try {
+      index = JSON.parse(await plain(path.join(root, registryPath)));
+    } catch (error) {
+      if (error.code === 'ENOENT') return;
+      throw error;
+    }
+    const notes = new Map(await Promise.all(Object.values(index).map(async target =>
+      [target, parseNote(await plain(path.join(root, target))).metadata])));
+    registry = campaignRegistry(index, target => notes.get(target));
+  }
   async function inspect(file){
     const row={sessionYaml:relative(file),stage:'not mapped'};
+    const identity=bundleArtifactIdentity(registry,row.sessionYaml);
+    if (identity) {
+      row.campaign=registry.campaigns[identity.campaign].name;
+      row.number=identity.number;
+    }
     try{
       const data=parse(await plain(file));
       if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('Expected a session YAML object');
-      row.campaign=String(data.campaign??'');row.number=data.sessionNumber;
+      // Loose intake manifests and standalone reviews have no registered bundle path.
+      if (!identity) {
+        row.campaign=String(data.campaign??'');
+        row.number=data.sessionNumber;
+      }
       const folder=path.dirname(file);
       const entity=path.join(folder,path.basename(file).replace(/-session\.yaml$/,'-entity-map.json'));
       try{
@@ -59,6 +85,7 @@ export async function discoverSessionReviews(vault){
   const start=path.join(root,'_sessions');
   try{if((await fs.lstat(start)).isSymbolicLink())throw new Error('Session discovery does not follow a linked _sessions folder');}
   catch(error){if(error.code==='ENOENT')return {sessions,countsAreUnvalidated:true};throw error;}
+  await readRegistry();
   await visit(start);
   return {sessions,countsAreUnvalidated:true};
 }

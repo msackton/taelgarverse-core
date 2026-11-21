@@ -14,12 +14,13 @@ export {document} from './render-engine.mjs';
 export class Engine extends RenderEngine {
   constructor(settings) {
     const store = new Store(settings);
-    const interactions=readInteractionBundles(settings);
+    const registry=readVaultCampaigns(settings.vault_dir);
+    const interactions=readInteractionBundles(settings,registry);
     store.warnings.push(...interactions.warnings);
     const headers = createHeaderSnapshot({
       pages: store.entries.filter(e => e.note).map(e => ({path: e.id, metadata: e.note.metadata})),
       coreMeta: JSON.parse(fs.readFileSync(path.join(settings.vault_dir, '.obsidian/metadata.json'), 'utf8')),
-      registry: readVaultCampaigns(settings.vault_dir),
+      registry,
     });
     super({settings,store,headers,
       navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,

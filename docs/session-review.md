@@ -14,6 +14,11 @@ processing inputs: note edits do not block review or reset human decisions.
 Existing maps' legacy `inputs.vaultNotes` hashes are ignored and removed on the
 next guarded map save. Linked targets must still be valid vault paths.
 
+The registered bundle directory supplies the campaign, and the bundle folder
+suffix supplies the session number. Loose intake manifests still supply their
+own labels. See [campaign interactions](campaign-interactions.md#authoritative-sources)
+for the same bundle rule in the website and Obsidian interaction views.
+
 A changed transcript or session metadata opens a confirmation screen before the
 map or queue. **Continue with current transcript** accepts only the displayed
 revision, updates the recorded source fingerprints, and records a

@@ -7,7 +7,8 @@ import {ContentStore,parseNote} from '../src/content-store.mjs';
 import {targetPath} from '../src/common.mjs';
 import {buildBacklinkIndex} from '../src/backlinks.mjs';
 import {compileInteractionIndex,campaignInteractions,interactionDate} from '../src/campaign-interactions.mjs';
-import {parseSessionRecap,readInteractionBundles} from '../src/session-interactions.mjs';
+import {readInteractionBundles} from '../src/session-interactions.mjs';
+import {parseSessionRecap as parseRecap} from '../src/recap-parser.mjs';
 import {interactionSummary,interactionView} from '../src/interaction-view.mjs';
 import {interactionDateLabel} from '../src/browser/interaction-groups.mjs';
 import {mountInteractions} from '../src/browser/interactions.mjs';
@@ -15,7 +16,7 @@ import {imageDOM} from './helpers/image-dom.mjs';
 import {RenderEngine,document} from '../src/render-engine.mjs';
 import {ROOT,isInside} from '../src/config.mjs';
 
-const registry={campaigns:{cleenseau:{code:'clee',name:'Cleenseau',aliases:['Clee'],campaignRoot:'Campaigns/Clee'},mawar:{code:'mawar',name:'Mawar Adventures',campaignRoot:'Campaigns/Mawar'}}};
+const registry={campaigns:{cleenseau:{code:'clee',name:'Cleenseau',aliases:['Clee'],campaignRoot:'Campaigns/Clee',sessionBundleDirectory:'_sessions/cleenseau'},mawar:{code:'mawar',name:'Mawar Adventures',campaignRoot:'Campaigns/Mawar'}}};
 function storeFor(notes){return new ContentStore(Object.entries(notes).map(([id,source])=>{
   const note=parseNote(source),target=targetPath(id);return {id,note,target,slug:target.slice(0,-3),name:path.posix.basename(id,'.md'),title:note.metadata.name || path.posix.basename(id,'.md')};
 }));}
@@ -28,6 +29,7 @@ const recap=['# Session Recap','## Session Header','- Campaign: Cleenseau','- Se
   '### recap-003 | Returning','- Date: 1720-01-03','- NPCs: Person','#### Short','%%^Date:1720-01-04%%Person returned to town.%%^End%%','#### Long','A longer account.',
   '### recap-004 | Another beat','- Date: 1720-01-03','- NPCs: Person','#### Short','An authoritative independent beat.','#### Long','Another long account.',
   '## Cast','### NPCs','- [[Person]] (met): innkeeper','- Another (mentioned): a person named in conversation','## Source Files','- Cleaned Source: /private/transcript.md'].join('\n');
+function parseSessionRecap(text,key='recap'){return parseRecap(text,key,{campaign:'clee',number:'12.1'});}
 function sample(extra={}){const store=storeFor({'Person.md':person,'Another.md':'---\ntags: [person]\n---\n# Another',...extra});const index=compileInteractionIndex(store,registry,buildBacklinkIndex(store),[parseSessionRecap(recap,'recap')]);return {store,index};}
 const eventsFor=(store,index,ctx=context())=>campaignInteractions(index,store,store.resolve('Person'),ctx,registry)[0]?.events || [];
 
@@ -144,7 +146,7 @@ test('recap presence suppresses whole-session fallbacks even for empty, invalid 
   assert.equal(eventList([])[0].kind,'session-reference','one legacy metadata candidate is accepted');
   const bundle=parseSessionRecap(recap);
   for(const bundles of [[bundle],[{...bundle,metPeople:[]}],[bundle,bundle],
-    [{key:'_sessions/cleenseau/cleenseau-012.1/cleaned/broken-session-recap.md',invalid:true}]]) {
+    [{key:'_sessions/cleenseau/cleenseau-012.1/cleaned/broken-session-recap.md',campaign:'clee',number:'12.1',invalid:true}]]) {
     assert.ok(eventList(bundles).every(event=>event.kind!=='session-reference'));
   }
   const duplicate=storeFor({'Person.md':person,'Legacy.md':session,'Other legacy.md':session});
@@ -218,7 +220,7 @@ test('untagged, meta and background sources are excluded from both new and older
 });
 
 test('the website shows only knownTo campaigns in the active context, even when other campaigns have recap records',()=>{
-  const {store}=sample(),clee=parseSessionRecap(recap),mawar={...parseSessionRecap(recap),campaign:'Mawar Adventures'};
+  const {store}=sample(),clee=parseSessionRecap(recap),mawar={...parseSessionRecap(recap),campaign:'mawar'};
   const index=compileInteractionIndex(store,registry,null,[clee,mawar]);
   const engine=new RenderEngine({settings:{default_date:'1720-01-05'},store,headers:{registry},renderHeader:()=>'',navigationSource:null,interactionIndex:index});
   assert.ok(campaignInteractions(index,store,store.resolve('Person'),context('1720-01-05',['mawar']),registry)[0].events.length);
@@ -493,15 +495,19 @@ test('Node recap reader imports only supported recap files and ignores private s
     const linked=recap.replace('- Locations: Inn','- Locations: Inn\n- Polished Transcript: beat-transcripts/approved.md')
       .replace('### recap-002 | A secret','### recap-002 | A secret\n- Polished Transcript: ../cleenseau-012.1-source-cleaned.md')
       .replace('### recap-003 | Returning','### recap-003 | Returning\n- Polished Transcript: beat-transcripts/missing.md');
-    fs.writeFileSync(path.join(cleaned,'cleenseau-012.1-session-recap.md'),linked);
-    const result=readInteractionBundles({vault_dir:directory});assert.equal(result.bundles.length,1);
-    assert.equal(result.bundles[0].number,'12.1');assert.equal(result.bundles[0].scenes,undefined);
+    fs.writeFileSync(path.join(cleaned,'cleenseau-012.1-session-recap.md'),linked
+      .replace('- Campaign: Cleenseau','- Campaign: mawar').replace('- Session Number: 12.1','- Session Number: 99'));
+    const loose=path.join(directory,'_sessions','to-process','cleenseau-012.1','cleaned');
+    fs.mkdirSync(loose,{recursive:true});
+    fs.writeFileSync(path.join(loose,'ignored-session-recap.md'),recap);
+    const result=readInteractionBundles({vault_dir:directory}, {campaigns:{clee:registry.campaigns.cleenseau}});assert.equal(result.bundles.length,1);
+    assert.equal(result.bundles[0].campaign,'clee');assert.equal(result.bundles[0].number,'12.1');assert.equal(result.bundles[0].scenes,undefined);
     assert.doesNotMatch(JSON.stringify(result),/private transcript|Long narrative|long account/);
     assert.deepEqual(result.warnings,[]);
     assert.doesNotMatch(JSON.stringify(result.bundles),/Polished words|private\/raw|u0001|Source Transcript|transcriptPath|recap-001/);
     const broken=path.join(directory,'_sessions','cleenseau','cleenseau-013','cleaned');fs.mkdirSync(broken,{recursive:true});
     fs.writeFileSync(path.join(broken,'cleenseau-013-session-recap.md'),'Malformed recap');
-    const invalid=readInteractionBundles({vault_dir:directory});
+    const invalid=readInteractionBundles({vault_dir:directory}, {campaigns:{clee:registry.campaigns.cleenseau}});
     assert.ok(invalid.bundles.some(bundle=>bundle.invalid && bundle.key.includes('cleenseau-013')));
     const store=storeFor({'Person.md':person,'Session.md':session.replace('12.1','13')});
     assert.equal(eventsFor(store,compileInteractionIndex(store,registry,buildBacklinkIndex(store),invalid.bundles)).some(event=>event.kind==='session-reference'),false);
