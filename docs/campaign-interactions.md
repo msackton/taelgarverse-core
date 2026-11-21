@@ -1,9 +1,12 @@
 # Campaign interactions
 
 The website shows **Campaign interactions** on available notes with registered
-`knownTo` campaigns, including people, divine beings, items, and organizations.
-Only campaigns shared by `knownTo` and the active reader context appear. Each
-campaign retains its own heading and **Known to party** line; `campaignInfo`
+effective `knownTo` campaigns, including people, divine beings, items, and
+organizations. The shared note resolver adds the registered folder's campaign
+for those world subjects. Source notes use authored party knowledge, and
+session notes, stories, and meta pages use campaign attribution. Only campaigns
+shared by effective `knownTo` and the active reader context appear. Each
+campaign retains its own heading and **Known to party** line. `campaignInfo`
 retains its normal header wording and does not create dots.
 
 ## Session maps on the website
@@ -83,8 +86,9 @@ irrelevant to this fallback.
 
 When neither maps nor a recap exist, explicit authored links in the preferred
 or unambiguous official session note provide hollow **Session reference** dots.
-These do not imply an encounter and show only session metadata and the note
-link. Existing authoritative artifacts suppress this fallback for their entire
+The source uses the session note's resolved campaign. Party knowledge on the
+linked note can come from its registered folder. Session references show the
+session metadata and note link as evidence of a mention. Existing authoritative artifacts suppress this fallback for their entire
 session, even when they contain no qualifying entry. Missing scans in old
 snapshots do not establish that source artifacts were absent.
 
@@ -104,8 +108,10 @@ touch use the same controls. The existing plain HTML list remains available
 when JavaScript is disabled.
 
 **Related campaign material** remains separate from dots and encounter counts.
-Only non-session notes inside registered campaign folders contribute via
-occurrence-filtered authored backlinks. Authored `object`/`item` tags select
+Eligible non-session notes contribute through visible authored backlinks when
+the source is assigned to the campaign. Assignment uses the same lookup as
+backlinks. A handout filed elsewhere can qualify through an explicit `campaign`.
+Authored `object`/`item` tags select
 **Items**, `story` selects **Stories**, and `source`/`document` selects **Sources**;
 other eligible tags use **References**. Nested tags work. Untagged notes and
 notes with `meta` or `background` are excluded. Categories sort by title, wrap
@@ -148,6 +154,7 @@ date selection, native note links, and DM-inclusive author view. See the
 - `src/mapped-sessions.mjs`: Node-only mapped artifact validation and projection.
 - `src/session-interactions.mjs`: discovery, map precedence, and recap fallback.
 - `src/recap-parser.mjs`: shared recap Session Header/Cast parser.
+- `src/campaign-ownership.mjs`: shared note campaign and party knowledge resolution.
 - `src/campaign-interactions.mjs`: compilation and request visibility.
 - `src/interaction-view.mjs`, `src/browser/interactions.mjs`,
   `src/browser/interaction-groups.mjs`, `public/interactions.css`: accessible

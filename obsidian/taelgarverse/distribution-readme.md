@@ -166,6 +166,8 @@ filename wins; a unique legacy metadata candidate is also supported.
 **Related campaign material**
 groups links on separate **Items** (`object`/`item`), **Stories** (`story`), and
 **Sources** (`source`/`document`) lines, with a **References** line for other types.
+Eligible linked notes are attributed by `campaign` or their registered folder.
+An explicitly attributed handout can appear from elsewhere in the vault.
 Empty categories are omitted. A note appears once; item tags take precedence over
 story tags, then source tags.
 Untagged notes and notes with `meta` or `background` tags are excluded, including

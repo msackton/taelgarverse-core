@@ -1,4 +1,5 @@
 import {RenderError, dateKey, validateDate} from './common.mjs';
+import {noteCampaignResolver} from './campaign-ownership.mjs';
 
 const normalize = value => String(value ?? '').trim().toLowerCase();
 const asList = value => Array.isArray(value) ? value : value ? [value] : [];
@@ -22,30 +23,27 @@ function compareSessions(a,b) {
 }
 export class Contexts {
   static forWebsite(store, registry, settings) {
-    // Snapshots published before the index supplied eligibility keep their saved choices.
-    const campaigns = Object.fromEntries(Object.entries(registry.campaigns || {})
-      .filter(([,campaign]) => campaign.websiteSelectable !== false));
-    return new Contexts(store,{campaigns},settings);
+    return new Contexts(store,registry,settings,{website:true});
   }
 
-  constructor(store, registry, settings) {
+  constructor(store, registry, settings, {website=false} = {}) {
     this.settings = settings;
     this.warnings = [];
     this.byId = new Map();
-    const campaigns = new Map(), identities = new Map();
+    const resolver = noteCampaignResolver(registry), campaigns = new Map();
     for (const [slug, campaign] of Object.entries(registry.campaigns || {})) {
-      const code = normalize(campaign.code);
+      // Snapshots published before the index supplied eligibility keep their saved choices.
+      if (website && campaign.websiteSelectable === false) continue;
+      const code = normalize(campaign.code || slug);
       campaigns.set(code,{...campaign,code,slug});
-      for (const name of [slug,campaign.code,campaign.name,...(campaign.aliases || [])]) identities.set(normalize(name),code);
     }
-    this.campaignIdentities = identities;
+    this.campaignIdentities = new Map([...resolver.identities].filter(([,code])=>campaigns.has(code)));
     this.campaignCodes = [...campaigns.keys()].sort();
     const sessions = new Map();
     for (const entry of store.entries) {
-      const metadata = entry.note?.metadata;
-      if (!metadata || !asList(metadata.tags).includes('session-note')) continue;
-      const code = identities.get(normalize(metadata.campaign));
-      if (!code) continue;
+      if (!entry.note) continue;
+      const {type,campaign:code} = resolver.resolve(entry.id,entry.note.metadata);
+      if (type !== 'session-note' || !campaigns.has(code)) continue;
       const list = sessions.get(code) || [];
       list.push(entry); sessions.set(code,list);
     }

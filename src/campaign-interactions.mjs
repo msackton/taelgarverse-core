@@ -1,18 +1,11 @@
 import {sessionNumber} from './session-bundles.mjs';
 import {dateKey, pageUrl} from './common.mjs';
 import {availableInContext} from './content-store.mjs';
-import {buildBacklinkCampaigns} from './campaign-ownership.mjs';
+import {buildBacklinkCampaigns,noteCampaignResolver} from './campaign-ownership.mjs';
 import {filterComments} from './comments.mjs';
 
 const list = value => Array.isArray(value) ? value : value == null ? [] : [value];
 const normalize = value => String(value ?? '').trim().toLowerCase();
-export function campaignIdentities(registry) {
-  const identities = new Map();
-  for (const [id,campaign] of Object.entries(registry.campaigns || {})) {
-    for (const name of [id,campaign.code,campaign.name,...list(campaign.aliases)]) identities.set(normalize(name),campaign.code);
-  }
-  return identities;
-}
 export function interactionDate(value) {
   if (value == null || !/^\d{1,4}(?:-\d{1,2})?(?:-\d{1,2})?$/.test(String(value))) return null;
   try {
@@ -69,9 +62,28 @@ export function interactionReferenceType(metadata) {
   if(!tags.size || tags.has('meta') || tags.has('background'))return null;
   return tags.has('object') || tags.has('item') ? 'item' : tags.has('story') ? 'story' : tags.has('source') || tags.has('document') ? 'document' : 'reference';
 }
-function sessionSources(store,registry,identities,campaign,number) {
-  const candidates=[...store.bySlug.values()].filter(entry=>list(entry.note.metadata.tags).includes('session-note') &&
-    identities.get(normalize(entry.note.metadata.campaign))===campaign && sessionNumber(entry.note.metadata.sessionNumber)===number);
+export function isRelatedCampaignSource(metadata) {
+  return Boolean(interactionReferenceType(metadata)) &&
+    !list(metadata.tags).includes('session-note') && metadata.sessionNumber==null;
+}
+
+function indexSessionNotes(store,resolver) {
+  const sessions=new Map();
+  for(const entry of store.bySlug.values()) {
+    const {type,campaign}=resolver.resolve(entry.id,entry.note.metadata);
+    if(type!=='session-note' || !campaign)continue;
+    const number=sessionNumber(entry.note.metadata.sessionNumber);
+    if(number===null)continue;
+    const identity=campaign+':'+number;
+    if(!sessions.has(identity))sessions.set(identity,{campaign,number,entries:[]});
+    sessions.get(identity).entries.push(entry);
+  }
+  return sessions;
+}
+
+function sessionSources(sessions,registry,campaign,number) {
+  const candidates=sessions.get(campaign+':'+number)?.entries || [];
+  if(!candidates.length)return {candidates:[]};
   const config=Object.values(registry.campaigns || {}).find(item=>item.code===campaign);
   let preferred;
   if (config?.campaignRoot && config.notePattern && /^\d+(?:\.\d+)?$/.test(String(number))) {
@@ -83,17 +95,15 @@ function sessionSources(store,registry,identities,campaign,number) {
 }
 // A fallback belongs to the whole session, never to an NPC missing from a recap.
 // Choose the registry filename, or one unambiguous legacy metadata candidate.
-export function sessionNoteFallbacks(store,registry,bundles=[]) {
-  const identities=campaignIdentities(registry),recaps=new Set(bundles.map(bundle=>bundle.campaign+':'+bundle.number));
-  const sessions=new Map(),fallbacks=new Map();
-  for(const entry of store.bySlug.values()) {
-    const metadata=entry.note.metadata,campaign=identities.get(normalize(metadata.campaign)),number=sessionNumber(metadata.sessionNumber);
-    if(!list(metadata.tags).includes('session-note') || !campaign || number===null)continue;
-    sessions.set(campaign+':'+number,{campaign,number});
-  }
+export function sessionNoteFallbacks(store,registry,bundles=[],resolver=noteCampaignResolver(registry)) {
+  return fallbacksForSessions(store,registry,bundles,indexSessionNotes(store,resolver));
+}
+
+function fallbacksForSessions(store,registry,bundles,sessions) {
+  const recaps=new Set(bundles.map(bundle=>bundle.campaign+':'+bundle.number)),fallbacks=new Map();
   for(const [identity,{campaign,number}] of sessions) {
     if(recaps.has(identity))continue;
-    const sources=sessionSources(store,registry,identities,campaign,number);
+    const sources=sessionSources(sessions,registry,campaign,number);
     const source=sources.preferred || (sources.candidates.length===1 ? sources.candidates[0] : null);
     if(!source)continue;
     const metadata=store.bySlug.get(source).note.metadata;
@@ -118,7 +128,8 @@ function explicitTarget(store,name,warnings,source) {
   return isPerson(found.entry) ? found.entry : null;
 }
 export function compileInteractionIndex(store,registry,backlinks,bundles=null) {
-  const identities=campaignIdentities(registry),byTarget=Object.create(null),warnings=[],recaps=new Map();
+  const resolver=noteCampaignResolver(registry),byTarget=Object.create(null),warnings=[],recaps=new Map();
+  const sessions=bundles ? indexSessionNotes(store,resolver) : new Map();
   const append=(target,record)=>{(byTarget[target] ||= []).push(record);};
   const mappedIdentities=new Set((bundles || []).filter(bundle=>bundle.mapped).map(bundle=>bundle.campaign+':'+bundle.number));
   for (const bundle of bundles || []) {
@@ -133,7 +144,7 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=null) {
     const bundle=items[0],campaign=bundle.campaign;
     const period=interactionDate(bundle.date),until=interactionDate(bundle.end) || period;
     if(period && until.end<period.start){warnings.push(bundle.key+': inverted session dates');continue;}
-    const sources=sessionSources(store,registry,identities,campaign,bundle.number);
+    const sources=sessionSources(sessions,registry,campaign,bundle.number);
     try {
       const variants=sessionVariants(bundle);
       const records=new Map();
@@ -165,27 +176,28 @@ export function compileInteractionIndex(store,registry,backlinks,bundles=null) {
     } catch(error) {warnings.push(bundle.key+': session omitted: '+error.message);}
   }
   // No scan supplied (older snapshots) does not prove that recaps are absent.
-  const fallbacks=bundles ? sessionNoteFallbacks(store,registry,bundles) : new Map();
+  const fallbacks=bundles ? fallbacksForSessions(store,registry,bundles,sessions) : new Map();
   const ownership=buildBacklinkCampaigns(store,registry);
-  const roots=Object.values(registry.campaigns || {}).map(campaign=>normalize(campaign.campaignRoot).replaceAll('\\','/').replace(/\/+$/,'')).filter(Boolean);
   for (const entry of store.bySlug.values()) {
-    if (!isPerson(entry) && !list(entry.note?.metadata.knownTo).length) continue;
+    const eligibleForRelated=isPerson(entry) || list(entry.note.metadata.knownTo).length>0;
+    if (!eligibleForRelated && (!fallbacks.size || !resolver.resolve(entry.id,entry.note.metadata).knownTo.length)) continue;
     for (const link of Object.hasOwn(backlinks?.byTarget || {},entry.slug) ? backlinks.byTarget[entry.slug] : []) {
-      const source=store.bySlug.get(link.source),metadata=source?.note?.metadata;
       const fallback=fallbacks.get(link.source);
       if(fallback) {append(entry.slug,{...fallback,when:link.when});continue;}
-      if (!interactionReferenceType(metadata) || list(metadata.tags).includes('session-note') || metadata.sessionNumber!=null) continue;
-      const id=normalize(source.id).replaceAll('\\','/');
-      if (!roots.some(root=>id.startsWith(root+'/'))) continue;
-      for (const campaign of ownership.get(source.slug) || []) append(entry.slug,{id:'reference:'+campaign+':'+source.slug,
+      if (!eligibleForRelated) continue;
+      const source=store.bySlug.get(link.source),metadata=source?.note?.metadata;
+      const campaigns=ownership.get(link.source);
+      if (!campaigns?.length || !isRelatedCampaignSource(metadata)) continue;
+      for (const campaign of campaigns) append(entry.slug,{id:'reference:'+campaign+':'+source.slug,
         campaign,source:source.slug,kind:'reference',when:link.when});
     }
   }
   return {version:2,backlinkVersion:backlinks?.version || null,byTarget,warnings};
 }
-export function campaignInteractions(index,store,entry,context,registry) {
-  if ((!isPerson(entry) && !list(entry?.note?.metadata.knownTo).length) || !availableInContext(entry,context)) return [];
-  const identities=campaignIdentities(registry),known=new Set(list(entry.note.metadata.knownTo).map(name=>identities.get(normalize(name))).filter(Boolean));
+export function campaignInteractions(index,store,entry,context,registry,resolver=noteCampaignResolver(registry)) {
+  if (!availableInContext(entry,context)) return [];
+  const known=new Set(resolver.resolve(entry.id,entry.note.metadata).knownTo);
+  if (!isPerson(entry) && !known.size) return [];
   const selected=new Set(context.campaigns),groups=new Map();
   for (const campaign of Object.values(registry.campaigns || {})) if (selected.has(campaign.code)) groups.set(campaign.code,{code:campaign.code,label:campaign.name,known:known.has(campaign.code),events:[]});
   for (const record of Object.hasOwn(index?.byTarget || {},entry.slug) ? index.byTarget[entry.slug] : []) {

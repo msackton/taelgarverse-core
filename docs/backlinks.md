@@ -22,10 +22,11 @@ Materialized query output in the exported article is included.
 Both the source page and target page must be available in the selected context.
 Campaign-specific source pages appear only in their own campaign context.
 Ownership comes from the source's `campaign` field (registry name, code, ID, or
-alias; lists may name multiple campaigns), falling back to the registry's
-`campaignRoot` folder. Handouts and timelines inside that folder follow the same
-rule as session notes. Unregistered campaign folders and sessions without an
-identifiable campaign appear only with Custom's **All campaigns** selection.
+alias; lists may name multiple campaigns). Sources without a declaration use
+the registry's `campaignRoot` folder when available. An unresolvable declaration,
+an unregistered campaign folder, or an unassigned session yields no matching
+campaign selection. Related material uses the same assignment to include
+eligible sources, including handouts with a valid declaration filed elsewhere.
 Modern shows shared reference sources. [Custom](custom-contexts.md) can show all
 campaigns or a selected subset alongside shared sources. Behind the Curtain does
 not bypass campaign ownership. `knownTo` and `campaignInfo` do not establish

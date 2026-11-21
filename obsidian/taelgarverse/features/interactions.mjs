@@ -4,7 +4,9 @@ import {Decoration,EditorView,ViewPlugin,WidgetType} from '@codemirror/view';
 import {interactionView} from '../../../src/interaction-view.mjs';
 import {mountInteractions} from '../../../src/browser/interactions.mjs';
 import {interactionParts} from '../../../src/browser/interaction-groups.mjs';
-import {obsidianInteractions,hasKnownTo,hasInteractionsBlock,knownCampaigns,normalizeInteractionDate,localInteractions} from './interaction-data.mjs';
+import {noteCampaignResolver} from '../../../src/campaign-ownership.mjs';
+import {readCampaignRegistry} from '../services/campaign-registry.mjs';
+import {obsidianInteractions,hasInteractionsBlock,knownCampaigns,normalizeInteractionDate,localInteractions} from './interaction-data.mjs';
 
 class InteractionsChild extends MarkdownRenderChild {
   constructor(feature,element,path,{source='',measure=()=>{}}={}) {
@@ -33,7 +35,7 @@ class InteractionsChild extends MarkdownRenderChild {
       const file=this.feature.app.vault.getAbstractFileByPath(this.path);
       if(!file)throw new Error('The source note is no longer available.');
       const metadata=this.feature.app.metadataCache.getFileCache(file)?.frontmatter || {};
-      const campaigns=knownCampaigns(snapshot,metadata);
+      const campaigns=knownCampaigns(snapshot,this.path,metadata);
       if(!campaigns.length)throw new Error('Add at least one registered campaign to knownTo.');
       const previous=this.selected || this.feature.selections.get(this.path) || 'all';
       this.selected=previous==='all' || !campaigns.some(campaign=>campaign.code===previous) ? 'all' : previous;
@@ -83,7 +85,7 @@ export function interactionFooterExtension(feature) {
   const build=state=>{
     const file=state.field(editorInfoField,false)?.file;
     if(!feature.automatic || feature.disposed || !file || state.field(editorLivePreviewField,false)!==true ||
-      !hasKnownTo(feature.app.metadataCache.getFileCache(file)?.frontmatter) || hasInteractionsBlock(state.doc.toString()))return Decoration.none;
+      !feature.hasKnownTo(file) || hasInteractionsBlock(state.doc.toString()))return Decoration.none;
     return Decoration.set([Decoration.widget({widget:new FooterWidget(feature,file.path,feature.revision),side:1,block:true}).range(state.doc.length)]);
   };
   const field=StateField.define({create:build,update:(value,transaction)=>
@@ -118,8 +120,30 @@ export class InteractionsFeature extends Component {
       }
     }));
   }
+  hasKnownTo(file) {
+    const metadata=this.app.metadataCache.getFileCache(file)?.frontmatter;
+    return Boolean(this.campaigns?.resolver.resolve(file.path,metadata).knownTo.length);
+  }
+  getCampaigns() {
+    if(!this.pendingCampaigns) {
+      const pending=readCampaignRegistry(this.app).then(registry=>({registry,resolver:noteCampaignResolver(registry)}));
+      this.pendingCampaigns=pending;
+      pending.then(campaigns=>{
+        if(this.disposed || this.pendingCampaigns!==pending)return;
+        this.campaigns=campaigns;
+        for(const view of this.editors)view.dispatch({effects:this.rebuildEffect.of(this.revision)});
+      },()=>{if(this.pendingCampaigns===pending)this.pendingCampaigns=null;});
+    }
+    return this.pendingCampaigns;
+  }
   async getSnapshot() {
-    if(!this.pending){const pending=obsidianInteractions(this.app);this.pending=pending;pending.catch(()=>{if(this.pending===pending)this.pending=null;});}
+    if(!this.pending){
+      const pending=this.getCampaigns().then(campaigns=>{
+        if(this.disposed || this.pending!==pending)return;
+        return obsidianInteractions(this.app,campaigns);
+      });
+      this.pending=pending;pending.catch(()=>{if(this.pending===pending)this.pending=null;});
+    }
     const pending=this.pending,snapshot=await pending;
     if(this.disposed)throw new Error('The campaign interactions renderer has unloaded.');
     if(this.pending!==pending)return this.getSnapshot();
@@ -127,7 +151,8 @@ export class InteractionsFeature extends Component {
   }
   invalidate() {
     if(this.disposed)return;
-    this.pending=null;this.snapshot=null;this.revision++;clearTimeout(this.refreshTimer);
+    this.pending=null;this.snapshot=null;this.pendingCampaigns=null;this.campaigns=null;
+    this.readingSequence=(this.readingSequence || 0)+1;this.revision++;clearTimeout(this.refreshTimer);
     this.refreshTimer=setTimeout(()=>{
       if(this.disposed)return;
       for(const child of this.panels.values())void child.render();
@@ -138,16 +163,18 @@ export class InteractionsFeature extends Component {
   scheduleReading() {if(this.disposed)return;clearTimeout(this.readingTimer);this.readingTimer=setTimeout(()=>{void this.syncReading();},0);}
   async syncReading() {
     const sequence=this.readingSequence=(this.readingSequence || 0)+1,leaves=[];
+    if(this.automatic)await this.getCampaigns().catch(()=>null);
+    if(this.disposed || sequence!==this.readingSequence)return;
     this.app.workspace.iterateAllLeaves(leaf=>{if(leaf.view.getViewType()==='markdown')leaves.push(leaf.view);});
     const roots=new Set();
     for(const view of leaves) {
       const file=view.file;
-      if(!this.automatic || view.getMode()!=='preview' || !file || !hasKnownTo(this.app.metadataCache.getFileCache(file)?.frontmatter))continue;
+      if(!this.automatic || view.getMode()!=='preview' || !file || !this.hasKnownTo(file))continue;
       const root=view.previewMode?.containerEl.querySelector('.markdown-preview-sizer');
       if(!root)continue;
       let source;try{source=await this.app.vault.cachedRead(file);}catch{continue;}
       if(this.disposed || sequence!==this.readingSequence)return;
-      if(!this.automatic || view.getMode()!=='preview' || view.file?.path!==file.path || !hasKnownTo(this.app.metadataCache.getFileCache(file)?.frontmatter) || hasInteractionsBlock(source))continue;
+      if(!this.automatic || view.getMode()!=='preview' || view.file?.path!==file.path || !this.hasKnownTo(file) || hasInteractionsBlock(source))continue;
       roots.add(root);let mounted=this.reading.get(root);
       if(mounted?.path!==file.path) {
         if(mounted)this.removeReading(root);
@@ -168,6 +195,7 @@ export class InteractionsFeature extends Component {
   onunload() {
     this.disposed=true;this.readingSequence++;clearTimeout(this.refreshTimer);clearTimeout(this.readingTimer);
     for(const root of [...this.reading.keys()])this.removeReading(root);
-    for(const child of [...this.panels.values()])child.unload();this.panels.clear();this.editors.clear();this.selections.clear();this.pending=null;this.snapshot=null;
+    for(const child of [...this.panels.values()])child.unload();this.panels.clear();this.editors.clear();this.selections.clear();
+    this.pending=null;this.snapshot=null;this.pendingCampaigns=null;this.campaigns=null;
   }
 }

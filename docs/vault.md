@@ -596,6 +596,11 @@ from the Obsidian adapter.
 
 ## Campaigns and dates
 
+Session date selection uses the note's resolved `campaign`. A valid authored
+campaign ID takes precedence. A session without a usable ID inherits the
+campaign of its registered directory. The website applies its campaign
+selection rules after resolving the note against the full registry.
+
 | Reader's choice | What it means |
 | --- | --- |
 | A named campaign | Use that campaign's latest session date and show text marked for that campaign. |
@@ -801,7 +806,7 @@ normal campaign filtering described above.
 Nonempty backlinks appear in the right sidebar even on short articles; on mobile they
 appear in a collapsed **Linked from** section below the article.
 
-Available pages with registered `knownTo` campaigns show a **Campaign
+Available pages with effective `knownTo` campaigns show a **Campaign
 interactions** summary and directly selectable transcript snippets for the intersection of those
 campaigns and the active reader context. People, divine beings, items, and
 organizations can receive mapped histories. The website reads validated v4
@@ -823,8 +828,9 @@ Maps take precedence for the entire session. Stale or malformed artifacts omit
 the session with a local warning. Without maps, explicit recap Cast `met`
 membership retains the earlier encounter behavior; only when maps and recaps
 are both absent do authored session-note links supply hollow **Session
-reference** dots. Related non-session campaign material remains separate,
-with Items, Stories, Sources, and other References categories and **Show more**
+reference** dots. Related non-session campaign material remains separate.
+A handout can join that list by declaring its `campaign`, wherever it is filed.
+The list has Items, Stories, Sources, and other References categories with **Show more**
 after ten links. `knownTo` and `campaignInfo` retain their authored header
 behavior. See [campaign interaction sources and rules](campaign-interactions.md).
 

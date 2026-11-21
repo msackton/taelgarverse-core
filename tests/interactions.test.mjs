@@ -141,6 +141,33 @@ test('missing recaps fall back to explicit links in the official session note, w
   assert.equal(events(context()).length,0,'an unavailable official note does not switch to a legacy duplicate');
 });
 
+test('a filed session without an authored campaign can provide the older-session reference',()=>{
+  const id='Campaigns/Clee/Session 12.1.md';
+  const store=storeFor({'Person.md':person,[id]:session.replace('campaign: Cleenseau\n','')});
+  const index=compileInteractionIndex(store,registry,buildBacklinkIndex(store),[]);
+  const [event]=eventsFor(store,index);
+  assert.equal(event.kind,'session-reference');
+  assert.match(event.sessionUrl,/campaigns\/clee\/session-12/);
+});
+
+test('filed items with inherited knowledge receive older session references without gaining Related material',()=>{
+  const first='Campaigns/Clee/Treasure/Relic.md',second='Campaigns/Clee/Treasure/Scroll.md';
+  const links='[[Relic]] [[Scroll]]';
+  const store=storeFor({
+    [first]:'---\ntags: [object]\n---\n# Relic',
+    [second]:'---\ntags: [object]\nknownTo: []\n---\n# Scroll',
+    'Campaigns/Clee/Session 12.1.md':session.replace('[[Person]]',links),
+    'Campaigns/Clee/Handout.md':'---\ntags: [source]\n---\n'+links,
+  });
+  const index=compileInteractionIndex(store,registry,buildBacklinkIndex(store),[]);
+  for(const id of [first,second]){
+    const entry=store.lookup(id).entry;
+    const [group]=campaignInteractions(index,store,entry,context(),registry);
+    assert.equal(group.known,true);
+    assert.deepEqual(group.events.map(event=>[event.kind,event.id]),[['session-reference','session:clee:12.1']]);
+  }
+});
+
 test('recap presence suppresses whole-session fallbacks even for empty, invalid or duplicate Cast data',()=>{
   const store=storeFor({'Person.md':person,'Legacy.md':session}),backlinks=buildBacklinkIndex(store);
   const eventList=bundles=>eventsFor(store,compileInteractionIndex(store,registry,backlinks,bundles));
@@ -172,24 +199,27 @@ test('session dates and only the full-session link appear in browser details and
   assert.equal(root.querySelector('.interaction-detail a').getAttribute('href'),groups[0].events[0].sessionUrl);
 });
 
-test('only non-session campaign-folder backlinks supplement recap beats and preserve occurrence visibility',()=>{
+test('attributed non-session backlinks supplement recaps and preserve occurrence visibility',()=>{
   const {store,index}=sample({
     'Campaigns/Clee/Handout.md':'---\ntags: [source]\n---\n# Handout\n[[Person]]',
-    'Campaigns/Clee/Secrets.md':'---\ntags: [source]\n---\n# Secrets\n%%^Campaign:none%%[[Person]]%%^End%%',
+    'Primary Sources/Secrets.md':'---\ntags: [source]\ncampaign: clee\n---\n# Secrets\n%%^Campaign:none%%[[Person]]%%^End%%',
     'Campaigns/Clee/Later.md':'---\ntags: [source]\n---\n# Later\n%%^Date:1720-01-06%%[[Person]]%%^End%%',
     'Campaigns/Mawar/Handout.md':'---\ntags: [source]\n---\n# Mawar\n[[Person]]',
     'Campaigns/Unknown/Handout.md':'---\ntags: [source]\n---\n# Unknown\n[[Person]]',
     'World.md':'# World\n[[Person]]',
-    'Outside.md':'---\ncampaign: Cleenseau\n---\n[[Person]]',
+    'Primary Sources/Outside.md':'---\ntags: [source]\ncampaign: Cleenseau\n---\n[[Person]]',
+    'Primary Sources/Unassigned.md':'---\ntags: [source]\nknownTo: [clee]\n---\n[[Person]]',
     'Campaigns/Clee/Session.md':session,
     'Campaigns/Clee/Old session.md':session.replace('tags: [session-note]','tags: []')
   });
   const references=eventsFor(store,index).filter(event=>event.kind==='reference');
-  assert.equal(references.length,1);assert.equal(references[0].title,'Handout');
+  assert.deepEqual(references.map(event=>[event.title,event.referenceType]),[['Handout','document'],['Outside','document']]);
   assert.equal(references[0].precision,'undated');assert.match(references[0].url,/campaigns\/clee\/handout/);
-  assert.equal(eventsFor(store,index,context('1720-01-06',['clee'],true)).filter(event=>event.kind==='reference').length,3);
+  assert.match(references[1].url,/primary-sources\/outside/);
+  const later=eventsFor(store,index,context('1720-01-06',['clee'],true)).filter(event=>event.kind==='reference');
+  assert.deepEqual(later.map(event=>event.title),['Handout','Later','Outside','Secrets']);
   store.lookup('Campaigns/Clee/Handout.md').entry.note.metadata.created='9999-01-01';
-  assert.equal(eventsFor(store,index).some(event=>event.kind==='reference'),false);
+  assert.deepEqual(eventsFor(store,index).filter(event=>event.kind==='reference').map(event=>event.title),['Outside']);
   const legacy={...index,backlinkVersion:1};
   assert.equal(eventsFor(store,legacy,context('1720-01-06',['clee','mawar'],true)).some(event=>event.kind==='reference'),false);
   assert.equal(eventsFor(store,legacy,context('1720-01-06',['clee','mawar'],true)).filter(event=>event.kind==='encounter').length,1);

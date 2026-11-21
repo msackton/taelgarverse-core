@@ -86,7 +86,7 @@ test('Obsidian indexes authoritative recaps and native campaign references, reta
   const h=host();
   try {
     const snapshot=await h.obsidianInteractions(h.app),metadata=h.metadata.get('People/Person.md');
-    assert.deepEqual(Array.from(h.knownCampaigns(snapshot,metadata),item=>item.code),['clee','other']);
+    assert.deepEqual(Array.from(h.knownCampaigns(snapshot,'People/Person.md',metadata),item=>item.code),['clee','other']);
     const result=h.localInteractions(snapshot,'People/Person.md',registry.campaigns.cleenseau,'1748-01-02',h.app);
     assert.deepEqual(Array.from(result.group.events,event=>event.title),['At the Inn','Handout','Secret']);
     assert.match(result.group.events[0].text,/Cleenseau party/);
@@ -108,10 +108,12 @@ test('Obsidian interactions report a duplicate bundle with an empty folder',asyn
 test('Obsidian reads only missing-recap official session notes for fallback dots and preserves native occurrence visibility',async()=>{
   const official='Campaigns/Clee/Session 02.md',legacy='Campaigns/Clee/Legacy second.md';
   const note='---\ntags: [session-note]\ncampaign: Clee\nsessionNumber: 2\nDR: 1748-01-02\nDR_end: 1748-01-03\n---\n';
-  const h=host({notes:{[official]:note+'%%^Date:1748-01-04%%[[Person]] [[Person]]%%^End%%',
+  const h=host({notes:{[official]:note.replace('campaign: Clee','campaign: unregistered')+'%%^Date:1748-01-04%%[[Person]] [[Person]]%%^End%%',
     [legacy]:note+'[[Person]]','People/Person.md':initial['People/Person.md'].replace('1748-01-02','1748-01-04')}});
   try {
     const snapshot=await h.obsidianInteractions(h.app);
+    assert.equal(snapshot.ownership.get(official).length,0,'unresolved explicit metadata stays out of ordinary backlinks');
+    assert.equal(snapshot.sessionFallbacks.get(official).campaign,'clee','session attribution recovers from the registered folder');
     const events=date=>h.localInteractions(snapshot,'People/Person.md',registry.campaigns.cleenseau,date,h.app).group.events;
     assert.equal(events('1748-01-03').some(event=>event.kind==='session-reference'),false,'link date conditions apply');
     const records=events('1748-01-04').filter(event=>event.kind==='session-reference');
@@ -182,7 +184,7 @@ test('explicit blocks select known campaigns, retain choice after refresh, and o
   assert.equal(h.intervals.size,0);assert.equal(h.cache.count,0);assert.equal(h.vault.count,0);assert.equal(h.workspace.count,0);assert.equal(h.resize.size,0);
 });
 
-test('reference filtering uses authored tags before local knownTo adaptation and leaves excluded source bodies unread',async()=>{
+test('reference filtering reads attributed sources anywhere and leaves excluded bodies unread',async()=>{
   const ignored={
     'List of NPCs':'tags: [meta, source]',
     'Background notes':'tags: [source, background/lore]',
@@ -190,10 +192,19 @@ test('reference filtering uses authored tags before local knownTo adaptation and
     'No tags':'',
   };
   const notes=Object.fromEntries(Object.entries(ignored).map(([name,metadata])=>['Campaigns/Clee/'+name+'.md','---\n'+metadata+'\n---\n[[Person]]']));
+  const letter='Primary Sources/Letter.md',unassigned='Primary Sources/Unassigned.md';
+  notes[letter]='---\ntags: [source]\ncampaign: Clee\n---\n%%^Campaign:clee%%[[Person]]%%^End%%';
+  notes[unassigned]='---\ntags: [source]\nknownTo: [clee]\n---\n[[Person]]';
   const h=host({notes});
   try {
     const {element,child}=h.block();await child.ready;
-    assert.match(element.querySelector('.interaction-references').textContent,/Handout/);
+    const section=element.querySelector('.interaction-campaign');
+    const documents=[...section.querySelectorAll('[data-reference-kind="document"] a')];
+    assert.deepEqual(documents.map(link=>link.textContent),['Handout','Letter','Secret']);
+    assert.equal(child.links.get(documents[1].getAttribute('href')),letter);
+    assert.ok(h.reads.includes(letter));
+    assert.ok(!h.reads.includes(unassigned));
+    assert.equal([...element.querySelectorAll('.interaction-campaign')][1].querySelector('.interaction-references'),null);
     for(const name of Object.keys(ignored)) {
       assert.equal([...element.querySelectorAll('.interaction-reference-links a')].some(link=>link.textContent===name),false);
       assert.equal(h.reads.includes('Campaigns/Clee/'+name+'.md'),false);
@@ -266,7 +277,7 @@ test('reference-only campaign choices keep the picker below the heading and nati
       assert.equal(anchor.closest('[data-reference-kind]').dataset.referenceKind,type);
       h.click(anchor);assert.equal(h.opened.at(-1)[0],path);
     }
-    assert.deepEqual(h.metadata.get(sword).tags,['object/weapon'],'local type adaptation does not change authored tags');
+    assert.deepEqual(h.metadata.get(sword).tags,['object/weapon'],'reference classification preserves authored tags');
     await choose('clee');
     assert.ok(element.querySelector('.interaction-dot'));
     assert.equal(element.classList.contains('taelgar-interactions--compact'),false);
@@ -293,6 +304,30 @@ test('knownTo without campaign records renders a compact campaign header in bloc
     const widget=h.extensions[0][0].create(h.editor('Body',p)).ranges[0].value.widget;
     const preview=widget.toDOM({dom:h.document.createElement('div'),requestMeasure(){}});await h.settle();heading(preview);widget.destroy(preview);
     assert.equal(h.texts.get(p),'---\nknownTo: Clee\n---\n# Known Only');
+  }finally{h.dispose();}
+});
+
+test('folder knowledge displays for a world subject while session records and Cast parsing keep their types',async()=>{
+  const item='Campaigns/Clee/Relic.md',sessionPath='Campaigns/Clee/Session 01.md';
+  const recapPath='_sessions/cleenseau/cleenseau-001/cleaned/cleenseau-001-session-recap.md';
+  const h=host({automatic:true,notes:{
+    [item]:'---\ntags: [object]\nknownTo: []\n---\n# Relic',
+    [sessionPath]:initial[sessionPath].replace('campaign: Clee','knownTo: [clee]'),
+    [recapPath]:recap('Clee','Met the innkeeper.').replace('[[Person]] (met): innkeeper','[[Person]] (met): innkeeper\n- [[Relic]] (met): item'),
+  }});
+  try {
+    h.view.file=h.app.vault.getAbstractFileByPath(item);
+    await h.feature.syncReading();await h.settle();
+    const root=h.document.querySelector('.markdown-preview-sizer');
+    assert.equal(root.querySelector('.interaction-campaign-header h3').textContent,'Cleenseau');
+    const field=h.extensions[0][0];
+    assert.equal(field.create(h.editor('Body',item)).ranges.length,1);
+    assert.equal(field.create(h.editor('Body',sessionPath)).ranges.length,0);
+    const snapshot=await h.feature.getSnapshot();
+    assert.equal(snapshot.index.byTarget[item],undefined);
+    assert.deepEqual(Array.from(snapshot.store.bySlug.get(item).note.metadata.tags),['object']);
+    assert.deepEqual(Array.from(snapshot.store.bySlug.get(item).note.metadata.knownTo),[]);
+    assert.equal(snapshot.index.byTarget['People/Person.md'][0].sessionSources.preferred,sessionPath);
   }finally{h.dispose();}
 });
 
@@ -346,6 +381,7 @@ test('automatic Reading View footers stay at the end, appear on non-person known
 test('Live Preview uses a block widget at the document end, updates for edits and metadata, and leaves Source mode and explicit fences alone',async()=>{
   const h=host({automatic:true});
   try {
+    await h.feature.syncReading();
     const [field,Tracker]=h.extensions[0],state=h.editor(),ranges=field.create(state).ranges;
     assert.equal(ranges.length,1);assert.equal(ranges[0].from,state.doc.length);assert.equal(ranges[0].value.block,true);
     const editor={dom:h.document.createElement('div'),requestMeasure(){},dispatch(){}};const tracker=new Tracker(editor);

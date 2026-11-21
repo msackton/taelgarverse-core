@@ -27,14 +27,16 @@ test('publication compiles session encounters without beat data, Worker matches 
     fs.writeFileSync(path.join(vault,'Party.md'),'# Party');fs.writeFileSync(path.join(vault,'Inn.md'),'# Inn');
     fs.writeFileSync(path.join(vault,'World.md'),'# World\n[[Person]]');
     fs.mkdirSync(path.join(vault,'Campaigns','Clee'),{recursive:true});
-    fs.writeFileSync(path.join(vault,'Campaigns','Clee','Handout.md'),'---\ntags: [source]\n---\n# Handout\n[[Person]]');
+    fs.mkdirSync(path.join(vault,'Primary Sources'));
+    fs.writeFileSync(path.join(vault,'Primary Sources','Handout.md'),'---\ntags: [source]\ncampaign: clee\n---\n# Handout\n[[Person]]');
+    fs.writeFileSync(path.join(vault,'Campaigns','Clee','Relic.md'),'---\ntags: [object]\nknownTo: []\n---\n# Relic');
     fs.writeFileSync(path.join(vault,'Campaigns','Clee','Story.md'),'---\ntags: [source, story]\n---\n[[Person]]');
     fs.mkdirSync(path.join(vault,'Campaigns','Other'),{recursive:true});
     fs.writeFileSync(path.join(vault,'Campaigns','Other','Other Handout.md'),'---\ntags: [source]\n---\n[[Person]]');
     for(const [name,tags] of [['Untagged',''],['List of NPCs','tags: [source, meta]'],['Background','tags: [background/lore]']])
       fs.writeFileSync(path.join(vault,'Campaigns','Clee',name+'.md'),'---\n'+tags+'\n---\n[[Person]]');
     fs.writeFileSync(path.join(vault,'Session.md'),'---\ntags: [session-note]\ncampaign: Cleenseau\nsessionNumber: 12.1\nDR: 1720-01-01\nDR_end: 1720-01-02\ndescTitle: Full session title\ntagline: A full-session description. %%^Campaign:none%%DM session detail.%%^End%%\n---\n# Session\n\nThe party met [[Person]] at the inn.\n\n%%^Campaign:none%%\nPerson showed them a hidden room.\n%%^End%%');
-    fs.writeFileSync(path.join(vault,'Campaigns','Clee','Older session.md'),'---\ntags: [session-note]\ncampaign: Cleenseau\nsessionNumber: 13\nDR: 1720-01-03\n---\n%%^Campaign:other%%[[Person]]%%^End%%\nSESSION PROSE NOT COMPILED');
+    fs.writeFileSync(path.join(vault,'Campaigns','Clee','Older session.md'),'---\ntags: [session-note]\nsessionNumber: 13\nDR: 1720-01-03\n---\n%%^Campaign:other%%[[Person]]%%^End%%\nSESSION PROSE NOT COMPILED');
     const cleaned=path.join(vault,'_sessions','cleenseau','cleenseau-012.1','cleaned');fs.mkdirSync(cleaned,{recursive:true});
     const recap=['# Session Recap','## Session Header','- Campaign: Cleenseau','- Session Number: 12.1','- Desc Title: At the Inn','- DR Date: 1720-01-01 to 1720-01-02','- Tagline: Session tagline fallback.','## Recap',
       '### recap-001 | At the Inn','- Date: 1720-01-01','- NPCs: Person, Unpublished Unresolved Person','- Source Range: u0001 -> u0020','- Polished Transcript: beat-transcripts/public.md','#### Short','An authoritative Short independent of generated prose.','#### Long','Unused Long narrative.',
@@ -84,12 +86,14 @@ test('publication compiles session encounters without beat data, Worker matches 
       assert.deepEqual(actual.backlinks.map(link=>link.page),['world']);
       assert.equal(actual.html,expected.html);
       assert.equal(actual.interactions[0].events.length,3);
-      assert.equal(actual.interactions[0].events.find(event=>event.kind==='reference').referenceType,'document');
+      assert.equal(actual.interactions[0].events.find(event=>event.title==='Handout').referenceType,'document');
       assert.equal(actual.interactions[0].events.find(event=>event.title==='Story').referenceType,'story');
       assert.match(actual.html,/Related campaign material/);
       const grouped=parseHTML('<html><body>'+actual.html+'</body></html>').document;
       assert.equal(grouped.querySelector('[data-reference-kind="story"] a').textContent,'Story');
-      assert.equal(grouped.querySelector('[data-reference-kind="document"] a').textContent,'Handout');
+      const handout=grouped.querySelector('[data-reference-kind="document"] a');
+      assert.equal(handout.textContent,'Handout');
+      assert.match(handout.getAttribute('href'),/primary-sources\/handout/);
       assert.ok(reads.every(key=>key.endsWith('/'+snapshot.store.resolve('Person').note.shard+'.json')),'only the person shard is loaded');
       assert.equal(actual.interactions[0].events[0].text,'A full-session description.'+(dm ? ' DM session detail.' : ''));
       assert.equal(actual.interactions[0].events[0].title,'Full session title');
@@ -99,6 +103,9 @@ test('publication compiles session encounters without beat data, Worker matches 
       assert.equal(actual.interactions[0].events[0].transcriptUrl,undefined);
       assert.doesNotMatch(actual.html,/href="[^"]*campaign-transcripts/);
     }
+    const relic=await snapshot.engine.renderAsync('Relic','1720-01-02','custom',false,['clee'],entry=>snapshot.store.getNote(entry));
+    assert.deepEqual(relic.interactions.map(group=>[group.code,group.known]),[['clee',true]]);
+    assert.match(relic.html,/Known to party/);
     const originalGet=bucket.get.bind(bucket);
     for(const campaigns of [['clee'],['clee','other']]) {
       reads.length=0;
@@ -132,7 +139,7 @@ test('publication compiles session encounters without beat data, Worker matches 
     }
     const legacySnapshot=await loadSnapshot({get:async key=>key.endsWith('/index.json') ? {json:async()=>legacy} : originalGet(key)},report.revision);
     const filtered=await legacySnapshot.engine.renderAsync('Person','1720-01-02','custom',false,['clee'],entry=>legacySnapshot.store.getNote(entry));
-    assert.deepEqual(filtered.interactions[0].events.filter(event=>event.kind==='reference').map(event=>event.title),['Handout','Story']);
+    assert.deepEqual(filtered.interactions[0].events.filter(event=>event.kind==='reference').map(event=>event.title),['Story','Handout']);
     const env={CONTENT:{async get(key){if(key==='published/current.json')return {json:async()=>({revision:report.revision})};return originalGet(key);}},ASSETS:{fetch:async()=>new Response('asset')}};
     const response=await createWorker().fetch(new Request('https://cleenseau.taelgar.org/api/page?page=Person'),env);
     assert.equal(response.status,404); // No configured campaign host silently falls back.
@@ -156,7 +163,7 @@ test('publication compiles session encounters without beat data, Worker matches 
     const fallback=await loaded.engine.renderAsync('Person','1720-01-02','custom',false,['clee'],entry=>loaded.store.getNote(entry));
     assert.equal(fallback.interactions[0].events.some(event=>event.kind==='reference'),true);
     assert.equal(fallback.interactions[0].events.length,2);
-    assert.equal(fallback.interactions[0].events[0].title,'Handout');
+    assert.equal(fallback.interactions[0].events[1].title,'Handout');
     assert.match(fallback.html,/Related campaign material/);
     assert.doesNotMatch(fallback.html,/class="interaction-plot"/);
     assert.deepEqual(fallback.backlinks.map(link=>link.page),['world']);

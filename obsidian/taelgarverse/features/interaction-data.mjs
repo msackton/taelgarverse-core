@@ -3,15 +3,13 @@ import {readVaultSessionBundles} from '../../../src/vault-session-bundles.mjs';
 import {readCampaignRegistry} from '../services/campaign-registry.mjs';
 import {ContentStore} from '../../../src/content-store.mjs';
 import {scanHeaderCallouts} from '../../../src/header-callout.mjs';
-import {buildBacklinkCampaigns} from '../../../src/campaign-ownership.mjs';
-import {compileInteractionIndex,campaignIdentities,campaignInteractions,interactionDate,interactionReferenceType,sessionNoteFallbacks} from '../../../src/campaign-interactions.mjs';
+import {buildBacklinkCampaigns,noteCampaignResolver} from '../../../src/campaign-ownership.mjs';
+import {compileInteractionIndex,campaignInteractions,interactionDate,isRelatedCampaignSource,sessionNoteFallbacks} from '../../../src/campaign-interactions.mjs';
 import {parseSessionRecap} from '../../../src/recap-parser.mjs';
 import {Contexts} from '../../../src/contexts.mjs';
 import {filterComments} from '../../../src/comments.mjs';
 import {scanFencedCodeBlocks} from '../../../src/markdown-fences.mjs';
 
-const list=value=>Array.isArray(value)?value:value==null?[]:[value];
-export const hasKnownTo=metadata=>list(metadata?.knownTo).some(value=>String(value).trim());
 export function hasInteractionsBlock(source) {
   return scanFencedCodeBlocks(source).some(block=>block.language==='taelgar-interactions');
 }
@@ -21,14 +19,13 @@ async function readFiles(files,read) {
     while(next<files.length){const index=next++;values[index]=await read(files[index]);}
   }));return values;
 }
-export async function obsidianInteractions(app) {
-  const registry=await readCampaignRegistry(app);
+export async function obsidianInteractions(app,campaigns) {
+  const registry=campaigns?.registry ?? await readCampaignRegistry(app);
+  const resolver=campaigns?.resolver ?? noteCampaignResolver(registry);
   const inventory=readVaultSessionBundles(app.vault.adapter.getBasePath(),registry);
   const files=app.vault.getMarkdownFiles().filter(file=>!file.path.split('/').some(part=>part.startsWith('.'))).sort((a,b)=>a.path.localeCompare(b.path));
   const byPath=new Map(),entries=files.filter(file=>!file.path.split('/').some(part=>part.startsWith('_'))).map(file=>{
-    // Obsidian indexes the author's local notes; knownTo pages need not carry a person tag.
     const metadata={...(app.metadataCache.getFileCache(file)?.frontmatter || {})};
-    if(hasKnownTo(metadata))metadata.tags=[...new Set([...list(metadata.tags),'person'])];
     const entry={id:file.path,slug:file.path,target:file.path,name:file.basename,title:metadata.name || file.basename,note:{metadata},file};
     byPath.set(file.path,entry);return entry;
   });
@@ -47,11 +44,10 @@ export async function obsidianInteractions(app) {
     } catch(error){warnings.push(file.path+': '+error.message);bundles.push({key:file.path,...identity,invalid:true});}
   });
   bundles.sort((a,b)=>a.key.localeCompare(b.key));
-  const fallbacks=sessionNoteFallbacks(store,registry,bundles);
-  const roots=Object.values(registry.campaigns || {}).map(campaign=>String(campaign.campaignRoot || '').replace(/\/+$/,'')).filter(Boolean);
-  const references=entries.filter(entry=>fallbacks.has(entry.slug) || (roots.some(root=>entry.id.startsWith(root+'/')) &&
-    interactionReferenceType(app.metadataCache.getFileCache(entry.file)?.frontmatter) &&
-    !list(entry.note.metadata.tags).includes('session-note') && entry.note.metadata.sessionNumber==null));
+  const fallbacks=sessionNoteFallbacks(store,registry,bundles,resolver);
+  const ownership=buildBacklinkCampaigns(store,registry);
+  const references=entries.filter(entry=>fallbacks.has(entry.slug) ||
+    (ownership.get(entry.slug)?.length && isRelatedCampaignSource(entry.note.metadata)));
   const incoming=new Map();
   await readFiles(references,async entry=>{
     const source=await app.vault.cachedRead(entry.file);
@@ -86,10 +82,10 @@ export async function obsidianInteractions(app) {
     [target,records.filter(record=>fallbacks.has(record.source)).map(record=>({source:record.source,when:[{}]}))]))};
   const index=compileInteractionIndex(store,registry,backlinks,bundles);
   const fallback=new Contexts(store,registry,{default_date:'1750-01-01'}).resolve().date;
-  return {store,registry,index,incoming,sessionFallbacks:fallbacks,ownership:buildBacklinkCampaigns(store,registry),fallback,warnings:[...warnings,...index.warnings]};
+  return {store,registry,resolver,index,incoming,sessionFallbacks:fallbacks,ownership,fallback,warnings:[...warnings,...index.warnings]};
 }
-export function knownCampaigns(snapshot,metadata) {
-  const identities=campaignIdentities(snapshot.registry),codes=new Set(list(metadata.knownTo).map(value=>identities.get(String(value).trim().toLowerCase())).filter(Boolean));
+export function knownCampaigns(snapshot,path,metadata) {
+  const codes=new Set(snapshot.resolver.resolve(path,metadata).knownTo);
   return Object.values(snapshot.registry.campaigns || {}).filter(campaign=>codes.has(campaign.code));
 }
 export function normalizeInteractionDate(value) {
@@ -103,17 +99,19 @@ export function localInteractions(snapshot,path,campaign,date,app) {
   const entry=snapshot.store.bySlug.get(path);
   const context={kind:'custom',id:'custom',campaigns:[campaign.code],date,dm:true},references=[],visibleSources=new Set();
   for(const reference of snapshot.incoming.get(path) || []) {
-    if(!snapshot.ownership.get(reference.source)?.includes(campaign.code))continue;
+    const session=snapshot.sessionFallbacks.get(reference.source);
+    const inScope=session ? session.campaign===campaign.code : snapshot.ownership.get(reference.source)?.includes(campaign.code);
+    if(!inScope)continue;
     const notes=[],body=filterComments(reference.marked,{...context,notes});
     const visible=body+'\n'+notes.map(note=>note.text).join('\n');
     if(reference.markers.some(marker=>visible.includes(marker))) {
       visibleSources.add(reference.source);
-      if(!snapshot.sessionFallbacks.has(reference.source))references.push({id:'reference:'+campaign.code+':'+reference.source,campaign:campaign.code,source:reference.source,kind:'reference',when:[{}]});
+      if(!session)references.push({id:'reference:'+campaign.code+':'+reference.source,campaign:campaign.code,source:reference.source,kind:'reference',when:[{}]});
     }
   }
   const records=(snapshot.index.byTarget[path] || []).filter(record=>record.kind!=='session-reference' || visibleSources.has(record.source));
   const index={...snapshot.index,byTarget:{[path]:[...records,...references]}};
-  const groups=campaignInteractions(index,snapshot.store,entry,context,snapshot.registry);
+  const groups=campaignInteractions(index,snapshot.store,entry,context,snapshot.registry,snapshot.resolver);
   const group=groups[0] || {code:campaign.code,label:campaign.name,known:true,events:[]},links=new Map();
   const native=target=>{
     if(!target)return null;

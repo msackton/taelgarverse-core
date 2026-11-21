@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Contexts} from '../src/contexts.mjs';
+import {noteCampaignResolver} from '../src/campaign-ownership.mjs';
 import {siteHeader,contextQuery} from '../src/header.mjs';
 import {load} from 'cheerio';
 
@@ -44,6 +45,49 @@ test('undated latest sessions disable preset instead of inventing date',() => {
   assert.equal(contexts.resolve('modern').date,'1750-01-01');
   assert.equal(contexts.resolve('modern').dateSource,'configured-fallback');
 });
+test('campaign directory defaults depend on the note type',() => {
+  const resolver=noteCampaignResolver({campaigns:{
+    one:{code:'one',name:'One',campaignRoot:'Campaigns/One'},
+    two:{code:'two',name:'Second Campaign',campaignRoot:'Campaigns/One/Two'},
+  }});
+  const cases=[
+    ['Campaigns/One/Recap.md',{tags:['session-note'],knownTo:['two']},'one',[],'one'],
+    ['Campaigns/One/Story.md',{tags:['story'],knownTo:['two']},'one',[],'one'],
+    ['Campaigns/One/Index.md',{tags:['meta'],knownTo:['two']},'one',[],'one'],
+    ['Campaigns/One/Transcript.md',{tags:['source']},'one',[],'one'],
+    ['Campaigns/One/Letter.md',{tags:['source'],knownTo:['two']},'one',['two'],'one'],
+    ['Sources/Letter.md',{tags:['primary-source'],campaign:'Second Campaign',knownTo:['one']},'two',['one'],undefined],
+    ['Campaigns/One/Treasure.md',{tags:['status/check/ai','item/weapon'],knownTo:['two','one','ONE','unknown']},undefined,['two','one'],'one'],
+    ['Campaigns/One/Two/Keep.md',{tags:['place'],knownTo:[]},undefined,['two'],'two'],
+    ['Campaigns/One/Vision.md',{tags:['event'],knownTo:[]},undefined,['one'],'one'],
+    ['Campaigns/One/Lore.md',{tags:['background'],knownTo:['two']},undefined,['two'],'one'],
+    ['Campaigns/One/Untyped.md',{},undefined,[],'one'],
+    ['Campaigns/One More/Unassigned.md',{tags:['session-note']},undefined,[],undefined],
+  ];
+  for (const [path,metadata,campaign,knownTo,folderCampaign] of cases) {
+    const resolved=resolver.resolve(path,metadata);
+    assert.deepEqual([resolved.campaign,resolved.knownTo,resolved.folderCampaign],[campaign,knownTo,folderCampaign],path);
+  }
+});
+
+test('session dates inherit the directory while resolving explicit IDs against the full registry',() => {
+  const campaigns={campaigns:{
+    one:{code:'one',name:'One',campaignRoot:'Campaigns/One'},
+    two:{code:'two',name:'Two',websiteSelectable:false},
+  }};
+  const entries=[
+    page('Campaigns/One/Session 1.md',{tags:['session-note'],sessionNumber:1,DR:'1720-01-01'}),
+    page('Campaigns/One/Session 2.md',{tags:['session-note'],campaign:'unknown',sessionNumber:2,DR:'1721-01-01'}),
+    page('Campaigns/One/Session 3.md',{tags:['session-note'],campaign:'Two',sessionNumber:3,DR:'1722-01-01'}),
+  ];
+  const website=Contexts.forWebsite({entries},campaigns,settings);
+  assert.equal(website.resolve('one').source,entries[1].id);
+  assert.equal(website.resolve('one').date,'1721-01-01');
+  assert.throws(()=>website.resolve('custom',undefined,['Two']),{status:400});
+  const local=new Contexts({entries},campaigns,settings);
+  assert.equal(local.resolve('two').source,entries[2].id);
+});
+
 test('only session notes supply campaign dates',() => {
   const contexts = catalogue([
     page('Campaigns/First.md',{tags:['meta'],campaign:'one',DR:'1800-01-01',DR_end:'1801-01-01',realWorldDate:'2099-01-01'}),

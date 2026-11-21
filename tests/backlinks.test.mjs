@@ -68,8 +68,10 @@ test('campaign ownership recognizes registry identities and folders while keepin
     'Campaigns/Unregistered Campaign/Session.md':'# Archived\n\n[[Target]]',
     'Campaigns/Addermarch Campaign Extra/Letter.md':'# Another Folder\n\n[[Target]]',
     'Campaigns/Addermarch Campaign/Secret.md':'# Secret\n\n%%[[Target]]%%',
+    'Campaigns/Addermarch Campaign/Invalid declaration.md':'---\ntags: [source]\ncampaign: Unregistered\n---\n[[Target]]',
   });
   const compiled = buildBacklinkIndex(sample), owners = buildBacklinkCampaigns(sample,registry);
+  assert.deepEqual(owners.get('campaigns/addermarch-campaign/invalid-declaration'),[]);
   for (const campaigns of [[],['adma'],['dufr']]) for (const dm of [false,true]) {
     const actual = linkedFrom(compiled,sample,'target',context('1720-01-01',campaigns,dm),owners).map(link=>link.page);
     const expected = ['shared','campaigns/campaigns'];

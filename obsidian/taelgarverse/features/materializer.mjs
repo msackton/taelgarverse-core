@@ -86,7 +86,7 @@ export class MaterializerFeature extends LegacyMaterializer {
           } else {
             if(block.body.trim())throw new Error('Leave the taelgar-interactions block empty.');
             const data=await runtime.interactions();
-            markdown=interactionsMarkdown(knownCampaigns(data,metadata).map(campaign=>localInteractions(data,file.path,campaign,date,this.app)));
+            markdown=interactionsMarkdown(knownCampaigns(data,file.path,metadata).map(campaign=>localInteractions(data,file.path,campaign,date,this.app)));
           }
           nativeBlocks++;
         }
