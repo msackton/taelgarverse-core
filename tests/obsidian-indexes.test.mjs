@@ -260,7 +260,7 @@ test('shared popups support native details fallback, backdrop dismissal and disp
   const cleanup=mountIndexPopups(h.document);assert.equal(h.click(summary).defaultPrevented,false);cleanup();
 });
 
-test('Obsidian grids resolve local images and people tables keep native links, last-known locations and homes',async()=>{
+test('Obsidian grids resolve local images and people tables link to current locations and homes',async()=>{
   const h=host();
   try {
     const grid=await h.block('type: residents\nmode: grid');
@@ -268,14 +268,14 @@ test('Obsidian grids resolve local images and people tables keep native links, l
     assert.equal(grid.element.querySelector('img').getAttribute('src'),'app://local/portraits/alice.png');
     assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Alice Example \(she\/her AL-iss\)/);
     assert.equal(grid.element.querySelectorAll('.taelgar-index-card')[1].querySelector('a').textContent,'Bob');
-    assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Current Location: the Other Realm \(January 1st, 1720\)/);
+    assert.equal(grid.element.querySelector('.taelgar-index-card .taelgar-index-detail').textContent,'Current Location: the Other Realm');
     assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Home: Inn/);
     assert.doesNotMatch(grid.element.textContent,/Visitor/);
     const table=await h.block('type: residents\nmode: table');
     assert.equal(table.element.querySelectorAll('img,.taelgar-index-grid').length,0);
     const cells=table.element.querySelector('tbody tr').querySelectorAll('td');
     assert.equal(cells[0].textContent,'Alice Example (she/her AL-iss)');assert.equal(cells[1].textContent,'Townfolk human');
-    assert.equal(cells[2].textContent,'the Other Realm (January 1st, 1720)');h.click(cells[2].querySelector('a'));
+    assert.equal(cells[2].textContent,'the Other Realm');h.click(cells[2].querySelector('a'));
     assert.deepEqual(h.opened[0],['Places/Other Realm.md','Places/Realm.md',false]);
     assert.equal(cells[3].textContent,'Inn');h.click(cells[3].querySelector('a'));
     assert.deepEqual(h.opened[1],['Places/Inn.md','Places/Realm.md',false]);
@@ -302,7 +302,7 @@ test('Obsidian settlement tables use home regions, type aliases and formatted po
   } finally {h.dispose();}
 });
 
-test('Obsidian member tables format pronouns, info, dated locations and homes; grids show the first authored sentence',async()=>{
+test('Obsidian member tables show Unknown after a location expires and grids show the first authored sentence',async()=>{
   const h=host();
   try {
     const alice=h.metadata.get('People/Alice.md');
@@ -312,8 +312,8 @@ test('Obsidian member tables format pronouns, info, dated locations and homes; g
     assert.deepEqual([...table.element.querySelectorAll('th')].map(cell=>cell.textContent),['Person','Info','Current Location','Home']);
     const cells=table.element.querySelector('tbody tr').querySelectorAll('td');
     assert.equal(cells[0].textContent,'Alice Example (xe/xem AL-iss)');assert.equal(cells[1].textContent,'Townfolk human');
-    assert.equal(cells[2].textContent,'Inn, Town (January 1st, 1710)');
-    h.click(cells[2].querySelector('a'));assert.deepEqual(h.opened[0],['Places/Inn.md','Places/Realm.md',false]);
+    assert.equal(cells[2].textContent,'Unknown');
+    assert.equal(cells[2].querySelector('a'),null);
     assert.equal(table.element.querySelectorAll('tbody tr').length,5,'local results follow affiliation dates, including future-born and publication-hidden members');
     assert.equal(table.element.querySelectorAll('img').length,0);
     const grid=await h.block('type: members\ntarget: Guild\nmode: grid');

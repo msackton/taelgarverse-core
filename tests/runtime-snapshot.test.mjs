@@ -156,7 +156,7 @@ test('compiled and legacy Workers calculate visible indexes from metadata and pr
     assert.equal(table.status,200);const tabular=await table.json();
     assert.match(tabular.html,/Alice Example.*she\/her AL-iss/s);assert.match(tabular.html,/Townfolk human/);
     assert.match(tabular.html,/Person<\/th>.*Info<\/th>.*Current Location<\/th>.*Home<\/th>/s);
-    assert.doesNotMatch(tabular.html,/Visitor/);assert.match(tabular.html,/January 1st, 1720/);
+    assert.doesNotMatch(tabular.html,/Visitor|January 1st, 1720/);assert.match(tabular.html,/Other Realm<\/a><\/td>/);
     assert.doesNotMatch(tabular.html,/taelgar-index-image|People\/Hidden/);
     const settlements=await request(worker,bucket,'/api/page?page=Settlement Table&date=1720-01-01&campaigns=dufr&pov=1');
     assert.equal(settlements.status,200);const places=await settlements.json();
@@ -165,7 +165,8 @@ test('compiled and legacy Workers calculate visible indexes from metadata and pr
     const members=await request(worker,bucket,'/api/page?page=Member Table&date=1720-01-01&campaigns=dufr&pov=1');
     assert.equal(members.status,200);const people=await members.json();
     assert.match(people.html,/Person<\/th>.*Info<\/th>.*Current Location<\/th>/s);
-    assert.match(people.html,/she\/her AL-iss/);assert.match(people.html,/January 1st, 1720/);
+    assert.match(people.html,/she\/her AL-iss/);assert.match(people.html,/Other Realm<\/a><\/td>/);
+    assert.doesNotMatch(people.html,/January 1st, 1720/);
     assert.doesNotMatch(people.html,/People\/(?:Hidden|Campaign Secret)|Dead|Future/);
   }
 });
