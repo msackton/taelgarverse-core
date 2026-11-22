@@ -50,10 +50,6 @@ export function buildRuntime(settings = loadSettings(),output = path.join(ROOT,'
   writeChanged(path.join(output,'headers.mjs'),'// Generated from trusted vault CustomJS. No runtime evaluation or global prototype changes.\n' +
     'export const headerRevision = ' + JSON.stringify(revision) + ';\nexport function instantiate({customJS,app}) {\n' +
     '  const window = {app};\n  const console = {log(){},warn(){},error(){}};\n' + declarations.join('\n') + '\n}\n');
-  const names = ['octicons-info-24','octicons-location-24','octicons-people-24','material-calendar','simple-dungeonsanddragons'];
-  const icons = names.map(name=>[name,fs.readFileSync(path.join(ROOT,'public/icons',name+'.svg'),'utf8')]);
-  icons.push(['speaker','🔈']);
-  writeChanged(path.join(ROOT,'src/icons.mjs'),'// Generated from public/icons by scripts/build-runtime.mjs.\nexport const icons = new Map(' + JSON.stringify(icons) + ');\n');
   return {revision,output};
 }
 if (process.argv[1] && import.meta.url===pathToFileURL(path.resolve(process.argv[1])).href) {

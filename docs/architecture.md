@@ -117,7 +117,9 @@ flowchart LR
 | `src/campaign-calendar.mjs`, `src/campaign-calendar-context.mjs`, `src/lunar.mjs`, `src/browser/campaign-calendar.mjs`, `public/calendar.css`, `obsidian/taelgarverse/features/calendar.mjs` | Opt-in campaign-date calendar with DR date/month helpers, lunar phases, and normal Obsidian campaign/custom-date settings. Disabled by default; the component owns its active listeners and date API. A metadata-only adapter reuses website Contexts and exposes the date API for headers, indexes and CustomJS. The DOM view shows campaign dots and daily moon illumination; lunar crossings use the adopted full-moon anchor and exact three-hour ticks. The legacy CustomJS hook is an uncommitted experimental-vault change; no website route exists yet. See [campaign calendar](vault.md#campaign-calendar-prototype). |
 | `src/worker.mjs`, `src/worker-handler.mjs`, `src/snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
 | `src/headers.mjs`, `src/header-runtime.mjs`, `src/worker-headers.mjs` | Preserved legacy VM/generated reference implementations for characterization tests. Production rendering does not import them. |
-| `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs`, `scripts/header-core-revision.mjs` | Legacy reference/icon maintenance and a separate source fingerprint for the maintained core in publication diagnostics. |
+| `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs` | Regenerate the local and committed historical CustomJS header references. |
+| `scripts/build-icons.mjs`, `public/icons/`, `src/icons.mjs` | Build the checked-in icon table used by website Markdown. The content publisher fingerprints the generated table. |
+| `scripts/header-core-revision.mjs` | Fingerprint the maintained header core for publication diagnostics. |
 | `public/`, `src/browser/`, `scripts/build-browser.mjs` | Application styles/scripts and the generated Leaflet/Mermaid browser assets; Wrangler builds these before packaging. |
 | `public/search-overlay.js` | Search suggestions attached to the original query field, context/type preservation, keyboard controls, and stale-request cancellation. |
 | `public/quiet-library.css`, `public/site-ui.js`, `public/appearance.js` | Quiet Library layout, responsive dialogs and scroll controls, and browser-local System/Light/Dark appearance. |
@@ -417,11 +419,12 @@ from a vault. `npm test -- --live-vault` selects only explicit live-note and
 installed-plugin checks; the ordinary and emulator suites need only core.
 See [test modes and fixtures](../tests/README.md).
 
-The explicit maintenance command `node scripts/build-runtime.mjs` regenerates the local legacy reference at
-`.generated/headers.mjs` and `src/icons.mjs`; it does **not** update the maintained
-header core or the committed legacy `src/worker-headers.mjs` reference.
-`build-worker-headers.mjs` is retained only for intentional legacy-reference
-maintenance. Normal application and plugin builds bundle `src/header-core/`.
+`node scripts/build-runtime.mjs` regenerates the historical header module at
+`.generated/headers.mjs`. `node scripts/build-worker-headers.mjs` also updates the
+committed reference at `src/worker-headers.mjs`. Normal application and plugin
+builds bundle `src/header-core/`.
+Run `node scripts/build-icons.mjs` after updating `public/icons/` and commit the
+resulting `src/icons.mjs` alongside the SVGs.
 `public/generated/` is ignored and rebuilt from the pinned browser dependencies.
 Core provenance is also generated locally under `.generated/` by Wrangler before
 packaging. Content source commits travel with snapshots, while publication dates

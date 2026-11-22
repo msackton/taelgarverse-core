@@ -227,8 +227,8 @@ export function buildFingerprint(settings, options, config={}) {
     new URL('../src/recap-parser.mjs', import.meta.url),
     new URL('../src/mapped-sessions.mjs', import.meta.url),
     new URL('../src/campaign-ownership.mjs', import.meta.url),
-    new URL('../src/markdown.mjs', import.meta.url), new URL('../src/comments.mjs', import.meta.url),
-    new URL('../src/common.mjs', import.meta.url), new URL('./build-runtime.mjs', import.meta.url)]) {
+    new URL('../src/markdown.mjs', import.meta.url), new URL('../src/icons.mjs', import.meta.url),
+    new URL('../src/comments.mjs', import.meta.url), new URL('../src/common.mjs', import.meta.url)]) {
     // A Windows checkout may use CRLF while macOS uses LF. That alone must not
     // invalidate the shared R2 checkpoint for an otherwise identical build.
     hash.update(filename ? readFileSync(filename, 'utf8').replace(/\r\n/g, '\n') : '<no-website-source>');
