@@ -10,9 +10,6 @@ import {MAP_EDITOR_VIEW,MapEditorView,openMapEditor} from '../maps/view.mjs';
 import {mountTownPlacement} from '../maps/towns.mjs';
 import {mountNotePaths} from '../maps/paths.mjs';
 
-export const legacyRenderers=['taelgar-map-tools','obsidian-leaflet-plugin','obsidian-leaflet'];
-export const hasLegacyRenderer=app=>legacyRenderers.some(id=>app.plugins?.enabledPlugins?.has(id));
-
 // Rendering never writes notes. Explicit town Saves patch only their
 // guarded frontmatter field, through editor or atomic vault updates.
 export async function obsidianMapConfig(app,source,sourcePath,hashes) {
@@ -94,14 +91,9 @@ export class MapsFeature extends Component {
       if(!block || !view.file)return false;
       if(!checking)void this.edit(view.file.path,{source:block.body,lineHint:line});return true;
     }});
-    const render=(source,element,context)=>{
+    this.plugin.registerMarkdownCodeBlockProcessor('taelgar-map',(source,element,context)=>{
       context.addChild(new MapChild(this,source,element,context));
-    };
-    this.plugin.registerMarkdownCodeBlockProcessor('taelgar-map',render);
-    if(this.plugin.settings.legacyLeafletBlocks){
-      if(hasLegacyRenderer(this.plugin.app))new Notice('Taelgarverse: legacy leaflet blocks are handled by another enabled map plugin. Use taelgar-map blocks or disable the other renderer and restart Obsidian.');
-      else this.plugin.registerMarkdownCodeBlockProcessor('leaflet',render);
-    }
+    });
   }
   async edit(path,selection){try{await openMapEditor(this,path,selection);}catch(error){new Notice('Map editor: '+error.message);}}
   refreshMap(path,id,source,previous){

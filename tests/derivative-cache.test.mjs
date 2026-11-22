@@ -20,7 +20,7 @@ async function fixture(t){
   const source=path.join(directory,'source');await fs.mkdir(source);
   await sharp({create:{width:800,height:500,channels:3,background:'#8ac123'}}).jpeg().toFile(path.join(source,'image.jpg'));
   await sharp({create:{width:4100,height:64,channels:3,background:'#123abc'}}).png().toFile(path.join(source,'map.png'));
-  const body='![[image.jpg|120]]\n\n```leaflet\nimage: [[map.png]]\nbounds: [[0,0],[64,4100]]\n```';
+  const body='![[image.jpg|120]]\n\n```taelgar-map\nimage: [[map.png]]\nbounds: [[0,0],[64,4100]]\n```';
   await fs.writeFile(path.join(source,'Gallery.md'),body);
   const store=()=>new ContentStore([
     ...['image.jpg','map.png'].map(id=>({id,target:id,extension:path.extname(id),filename:path.join(source,id),note:null})),

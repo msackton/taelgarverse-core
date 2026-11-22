@@ -16,7 +16,7 @@ await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
 const definition = 'id: repeated\nimage: [[map with spaces.png]]\nbounds:\n- [0,0]\n- [64,4100]\nheight: 700px\nwidth: 900px\nlat: 32\nlong: 2050\nminZoom: -3\nmaxZoom: 2\ndefaultZoom: -1\n';
 function fixture(filename) {
   const entry = {id:'assets/map with spaces.png',target:'assets/map-with-spaces.png',extension:'.png',filename};
-  const author = {id:'Places/Maps.md',name:'Maps',target:'places/maps.md',slug:'places/maps',note:parseNote('```leaflet \n'+definition+'```')};
+  const author = {id:'Places/Maps.md',name:'Maps',target:'places/maps.md',slug:'places/maps',note:parseNote('```taelgar-map \n'+definition+'```')};
   return {entry,author,store:new ContentStore([entry,author])};
 }
 function render(source,store,entry) {
@@ -24,10 +24,10 @@ function render(source,store,entry) {
   return {...renderMarkdown(createMarkdown(),source,env),warnings:env.warnings};
 }
 
-test('Leaflet definitions resolve vault and relative images, preserve coordinates, and recover safely',()=>{
+test('map definitions resolve vault and relative images, preserve coordinates, and recover safely',()=>{
   const {store,author} = fixture();
   for (const image of ['[[map with spaces.png]]','[[[map with spaces.png]]]','[[../assets/map with spaces.png]]']) {
-    const source = '```leaflet \n'+definition.replace('[[map with spaces.png]]',image)+'```';
+    const source = '```taelgar-map \n'+definition.replace('[[map with spaces.png]]',image)+'```';
     const result = render(source,store,author), $ = load(result.html), config = JSON.parse($('.leaflet-map').attr('data-map'));
     assert.deepEqual(config.bounds,[[0,0],[64,4100]]);
     assert.deepEqual(config.center,[32,2050]);
@@ -43,7 +43,7 @@ test('Leaflet definitions resolve vault and relative images, preserve coordinate
   for (const invalid of ['bounds: [bad]','image: [[missing.png]]\nbounds: [[0,0],[1,1]]',
     definition.replace('700px','700px; background:url(evil)'),definition.replace('minZoom: -3','minZoom: 7'),
     definition+'bad: &a [*a]']) {
-    const result = render('```leaflet\n'+invalid+'\n```',store,author), $ = load(result.html);
+    const result = render('```taelgar-map\n'+invalid+'\n```',store,author), $ = load(result.html);
     assert.equal($('.leaflet-map').length,0);assert.equal($('.warning').length,1);assert.equal(result.warnings.length,1);
     assert.equal($('script,img').length,0);
   }
@@ -55,26 +55,30 @@ test('map measurement preserves authored scale and unit; invalid calibration lea
   const parsed=parseMap(definition+'unit: miles\nscale: 0.5\n',store,author);
   assert.deepEqual(parsed.config.measurement,{xScale:0.5,yScale:0.5,unit:'miles'});
   for(const settings of ['unit: []','unit: ""','scale: 0','scale: -1','scale: .inf','scale: "0.5"']){
-    const result=render('```leaflet\n'+definition+settings+'\n```',store,author),$=load(result.html);
+    const result=render('```taelgar-map\n'+definition+settings+'\n```',store,author),$=load(result.html);
     assert.equal($('.leaflet-map').length,1);
     assert.equal(JSON.parse($('.leaflet-map').attr('data-map')).measurement,null);
     assert.match(result.warnings[0],/distance measurement disabled/);
   }
 });
 
-test('taelgar-map blocks render and participate in image preparation alongside legacy leaflet blocks',()=>{
-  const {store,author}=fixture();
-  const source='```taelgar-map\n'+definition+'```';
-  const legacy=render(author.note.body,store,author),current=render(source,store,author);
-  assert.equal(current.html,legacy.html);assert.deepEqual(current.warnings,[]);
+test('leaflet fences remain code and do not participate in map image preparation',()=>{
+  const {store,author,entry}=fixture();
+  const source='```leaflet\n'+definition+'```';
+  const result=render(source,store,author),$=load(result.html);
+  assert.equal($('pre code.language-leaflet').text(),definition);
+  assert.equal($('.leaflet-map').length,0);assert.deepEqual(result.warnings,[]);
+  const native=author.note.body;
   author.note.body=source;
+  assert.deepEqual(mapImages(store),[]);assert.equal(entry.mapImage,undefined);
+  author.note.body=native;
   assert.deepEqual(mapImages(store).map(map=>map.entry.id),['assets/map with spaces.png']);
 });
 
-test('leaflet blocks carry their own source-pixel calibration through website rendering',()=>{
+test('taelgar-map blocks carry their own source-pixel calibration through website rendering',()=>{
   const {store,author,entry}=fixture();entry.sha256='a'.repeat(64);
   const calibration='calibration:\n  hexMiles: 24\n  hexPixels: 40\n  imageSize: [200, 100]\n  imageSha256: '+entry.sha256+'\n';
-  const source='```leaflet\n'+definition+'scale: 999\n'+calibration+'```';
+  const source='```taelgar-map\n'+definition+'scale: 999\n'+calibration+'```';
   const result=render(source,store,author),$=load(result.html);
   const options=JSON.parse($('.leaflet-map').attr('data-map')).measurement;
   assert.equal(options.unit,'miles');assert.equal(options.hexMiles,24);
@@ -93,7 +97,7 @@ test('local preparation fingerprints new calibrated maps without a registered pa
   await sharp({create:{width:200,height:100,channels:3,background:'#ef2020'}}).png().toFile(filename);
   const {entry,author,store}=fixture(filename);
   const fingerprint=createHash('sha256').update(await fs.readFile(filename)).digest('hex');
-  author.note.body='```leaflet\nimage: [[map with spaces.png]]\nbounds: [[0,0],[100,200]]\ncalibration:\n  hexMiles: 24\n  hexPixels: 40\n  imageSize: [200,100]\n  imageSha256: '+fingerprint+'\n```';
+  author.note.body='```taelgar-map\nimage: [[map with spaces.png]]\nbounds: [[0,0],[100,200]]\ncalibration:\n  hexMiles: 24\n  hexPixels: 40\n  imageSize: [200,100]\n  imageSha256: '+fingerprint+'\n```';
   assert.equal(JSON.parse(load(render(author.note.body,store,author).html)('.leaflet-map').attr('data-map')).measurement,null);
   assert.deepEqual(await prepareMaps(store,path.join(directory,'tiles')),[]);
   assert.equal(entry.sha256,fingerprint);

@@ -42,18 +42,13 @@ class TaelgarverseSettings extends PluginSettingTab {
         this.plugin.images.setEnabled(value);
         await this.plugin.saveData(this.plugin.settings);
       }));
-    new Setting(this.containerEl).setName('Render legacy leaflet blocks')
-      .setDesc('Also render leaflet blocks when no other map renderer is enabled. Restart Obsidian after changing this. New maps should use taelgar-map blocks.')
-      .addToggle(toggle=>toggle.setValue(this.plugin.settings.legacyLeafletBlocks).onChange(async value=>{
-        this.plugin.settings.legacyLeafletBlocks=value;
-        await this.plugin.saveData(this.plugin.settings);
-      }));
   }
 }
 
 export default class Taelgarverse extends Plugin {
   async onload(){
-    this.settings={legacyLeafletBlocks:false,imageViewer:false,automaticInteractions:true,headerIndexPopups:true,calendarEnabled:false,relationshipsEnabled:false,calendarCampaign:'modern',...await this.loadData()};
+    this.settings={imageViewer:false,automaticInteractions:true,headerIndexPopups:true,calendarEnabled:false,relationshipsEnabled:false,calendarCampaign:'modern',...await this.loadData()};
+    delete this.settings.legacyLeafletBlocks;
     delete this.settings.photoshopDropboxCredentials; // Removed account-path integration.
     delete this.settings.photoshopExporter; // Map creation always uses the bundled exporter.
     this.addSettingTab(new TaelgarverseSettings(this));

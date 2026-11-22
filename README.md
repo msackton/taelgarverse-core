@@ -365,7 +365,7 @@ campaign selection apply no campaign-specific exclusions. See Behind the Curtain
 Explicit campaign/date markers are filtered, but knownTo, POV, inferred spoilers,
 viewer permissions, and the chronology of ordinary prose are not interpreted.
 
-Leaflet image-map blocks render with pan, keyboard/touch zoom, a Fit map control,
+`taelgar-map` blocks render with pan, keyboard/touch zoom, a Fit map control,
 and an original-image fallback. Large maps use locally generated WebP tiles,
 packaged as ordinary content-addressed assets for the Worker. Leaflet is pinned
 and bundled locally, and map scripts/styles load only on pages containing maps.

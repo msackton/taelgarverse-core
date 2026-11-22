@@ -152,7 +152,7 @@ export function mapImages(store,{homeSource=null,campaignHomes={},strict=false}=
   for(const [host,source] of Object.entries(campaignHomes))authors.push({id:'_website/'+host+'.md',note:typeof source==='string'?parseNote(source):source});
   for (const author of authors) {
     for (const token of markdown.parse(author.note.body,{})) {
-      if (token.type !== 'fence' || !/^(?:taelgar-map|leaflet)(?:\s|$)/i.test(token.info.trim())) continue;
+      if (token.type !== 'fence' || !/^taelgar-map(?:\s|$)/i.test(token.info.trim())) continue;
       try {
         const map = parseMap(token.content,store,author,{verifyImage:false});
         map.entry.mapImage = true;

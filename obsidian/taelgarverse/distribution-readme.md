@@ -273,11 +273,9 @@ Copy the image into your vault. Add your map's verified calibration to measure
 physical distances; without calibration or a scale, measurements use map units.
 Definitions and calibration have the same meaning on the Taelgarverse website.
 
-The separate **Obsidian Leaflet** plugin can remain enabled: Taelgarverse claims
-only `taelgar-map` blocks by default. Existing `leaflet` blocks stay with their
-current renderer. To use Taelgarverse for old blocks, disable other map renderers,
-enable **Render legacy leaflet blocks** in Taelgarverse settings, then restart
-Obsidian. Disable the former **Taelgar Map Tools** plugin during migration.
+Taelgarverse renders `taelgar-map` blocks. The separate **Obsidian Leaflet**
+plugin can still handle `leaflet` fences. To use the Taelgarverse viewer for
+an existing image map, change its opening fence label to `taelgar-map`.
 
 The plugin reads local images and does not rewrite notes. Measurements are
 temporary and are cleared when the rendered map closes. Requires desktop

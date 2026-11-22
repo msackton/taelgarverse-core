@@ -302,17 +302,10 @@ Install BRAT 1.1.0 or newer from Community plugins, then add
 guide. BRAT follows latest or a pinned version per installation; keep its
 preferences and installed plugin files outside vault Git tracking.
 
-New maps use `taelgar-map` fences. The definition inside the fence is unchanged;
-the website supports both `taelgar-map` and legacy `leaflet` fences. The bundled
-Leaflet library is independent of the separately installed Obsidian Leaflet
-plugin. Taelgarverse leaves `leaflet` blocks alone by default, so both plugins
-can be enabled together.
-
-For existing notes, either change their opening fence to `taelgar-map`, or turn
-on **Render legacy leaflet blocks** in Taelgarverse settings and restart Obsidian.
-Legacy support is skipped if Obsidian Leaflet or the old **Taelgar Map Tools**
-plugin is enabled. Disable those renderers before enabling legacy support;
-their installed files can remain for rollback. No notes are migrated automatically.
+The website and plugin render `taelgar-map` fences. To use the Taelgarverse viewer
+for an existing image map, change its opening fence label from `leaflet` to
+`taelgar-map` and keep the definition. The separate Obsidian Leaflet plugin can
+still handle `leaflet` fences in Obsidian.
 
 ## Develop locally
 

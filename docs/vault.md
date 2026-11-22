@@ -896,7 +896,7 @@ source/context metadata; previews use the existing context-filtered page API.
 
 ## Interactive maps
 
-Fenced `taelgar-map` and legacy `leaflet` blocks render as interactive image maps.
+Fenced `taelgar-map` blocks render as interactive image maps.
 Their image wikilink, bounds, center (`lat`/`long`), zoom limits, default zoom, height, and
 width are preserved. Maps support dragging, zoom buttons, keyboard panning and
 zooming, and touch gestures. **Fit map** shows the complete map; **Open map image**
@@ -908,14 +908,13 @@ points for a total; Undo, Clear, and Done controls appear as needed.
 **Trace path** mode follows winding roads or rivers by dragging, with each
 stroke measured along its bends and removed as one Undo action. The same tools
 are available through the [Taelgarverse Obsidian plugin](../obsidian/taelgarverse/README.md).
-Use `taelgar-map` for new notes so the plugin can coexist with Obsidian Leaflet.
-Existing `leaflet` blocks require opting into legacy support in Taelgarverse,
-with other map renderers disabled, or changing only their opening fence label.
+To use the Taelgarverse viewer for an existing image map, change its opening
+fence label from `leaflet` to `taelgar-map`.
 Returning to the start or choosing **Close shape** closes an outline and shows
 its enclosed area in square miles alongside the distance. Separate outlines
 have separate readings; crossed outlines report that area is unavailable.
 The current Taelgar maps record their verified **24-mile hex** calibration inside
-each `leaflet` block: `calibration.hexMiles`, `hexPixels` in original image pixels,
+each `taelgar-map` block: `calibration.hexMiles`, `hexPixels` in original image pixels,
 `imageSize: [width, height]`, and an optional `imageSha256` fingerprint. The vault
 owns this data; the website and Obsidian read the same fields. The fingerprint
 disables measurement after an image changes until its calibration is rechecked.

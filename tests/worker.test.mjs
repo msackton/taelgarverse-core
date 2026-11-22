@@ -38,7 +38,7 @@ before(async()=>{
     const file=path.join(source,relative);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,text);
   }
   fs.writeFileSync(path.join(source,'tiny.png'),'fixture asset');
-  fs.writeFileSync(path.join(source,'Tiled Map.md'),'```leaflet\nimage: [[world.png]]\nbounds: [[0,0],[64,4100]]\n```');
+  fs.writeFileSync(path.join(source,'Tiled Map.md'),'```taelgar-map\nimage: [[world.png]]\nbounds: [[0,0],[64,4100]]\n```');
   await sharp({create:{width:4100,height:64,channels:3,background:'red'}}).png().toFile(path.join(source,'world.png'));
   fs.writeFileSync(path.join(source,'Regional Map.md'),'```taelgar-map\nimage: [[regional.png]]\nbounds: [[0,0],[64,2308]]\n```');
   await sharp({create:{width:2308,height:64,channels:3,background:'blue'}}).png().toFile(path.join(source,'regional.png'));

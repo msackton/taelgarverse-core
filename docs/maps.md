@@ -98,17 +98,16 @@ into a union or interpreted as holes.
 Maps authored with other units show square units instead of square miles.
 
 The [Taelgarverse Obsidian plugin](../obsidian/taelgarverse/README.md) uses the
-same map viewer, tracing controller, and calibration. It renders existing
-`taelgar-map` blocks locally without rewriting their source. The website accepts
-both `taelgar-map` and legacy `leaflet` fences. Taelgarverse's optional legacy
-setting handles `leaflet` blocks only when another known map renderer is not
-enabled; it is off by default so Obsidian Leaflet can coexist. Switching a note
-to the new fence changes only its opening label, preserving its definition and
-calibration. BRAT distributes the plugin independently of the website.
+same map viewer, tracing controller, and calibration. Both hosts render
+`taelgar-map` blocks. On the website, a `leaflet` fence appears as ordinary code.
+In Obsidian, a separate plugin such as Obsidian Leaflet can still render those
+fences. To use the Taelgarverse viewer for an existing image map, change its
+opening fence label to `taelgar-map` and retain its definition and calibration.
+BRAT distributes the plugin independently of the website.
 
 ## Calibration belongs in the map block
 
-Each `leaflet` block owns its distance calibration in the vault. Both the website
+Each `taelgar-map` block owns its distance calibration in the vault. Both the website
 and Obsidian read it directly; there is no bundled table of Taelgar map scales.
 For example, the legacy Sembara map currently includes the following calibration.
 This records an older independent export, **not** the authoritative baseline scale.
@@ -395,8 +394,8 @@ with changes to its public API or behavior.
 
 `GET /api/maps` lists map views authored directly in published pages and the
 current hostname's homepage. Embedded maps are listed at their source page,
-without duplicate transclusion entries. Both `taelgar-map` and legacy `leaflet`
-blocks are included. The API uses the website's page availability, comment,
+without duplicate transclusion entries. The catalogue includes `taelgar-map`
+blocks. The API uses the website's page availability, comment,
 campaign/date and Behind the Curtain rules; campaign hosts enforce their normal
 locked context. These are public reading preferences, not room memberships.
 

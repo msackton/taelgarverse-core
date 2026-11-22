@@ -26,7 +26,7 @@ before(async () => {
     fs.writeFileSync(filename,source);
   }
   fs.writeFileSync(path.join(directory,'tiny.png'),'fixture asset');
-  fs.writeFileSync(path.join(directory,'Tiled Map.md'),'```leaflet\nimage: [[world.png]]\nbounds: [[0,0],[64,4100]]\n```');
+  fs.writeFileSync(path.join(directory,'Tiled Map.md'),'```taelgar-map\nimage: [[world.png]]\nbounds: [[0,0],[64,4100]]\n```');
   await sharp({create:{width:4100,height:64,channels:3,background:'red'}}).png().toFile(path.join(directory,'world.png'));
   for (const relative of ['assets/audio/song.mp3','assets/session-audio/session/clip.m4a','assets/excalidraw/drawing.png']) {
     const filename = path.join(directory,relative);

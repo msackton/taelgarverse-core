@@ -1,5 +1,5 @@
 // Convert each display-coordinate axis back to original image pixels, then
-// apply the calibration authored in the leaflet block. Zoom and tile sizes
+// apply the calibration authored in the map block. Zoom and tile sizes
 // never change the resulting distance. These are flat image distances.
 export function measurementOptions(data,entry={},bounds=data.bounds) {
   if(data.calibration!==undefined){

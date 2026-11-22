@@ -6,6 +6,7 @@ import {RenderEngine} from '../src/render-engine.mjs';
 import {createHeaderSnapshot} from '../src/header-core/index.mjs';
 import {handleRequest} from '../src/application.mjs';
 import {compileRuntime} from '../scripts/compile-runtime.mjs';
+import {compileMapSources} from '../src/map-catalogue.mjs';
 import {buildBacklinkIndex} from '../src/backlinks.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
@@ -49,7 +50,7 @@ test('map identities survive prose, block order, viewport and origin changes; re
   const other=(await catalogue(a.engine,'/api/maps','https://www.taelgar.org')).maps[0];
   assert.equal(first.sourceRevision,other.sourceRevision);assert.equal(other.preview,'https://www.taelgar.org/assets/assets/world.png');
   const anon={image:'[[assets/world.png]]',bounds:[[0,0],[480,640]],scale:2,unit:'feet'};
-  const x=fixture({body:fence(anon,'leaflet')+'\n\n'+fence(block('second'))}),y=fixture({body:fence(block('second'))+'\n\n'+fence(anon,'leaflet')});
+  const x=fixture({body:fence(anon)+'\n\n'+fence(block('second'))}),y=fixture({body:fence(block('second'))+'\n\n'+fence(anon)});
   assert.deepEqual((await catalogue(x.engine)).maps.map(m=>m.id).sort(),(await catalogue(y.engine)).maps.map(m=>m.id).sort());
 });
 
@@ -89,8 +90,8 @@ test('campaign host context is authoritative and homepage-only maps join their o
   assert.ok(site.maps.some(m=>m.blockId==='campaign-home'));assert.ok(!site.maps.some(m=>m.blockId==='main-home'));
 });
 
-test('versioned map configs preserve legacy scale, detail imagery and context-filtered feature links',async()=>{
-  const {engine,store}=fixture({body:fence(block('world',{details:['assets/detail.map-detail.json']}))+'\n\n'+fence({id:'legacy',image:'[[assets/world.png]]',bounds:[[10,20],[490,660]],scale:5,unit:'feet'},'leaflet'),
+test('versioned map configs preserve image-map scale, detail imagery and context-filtered feature links',async()=>{
+  const {engine,store}=fixture({body:fence(block('world',{details:['assets/detail.map-detail.json']}))+'\n\n'+fence({id:'legacy',image:'[[assets/world.png]]',bounds:[[10,20],[490,660]],scale:5,unit:'feet'}),
     extraNotes:{'River.md':'---\nmapPath:\n  kind: river\n  points: [[1010,2020],[1200,2100]]\n---\nRiver','FutureRoad.md':'---\nborn: 1800\nmapPath:\n  kind: road\n  points: [[1010,2020],[1200,2100]]\n---\nFuture'}});
   const detail={id:'assets/detail.map-detail.json',target:'assets/detail.map-detail.json',extension:'.json',mapDetail:{version:1,name:'Detail',image:'detail.png',worldBounds:{x:1010,y:2020,width:100,height:100},pixelSize:[100,100]}};
   const image={id:'assets/detail.png',target:'assets/detail.png',extension:'.png',mapImageInfo:{format:'png',width:100,height:100}};
@@ -101,6 +102,17 @@ test('versioned map configs preserve legacy scale, detail imagery and context-fi
   const w=(await catalogue(engine,'/api/maps?id='+world.id)).map.config;
   assert.equal(w.detailLayers[0].image,'https://taelgar.org/assets/assets/detail.png');assert.equal(w.mapPaths.length,1);assert.match(w.mapPaths[0].href,/^https:\/\/taelgar.org\/page\/river/);
   const l=(await catalogue(engine,'/api/maps?id='+legacy.id)).map;assert.equal(l.coordinates.frame,'leaflet');assert.deepEqual(l.config.measurement,{xScale:5,yScale:5,unit:'feet'});
+});
+
+test('the catalogue excludes Leaflet fences from current and previously compiled map sources',async()=>{
+  const body=fence(block('old'),'leaflet');
+  const {engine,store}=fixture({extraNotes:{'Legacy.md':body}});
+  const sources=compileMapSources(store);
+  assert.deepEqual(sources.map(source=>source.id),['Maps.md']);
+  engine.loadMapSources=async()=>[...sources,{id:'Legacy.md',body}];
+  const list=await catalogue(engine);
+  assert.deepEqual(list.maps.map(map=>map.blockId),['world']);
+  assert.equal((await catalogue(engine,'/api/maps?page=Legacy')).total,0);
 });
 
 test('compiled Workers and existing format 2 snapshots return identical catalogues without vault republication',async()=>{
