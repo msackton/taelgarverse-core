@@ -4,32 +4,25 @@ import {RenderError} from './common.mjs';
 import {RenderEngine} from './render-engine.mjs';
 import {createHeaderSnapshot} from './header-core/index.mjs';
 import {bucketText} from './runtime-io.mjs';
+import {loadSnapshotValue} from './snapshot-loads.mjs';
 import {compileMapSources} from './map-catalogue.mjs';
 
 export class SnapshotStore extends ContentStore {
   constructor(index,bucket,lookups,options={}) {
     super(index.entries,index.warnings,index.settings,lookups);
     this.bucket=bucket;this.revision=index.revision;this.options=options;
-    this.shards=new Map();this.pending=new Map();this.maxShards=8;
+    this.shards=new Map();
   }
   async getNote(entry) {
     return parseNote(await this.getText(entry.id,entry.note));
   }
   async getText(id,descriptor) {
     const key='revisions/'+this.revision+'/notes/'+descriptor.shard+'.json';
-    let shard=this.shards.get(key);
-    if (shard) {this.shards.delete(key);this.shards.set(key,shard);}
-    else {
-      if (!this.pending.has(key)) this.pending.set(key,(async()=>{
-        const text=await bucketText(this.bucket,key,this.options.timeoutMs);
-        if (text===null) throw new RenderError(503,'Content snapshot is incomplete');
-        const value=JSON.parse(text);
-        this.shards.set(key,value);
-        while(this.shards.size>this.maxShards)this.shards.delete(this.shards.keys().next().value);
-        return value;
-      })().finally(()=>this.pending.delete(key)));
-      shard=await this.pending.get(key);
-    }
+    const shard=await loadSnapshotValue(this.shards,key,async()=>{
+      const text=await bucketText(this.bucket,key,this.options.timeoutMs);
+      if (text===null) throw new RenderError(503,'Content snapshot is incomplete');
+      return JSON.parse(text);
+    },8);
     const source=shard[id];
     if (typeof source!=='string' || createHash('sha256').update(source).digest('hex')!==descriptor.sha256) {
       throw new RenderError(503,'Content snapshot does not match its index');
@@ -53,14 +46,14 @@ export async function loadSnapshot(bucket,revision,options={}) {
   const headers=createHeaderSnapshot({pages:store.entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta:index.coreMeta,registry:index.registry});
   const engine=new RenderEngine({settings:index.settings,store,headers,navigationSource:index.navigationSource,
     homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null,interactionIndex:index.interactions});
-  let mapSources;
-  engine.loadMapSources=()=>mapSources??=(async()=>{
+  const mapSources=new Map();
+  engine.loadMapSources=()=>loadSnapshotValue(mapSources,'maps',async()=>{
     const entries=store.entries.filter(entry=>entry.note),sources=[];
     for(let start=0;start<entries.length;start+=8){
       const loaded=await Promise.all(entries.slice(start,start+8).map(async entry=>({...entry,note:await store.getNote(entry)})));
       sources.push(...compileMapSources({entries:loaded}));
     }
     return sources;
-  })().catch(error=>{mapSources=undefined;throw error;});
+  });
   return {engine,store,index};
 }

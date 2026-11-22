@@ -316,8 +316,11 @@ Keys contain the revision, descriptor hash and filename under a private cache
 namespace shared by campaign hosts. These are internal entries, not HTTP routes.
 Both R2 and cached bytes must match the manifest's SHA-256 before use. A corrupt,
 failed or slow cache read falls back to R2; verified reads replace bad cache
-entries. Cache writes are bounded and finish before the result is shared, without
-retaining the first request's execution context. The parsed in-memory LRU still
+entries. Cache writes are bounded. The Worker shares completed manifests, renderer
+state, and parsed data across requests. Pending reads are coalesced within the
+request that owns their I/O, so another request can load the data independently
+if the first request is slow or disconnects. Overlapping cache misses may read
+the same object more than once. The parsed in-memory LRU
 holds at most 16 objects. This cache saves storage transfers; each fresh isolate
 still parses JSON and initializes the renderer.
 
@@ -329,15 +332,14 @@ after loading shared data. Navigation and HTML search initialize the search
 catalog and navigation data concurrently.
 
 [`runtime-io.mjs`](../src/runtime-io.mjs) bounds R2 object/body waits at four
-seconds and cache operations at 250 ms. A timeout releases the failed shared
-load so later requests can retry; late R2 objects are discarded and active stream
+seconds and cache operations at 250 ms. A timeout releases the failed read
+so the request can retry; late R2 objects are discarded and active stream
 readers are cancelled. R2/D1 binding calls themselves cannot be aborted. Late
 completions cannot restore rejected in-memory loads. D1 gets three seconds before
 search uses its existing visible page-name fallback. The Worker also bounds the
-entire response preparation at ten seconds, returning an uncached `503`. On that
-deadline it evicts the snapshot used by that request, if still current, so a
-shared initialization stranded by a cancelled request cannot block future
-requests. These limits bound asynchronous waits, not synchronous CPU execution
+entire response preparation at ten seconds, returning an uncached `503`. A later
+request can independently initialize any data it still needs. These limits
+bound asynchronous waits, not synchronous CPU execution
 or streaming an already-started media response.
 
 Browser search and navigation bound fetch **and body parsing** at twelve seconds.
@@ -355,6 +357,8 @@ The existing Worker log configuration receives structured JSON diagnostics:
 - `snapshot-read`: part category, R2/edge source, edge hit/miss/error/timeout,
   cache-write outcome and milliseconds, with separate cache-read, R2 and cache-write times.
   In-memory hits do not emit object-read events.
+- `request-failed`: fixed failure kind for unexpected Worker errors. Cloudflare's
+  cross-request I/O error has a dedicated kind.
 
 These measurements describe overlapping/nested work: do not sum all phase
 durations. They record no query text, URL parameters, headers, SQL, transcript

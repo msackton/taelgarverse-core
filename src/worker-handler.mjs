@@ -5,12 +5,17 @@ import {RenderError} from './common.mjs';
 import {createD1Search} from './search.mjs';
 import {pageCache} from './page-cache.mjs';
 import {crawlerResponse,withCrawlerHeaders} from './crawler-policy.mjs';
-import {bucketText,withTimeout,timings,timingLog,discardBody,RequestTimeout} from './runtime-io.mjs';
+import {bucketText,withTimeout,timings,timingLog,discardBody} from './runtime-io.mjs';
+import {withSnapshotLoads} from './snapshot-loads.mjs';
 
 function failureResponse(error){
   const status=error instanceof URIError ? 400 : error.status || 500;
   // Provider exceptions can contain SQL, parameters or source content.
-  if(status===500)console.error(JSON.stringify({event:'request-failed'}));
+  if(status===500){
+    const kind=error instanceof Error && error.message.includes('Cannot perform I/O on behalf of a different request')
+      ? 'cross-request-io' : 'other';
+    console.error(JSON.stringify({event:'request-failed',kind}));
+  }
   return new Response(JSON.stringify({detail:status===500 ? 'Internal rendering error' : error.message}),{
     status,headers:{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff',
       ...(status===503?{'Retry-After':'1'}:{})},
@@ -27,7 +32,7 @@ function routeCategory(request){
 
 export function createWorker(coreRelease = {},{cache,snapshotCache,timeoutMs,cacheMs,queryTimeoutMs,requestTimeoutMs=10000,log=timingLog}={}) {
   let state;
-  async function fetchResponse(request,env,context,measure,signal,onSnapshot) {
+  async function fetchResponse(request,env,context,measure,signal) {
     try {
       const url=new URL(request.url);
       if (url.pathname.startsWith('/theme/')) {
@@ -46,12 +51,15 @@ export function createWorker(coreRelease = {},{cache,snapshotCache,timeoutMs,cac
       if(cached){const response=await measure('page-cache',()=>cached.match());if(response)return cached.respond(response,true);}
       signal.throwIfAborted();
       if (!state || state.revision!==revision || state.bucket!==env.CONTENT) {
-        const pending=openSnapshot(env.CONTENT,revision,{cache:snapshotCache,timeoutMs,cacheMs,log});
-        const current={revision,bucket:env.CONTENT,pending};state=current;
-        pending.catch(()=>{if(state===current)state=undefined;});
+        state={revision,bucket:env.CONTENT};
       }
-      onSnapshot(state);
-      const snapshot=await measure('snapshot-init',()=>state.pending);
+      const current=state;
+      const snapshot=await measure('snapshot-init',async()=>{
+        if(current.snapshot)return current.snapshot;
+        const loaded=await openSnapshot(env.CONTENT,revision,{cache:snapshotCache,timeoutMs,cacheMs,log});
+        signal.throwIfAborted();
+        return current.snapshot??=loaded;
+      });
       const {engine,store,index}=await measure('route-init',()=>snapshot.forRequest(request));
       let renderedPage=false;
       const response=await measure('application',()=>handleRequest(request,engine,{
@@ -94,20 +102,14 @@ export function createWorker(coreRelease = {},{cache,snapshotCache,timeoutMs,cac
     const enabled=env.BLOCK_CRAWLERS==='true';
     const rejected=enabled?crawlerResponse(request):null;
     if(rejected)return withCrawlerHeaders(rejected,enabled);
-    const timing=timings(log);let requestState;
-    const response=await withTimeout(async signal=>{
+    const timing=timings(log);
+    const response=await withSnapshotLoads(()=>withTimeout(async signal=>{
       const value=await fetchResponse(request,env,context,(name,operation)=>{
         signal.throwIfAborted();return timing.measure(name,operation);
-      },signal,current=>{requestState=current;});
+      },signal);
       if(signal.aborted){discardBody(value);throw signal.reason;}
       return value;
-    },requestTimeoutMs).catch(error=>{
-      // A joining request owns this deadline. If the original request's I/O
-      // context has disappeared, its timers/promise may never settle. Evict
-      // only the snapshot this request used so the next request can reopen it.
-      if(error instanceof RequestTimeout && state===requestState)state=undefined;
-      return failureResponse(error);
-    });
+    },requestTimeoutMs)).catch(failureResponse);
     timing.finish(routeCategory(request),response.status);
     return withCrawlerHeaders(response,enabled);
   }};

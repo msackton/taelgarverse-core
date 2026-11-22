@@ -354,9 +354,9 @@ revision-local numeric page IDs in target-grouped backlink shards, and deduplica
 navigation bitmaps. Prepared notes contain parsed bodies rather
 than requiring request-time YAML parsing. Backlink loading is asynchronous and
 request-local; the synchronous Node renderer still uses its full backlink index.
-Artifact hashes are verified on load,
-with shared pending reads and a bounded 16-object data cache. Navigation compiles
-named-context visibility by date; custom views are calculated on
+Artifact hashes are verified on load. Pending reads are coalesced within each
+request, and completed data is shared in a bounded 16-object cache. Navigation
+compiles named-context visibility by date; custom views are calculated on
 demand in a bounded 32-view cache. Request context and active-page selection stay
 separate from shared visibility data. Node reads a filesystem snapshot at startup and must restart
 after vault, runtime, settings, homepage, or menu changes. Node responses remain

@@ -8,6 +8,7 @@ import {loadSnapshot,SnapshotStore} from './snapshot.mjs';
 import {supportedRuntimeVersion,assetPartition,validRuntimeDescriptor} from './runtime-format.mjs';
 import {bucketText} from './runtime-io.mjs';
 import {readSnapshotPart} from './snapshot-cache.mjs';
+import {loadSnapshotValue} from './snapshot-loads.mjs';
 import {compileMapSources} from './map-catalogue.mjs';
 
 const failure=()=>new RenderError(503,'Compiled content snapshot is missing or invalid');
@@ -29,27 +30,19 @@ export async function openSnapshot(bucket,revision,options={}) {
 export class RuntimeSnapshot {
   constructor(bucket,index,options={}) {
     this.bucket=bucket;this.index=index;this.revision=index.revision;this.options=options;
-    this.parts=new Map();this.cache=new Map();this.pending=new Map();
+    this.parts=new Map();this.cache=new Map();
     this.contexts=Contexts.hydrate(index.contexts,index.settings);
     this.campaignSites=CampaignSites.hydrate(index.sites);
   }
 
   async read(descriptor) {
     if(!validRuntimeDescriptor(descriptor))throw failure();
-    const key=descriptor.file;
-    if(this.cache.has(key)){const value=this.cache.get(key);this.cache.delete(key);this.cache.set(key,value);return value;}
-    if(!this.pending.has(key))this.pending.set(key,(async()=>{
-      const value=await readSnapshotPart(this.bucket,this.revision,descriptor,this.options);
-      this.cache.set(key,value);
-      while(this.cache.size>16)this.cache.delete(this.cache.keys().next().value);
-      return value;
-    })().finally(()=>this.pending.delete(key)));
-    return this.pending.get(key);
+    return loadSnapshotValue(this.cache,descriptor.file,
+      ()=>readSnapshotPart(this.bucket,this.revision,descriptor,this.options),16);
   }
 
   once(name,load) {
-    if(!this.parts.has(name))this.parts.set(name,Promise.resolve().then(load).catch(error=>{this.parts.delete(name);throw error;}));
-    return this.parts.get(name);
+    return loadSnapshotValue(this.parts,name,load);
   }
 
   async getNote(entry,noteShards) {
