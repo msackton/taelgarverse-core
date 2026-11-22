@@ -18,7 +18,7 @@ function engine(sources,{lazy=false,backlinks=false,homeSource=null}={}) {
   const store = new ContentStore(entries);
   const renderer = new RenderEngine({store,settings:{default_date:'1750-01-01',campaigns:[]},
     headers:{registry:{campaigns:{frontier:{code:'dufr',name:'Frontier'},march:{code:'adma',name:'March'}}}},
-    renderHeader:()=>{throw new Error('Embedded headers must not regenerate');},navigationSource:'',homeSource,
+    navigationSource:'',homeSource,
     backlinkIndex:backlinks ? undefined : null});
   return {renderer,store,notes};
 }

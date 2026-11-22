@@ -2,8 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Engine} from '../src/engine.mjs';
 import {loadSettings} from '../src/config.mjs';
-import {createHeaderSnapshot,renderHeader as renderCoreHeader} from '../src/header-core/index.mjs';
+import {createHeaderSnapshot} from '../src/header-core/index.mjs';
 import {initializeHeaders,renderHeader} from '../src/headers.mjs';
+import {renderSavedHeader} from './helpers/full-header-rendering.mjs';
 import {fixtureVault} from './helpers/test-settings.mjs';
 import {vaultCases} from './helpers/vault-header-fixture.mjs';
 
@@ -33,7 +34,7 @@ test('module headers match original CustomJS across representative dates and rel
   ]) {
     const entry = engine.store.resolve(page);
     const request = {source:entry.note.source,name:entry.name,metadata:entry.note.metadata,date};
-    assert.equal(renderCoreHeader(runtime,request),renderHeader(originalSnapshot(),request),page + ' at ' + date);
+    assert.equal(renderSavedHeader(runtime,request),renderHeader(originalSnapshot(),request),page + ' at ' + date);
   }
   assert.equal(Array.prototype.first,undefined);
   assert.equal(Array.prototype.last,undefined);
@@ -52,7 +53,7 @@ test('current live metadata for every tagged sample still agrees with the origin
     const entry=engine.store.resolve(example.path);
     for(const date of example.dates)for(const headerType of ['static','website']){
       const request={source:'---\n---\n',name:entry.name,metadata:entry.note.metadata,date,headerType};
-      assert.equal(renderCoreHeader(runtime,request),renderHeader(originalSnapshot(),request),example.path+' / '+date+' / '+headerType);
+      assert.equal(renderSavedHeader(runtime,request),renderHeader(originalSnapshot(),request),example.path+' / '+date+' / '+headerType);
     }
   }
 });

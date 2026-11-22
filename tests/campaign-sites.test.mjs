@@ -24,7 +24,7 @@ function engine(campaignHomes={},settings={}) {
     'POV.md':'---\nPOV: 1730s\n---\nPerspective body marker.',
   };
   const store=new ContentStore(Object.entries(notes).map(([id,value])=>({id,target:id.toLowerCase().replaceAll(' ','-'),slug:id.slice(0,-3).toLowerCase().replaceAll(' ','-'),name:id.slice(0,-3),title:id.slice(0,-3),note:parseNote(value),extension:'.md'})));
-  return new RenderEngine({settings:{default_date:'1750-01-01',...settings},store,headers:{registry},renderHeader:()=>'',
+  return new RenderEngine({settings:{default_date:'1750-01-01',...settings},store,headers:{registry},
     navigationSource:'- [Home](index.md)\n- Stories\n    - [Story](story.md)\n    - [Future](future.md)\n    - [POV](pov.md)\n',homeSource:'# Main home\n\nShared world.',
     campaignHomes:{cleenseau:source('cleenseau','# Cleenseau home\n\nWelcome.\n\n![[Embedded]]\n\n[[Story]]'),dunmar:source('dunmar-frontier','# Dunmar home\n\nWelcome.\n\n[[Story]]'),...campaignHomes}});
 }

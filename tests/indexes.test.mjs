@@ -9,7 +9,6 @@ import {indexGrid,indexPopupShell} from '../src/index-view.mjs';
 import {handleRequest} from '../src/application.mjs';
 import {ContentStore,parseNote} from '../src/content-store.mjs';
 import {RenderEngine,document} from '../src/render-engine.mjs';
-import {renderBio,renderHeader} from '../src/header-core/index.mjs';
 import {targetPath} from '../src/common.mjs';
 import {compileSearch} from '../scripts/compile-search.mjs';
 import {searchText} from '../src/search-text.mjs';
@@ -224,7 +223,7 @@ function website(extraSources={},assets=[]) {
   const entries=Object.entries(sources).map(([id,source])=>({id,target:targetPath(id),slug:targetPath(id).slice(0,-3),name:id.split('/').at(-1).slice(0,-3),title:id.split('/').at(-1).slice(0,-3),note:parseNote(source)}));
   const store=new ContentStore([...entries,...assets],[],{});
   const {runtime}=headerFixture({baseNotes:Object.fromEntries(entries.map(entry=>[entry.id,entry.note.metadata])),campaignRegistry});
-  return new RenderEngine({settings:store.settings,store,headers:runtime,renderHeader,renderBio,navigationSource:null});
+  return new RenderEngine({settings:store.settings,store,headers:runtime,navigationSource:null});
 }
 
 test('website header popups and inline grids filter before counts and retain reader context',()=>{

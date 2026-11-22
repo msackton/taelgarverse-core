@@ -55,12 +55,11 @@ production deployment.
 `tests/fixtures/legacy-vault/` remain independent characterization references.
 Do not regenerate these fixtures to make the new syntax appear compatible.
 
-The maintained core still exports `renderBio` and `renderHeader`, including the
-saved-header/version rewrite in `OutputHandler.regenerateHeader`, for historical
-output comparisons. The Node/Worker adapters and new callout handler do not
-invoke these exports. Moving those compatibility helpers entirely into the
-reference test harness is a useful subsequent cleanup; retaining them does not
-enable a legacy syntax in the callout handler.
+The test harness reconstructs complete historical headers and saved-header
+replacements with `tests/helpers/full-header-rendering.mjs`. It adds the former
+title, pronunciation and version marker around the maintained callout body for
+comparisons against frozen outputs. The website and Obsidian plugin use
+`renderHeaderCallout` for the information component.
 
 Vault-owned CustomJS/Templater scripts and the original materializer have not
 been rewritten. They can still produce old syntax if invoked. Update their

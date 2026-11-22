@@ -6,7 +6,7 @@ import {testSettings} from './helpers/test-settings.mjs';
 import fs from 'node:fs';
 import {parseNote} from '../src/content-store.mjs';
 import {vaultCases,vaultHeaderFixture,vaultCasePath} from './helpers/vault-header-fixture.mjs';
-import {renderBio} from '../src/header-core/index.mjs';
+import {renderFullHeader} from './helpers/full-header-rendering.mjs';
 
 const vaultOutputs=JSON.parse(fs.readFileSync(new URL('./fixtures/header-vault-outputs.json',import.meta.url),'utf8'));
 const fixture=vaultHeaderFixture();
@@ -46,17 +46,17 @@ for(const example of [...vaultCases.cases,...vaultCases.relatedCases]){
     test('saved vault header: '+name+' / '+date+' / '+headerType,()=>{
       const expected=vaultOutputs[example.path][date][headerType];
       assert.equal(fixture.render(example.path,{date,headerType}),expected);
-      const body=renderBio(fixture.runtime,{name,metadata:fixture.metadata(example.path),date,headerType});
+      const body=renderFullHeader(fixture.runtime,{name,metadata:fixture.metadata(example.path),date,headerType});
       assert.equal(body,parseNote(expected).body);
     });
   }
 }
 
-test('all tagged samples render one title and their complete details from the block',()=>{
+test('all tagged samples render one title and their complete historical header details',()=>{
   for(const example of vaultCases.cases)for(const headerType of ['static','website']){
     const body=parseNote(fixture.render(example.path,{headerType})).body;
     assert.match(body,/^# /);
-    const actual=renderBio(fixture.runtime,{name:example.path.split('/').at(-1).replace(/\.md$/,''),
+    const actual=renderFullHeader(fixture.runtime,{name:example.path.split('/').at(-1).replace(/\.md$/,''),
       metadata:fixture.metadata(example.path),date:'1752-01-01',headerType});
     assert.equal(actual,body);
     assert.equal((actual.match(/^# /gm)||[]).length,1,example.path);

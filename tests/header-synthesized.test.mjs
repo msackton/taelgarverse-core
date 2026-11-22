@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {synthesizedNotes,synthesizedExamples} from './fixtures/header-synthesized-cases.mjs';
-import {HeaderDataError} from '../src/header-core/index.mjs';
+import {HeaderDataError,renderHeaderCallout} from '../src/header-core/index.mjs';
 
 const world=(date='1720-01-01',extraNotes={})=>headerFixture({date,baseNotes:synthesizedNotes,extraNotes});
 const contains=(text,...pieces)=>{for(const piece of pieces)assert.ok(text.includes(piece),'Missing '+JSON.stringify(piece)+' in\n'+text);};
@@ -128,7 +128,7 @@ test('death freezes the entire nested container chain rather than only the first
 test('empty display defaults remove optional lines without showing empty optional punctuation',()=>{
   const h=world(),metadata={tags:['person'],species:'human',name:'Quiet',whereabouts:'Aster',
     displayDefaults:{boxInfo:'<species:s> <(()pronouns())>, <(of )primary>',wHome:'',wOrigin:'',wCurrent:''}};
-  const text=h.services.OutputHandler.generateHeader('Quiet',metadata,false);
+  const text=renderHeaderCallout(h.runtime,{name:'Quiet',metadata,date:'1720-01-01'});
   assert.doesNotMatch(text,/\(\s*\)|,\s*(?:\n|$)|Based|Currently|Originally/);
   contains(text,'[[Humans|human]]');
 });

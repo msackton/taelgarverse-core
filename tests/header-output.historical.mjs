@@ -6,7 +6,7 @@ import {initializeHeaders,renderHeader} from '../src/headers.mjs';
 import {complexNotes,complexRenderCases} from './fixtures/header-complex-cases.mjs';
 import fs from 'node:fs';
 import {parseNote} from '../src/content-store.mjs';
-import {renderBio,renderHeader as renderSavedHeader} from '../src/header-core/index.mjs';
+import {renderFullHeader,renderSavedHeader} from './helpers/full-header-rendering.mjs';
 import {headerFixture as legacyHeaderFixture} from './helpers/legacy-header-fixture.mjs';
 import {headerFixture,fixtureForCase} from './helpers/header-fixture.mjs';
 import {renderCases} from './fixtures/header-cases.mjs';
@@ -19,10 +19,10 @@ for(const example of renderCases)for(const headerType of ['static','website'])
     assert.equal(fixtureForCase(example).render(example.path,{headerType}),expected[example.id][headerType]);
   });
 
-test('header blocks include one generated H1, pronunciation, dates, links and callout',()=>{
+test('historical full headers include one generated H1, pronunciation, dates, links and callout',()=>{
   const h=headerFixture();
   for(const headerType of ['static','website']){
-    const actual=renderBio(h.runtime,{name:'Example',metadata:h.metadata('Example'),date:'1720-01-01',headerType});
+    const actual=renderFullHeader(h.runtime,{name:'Example',metadata:h.metadata('Example'),date:'1720-01-01',headerType});
     assert.equal(actual,parseNote(h.render('Example',{headerType})).body);
     assert.equal((actual.match(/^# /gm)||[]).length,1);assert.match(actual,/EG-zam-pul/);
     assert.match(actual,/20 years old/);assert.match(actual,/\[\[Old County\]\]/);
@@ -46,8 +46,8 @@ test('omitting the generated title preserves every remaining header detail',()=>
   const h=headerFixture();
   for(const headerType of ['static','website']){
     const request={name:'Example',metadata:h.metadata('Example'),date:'1720-01-01',headerType};
-    const complete=renderBio(h.runtime,request);
-    assert.equal(renderBio(h.runtime,{...request,includeTitle:false}),complete.slice(complete.indexOf('\n')+1));
+    const complete=renderFullHeader(h.runtime,request);
+    assert.equal(renderFullHeader(h.runtime,{...request,includeTitle:false}),complete.slice(complete.indexOf('\n')+1));
   }
 });
 
@@ -68,7 +68,8 @@ test('the legacy dynamic generator emits Dataview references while static bios f
 test('legacy old/next version selectors preserve custom YAML while selecting the header marker',()=>{
   const h=headerFixture(),file=h.file('Example');
   for(const [version,expected] of [['old','legacy'],['next','2023.11.25']]){
-    const rendered=h.services.OutputHandler.regenerateHeader('---\ncustom: keep\n---\n',file.name,{...file.frontmatter,version},'static').join('\n');
+    const rendered=renderSavedHeader(h.runtime,{source:'---\ncustom: keep\n---\n',name:file.name,
+      metadata:{...file.frontmatter,version},date:'1720-01-01',headerType:'static'});
     assert.equal(parseNote(rendered).metadata.headerVersion,expected);
     assert.equal(parseNote(rendered).metadata.custom,'keep');
   }

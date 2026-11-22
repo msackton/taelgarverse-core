@@ -253,7 +253,7 @@ test('untagged, meta and background sources are excluded from both new and older
 test('the website shows only knownTo campaigns in the active context, even when other campaigns have recap records',()=>{
   const {store}=sample(),clee=parseSessionRecap(recap),mawar={...parseSessionRecap(recap),campaign:'mawar'};
   const index=compileInteractionIndex(store,registry,null,[clee,mawar]);
-  const engine=new RenderEngine({settings:{default_date:'1720-01-05'},store,headers:{registry},renderHeader:()=>'',navigationSource:null,interactionIndex:index});
+  const engine=new RenderEngine({settings:{default_date:'1720-01-05'},store,headers:{registry},navigationSource:null,interactionIndex:index});
   assert.ok(campaignInteractions(index,store,store.resolve('Person'),context('1720-01-05',['mawar']),registry)[0].events.length);
   for(const {knownTo,selected,expected,date='1720-01-05'} of [
     {knownTo:['Clee'],selected:['clee','mawar'],expected:['clee']},
@@ -299,7 +299,7 @@ test('serialized projections are stable across requests and rendering retains re
   const {store,index}=sample(),before=JSON.stringify(index),loaded=JSON.parse(before);
   assert.deepEqual(eventsFor(store,loaded),eventsFor(store,index));
   eventsFor(store,index,context('1722-01-01',['clee','mawar'],true));assert.equal(JSON.stringify(index),before);
-  const engine=new RenderEngine({settings:{default_date:'1720-01-05'},store,headers:{registry},renderHeader:()=>'',navigationSource:null,backlinkIndex:buildBacklinkIndex(store),interactionIndex:index});
+  const engine=new RenderEngine({settings:{default_date:'1720-01-05'},store,headers:{registry},navigationSource:null,backlinkIndex:buildBacklinkIndex(store),interactionIndex:index});
   const result=engine.render('Person','1720-01-05','custom',false,undefined,['clee']);
   assert.match(result.html,/campaign-interactions/);assert.equal(result.interactions[0].events.length,1);
   assert.match(document(result,[]),/theme\/interactions\.js/);
@@ -307,7 +307,7 @@ test('serialized projections are stable across requests and rendering retains re
 
 test('an explicit Obsidian placement fence does not duplicate the website history or leave an empty code frame',()=>{
   const {store,index}=sample();store.resolve('Person').note.body+='\n\n```taelgar-interactions\n```';
-  const engine=new RenderEngine({settings:{default_date:'1720-01-05'},store,headers:{registry},renderHeader:()=>'',navigationSource:null,interactionIndex:index});
+  const engine=new RenderEngine({settings:{default_date:'1720-01-05'},store,headers:{registry},navigationSource:null,interactionIndex:index});
   const result=engine.render('Person','1720-01-05','custom',false,undefined,['clee']);
   assert.equal((result.html.match(/id="campaign-interactions"/g) || []).length,1);
   assert.doesNotMatch(result.html,/language-taelgar-interactions/);

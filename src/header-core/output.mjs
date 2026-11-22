@@ -4,69 +4,7 @@ export class OutputHandler {
         Object.assign(this,{dates, names, locations, templates, affiliations, events});
     }
 
-    regenerateHeader(oldContents, fileName, metadata, headerType) {
-
-        const versionNumber = "2023.11.25"
-        const prevVersionNumber = "legacy"
-        const nextVersionNumber = "2023.11.25"
-
-        let currentContents = oldContents.split('\n');
-
-        let version = metadata.version
-
-        let vnToUse = versionNumber
-        if (version === "next") vnToUse = nextVersionNumber
-        else if (version === "old") vnToUse = prevVersionNumber
-
-
-        // the end of the yaml -- this is 0-counting, so if the file is just a yaml start and end it will be 1
-        let indexOfYamlEnd = currentContents.findIndex((f, i) => i > 0 && f === "---");
-
-        if (indexOfYamlEnd > 0) {
-            let yaml = currentContents.filter((v, i) => i >= 0 && i < indexOfYamlEnd)
-            let headerVersionIndex = yaml.findIndex(f => f.trim().startsWith("headerVersion"))
-            if (headerVersionIndex >= 0) {
-                currentContents[headerVersionIndex] = "headerVersion: " + vnToUse
-            } else {
-                currentContents.splice(1, 0, "headerVersion: " + vnToUse)
-                indexOfYamlEnd++
-            }
-        }
-
-        // find the end of the header block -- the first newline (blank line) after the YAML block
-        let indexOfHeaderBlockEnd = currentContents.findIndex((f, i) => i > indexOfYamlEnd && f.trim() === "");
-
-        // the file is ONLY yaml
-        if (indexOfHeaderBlockEnd === -1) {
-            indexOfHeaderBlockEnd = currentContents.length;
-        }
-
-        // starting from the first newline, find the first non-newline
-        let emptySpaceEnd = currentContents.findIndex((f, i) => i > indexOfHeaderBlockEnd && f.trim() !== "");
-        if (emptySpaceEnd !== -1) {
-            indexOfHeaderBlockEnd = emptySpaceEnd - 1
-        }
-
-        if (currentContents.slice(indexOfYamlEnd, indexOfHeaderBlockEnd).filter(f => f.trim().startsWith("#")).length === 0) {
-            // there is no H1 block in the "header" so it cannot have been an actual header.
-            indexOfHeaderBlockEnd = indexOfYamlEnd
-        }
-
-        let data = ""
-
-        if (headerType === "static") data = this.generateHeader(fileName, metadata)
-        else if (headerType === "website") data = this.generateWebsiteHeader(fileName, metadata)
-
-        // remove the header block
-        currentContents.splice(indexOfYamlEnd + 1, indexOfHeaderBlockEnd - indexOfYamlEnd);
-        // insert the template
-        currentContents.splice(indexOfYamlEnd + 1, 0, data);
-
-        // rewrite the file
-        return currentContents
-    }
-
-    generateWebsiteHeader(fileName, metadata, {includeTitle=true,includePronunciation=true}={}) {
+    generateWebsiteCallout(fileName, metadata) {
         const {events, names, templates, dates} = this;
 
         let file = { name: fileName, frontmatter: metadata }
@@ -75,7 +13,7 @@ export class OutputHandler {
         let hasPageDates = pageDates.startDate || pageDates.endDate
         let pageType = names.getPageType(metadata)
 
-        let output = includeTitle ? templates.formatDisplayString("# <name:tn>", file) + "\n" : ""
+        let output = ""
         let whereaboutsStrings = this.getWhereaboutsStrings(fileName, metadata)
         let boxInfo = templates.formatDisplayString(displayDefaults.boxInfo, file).trim()
         const hasText = (value) => value && value.trim().length > 0
@@ -90,13 +28,6 @@ export class OutputHandler {
             }
         }
         const hasBoxInfo = hasText(boxInfo)
-
-        if (includePronunciation && metadata.pronunciation) {
-            let secondary = templates.formatDisplayString("<pronunciation>", file)
-            if (secondary && secondary.length > 0) {
-                output += ":speaker:{ .middle } *(" + secondary + ")*  \n"
-            }
-        }
 
         if (pageType === "place") {
             let hasPlaces = metadata.whereabouts
@@ -241,7 +172,7 @@ export class OutputHandler {
         return output
     }
 
-    generateHeader(fileName, metadata, {includeTitle=true,includePronunciation=true}={}) {
+    generateObsidianCallout(fileName, metadata) {
 
         const {events, names, templates, dates} = this;
 
@@ -250,13 +181,6 @@ export class OutputHandler {
         let pageDates = dates.getPageDates(metadata)
         let hasPageDates = pageDates.startDate || pageDates.endDate
         let pageType = names.getPageType(metadata)
-
-        let output = includeTitle ? templates.formatDisplayString("# <name:tn>", file) + "\n" : ""
-
-        let secondary = templates.formatDisplayString("<(*()pronunciation()*)>", file)
-        if (includePronunciation && secondary && secondary.length > 0) {
-            output += secondary + "\n"
-        }
 
         let summaryBlockLines = []
 
@@ -294,14 +218,8 @@ export class OutputHandler {
             summaryBlockLines.push(`> > %%^Campaign:${meeting.campaign}%% ${meeting.text} %%^End%%`);
         }
 
-        if (summaryBlockLines.length > 0) {
-            output += ">[!info]+ " + displayDefaults.boxName + "  \n"
-        }
-
-
-        output += summaryBlockLines.join("  \n")
-
-        return output + "\n"
+        const callout = summaryBlockLines.length ? ">[!info]+ " + displayDefaults.boxName + "  \n" : ""
+        return callout + summaryBlockLines.join("  \n") + "\n"
     }
 
     outputWhereabouts(fileName, metadata) {

@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {createHeaderSnapshot,createHeaderContext,renderHeader,renderHeaderCallout} from '../../src/header-core/index.mjs';
+import {createHeaderSnapshot,createHeaderContext,renderHeaderCallout} from '../../src/header-core/index.mjs';
 import {notes,registry} from '../fixtures/header-cases.mjs';
+import {renderSavedHeader} from './full-header-rendering.mjs';
 
 const coreMeta=JSON.parse(fs.readFileSync(new URL('../fixtures/header-display-rules.json',import.meta.url),'utf8'));
 
@@ -21,7 +22,7 @@ export function headerFixture({date='1720-01-01',baseNotes=notes,extraNotes={},d
       return renderHeaderCallout(runtime,{name:path.posix.basename(target,'.md'),metadata:metadata(target),date:at,mode});
     },
     render(target,{headerType='website',source='---\n---\n',date:at=date}={}) {
-      return renderHeader(runtime,{source,name:path.posix.basename(target,'.md'),metadata:metadata(target),date:at,headerType});
+      return renderSavedHeader(runtime,{source,name:path.posix.basename(target,'.md'),metadata:metadata(target),date:at,headerType});
     },
   };
 }
