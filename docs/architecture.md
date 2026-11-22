@@ -116,9 +116,8 @@ flowchart LR
 | `src/indexes.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/index-description.mjs`, `src/website-indexes.mjs`, `src/browser/index-popups.mjs` | Shared Residents, Settlements, Members, Rivers and Places queries, cards/table/popup markup, lead-image resolution, prose descriptions, website visibility adapter and popup lifecycle. The Obsidian index adapter supplies native resolution and cached queries; the headers feature owns inline/popup rendering and links. See [generated indexes](vault.md#generated-indexes). |
 | `src/campaign-calendar.mjs`, `src/campaign-calendar-context.mjs`, `src/lunar.mjs`, `src/browser/campaign-calendar.mjs`, `public/calendar.css`, `obsidian/taelgarverse/features/calendar.mjs` | Opt-in campaign-date calendar with DR date/month helpers, lunar phases, and normal Obsidian campaign/custom-date settings. Disabled by default; the component owns its active listeners and date API. A metadata-only adapter reuses website Contexts and exposes the date API for headers, indexes and CustomJS. The DOM view shows campaign dots and daily moon illumination; lunar crossings use the adopted full-moon anchor and exact three-hour ticks. The legacy CustomJS hook is an uncommitted experimental-vault change; no website route exists yet. See [campaign calendar](vault.md#campaign-calendar-prototype). |
 | `src/worker.mjs`, `src/worker-handler.mjs`, `src/snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
-| `tests/helpers/legacy-headers/` | Original VM and generated CustomJS references for historical, date-boundary, and index comparisons. |
+| `tests/helpers/legacy-headers/` | Original VM and generated CustomJS references for historical, date-boundary, and index comparisons, plus manual fixture builders. |
 | `tests/helpers/full-header-rendering.mjs` | Assembles complete historical headers around the maintained callout body and reproduces saved-header replacement for fixture comparisons. |
-| `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs` | Regenerate the local and committed historical CustomJS header references. |
 | `scripts/build-icons.mjs`, `public/icons/`, `src/icons.mjs` | Build the checked-in icon table used by website Markdown. The content publisher fingerprints the generated table. |
 | `scripts/header-core-revision.mjs` | Fingerprint the maintained header core for publication diagnostics. |
 | `public/`, `src/browser/`, `scripts/build-browser.mjs` | Application styles/scripts and the generated Leaflet/Mermaid browser assets; Wrangler builds these before packaging. |
@@ -420,10 +419,8 @@ from a vault. `npm test -- --live-vault` selects only explicit live-note and
 installed-plugin checks; the ordinary and emulator suites need only core.
 See [test modes and fixtures](../tests/README.md).
 
-`node scripts/build-runtime.mjs` regenerates the historical header module at
-`.generated/headers.mjs`. `node scripts/build-worker-headers.mjs` also updates the
-committed reference at `tests/helpers/legacy-headers/generated.mjs`. Normal application and plugin
-builds bundle `src/header-core/`.
+The [historical fixture builders](../tests/README.md#historical-header-comparisons)
+are part of test support. Application and plugin builds bundle `src/header-core/`.
 Run `node scripts/build-icons.mjs` after updating `public/icons/` and commit the
 resulting `src/icons.mjs` alongside the SVGs.
 `public/generated/` is ignored and rebuilt from the pinned browser dependencies.

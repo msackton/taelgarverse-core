@@ -3,7 +3,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {parse} from 'acorn';
 import {pathToFileURL} from 'node:url';
-import {ROOT,loadSettings} from '../src/config.mjs';
+import {ROOT,loadSettings} from '../../../src/config.mjs';
 
 export const headerFiles = {
   DateManager:'dataUtil.js',NameManager:'nameManager.js',WhereaboutsManager:'whereabouts.js',

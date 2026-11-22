@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {standardHelpers} from '../scripts/build-runtime.mjs';
+import {standardHelpers} from './helpers/legacy-headers/build-runtime.mjs';
 
 test('helper translation changes calls while preserving prose and regular expressions',()=>{
   const source = 'class Example { value() { const text=".first() .contains(x)"; return [1].first() + [2].last() + text.contains("x"); } }';

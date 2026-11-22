@@ -728,7 +728,7 @@ For maintenance or recovery only:
 | `node scripts/cloudflare.mjs check` | Builds/checks the website package without deployment. CI runs it. |
 | `node scripts/cloudflare.mjs deploy` | Deploys website code; GitHub runs this after tests. Direct local use bypasses the CI gate. |
 | `node scripts/build-icons.mjs` | Regenerates `src/icons.mjs` from the core repository's `public/icons/` assets. |
-| `node scripts/build-worker-headers.mjs` | Refreshes the historical CustomJS reference under `tests/helpers/legacy-headers/` for an intentional fixture update. |
+| `node tests/helpers/legacy-headers/build-worker-headers.mjs` | Refreshes the historical CustomJS reference for an intentional fixture update. See [historical header comparisons](../tests/README.md#historical-header-comparisons). |
 | `node scripts/maintain-content.mjs rollback --remote` | Restores the previous verified live content snapshot. |
 | `node scripts/maintain-content.mjs prune --remote --dry-run` | Reports old content/media/search cleanup candidates. Omit `--dry-run` to remove them. |
 

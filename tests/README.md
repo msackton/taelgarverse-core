@@ -33,6 +33,12 @@ The ordinary run exercises current callouts, publication conversion and
 Obsidian editing. It also uses the generated reference for date-boundary and
 index comparisons.
 
+For an intentional fixture update, run
+`node tests/helpers/legacy-headers/build-runtime.mjs` to regenerate
+`.generated/headers.mjs` from the configured vault's CustomJS sources.
+`node tests/helpers/legacy-headers/build-worker-headers.mjs` also copies the
+result to the checked-in `tests/helpers/legacy-headers/generated.mjs`.
+
 ## Optional live-vault checks
 
 ```powershell
