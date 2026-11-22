@@ -93,3 +93,59 @@
 @media (max-width: 650px) {
   .taelgar-session-review .entity-review-fields { grid-template-columns: minmax(0, 1fr); }
 }
+
+.taelgar-session-summary { margin:0 0 1em; padding:.75em .9em; border:1px solid var(--background-modifier-border); border-radius:var(--radius-m); }
+.taelgar-session-summary h3 { margin:0 0 .55em; font-size:1em; }
+.taelgar-campaign-summary { display:grid; gap:.4em; margin:0; }
+.taelgar-campaign-summary > div { display:flex; flex-wrap:wrap; align-items:baseline; gap:.05em .8em; }
+.taelgar-campaign-summary dt { flex:0 1 8.5rem; font-size:.85em; color:var(--text-muted); }
+.taelgar-campaign-summary dd { flex:1 1 16rem; margin:0; }
+.taelgar-campaign-view td { vertical-align:top; }
+.taelgar-campaign-view td ul { margin-block:0; }
+.taelgar-session-list { container-type:inline-size; min-width:0; }
+.taelgar-session-list > table.taelgar-index-table { width:100%; margin:0; table-layout:fixed; }
+.taelgar-session-list :is(th,td) { padding:.35em .5em; border:0; border-block-end:1px solid var(--background-modifier-border); }
+.taelgar-session-list th { text-align:left; font-size:.9em; }
+.taelgar-session-cell-value { overflow-wrap:anywhere; }
+.taelgar-session-cell-label { display:none; }
+.taelgar-session-list .taelgar-session-has-details > td { border-block-end:0; }
+.taelgar-session-list .taelgar-session-detail-row > td { padding:.05em .5em .5em; }
+.taelgar-session-details > summary { cursor:pointer; color:var(--text-muted); font-size:.9em; }
+.taelgar-session-details[open] > summary { margin-bottom:.5em; }
+.taelgar-session-detail-fields { display:flex; flex-wrap:wrap; gap:.75em 1.5em; padding:.65em .8em; background:var(--background-secondary); border-radius:var(--radius-m); }
+.taelgar-session-detail-field { flex:1 1 14em; min-width:0; overflow-wrap:anywhere; }
+.taelgar-session-detail-field:is([data-field="evidence"],[data-field="note"]) { flex-basis:100%; }
+.taelgar-session-detail-field .taelgar-session-field-heading { margin:0 0 .2em; font-size:.9em; font-weight:600; }
+.taelgar-session-detail-field ul + .taelgar-session-field-heading { margin-top:.65em; }
+.taelgar-session-detail-field ul, .taelgar-session-summary details ul { margin-block:0; padding-inline-start:1.2em; }
+.taelgar-session-summary details li { overflow-wrap:anywhere; }
+@container (max-width: 38rem) {
+  .taelgar-session-list > table.taelgar-index-table, .taelgar-session-list tbody, .taelgar-session-list tbody tr { display:block; }
+  .taelgar-session-list thead { position:absolute; width:1px; height:1px; padding:0; overflow:hidden; clip-path:inset(50%); }
+  .taelgar-session-list tbody tr { border-block-start:1px solid var(--background-modifier-border); padding:.5em 0; }
+  .taelgar-session-list tbody tr > td { display:grid; grid-template-columns:minmax(0,8.5em) minmax(0,1fr); gap:.6em; border:0; padding:.15em .35em; }
+  .taelgar-session-cell-label { display:block; color:var(--text-muted); font-size:.85em; }
+  .taelgar-session-list .taelgar-session-detail-row { border:0; padding:0 0 .5em; }
+  .taelgar-session-list .taelgar-session-detail-row > td { display:block; }
+}
+
+.taelgar-roster-group { container-type:inline-size; }
+.taelgar-campaign-view .taelgar-roster-group-heading { margin:1.2em 0 .45em; font-size:.85em; color:var(--text-muted); }
+.taelgar-campaign-view .taelgar-roster-players { margin:.25em 0 .65em; padding:0; list-style:none; }
+.taelgar-roster-player { display:grid; grid-template-columns:minmax(7.5em,1fr) minmax(0,2.4fr); gap:.35em 1.25em; padding:.55em 0; border-bottom:1px solid var(--background-modifier-border); }
+.taelgar-roster-name { font-weight:600; }
+.taelgar-roster-character { display:flex; flex-wrap:wrap; align-items:baseline; gap:.1em .7em; }
+.taelgar-roster-character + .taelgar-roster-character { margin-top:.35em; }
+.taelgar-roster-label { margin-inline-start:.25em; color:var(--text-muted); font-size:.8em; font-weight:400; }
+.taelgar-roster-description { color:var(--text-muted); font-size:.9em; }
+.taelgar-roster-character .taelgar-roster-description { margin-inline-start:.45em; }
+.taelgar-roster-play, .taelgar-roster-other { font-size:.85em; }
+.taelgar-roster-play summary, .taelgar-roster-other summary, .taelgar-roster-companions summary { color:var(--text-muted); cursor:pointer; }
+.taelgar-roster-other { margin-top:.35em; }
+.taelgar-roster-other[open] > summary, .taelgar-roster-companions[open] > summary { margin-bottom:.4em; }
+.taelgar-roster-companions { margin-top:.8em; }
+.taelgar-campaign-view .taelgar-roster-session-links { display:flex; flex-wrap:wrap; gap:.2em .75em; margin:.25em 0; padding:0; list-style:none; }
+.taelgar-roster-session-links li { margin:0; }
+@container (max-width: 24rem) {
+  .taelgar-roster-player { grid-template-columns:minmax(0,1fr); }
+}

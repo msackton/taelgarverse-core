@@ -10,6 +10,7 @@ import {MaterializerFeature} from './features/materializer.mjs';
 import {RelationshipsFeature} from './features/relationships.mjs';
 import {CalendarFeature} from './features/calendar.mjs';
 import {SessionReviewFeature} from './features/session-review.mjs';
+import {CampaignBlocksFeature} from './features/campaign-blocks.mjs';
 import {DATAVIEW_EXPORT_VERSION} from '../../src/dataview-export.mjs';
 
 class TaelgarverseSettings extends PluginSettingTab {
@@ -75,5 +76,6 @@ export default class Taelgarverse extends Plugin {
     this.calendar=this.addChild(new CalendarFeature(this));
     this.relationships=this.addChild(new RelationshipsFeature(this));
     this.sessionReview=this.addChild(new SessionReviewFeature(this));
+    this.campaignBlocks=this.addChild(new CampaignBlocksFeature(this));
   }
 }

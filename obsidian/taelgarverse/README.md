@@ -535,3 +535,10 @@ See [Photoshop setup](../../docs/map-editor.md#create-a-map-from-photoshop).
 Layer loading and export share the session review hub's Python executable
 discovery and Windows launch-path normalization. Configure the Python environment
 containing the exporter dependencies; executable names and absolute paths are accepted.
+
+## Campaign roster and play history
+
+Use `taelgar-roster` and `taelgar-session` on campaign indexes or reference the
+same campaign from another note. The session fence can show a summary as well as
+a history table. See [campaign roster and sessions](../../docs/vault.md#campaign-roster-and-sessions)
+for fields and examples.

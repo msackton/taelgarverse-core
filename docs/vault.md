@@ -1020,6 +1020,125 @@ native header callouts and index/interaction fences to static Markdown, changes 
 fences to `leaflet`, and retains legacy Dataview, DataviewJS, supported inline
 expressions and CustomJS header behavior. See [publishing pipelines](publishing-pipelines.md).
 
+### Campaign roster and sessions
+
+Taelgarverse renders `taelgar-roster` and `taelgar-session` in Obsidian. Each
+registered campaign index can define one fence of each type. An empty fence
+derives its data from the vault. To reuse the data elsewhere, supply the lowercase
+registry ID and any display options.
+
+~~~markdown
+```taelgar-roster
+campaign: dufr
+playerRole: core
+characterKind: member
+columns: [character]
+```
+
+```taelgar-session
+campaign: dufr
+kinds: [adventure, solo]
+columns: [session, played, account]
+summary: [count, played, dr]
+```
+~~~
+
+Roster columns are `player`, `role`, `character`, `attendance`, and `note`.
+The default roster groups players by role when roles differ, shows documented
+session links next to the character each player played, and gives companions
+their own disclosure. Work as another character, including a one-session role
+or a substitution, appears under Other appearances. Explicit columns select
+a table layout. Set `characterPresence: true` to include play and character
+presence in one session list per character. Each session appears once, with
+a label where the play record and cast differ. A character-only view uses an inline name for one character
+and a list for several. A member character defaults their player to
+`core`. Guest-only players default to `other`. Companion and associated
+affiliations can leave a player’s role unspecified. Past affiliations count.
+Define exceptions in the index fence's `overrides` list. Use `player` for a
+player-only override, or `character` with a quoted wikilink for a PC note.
+Unlinked names can supply `description`. Override `role` or character `kind`
+independently. A player entry can also carry `note` and `draft: true`.
+
+Session columns are `session`, `title`, `played`, `dr`, `account`,
+`characters`, `participants`, `people`, `evidence`, and `note`. The default list shows the
+session number, Session Notes, played date, and in-world dates. The notes link
+uses the descriptive session title where available. Numbered notes, arc
+headings, and bundle recaps can supply the target. On narrow panes the list
+stacks each row. Optional fields appear in an expandable panel below each session.
+Choose `characters` for the in-world cast, `participants` for attendees
+including the DM, or `people` to combine them. The combined view pairs
+participants with their recorded roles, keeps cast-only characters, and
+flags played roles that are missing from a known cast. Selecting both
+`characters` and `participants` also produces the combined view. Omit all
+three fields to hide participation details.
+
+Session kinds are `adventure`, `solo`,
+`inter-session`, and `meeting`. Quote point-session numbers.
+
+The Session summary shows the number of adventures and solos played, the
+real-world span, and the in-world span across the campaign. `summary: false`
+shows the list alone. `summary: only` shows the summary alone. A list of
+summary fields selects the specific entries. Summary ranges with exact
+endpoints show elapsed time using the appropriate calendar. Published article
+availability does not affect the local campaign record.
+
+~~~markdown
+```taelgar-session
+overrides:
+  - number: "35"
+    played: "2021-12-05"
+    note: Local play date.
+  - number: "29.1"
+    kind: solo
+    attendance:
+      - player: David Kong
+  - id: organizing-meeting
+    kind: meeting
+    title: Organizing meeting
+    date: "2022-11-22"
+```
+~~~
+
+A date can be a quoted date, a mapping with `on` and `qualifier`, a window
+with `from` and `through`, or an approximate `label`. An unresolved date can
+hold `alternatives`. A list under `played` records distinct sittings for one
+session. `dr` and `drEnd` override the in-world endpoints. By default, the
+registered final session note supplies its `DR` and `DR_end`, with a single
+date when `DR_end` is omitted. Other numbered notes and the bundle manifest
+and recap supply dates where there is no dated final note. The `evidence`
+field shows other recorded dates when the sources disagree. Date entries and overrides
+can cite `evidence`. `account` can link to a particular note, heading, or block.
+An index fence can also include an `estimate` mapping with a campaign-wide
+`count`, optional `first` and `latest` numbers, and approximate `played` or
+`dr` spans. An estimate supplies summary information without individual rows.
+
+The session history tracks characters present in the story separately from
+player attendance. Character presence comes from the preferred numbered
+session note's nonempty `players` field. When there is no preferred note with
+a cast, the reader combines named characters from the other numbered notes.
+The bundle recap's `PCs` header is the fallback. Companions come from the
+session notes' `companions` lists and cast entries classified as companions.
+An explicit `characters` or `companions` list
+on a session override replaces the corresponding source list. Use an empty
+`characters: []` for known empty presence and `characters: null` for unknown
+presence. An empty legacy `players` field can be a placeholder.
+
+Recorded attendance uses named speakers and their game roles from speaker
+statistics, with the matched manifest participant as fallback for the name
+or role. The default is at least 30 seconds of attributed player speech across
+speaker labels in that session. Speaker labels and attendance entries do not
+add characters to the in-world cast. For sessions without a transcript or
+speaker statistics, the original note or recap cast and usual player pairings
+can supply inferred attendance. A `characters` override affects the in-world
+cast and preserves that original attendance evidence.
+
+An index `attendance` override supplies the complete attendance for its
+session, taking precedence over speaker statistics and legacy inference.
+Set `player` and, where known, `character` for the role played in that
+session. Use `attendance: []` for known empty attendance and `attendance: null`
+for unknown attendance. A missing name in a derived list means there is no
+recorded appearance in that view.
+
 ## Search
 
 Use the header search for names, aliases, or words from a note. Search
