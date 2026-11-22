@@ -1,4 +1,4 @@
-import {parseDocument} from 'yaml';
+import {isMap,parseDocument} from 'yaml';
 import {scanFencedCodeBlocks} from './markdown-fences.mjs';
 import {sessionNumber} from './session-bundles.mjs';
 
@@ -100,10 +100,14 @@ function sessionOverride(value) {
   }
 }
 
-export function parseCampaignBlock(type,source='') {
+function parseCampaignOptions(type,source,definition) {
   if (!source.trim()) return {};
   const doc=parseDocument(source,{uniqueKeys:true});
   if (doc.errors.length) throw new Error(doc.errors[0].message);
+  if(!definition && isMap(doc.contents)) {
+    doc.delete('overrides');
+    if(type==='sessions') doc.delete('estimate');
+  }
   const options=doc.toJS({maxAliasCount:0});
   const roster=type==='roster';
   keys(options,['campaign','columns','overrides',...(roster ? ['playerRole','characterKind','characterPresence'] : ['kinds','summary','estimate'])],campaignFences[type]);
@@ -132,6 +136,10 @@ export function parseCampaignBlock(type,source='') {
   return options;
 }
 
+export function parseCampaignBlock(type,source='') {
+  return parseCampaignOptions(type,source,false);
+}
+
 export function campaignDefinitions(body,campaign) {
   const definitions={};
   const fences=scanFencedCodeBlocks(body);
@@ -139,7 +147,7 @@ export function campaignDefinitions(body,campaign) {
     const matches=fences.filter(fence=>fence.language===language);
     if (matches.length>1) throw new Error('The '+campaign+' index defines '+language+' more than once.');
     if (!matches.length) continue;
-    const options=parseCampaignBlock(type,matches[0].body);
+    const options=parseCampaignOptions(type,matches[0].body,true);
     if (options.campaign && options.campaign!==campaign) throw new Error('The '+campaign+' index can only define its own campaign.');
     definitions[type]=options;
   }

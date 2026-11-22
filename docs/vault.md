@@ -1014,6 +1014,9 @@ published article can reference any registered campaign, including other
 continuities. Links without a public destination appear as text. Publishing
 a new content snapshot refreshes the website records.
 
+Only the registered campaign index supplies `overrides` and `estimate`.
+Fences on other notes use that index's values and their own display options.
+
 ~~~markdown
 ```taelgar-roster
 campaign: dufr

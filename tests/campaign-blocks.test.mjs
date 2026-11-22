@@ -271,7 +271,9 @@ test('substitutes, missing facts and estimates use their own representations',()
   assert.match(renderCampaignView('sessions',approximate,{},renderLink),/late spring 1997/);
   const unresolved=make({notes:[session(1,{realWorldDate:'2020-01-01'}),session(1,{realWorldDate:'2020-01-02'},'Legacy.md')]});
   assert.deepEqual(unresolved.sessions[0].played[0].alternatives.map(date=>date.text),['2020-01-01','2020-01-02']);
-  assert.throws(()=>parseCampaignBlock('sessions','overrides: [{number: 12.10}]'),/quote/);
+  assert.throws(()=>campaignDefinitions(fence('session','overrides: [{number: 12.10}]'),campaign),/quote/);
+  assert.deepEqual(parseCampaignBlock('sessions','campaign: example\noverrides: ignored\nestimate: ignored'),{campaign:'example'});
+  assert.deepEqual(parseCampaignBlock('roster','campaign: example\noverrides: ignored'),{campaign:'example'});
   assert.throws(()=>campaignDefinitions(fence('session')+'\n'+fence('session'),campaign),/more than once/);
   assert.throws(()=>campaignDefinitions(fence('roster','campaign: other'),campaign),/own campaign/);
 });

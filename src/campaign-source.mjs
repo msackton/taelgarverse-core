@@ -18,8 +18,6 @@ export function campaignForBlock(indexes,sourcePath,options) {
   if(!campaign) throw new Error('Set campaign on a note outside the registered campaign index.');
   if(!Object.hasOwn(indexes,campaign)) throw new Error('Unknown campaign '+campaign+'.');
   if(owner && owner!==campaign) throw new Error('The '+owner+' index can only define its own campaign.');
-  if(owner!==campaign && (options.overrides!==undefined || options.estimate!==undefined))
-    throw new Error('Put overrides and estimates on the registered campaign index.');
   return campaign;
 }
 

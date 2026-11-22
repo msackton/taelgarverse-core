@@ -66,10 +66,13 @@ drStart: "1748-03-22"
 ~~~taelgar-roster
 campaign: dufr
 characterPresence: true
+overrides: [{player: Secondary Roster Override}]
 ~~~
 ~~~taelgar-session
 campaign: dufr
-columns: [session, account, dr, people, evidence]
+columns: [session, account, played, dr, people, evidence]
+overrides: [{number: 1, played: "1999-01-01"}]
+estimate: {count: 99}
 ~~~
 ~~~taelgar-roster
 campaign: elderwood
@@ -115,11 +118,14 @@ test('website renders both blocks from unpublished sources and a Taelgar-2 index
   assert.equal(blocks($).length,4);
   const frontier=$('[aria-label="Frontier play history"]');
   assert.match(frontier.text(),/A Day on the Frontier/);
+  assert.match(frontier.text(),/Jan 1, 2025/);
+  assert.doesNotMatch(frontier.text(),/1999|About 99/);
   assert.match(frontier.text(),/Mar 22–23, 1748 DR/);
   assert.match(frontier.text(),/Robin · Aster/);
   assert.match(frontier.text(),/Sam \(DM\)/);
   assert.equal(frontier.find('a').length,0);
   assert.match($('[aria-label="Frontier roster"]').text(),/Robin.*Aster/s);
+  assert.doesNotMatch($('[aria-label="Frontier roster"]').text(),/Secondary Roster Override/);
   assert.match($('[aria-label="Elderwood Heist roster"]').text(),/Ellis.*Grove/s);
   assert.match($('[aria-label="Elderwood Heist play history"]').text(),/About 4.*About 200 years after the Godfall/s);
   assert.doesNotMatch($.html(),/Unpublished narrative/);

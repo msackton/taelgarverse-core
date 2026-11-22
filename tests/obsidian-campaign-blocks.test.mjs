@@ -101,12 +101,13 @@ test('registered and secondary fences share one model and refresh after source e
   } finally { h.feature.unload(); }
 });
 
-test('secondary overrides and duplicate registered fences give visible errors',async()=>{
+test('secondary blocks ignore overrides and duplicate registered fences give visible errors',async()=>{
   const h=host();
   try {
-    const secondaryBlock=h.block('taelgar-session','campaign: example\noverrides: []',secondary);
+    const secondaryBlock=h.block('taelgar-session','campaign: example\ncolumns: [played]\noverrides: [{number: 1, played: "1999-01-01"}]\nestimate: {count: 99}',secondary);
     await secondaryBlock.child.ready;
-    assert.match(secondaryBlock.element.textContent,/Put overrides/);
+    assert.match(secondaryBlock.element.textContent,/Jan 1, 2025/);
+    assert.doesNotMatch(secondaryBlock.element.textContent,/1999|99/);
     h.updateIndex('~~~taelgar-roster\n~~~\n~~~taelgar-roster\n~~~');
     const registered=h.block('taelgar-roster','',indexPath);
     await registered.child.ready;
