@@ -201,12 +201,20 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
         name:templates.formatDisplayString('<name:n>',{name:page.name,frontmatter:metadata},at),
         placeType:templates.formatDisplayString('<maintype:n>',{name:page.name,frontmatter:metadata},at),
       } : {};
-      const person=!placeIndex ? Object.fromEntries([
-        ['person','<name> (<pronouns> <pronunciation>)'],
-        ['info','<ancestry> <maintype>'],
-        ['lastKnown',type === 'residents' ? '<lastknown:2> (<lastknowndate>)' : '<lastknown:2Fr> (<lastknowndate>)'],
-        ...(type === 'residents' || type === 'members' ? [['home','<home:1>']] : []),
-      ].map(([field,format])=>[field,formattedParts(templates.formatDisplayString(format,{name:page.name,frontmatter:metadata},at),page.path)])) : {};
+      let person={};
+      if (!placeIndex) {
+        const file={name:page.name,frontmatter:metadata};
+        const format=template=>formattedParts(templates.formatDisplayString(template,file,at),page.path);
+        const current=linkTarget(whereaboutsFor(metadata).current.location).trim();
+        const destination=lookup(current,page.path);
+        const hasCurrentLocation=current && current.toLowerCase() !== 'unknown' && (!destination || visible(destination));
+        person={
+          person:format('<name> (<pronouns> <pronunciation>)'),
+          info:format('<ancestry> <maintype>'),
+          currentLocation:hasCurrentLocation ? format(type === 'residents' ? '<current:2>' : '<current:2Fr>') : [],
+          home:format('<home:1>'),
+        };
+      }
       items.push({path:page.path,name:displayName(page),description,details,
         pronunciation:plain(metadata.pronunciation),imageTarget:metadata.image,...settlement,...place,...person});
     } catch (error) {

@@ -360,8 +360,8 @@ other blockquotes, code, lists, tables, and image-only paragraphs are skipped.
 Wikilink aliases and Markdown link labels become plain text. The website loads
 visible members' bodies when rendering a grid, including header popups and
 inline indexes; existing published snapshots support this without republication.
-Names include available pronouns and pronunciation. The displayed current or
-last-known location can differ from the home used to select Residents.
+Names include available pronouns and pronunciation. A resident's current
+location can differ from the home used to select them.
 Settlement cards show population when numeric.
 Grid cards show the linked note's lead image when its `image` frontmatter field
 resolves to a local image file. For example, use `image: alice.png` or
@@ -456,17 +456,15 @@ header templates:
 | --- | --- |
 | Person | `<name> (<pronouns> <pronunciation>)` |
 | Info | `<ancestry> <maintype>` |
-| Current Location | `<lastknown:2> (<lastknowndate>)` |
+| Current Location | `<current:2>` |
 | Home | `<home:1>` |
 
-Current Location includes the first two locations, including regions, following
-the hierarchy at the last-known date. Home shows the immediate home at the
-selected date. Residents are selected by home; their displayed current or
-last-known location may be elsewhere. Empty home
-or location values show **Unknown**. All calculations use the selected date;
-the legacy helper's `includeDead` parameter is explicitly `false` for Residents.
-Resolvable names link to their pages, and website-hidden destinations show
-**Unknown**. Table rows have no image column.
+Current Location follows the hierarchy at the selected date and includes up to
+two locations, including regions. Home shows the immediate home at that date.
+Empty home or current location values show **Unknown**. Residents are selected
+by home. The legacy helper's `includeDead` parameter is explicitly `false` for
+Residents. Resolvable names link to their pages, and website-hidden destinations
+show **Unknown**. Table rows have no image column.
 
 Member tables have four columns, using the existing query's header templates:
 
@@ -474,17 +472,17 @@ Member tables have four columns, using the existing query's header templates:
 | --- | --- |
 | Person | `<name> (<pronouns> <pronunciation>)` |
 | Info | `<ancestry> <maintype>` |
-| Current Location | `<lastknown:2Fr> (<lastknowndate>)` |
+| Current Location | `<current:2Fr>` |
 | Home | `<home:1>` |
 
 Pronouns use explicit `pronouns` or the header's gender fallback; empty optional
 values and parentheses are removed by the formatter. Info honors ancestry and
 main-type aliases, with species taking precedence for the main type. Current
-Location shows the last-known location chain and observation date, even after
-travel has ended. It includes the first location, excludes subsequent regions,
-and limits the chain to two counted locations. The chain follows the hierarchy
-at the last-known date, and the date retains its original precision. Resolved
-names link to their pages; website-hidden destinations show **Unknown**.
+Location follows the hierarchy at the selected date, includes the first
+location, excludes subsequent regions, and limits the chain to two counted
+locations. If the person's current whereabouts are unknown, the cell shows
+**Unknown**. Resolved names link to their pages, and website-hidden destinations
+show **Unknown**.
 
 Settlement tables have four columns: **Place**, **Region**, **Type Of**, and
 **Population**. Place includes pronunciation when available. Region is the

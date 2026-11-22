@@ -136,24 +136,25 @@ test('residents match homeLocation at the selected date, excluding current, last
   assert.ok(paths(direct).includes('People/Away.md'));assert.ok(!paths(direct).includes('People/Nested.md'));
 });
 
-test('people columns match the original templates, retaining regions and the last-known hierarchy and date',()=>{
+test('resident columns retain the current hierarchy and omit expired sightings',()=>{
   const extraNotes={
     'Places/Ship.md':{tags:['place'],typeOf:'ship',whereabouts:[{type:'home',location:'Town',end:1710},{type:'home',location:'Other Realm',start:1711}]},
     'People/Traveler.md':{tags:['person'],pronouns:'xe/xem',pronunciation:'TRA-vel-er',ancestry:'Townfolk',species:'human',
       whereabouts:[{type:'home',location:'Other Realm'},{type:'away',location:'Ship',start:1710}]},
   };
   const legacy=legacyFixture({baseNotes:indexNotes,extraNotes,campaignRegistry});
-  for(const date of ['1720-01-01','1750-01-01']) {
+  for(const date of ['1710-12-31','1720-01-01','1750-01-01']) {
     const result=queryIndex(fixture(extraNotes).runtime,{type:'residents',target:'Other Realm'},{date,visible});
     for(const item of result.items)for(const [field,format] of [
       ['person','<name> (<pronouns> <pronunciation>)'],['info','<ancestry> <maintype>'],
-      ['lastKnown','<lastknown:2> (<lastknowndate>)'],['home','<home:1>'],
+      ['home','<home:1>'],
     ])assert.equal(partText(item[field]),unlinked(legacy.services.util.s(format,legacy.file(item.path),date)),item.path+' '+field+' '+date);
     const traveler=result.items.find(item=>item.path==='People/Traveler.md');
-    assert.equal(partText(traveler.lastKnown),'Ship, Town (DR 1710)');assert.equal(partText(traveler.home),'the Other Realm');
+    assert.equal(partText(traveler.currentLocation),date==='1710-12-31' ? 'Ship, Town' : '');
+    assert.equal(partText(traveler.home),'the Other Realm');
   }
   const bob=query('residents','Realm').items.find(item=>item.path==='People/Bob.md');
-  assert.equal(partText(bob.person),'Bob');assert.equal(partText(bob.lastKnown),'the Old Town, Realm (January 1st, 1720)');
+  assert.equal(partText(bob.person),'Bob');assert.equal(partText(bob.currentLocation),'the Old Town, Realm');
   assert.equal(partText(bob.home),'the Old Town');
 });
 
@@ -183,7 +184,7 @@ test('members match legacy isAffiliated dates, including explicit overrides to t
   }
 });
 
-test('member columns match the original templates, including aliases, pronouns and last-known ancestry at the sighting date',()=>{
+test('member columns preserve aliases and pronouns and use the selected date for current locations',()=>{
   const extraNotes={
     'Ancestries/Townfolk.md':{tags:['ancestry'],aliases:['Townlander']},
     'Creatures/Humans.md':{tags:['creature']},
@@ -192,15 +193,15 @@ test('member columns match the original templates, including aliases, pronouns a
       whereabouts:[{type:'away',location:'Ship',start:1708,end:1710}]},
   };
   const legacy=legacyFixture({baseNotes:indexNotes,extraNotes,campaignRegistry});
-  for(const date of ['1720-01-01','1750-01-01']) {
+  for(const date of ['1710-12-31','1720-01-01','1750-01-01']) {
     const result=queryIndex(fixture(extraNotes).runtime,{type:'members',target:'Guild'},{date,visible});
     for(const item of result.items)for(const [field,format] of [
-      ['person','<name> (<pronouns> <pronunciation>)'],['info','<ancestry> <maintype>'],['lastKnown','<lastknown:2Fr> (<lastknowndate>)'],
+      ['person','<name> (<pronouns> <pronunciation>)'],['info','<ancestry> <maintype>'],
     ])assert.equal(partText(item[field]),unlinked(legacy.services.util.s(format,legacy.file(item.path),date)),item.path+' '+field+' '+date);
     const traveler=result.items.find(item=>item.path==='People/Traveler.md');
     assert.equal(partText(traveler.person),'Traveler (xe/xem TRA-vel-er)');
     assert.equal(partText(traveler.info),'Townlander human');
-    assert.equal(partText(traveler.lastKnown),'Ship, Town (DR 1710)');
+    assert.equal(partText(traveler.currentLocation),date==='1710-12-31' ? 'Ship, Town' : '');
   }
 });
 
@@ -321,20 +322,20 @@ test('website header buttons require the new header block, including when an ord
   }
 });
 
-test('residents tables show Person, Info, dated last-known location, and Home while popups remain grids',()=>{
+test('residents tables show Person, Info, Current Location, and Home while popups remain grids',()=>{
   const engine=website({'Table.md':'```taelgar-index\ntype: residents\ntarget: Realm\nmode: table\n```'});
   const result=engine.render('Table','1720-01-01','custom',false,undefined,['dufr']),$=load(result.html,{},false);
   assert.deepEqual($('th').map((_,el)=>$(el).text()).get(),['Person','Info','Current Location','Home']);
   const cells=$('tbody tr').first().find('td');
   assert.equal(cells.eq(0).text(),'Alice Example (she/her AL-iss)');assert.equal(cells.eq(1).text(),'Townfolk human');
-  assert.equal(cells.eq(2).text(),'the Other Realm (January 1st, 1720)');assert.equal(cells.eq(3).text(),'Inn');
+  assert.equal(cells.eq(2).text(),'the Other Realm');assert.equal(cells.eq(3).text(),'Inn');
   assert.doesNotMatch($('tbody').text(),/Visitor/);
   assert.match(cells.eq(2).find('a').attr('href'),/date=1720-01-01.*campaigns=dufr/);
   assert.match(cells.eq(3).find('a').attr('href'),/date=1720-01-01.*campaigns=dufr/);
   assert.equal($('img,.taelgar-index-grid').length,0);
   const popup=engine.renderIndex('Places/Realm.md','residents','1720-01-01','custom');assert.match(popup,/taelgar-index-grid/);assert.doesNotMatch(popup,/taelgar-index-table/);
   const changed=engine.render('Table','1741-01-01','custom',false,undefined,['dufr']);
-  assert.equal(load(changed.html)('tbody tr').first().find('td').eq(2).text(),'Inn, Town (January 1st, 1741)');
+  assert.equal(load(changed.html)('tbody tr').first().find('td').eq(2).text(),'Inn, Town');
   assert.equal(load(changed.html)('tbody tr').first().find('td').last().text(),'Inn');
   engine.store.resolve('Places/Other Realm.md').note.metadata.born=9999;
   engine.store.resolve('Places/Inn.md').note.metadata.born=9999;
@@ -344,7 +345,7 @@ test('residents tables show Person, Info, dated last-known location, and Home wh
   assert.doesNotMatch(searchText(result.html),/Alice|Townfolk|Other Realm/);
 });
 
-test('website member tables use the requested templates with contextual links, visibility and last-known dates',()=>{
+test('website member tables use current locations and enforce visibility for contextual links',()=>{
   const engine=website({
     'Members.md':'```taelgar-index\ntype: members\ntarget: Guild\nmode: table\n```',
     'Ancestries/Townfolk.md':'---\ntags: [ancestry]\n---',
@@ -356,7 +357,7 @@ test('website member tables use the requested templates with contextual links, v
   const cells=$('tbody tr').first().find('td');
   assert.equal(cells.eq(0).text(),'Alice Example (she/her AL-iss)');
   assert.equal(cells.eq(1).text(),'Townfolk human');assert.equal(cells.eq(1).find('a').length,2);
-  assert.equal(cells.eq(2).text(),'the Other Realm (January 1st, 1720)');
+  assert.equal(cells.eq(2).text(),'the Other Realm');
   assert.equal(cells.eq(3).text(),'Inn');
   for(const link of $('tbody a').toArray())assert.match($(link).attr('href'),/date=1720-01-01.*campaigns=dufr/);
   assert.equal($('img,.taelgar-index-grid').length,0);assert.doesNotMatch(result.html,/People\/(Hidden|Future|Campaign Secret)/);
@@ -368,22 +369,27 @@ test('website member tables use the requested templates with contextual links, v
   assert.match(load(popupContent)('.taelgar-index-card').first().text(),/Authored prose\./);
   assert.doesNotMatch(load(popupContent)('.taelgar-index-card').first().text(),/Current Location:/);
   assert.doesNotMatch(load(popupContent)('.taelgar-index-card').first().text(),/Home:/);
-  assert.match(load(render('1721-01-01').html)('tbody tr').first().find('td').eq(2).text(),/January 1st, 1721/);
+  const laterLocation=load(render('1721-01-01').html)('tbody tr').first().find('td').eq(2);
+  assert.equal(laterLocation.text(),'the Other Realm');
+  assert.match(laterLocation.find('a').attr('href'),/date=1721-01-01/);
   for(const path of ['Places/Other Realm.md','Ancestries/Townfolk.md','Creatures/Humans.md'])engine.store.resolve(path).note.metadata.born=9999;
   const hidden=render();assert.doesNotMatch(hidden.html,/Other Realm|other-realm|Townfolk|townfolk|human|Humans/);
-  assert.match(hidden.html,/Unknown Unknown/);assert.match(hidden.html,/Unknown \(January 1st, 1720\)/);
+  assert.match(hidden.html,/Unknown Unknown/);
+  assert.equal(load(hidden.html)('tbody tr').first().find('td').eq(2).text(),'Unknown');
   assert.doesNotMatch(searchText(result.html),/Alice|she\/her|Townfolk|Other Realm/);
 });
 
-test('member template text is escaped, and unknown locations retain their observation date',()=>{
+test('member template text is escaped, and an explicit unknown location renders Unknown',()=>{
   const engine=website({
     'Members.md':'```taelgar-index\ntype: members\ntarget: Guild\nmode: table\n```',
-    'People/Alice.md':'---\ntags: [person]\nname: "<img onerror=x>"\npronouns: "<script>"\npronunciation: "& sound"\nancestry: "<b>ancestry</b>"\ntypeOf: "<svg>"\naffiliations: [Guild]\n---',
+    'People/Alice.md':'---\ntags: [person]\nname: "<img onerror=x>"\npronouns: "<script>"\npronunciation: "& sound"\nancestry: "<b>ancestry</b>"\ntypeOf: "<svg>"\naffiliations: [Guild]\nwhereabouts: [{type: away, location: Inn, end: 1710}, {type: away, location: unknown, start: 1711, end: 1730}]\n---',
   });
   const result=engine.render('Members','1720-01-01','custom'),$=load(result.html,{},false);
   assert.equal($('tbody img,tbody script,tbody b,tbody svg').length,0);
   assert.match($('tbody tr').first().find('td').first().text(),/<img onerror=x> \(<script> & sound\)/);
-  assert.equal($('tbody tr').first().find('td').eq(2).text(),'Unknown (January 1st, 1720)');
+  const location=$('tbody tr').first().find('td').eq(2);
+  assert.equal(location.text(),'Unknown');
+  assert.equal(location.find('a').length,0);
 });
 
 test('settlement tables use Place, Region, Type Of and Population, shared display rules, and dated region sorting',()=>{
@@ -412,18 +418,25 @@ test('settlement tables use Place, Region, Type Of and Population, shared displa
 test('grid images use lead metadata, omit missing/unsafe images, and include responsive popup thumbnails',()=>{
   const portrait={id:'portraits/alice.png',target:'portraits/alice.png',extension:'.png',note:null,
     image:{width:1200,height:1600,variants:[{url:'/assets/portrait-small.webp',width:270,height:360,inline:true}]}};
-  const engine=website({'Grid.md':'```taelgar-index\ntype: residents\ntarget: Realm\nmode: grid\n```'},[portrait]);
+  const alice=indexNotes['People/Alice.md'];
+  const updatedAlice={...alice,whereabouts:[...alice.whereabouts,{type:'away',start:1741,location:null}]};
+  const engine=website({
+    'Grid.md':'```taelgar-index\ntype: residents\ntarget: Realm\nmode: grid\n```',
+    'People/Alice.md':indexSources({'People/Alice.md':updatedAlice})['People/Alice.md'],
+  },[portrait]);
   const result=engine.render('Grid','1720-01-01','custom',false,undefined,['dufr']),$=load(result.html,{},false);
   assert.equal($('.taelgar-index-image').length,1);assert.equal($('img').attr('alt'),'Alice Example');
   assert.match($('.taelgar-index-card').first().text(),/Alice Example \(she\/her AL-iss\)/);
   assert.equal($('.taelgar-index-card').eq(1).find('a').first().text(),'Bob');
   assert.doesNotMatch($('.taelgar-index-card').eq(1).text(),/\(\s*\)/,'missing pronouns and pronunciation produce no empty parentheses');
-  assert.match($('.taelgar-index-card').first().text(),/Current Location: the Other Realm \(January 1st, 1720\)/);
+  assert.equal($('.taelgar-index-card').first().find('.taelgar-index-detail').first().text(),'Current Location: the Other Realm');
   assert.match($('.taelgar-index-card').first().text(),/Home: Inn/);assert.doesNotMatch(result.html,/Visitor/);
   assert.equal($('img').attr('src'),'/assets/portrait-small.webp');assert.match($('img').attr('srcset'),/270w/);assert.equal($('img').attr('loading'),'lazy');
   const popup=load(engine.renderIndex('Places/Realm.md','residents','1720-01-01','custom'),{},false);
   assert.equal(popup('img').attr('src'),'/assets/portrait-small.webp');
   assert.match(popup('.taelgar-index-card').first().text(),/Alice Example \(she\/her AL-iss\)/);
+  const laterPopup=load(engine.renderIndex('Places/Realm.md','residents','1741-01-01','custom'),{},false);
+  assert.equal(laterPopup('.taelgar-index-card .taelgar-index-detail').first().text(),'Current Location: Unknown');
   assert.ok(collectImageUsages(engine.store).has(portrait.id),'frontmatter-only lead images are prepared for publication');
   assert.equal(indexImageTarget([['alice.png']]),'alice.png');assert.equal(indexImageTarget('![[alice.png|Portrait]]'),'alice.png');
   for(const unsafe of ['javascript:alert(1)','data:image/png;base64,abc','https://example.test/alice.png','//example.test/alice.png',{},['one.png','two.png']])assert.equal(indexImageTarget(unsafe),undefined);
