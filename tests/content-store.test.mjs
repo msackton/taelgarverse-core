@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {availableFrom,availableInContext,compileAvailability,hasStubTag,omitFromPublication,parseNote} from '../src/content-store.mjs';
-import {instantiate} from '../src/worker-headers.mjs';
+import {instantiate} from './helpers/legacy-headers/generated.mjs';
 
 const entry = metadata => ({note:{metadata}});
 const context = date => ({date,campaigns:[]});

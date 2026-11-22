@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import {testSettings} from './helpers/test-settings.mjs';
-import {initializeHeaders,renderHeader} from '../src/headers.mjs';
+import {initializeHeaders,renderHeader} from './helpers/legacy-headers/vm.mjs';
 import {complexNotes,complexRenderCases} from './fixtures/header-complex-cases.mjs';
 import fs from 'node:fs';
 import {parseNote} from '../src/content-store.mjs';

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {instantiate} from '../src/worker-headers.mjs';
+import {instantiate} from './helpers/legacy-headers/generated.mjs';
 import {headerFixture} from './helpers/legacy-header-fixture.mjs';
 
 // These original query helpers are not called by the new bio block. Exercise

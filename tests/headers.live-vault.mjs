@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {Engine} from '../src/engine.mjs';
 import {loadSettings} from '../src/config.mjs';
 import {createHeaderSnapshot} from '../src/header-core/index.mjs';
-import {initializeHeaders,renderHeader} from '../src/headers.mjs';
+import {initializeHeaders,renderHeader} from './helpers/legacy-headers/vm.mjs';
 import {renderSavedHeader} from './helpers/full-header-rendering.mjs';
 import {fixtureVault} from './helpers/test-settings.mjs';
 import {vaultCases} from './helpers/vault-header-fixture.mjs';

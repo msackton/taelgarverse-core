@@ -9,8 +9,9 @@ that was removed from the working vault after migration to the maintained core.
 endings to LF. Tests verify these hashes. No test fetches GitHub or copies files
 from a working vault to refresh this directory.
 
-- `_scripts/customJS/` supplies the independent legacy VM reference used by
-  `src/headers.mjs`. Its historical bugs are intentional reference behavior.
+- `_scripts/customJS/` supplies the independent
+  [legacy VM reference](../../helpers/legacy-headers/vm.mjs). Its historical
+  bugs are intentional reference behavior.
 - `.obsidian/metadata.json` and `_scripts/session_note_campaigns.json` supply
   frozen display rules and campaign configuration for synthetic test vaults.
 - Existing `header-*-cases` and `header-*-outputs` fixtures outside this directory

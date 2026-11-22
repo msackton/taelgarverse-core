@@ -51,9 +51,9 @@ production deployment.
 
 ## Legacy code intentionally retained
 
-`src/headers.mjs`, `src/header-runtime.mjs`, `src/worker-headers.mjs` and the frozen
-`tests/fixtures/legacy-vault/` remain independent characterization references.
-Do not regenerate these fixtures to make the new syntax appear compatible.
+The independent CustomJS references live in `tests/helpers/legacy-headers/`.
+They use the frozen source inputs in `tests/fixtures/legacy-vault/` for
+characterization and parity tests.
 
 The test harness reconstructs complete historical headers and saved-header
 replacements with `tests/helpers/full-header-rendering.mjs`. It adds the former

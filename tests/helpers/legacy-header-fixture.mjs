@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {initializeHeaderRuntime,renderModuleHeader} from '../../src/header-runtime.mjs';
-import {instantiate} from '../../src/worker-headers.mjs';
+import {initializeHeaderRuntime,renderModuleHeader} from './legacy-headers/runtime.mjs';
+import {instantiate} from './legacy-headers/generated.mjs';
 import {notes,registry} from '../fixtures/header-cases.mjs';
 
 const coreMeta=JSON.parse(fs.readFileSync(new URL('../fixtures/header-display-rules.json',import.meta.url),'utf8'));

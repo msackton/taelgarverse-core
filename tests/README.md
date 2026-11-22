@@ -27,9 +27,11 @@ npm test -- --historical-headers
 This optional run compares the former header generator with captured Markdown
 for tagged notes, historical kingdoms and synthetic examples in both layouts.
 It also checks the [frozen legacy sources](fixtures/legacy-vault/README.md)
-against the captures and reproduces their documented defects. All inputs are
-versioned in core. The ordinary run exercises current callouts, date boundaries,
-publication conversion and Obsidian editing.
+against the captures and reproduces their documented defects. The VM and
+generated comparison implementations live in [test support](helpers/legacy-headers/).
+The ordinary run exercises current callouts, publication conversion and
+Obsidian editing. It also uses the generated reference for date-boundary and
+index comparisons.
 
 ## Optional live-vault checks
 
