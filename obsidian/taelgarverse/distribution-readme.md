@@ -57,10 +57,9 @@ pronunciation. Residents cards show Info, Current Location and Home. Members
 cards show Info, the first authored prose sentence, and roles. Descriptions skip
 callouts, headings, code, lists, tables and image-only paragraphs. Set `mode: table`
 inline to show Person (name, pronouns, pronunciation), Info (ancestry and main
-type), Current Location (last-known chain and date), and Home for Residents and Members.
-Member tables show Person (name, pronouns, pronunciation),
-Info (ancestry and main type), Current Location (last-known location chain
-and date), and Home, following the existing `isAffiliated` and header-template rules.
+type), Current Location, and Home for Residents and Members. Current Location
+shows the location at the selected date or **Unknown**. Member tables follow the
+existing `isAffiliated` and header-template rules.
 Settlement tables show Place, Region,
 Type Of, and Population, sorted by dated home region, with the same type and
 population formatting as headers. Settlements includes ruins and matches
@@ -229,16 +228,14 @@ Grid cards show available local images from each note's `image` frontmatter.
 People cards include pronouns and name pronunciation when available, using the
 same name formatting as tables. Settlement cards also include pronunciation.
 Use `mode: table` inline for Person (name, pronouns, pronunciation), Info (ancestry
-and main type), Current Location (last-known chain and date), and Home on Residents.
+and main type), Current Location, and Home on Residents and Members. Current
+Location shows the location at the selected date or **Unknown**.
 Residents includes living people whose active home is in the place, including
 traveling residents. Transients whose home is elsewhere are excluded. Residents
 cards show Current Location and Home; Members cards show the member note's first
 authored sentence and roles instead of location fields. Descriptions skip callouts,
 headings, code, lists, tables and image-only paragraphs before selecting prose.
-Member tables show Person (name, pronouns,
-pronunciation), Info (ancestry and main type), Current Location (last-known
-location chain and date), and Home, using the existing query's header templates
-and affiliation-date rules. Settlement tables show
+Member tables use the header templates and affiliation-date rules. Settlement tables show
 Place, Region, Type Of, and Population, sorted by their dated home region.
 Settlements includes ruins and matches current, last-known and secondary
 locations using the existing `inLocation(..., true, true, date)` rules.
