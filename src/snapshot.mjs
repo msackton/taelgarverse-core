@@ -5,6 +5,8 @@ import {RenderEngine} from './render-engine.mjs';
 import {createHeaderSnapshot} from './header-core/index.mjs';
 import {bucketText} from './runtime-io.mjs';
 import {compileMapSources} from './map-catalogue.mjs';
+import {snapshotCampaignSource} from './snapshot-campaigns.mjs';
+import {readSnapshotPart} from './snapshot-cache.mjs';
 
 export class SnapshotStore extends ContentStore {
   constructor(index,bucket,lookups,options={}) {
@@ -52,7 +54,8 @@ export async function loadSnapshot(bucket,revision,options={}) {
   const store=new SnapshotStore(index,bucket,undefined,options);
   const headers=createHeaderSnapshot({pages:store.entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta:index.coreMeta,registry:index.registry});
   const engine=new RenderEngine({settings:index.settings,store,headers,navigationSource:index.navigationSource,
-    homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null,interactionIndex:index.interactions});
+    homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null,interactionIndex:index.interactions,
+    campaignSource:snapshotCampaignSource(index.campaignRecords,descriptor=>readSnapshotPart(bucket,revision,descriptor,options))});
   let mapSources;
   engine.loadMapSources=()=>mapSources??=(async()=>{
     const entries=store.entries.filter(entry=>entry.note),sources=[];

@@ -1,19 +1,14 @@
 import {Component,MarkdownRenderChild} from 'obsidian';
-import {campaignFences,campaignDefinitions,parseCampaignBlock} from '../../../src/campaign-blocks.mjs';
-import {buildCampaignRecord,discoverCampaignSessionNotes} from '../../../src/campaign-records.mjs';
+import {campaignFences,parseCampaignBlock} from '../../../src/campaign-blocks.mjs';
+import {campaignForBlock,campaignSourceEntry,createCampaignSource,isCampaignSourcePath} from '../../../src/campaign-source.mjs';
 import {renderCampaignView} from '../../../src/campaign-view.mjs';
 import {readCampaignSessionBundles} from '../../../src/vault-campaign-sessions.mjs';
-import {ContentStore,parseNote} from '../../../src/content-store.mjs';
 import {escapeHtml as escape} from '../../../src/common.mjs';
 import {obsidianInternalLink,mountObsidianInternalLinks} from '../services/internal-links.mjs';
 
 function noteEntries(app) {
-  return app.vault.getMarkdownFiles().filter(file=>!file.path.startsWith('_sessions/') &&
-    !file.path.split('/').some(part=>part.startsWith('.') || part==='_generated'))
-    .map(file=>{
-      const metadata=app.metadataCache.getFileCache(file)?.frontmatter || {};
-      return {id:file.path,slug:file.path,target:file.path,name:file.basename,note:{metadata}};
-    });
+  return app.vault.getMarkdownFiles().filter(file=>isCampaignSourcePath(file.path))
+    .map(file=>campaignSourceEntry(file.path,app.metadataCache.getFileCache(file)?.frontmatter || {}));
 }
 
 function campaignLink(target,label) {
@@ -62,7 +57,6 @@ export class CampaignBlocksFeature extends Component {
     this.plugin=plugin;
     this.app=plugin.app;
     this.childrenRendered=new Set();
-    this.records=new Map();
     this.sources=new Set();
     this.bundleDirectories=new Set();
   }
@@ -82,8 +76,7 @@ export class CampaignBlocksFeature extends Component {
   }
 
   invalidate() {
-    this.records.clear();
-    this.noteIndex=null;
+    this.source=null;
     for(const child of this.childrenRendered) child.sequence++;
     clearTimeout(this.timer);
     this.timer=setTimeout(()=>{
@@ -94,47 +87,30 @@ export class CampaignBlocksFeature extends Component {
   async record(sourcePath,options) {
     const snapshot=await this.plugin.snapshots.getSnapshot();
     const indexes=snapshot.campaignIndex,registry=snapshot.campaignRegistry;
-    const owner=Object.keys(indexes).find(id=>indexes[id]===sourcePath);
-    const campaign=options.campaign || owner;
-    if(!campaign) throw new Error('Set campaign on a note outside the registered campaign index.');
-    if(!Object.hasOwn(indexes,campaign)) throw new Error('Unknown campaign '+campaign+'.');
-    if(owner && owner!==campaign) throw new Error('The '+owner+' index can only define its own campaign.');
-    if(owner!==campaign && (options.overrides!==undefined || options.estimate!==undefined))
-      throw new Error('Put overrides and estimates on the registered campaign index.');
-    if(this.noteIndex?.snapshot!==snapshot) {
-      const store=new ContentStore(noteEntries(this.app));
-      this.records.clear();
-      this.noteIndex={snapshot,store,sessionNotes:discoverCampaignSessionNotes(store,registry)};
+    const campaign=campaignForBlock(indexes,sourcePath,options);
+    if(this.source?.snapshot!==snapshot) {
+      this.source={snapshot,...createCampaignSource({
+        indexes,registry,entries:()=>noteEntries(this.app),
+        readNote:path=>{
+          this.sources.add(path);
+          const file=this.app.vault.getAbstractFileByPath(path);
+          if(!file) throw new Error('Missing campaign source '+path+'.');
+          return this.app.vault.cachedRead(file);
+        },
+        readBundles:campaign=>{
+          const directory=registry.campaigns[campaign].sessionBundleDirectory;
+          const root=this.app.vault.adapter.getBasePath?.();
+          if(directory) this.bundleDirectories.add(directory);
+          if(root && directory) return readCampaignSessionBundles(root,registry,campaign);
+        },
+      })};
     }
-    if(!this.records.has(campaign)) {
-      const pending=this.loadRecord(campaign,indexes[campaign],registry,this.noteIndex);
-      this.records.set(campaign,pending);
-      pending.catch(()=>{if(this.records.get(campaign)===pending) this.records.delete(campaign);});
-    }
-    return this.records.get(campaign);
-  }
-
-  async loadRecord(campaign,indexPath,registry,{store,sessionNotes}) {
-    const directory=registry.campaigns[campaign].sessionBundleDirectory;
-    if(directory) this.bundleDirectories.add(directory);
-    const arcPaths=sessionNotes.arcs.get(campaign) || [];
-    for(const path of [indexPath,...arcPaths]) this.sources.add(path);
-    const read=async path=>{
-      const file=this.app.vault.getAbstractFileByPath(path);
-      if(!file) throw new Error('Missing campaign source '+path+'.');
-      return {path,body:parseNote(await this.app.vault.cachedRead(file)).body};
-    };
-    const [index,...arcNotes]=await Promise.all([indexPath,...arcPaths].map(read));
-    const root=this.app.vault.adapter.getBasePath?.();
-    const sources=root && directory ? await readCampaignSessionBundles(root,registry,campaign) : {};
-    return buildCampaignRecord({campaign,registry,indexPath,store,sessionNotes,arcNotes,
-      definitions:campaignDefinitions(index.body,campaign),...sources});
+    return this.source.load(campaign);
   }
 
   onunload() {
     clearTimeout(this.timer);
     for(const child of this.childrenRendered) child.unload();
-    this.records.clear();
-    this.noteIndex=null;
+    this.source=null;
   }
 }

@@ -1003,10 +1003,16 @@ HTML in the normal article body remains supported.
 
 ### Campaign roster and sessions
 
-Taelgarverse renders `taelgar-roster` and `taelgar-session` in Obsidian. Each
+Taelgarverse renders `taelgar-roster` and `taelgar-session` in Obsidian and on the website. Each
 registered campaign index can define one fence of each type. An empty fence
 derives its data from the vault. To reuse the data elsewhere, supply the lowercase
 registry ID and any display options.
+
+Website publication builds campaign records from the source vault, including
+registered index notes, session notes, and bundles without public pages. A
+published article can reference any registered campaign, including other
+continuities. Links without a public destination appear as text. Publishing
+a new content snapshot refreshes the website records.
 
 ~~~markdown
 ```taelgar-roster

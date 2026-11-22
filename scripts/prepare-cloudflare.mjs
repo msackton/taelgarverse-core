@@ -1,4 +1,6 @@
-import {readVaultCampaigns} from '../src/vault-campaigns.mjs';
+import {readVaultCampaignRegistry} from '../src/vault-campaigns.mjs';
+import {readVaultCampaignSource} from '../src/vault-campaign-records.mjs';
+import {compileCampaignSnapshots} from '../src/snapshot-campaigns.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
@@ -44,15 +46,15 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const started=performance.now(),timings={};
   const timed=(label,action)=>withPublicationProgress(label,action,log,timings);
   const shards=new Map(),uploads=[];
-  const {store,homeSource,registry,campaignHomes}=await timed('Reading vault content',()=>{
+  const {store,homeSource,registry,indexes,campaignHomes}=await timed('Reading vault content',()=>{
     const store=new Store(settings);
     for(const entry of store.entries)if(entry.mapPathError)
       throw new Error(entry.id+': '+entry.mapPathError);
     const homeSource=settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null;
-    const registry=readVaultCampaigns(settings.vault_dir);
+    const {indexes,registry}=readVaultCampaignRegistry(settings.vault_dir);
     const campaignHomes=readCampaignHomes(settings);
     new CampaignSites(campaignHomes,Contexts.forWebsite(store,registry,settings));
-    return {store,homeSource,registry,campaignHomes};
+    return {store,homeSource,registry,indexes,campaignHomes};
   });
   const materialization=materialize ? await timed('Materializing Dataview queries',()=>materialize(store)) : undefined;
   const coreMeta=JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'.obsidian/metadata.json'),'utf8'));
@@ -96,8 +98,10 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const backlinks=await timed('Compiling backlinks',()=>buildBacklinkIndex(store));
   const searchManifest=await timed('Compiling search',()=>compileSearch(store)),search=searchDescriptor(searchManifest);
   const bundles=readInteractionBundles(settings,registry),{warnings:interactionWarnings,...interactions}=compileInteractionIndex(store,registry,backlinks,bundles.bundles);
+  const campaigns=await timed('Compiling campaign records',()=>compileCampaignSnapshots(
+    readVaultCampaignSource(settings.vault_dir,{indexes,registry})));
   const base={schemaVersion:1,sourceVersion:{commit:sourceVersion.commit,dirty:sourceVersion.dirty},settings:{default_date:settings.default_date,campaigns:settings.campaigns},backlinks,
-    registry,interactions,
+    registry,interactions,campaignRecords:campaigns.descriptors,
     coreMeta,
     navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,
     homeSource,
@@ -113,6 +117,10 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   }
   const index={...base,revision};
   const indexFile=path.join(directory,'index.json');writeJSON(indexFile,index);
+  for(const [relative,json] of campaigns.objects){
+    const artifact=path.join(directory,relative);fs.mkdirSync(path.dirname(artifact),{recursive:true});fs.writeFileSync(artifact,json);
+    uploads.push({key:prefix+'/'+relative,file:artifact});
+  }
   if(compiled){
     const file=path.join(directory,'runtime.json');writeJSON(file,{...compiled.manifest,revision});
     uploads.push({key:prefix+'/runtime.json',file});

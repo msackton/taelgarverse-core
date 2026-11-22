@@ -9,6 +9,7 @@ import {supportedRuntimeVersion,assetPartition,validRuntimeDescriptor} from './r
 import {bucketText} from './runtime-io.mjs';
 import {readSnapshotPart} from './snapshot-cache.mjs';
 import {compileMapSources} from './map-catalogue.mjs';
+import {snapshotCampaignSource} from './snapshot-campaigns.mjs';
 
 const failure=()=>new RenderError(503,'Compiled content snapshot is missing or invalid');
 
@@ -113,7 +114,7 @@ export class RuntimeSnapshot {
       const compactBacklinks=this.index.version===2 ? this.backlinkLoader(backlinks,store) : null;
       const headers=hydrateHeaderSnapshot(compiledHeaders,store.entries.filter(entry=>entry.note).map(entry=>({path:entry.id,metadata:entry.note.metadata})));
       const engine=new RenderEngine({settings:this.index.settings,store,headers,backlinkIndex:compactBacklinks ? null : backlinks.index,
-        interactionIndex:data.interactions,
+        interactionIndex:data.interactions,campaignSource:snapshotCampaignSource(data.campaignRecords,descriptor=>this.read(descriptor)),
         prepared:{contexts:this.contexts,campaignSites:CampaignSites.hydrate(data.sites),navigation,home:data.home,
           backlinkCampaigns:compactBacklinks?.campaigns || new Map(backlinks.campaigns),loadBacklinks:compactBacklinks?.load}});
       engine.loadMapSources=()=>this.once('mapSources',async()=>{
