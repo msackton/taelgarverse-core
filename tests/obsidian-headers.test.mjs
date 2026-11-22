@@ -87,7 +87,7 @@ test('Obsidian registers a callout postprocessor without a competing Live Previe
 
 test('header commands are hotkey-ready, use unsaved editor metadata and apply one undoable range edit',async()=>{
   const h=host();
-  let source='---\nheaderVersion: old\nname: Unsaved Name\ntags: [person]\nspecies: elf\npronunciation: UNSAVED\nka: 3\n---\n# Old\n> [!info]+ Bio\n> Old\n\nAuthored prose.\n';
+  let source='---\nheaderVersion: old\nname: Unsaved Name\ntags: [person]\nspecies: elf\npronunciation: UNSAVED\nka: 3\n---\n# Old\n> [!taelgar-header]\n> Old\n\nAuthored prose.\n';
   const original=source,edits=[];
   const offset=pos=>source.split('\n').slice(0,pos.line).reduce((sum,line)=>sum+line.length+1,0)+pos.ch;
   const editor={getValue:()=>source,offsetToPos:value=>{const lines=source.slice(0,value).split('\n');return {line:lines.length-1,ch:lines.at(-1).length};},
@@ -99,11 +99,15 @@ test('header commands are hotkey-ready, use unsaved editor metadata and apply on
     await h.commands[0].editorCallback(editor,{file});assert.equal(edits.length,1);
     assert.match(source,/# Unsaved Name\n\*\(UNSAVED\)\*\n> \[!taelgar-header\]\n> \(elf, ka 3\)/);
     assert.equal(source.slice(0,source.indexOf('# Unsaved')),original.slice(0,original.indexOf('# Old')).replace('headerVersion: old\n',''));
-    assert.equal(edits[0].from.line,1,'the single undoable edit includes the obsolete YAML field');
+    assert.deepEqual(edits[0].from,{line:1,ch:0},'the single undoable edit includes headerVersion removal');
     assert.ok(source.endsWith('\nAuthored prose.\n'));assert.equal(h.notes['Bio Person.md'],sources['Bio Person.md'],'editor commands never write through the Vault API');
     await h.commands[0].editorCallback(editor,{file});assert.equal(edits.length,1,'unchanged output needs no edit');
-    source='---\ntags: [person]\n---\nOpening prose.';await h.commands[0].editorCallback(editor,{file});assert.equal(edits.length,1,'missing headers are not implicitly added');
-    await h.commands[1].editorCallback(editor,{file});assert.equal(edits.length,2);assert.ok(source.endsWith('Opening prose.'));
+    const oldInfo='> [!info]+ Bio\n> Keep.\n\nOpening prose.';
+    source='---\nheaderVersion: old\ntags: [person]\n---\n# Old\n'+oldInfo;
+    await h.commands[0].editorCallback(editor,{file});assert.equal(edits.length,1,'ordinary info callouts do not mark headers for regeneration');
+    assert.match(source,/^headerVersion: old$/m);
+    await h.commands[1].editorCallback(editor,{file});assert.equal(edits.length,2);assert.ok(source.endsWith(oldInfo));
+    assert.doesNotMatch(source,/^headerVersion:/m);
     source='---\ninvalid: [\n---\n> [!taelgar-header]\n';await h.commands[1].editorCallback(editor,{file});assert.equal(edits.length,2);assert.match(h.notices.at(-1),/Header unavailable/);
   } finally {h.dispose();}
 });

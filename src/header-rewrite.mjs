@@ -2,8 +2,8 @@ import {parse,parseDocument,isMap,isScalar} from 'yaml';
 import {isDeepStrictEqual} from 'node:util';
 import {getPageType} from './header-core/metadata.mjs';
 import {NameManager} from './header-core/names.mjs';
-import {scanTopLevelCallouts} from './header-callout.mjs';
-import {scanFencedCodeBlocks,applyReplacements} from './markdown-fences.mjs';
+import {scanHeaderCallouts} from './header-callout.mjs';
+import {applyReplacements} from './markdown-fences.mjs';
 
 const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
 const unknown=/^(?:unknown|none|null|n\/a|\?)$/i;
@@ -112,9 +112,10 @@ export function savedHeader(metadata,filename,newline='\n',coreMeta) {
 // A comment, image, paragraph or other callout makes the boundary ambiguous.
 function leadingTitle(body) {
   const blank='(?:[\\t ]*\\r?\\n)*';
-  const heading='(?: {0,3}#[\\t ]+[^\\r\\n]*(?:\\r?\\n|$)|[^\\r\\n]+\\r?\\n {0,3}={2,}[\\t ]*(?:\\r?\\n|$))';
+  const atx=' {0,3}#[\\t ]+[^\\r\\n]*(?:\\r?\\n|$)';
+  const setext='(?! {0,3}(?:`{3,}|~{3,})| {4}|\\t)[^\\r\\n]+\\r?\\n {0,3}={2,}[\\t ]*(?:\\r?\\n|$)';
   const pronunciation='(?:[\\t ]*\\*\\([^\\r\\n]+\\)\\*[\\t ]*(?:\\r?\\n|$))?';
-  return new RegExp('^'+blank+heading+blank+pronunciation+blank).exec(body)?.[0].length || 0;
+  return new RegExp('^'+blank+'(?:'+atx+'|'+setext+')'+blank+pronunciation+blank).exec(body)?.[0].length || 0;
 }
 
 function headerSource(source) {
@@ -133,35 +134,29 @@ export function headerSourceEligibility(source) {
 
 export function rewriteHeader(source,{filename='Untitled.md',add=false,coreMeta}={}) {
   const {metadata,start,frontmatter}=headerSource(source),eligibility=headerEligibility(metadata);
-  // Source-writing policy only: return before inspecting any header syntax.
-  // The renderer deliberately does not use this eligibility check.
+  // The eligibility policy applies only to edits. Rendering can use any native callout.
   if(!eligibility.eligible)return {status:'skipped',reason:eligibility.reason};
-  const body=source.slice(start);
-  const callouts=scanTopLevelCallouts(body,['taelgar-header','info']);
-  const titleEnd=leadingTitle(body);
-  let candidate=callouts[0];
-  // An ordinary article info callout is not a header. Explicit Add may insert
-  // above it, but must not erase prose or ignore a later native insertion flag.
-  if(candidate?.type==='info' && !metadata.headerVersion && (!titleEnd || titleEnd!==candidate.start)) {
-    if(callouts.some(callout=>callout.type==='taelgar-header'))return {status:'skipped',problem:true,reason:'Unexpected content before the first header callout.'};
-    candidate=null;
-  }
-  let end,kind;
-  if(candidate) {
-    const prefix=body.slice(0,candidate.start);
-    if(prefix.trim() && titleEnd!==candidate.start)return {status:'skipped',problem:true,reason:'Unexpected content before the first header callout.'};
-    if(candidate.type==='info' && !titleEnd && !metadata.headerVersion)return {status:'skipped',reason:'An ordinary info callout is not a recognized saved header.'};
-    end=start+candidate.end;kind=candidate.type==='info'?'converted':'regenerated';
-  } else {
-    if(scanFencedCodeBlocks(body).some(block=>block.language==='taelgar-header'))return {status:'skipped',problem:true,reason:'Old header code fence requires explicit conversion.'};
-    if(!add)return {status:'skipped',reason:'No recognized header; insert an empty taelgar-header callout or use Add header / --add.'};
-    end=start+titleEnd;kind='added';
-  }
-  return replaceHeader(source,{metadata,start,end,kind,filename,coreMeta,frontmatter});
+
+  const body=source.slice(start),[callout]=scanHeaderCallouts(body),titleEnd=leadingTitle(body);
+  if(callout && body.slice(0,callout.start).trim() && titleEnd!==callout.start)
+    return {status:'skipped',problem:true,reason:'Unexpected content before the first header callout.'};
+  if(!callout && !add)return {status:'skipped',reason:'No native header; insert an empty taelgar-header callout or use Add header / --add.'};
+
+  const end=start+(callout?.end ?? titleEnd),kind=callout?'regenerated':'added';
+  const newline=source.includes('\r\n')?'\r\n':'\n',suffix=source.slice(end);
+  const header=savedHeader(metadata,filename,newline,coreMeta);
+  const removals=withoutHeaderVersion(metadata,frontmatter);
+  const replacementStart=removals.length?Math.min(...removals.map(edit=>edit.start)):start;
+  const prefix=applyReplacements(source.slice(0,start),removals);
+  const separator=suffix && !/^[\t ]*\r?\n/.test(suffix) ? newline : '';
+  const replacement=prefix.slice(replacementStart)+header+separator;
+  const result=source.slice(0,replacementStart)+replacement+suffix;
+  return {status:result===source?'unchanged':'changed',kind,start:replacementStart,end,replacement,
+    before:source.slice(replacementStart,end),after:replacement,source:result};
 }
 
-// Edit the parsed top-level property ranges, without reserializing other YAML.
-// A semantic check also catches aliases/merges that would change other fields.
+// Edit only the top-level YAML property and verify that aliases and merges
+// preserve the values of the remaining frontmatter.
 function withoutHeaderVersion(metadata,frontmatter) {
   if(!Object.hasOwn(metadata,'headerVersion'))return [];
   const yaml=frontmatter.text,document=parseDocument(yaml,{version:'1.1',merge:true,uniqueKeys:false,keepSourceTokens:true});
@@ -194,15 +189,4 @@ function withoutHeaderVersion(metadata,frontmatter) {
   catch {throw new Error('Cannot remove headerVersion without affecting other frontmatter; check shared YAML anchors.');}
   if(!isDeepStrictEqual(parsed ?? {},expected))throw new Error('Cannot remove headerVersion without affecting other frontmatter; check YAML merges.');
   return edits.map(edit=>({...edit,start:frontmatter.start+edit.start,end:frontmatter.start+edit.end}));
-}
-
-function replaceHeader(source,{metadata,start,end,kind,filename,coreMeta,frontmatter}) {
-  const newline=source.includes('\r\n')?'\r\n':'\n',header=savedHeader(metadata,filename,newline,coreMeta);
-  const removals=withoutHeaderVersion(metadata,frontmatter),prefix=applyReplacements(source.slice(0,start),removals);
-  const replacementStart=removals.length?Math.min(...removals.map(edit=>edit.start)):start;
-  let replacement=prefix.slice(replacementStart)+header;
-  const suffix=source.slice(end);
-  if(suffix && !/^[\t ]*\r?\n/.test(suffix))replacement+=newline;
-  const result=source.slice(0,replacementStart)+replacement+suffix;
-  return {status:result===source?'unchanged':'changed',kind,start:replacementStart,end,replacement,before:source.slice(replacementStart,end),after:replacement,source:result};
 }

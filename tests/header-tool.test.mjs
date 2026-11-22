@@ -17,22 +17,22 @@ async function fixture(t) {
   await fs.mkdir(path.join(root,'.obsidian/plugins/taelgarverse'),{recursive:true});
   return root;
 }
-const source='---\nname: Fausto\ntags: [person]\nspecies: human\n---\n# Old\n> [!info]+ Bio\n> Old\n\nAuthored biography.\n';
+const source='---\nname: Fausto\ntags: [person]\nspecies: human\n---\n# Old\n> [!taelgar-header]\n> Old\n\nAuthored biography.\n';
 
 test('console output contains one concise status per file, no header bodies, and accurate preview/write summaries',()=>{
-  const files=[{file:'Convert.md',status:'changed',kind:'converted',before:'Private old header',after:'Private new header'},
+  const files=[{file:'Existing.md',status:'changed',kind:'regenerated',before:'Private old header',after:'Private new header'},
     {file:'Add.md',status:'changed',kind:'added'},{file:'Regenerate.md',status:'changed',kind:'regenerated'},
     {file:'Current.md',status:'unchanged'},{file:'Skipped.md',status:'skipped',reason:'Header ineligible: no tags.'},
     {file:'Broken.md',status:'error',reason:'Invalid YAML\nSensitive source excerpt'}];
   const report={dryRun:true,written:0,counts:{changed:3,unchanged:1,skipped:1,error:1},files};
   const preview=formatHeaderToolStatus(report);
-  assert.deepEqual(preview.split('\n'),['WOULD CONVERT Convert.md','WOULD ADD Add.md','WOULD REGENERATE Regenerate.md',
+  assert.deepEqual(preview.split('\n'),['WOULD REGENERATE Existing.md','WOULD ADD Add.md','WOULD REGENERATE Regenerate.md',
     'UNCHANGED Current.md','SKIPPED Skipped.md — Header ineligible: no tags.','ERROR Broken.md — Invalid YAML',
     'Preview: 3 changes, 1 unchanged, 1 skipped, 1 error; 0 files written.']);
   assert.doesNotMatch(preview,/Private|Sensitive/);
-  const stopped=formatHeaderToolStatus({...report,dryRun:false});assert.match(stopped,/^NOT WRITTEN Convert.md/m);
+  const stopped=formatHeaderToolStatus({...report,dryRun:false});assert.match(stopped,/^NOT WRITTEN Existing.md/m);
   const written=formatHeaderToolStatus({...report,dryRun:false,written:1,files:[{...files[0],written:true},...files.slice(1)]});
-  assert.match(written,/^CONVERTED Convert.md/m);assert.match(written,/1 file written\.$/);
+  assert.match(written,/^REGENERATED Existing.md/m);assert.match(written,/1 file written\.$/);
 });
 
 test('--errors hides ordinary statuses and normal skips while retaining errors, unsafe header skips and unapplied writes',()=>{
@@ -57,11 +57,12 @@ test('--check exits nonzero for planned changes and problems, but not normal eli
   await assert.rejects(runHeaderTool(['--vault',root,'--file','Fausto.md','--check','--write']),/cannot be combined/);
   await runHeaderTool(['--vault',root,'--file','Fausto.md','--write']);
   report=await runHeaderTool(['--vault',root,'--file','Fausto.md','--check']);assert.equal(headerToolExitCode(report),0);
-  for(const content of ['---\ntags: [person]\n---\nAn unmarked note.','---\ntags: [session-note]\n---\n> [!taelgar-header]\n']) {
+  for(const content of ['---\ntags: [person]\n---\nAn unmarked note.','---\ntags: [session-note]\n---\n> [!taelgar-header]\n',
+    '---\ntags: [person]\n---\n```taelgar-header\n```\n']) {
     await fs.writeFile(file,content);report=await runHeaderTool(['--vault',root,'--file','Fausto.md','--check']);assert.equal(headerToolExitCode(report),0);
   }
   for(const content of ['---\ntags: [person]\n---\nIntro.\n\n> [!taelgar-header]\n',
-    '---\ntags: [person]\n---\n```taelgar-header\n```\n','---\ninvalid: [\n---\n']) {
+    '---\ninvalid: [\n---\n']) {
     await fs.writeFile(file,content);report=await runHeaderTool(['--vault',root,'--file','Fausto.md','--check']);
     assert.equal(headerToolExitCode(report),1);assert.ok(report.files[0].problem || report.files[0].status==='error');
   }
@@ -153,15 +154,26 @@ test('CLI loads vault naming defaults while allowing explicit per-note article o
   assert.match(report.files[0].reason,/Header ineligible/,'ineligible notes never need naming rules or header detection');
 });
 
-test('CLI previews headerVersion removal and writes it only with a successfully regenerated header',async t=>{
+test('CLI previews and removes headerVersion while preserving ordinary info callouts',async t=>{
   const root=await fixture(t),file=path.join(root,'Fausto.md'),original=source.replace('name: Fausto','headerVersion: old\nname: Fausto');
   await fs.writeFile(file,original);
   let report=await runHeaderTool(['--vault',root,'--file','Fausto.md','--check']);
-  assert.equal(report.counts.changed,1);assert.match(report.files[0].before,/headerVersion: old/);
-  assert.doesNotMatch(report.files[0].after,/headerVersion/);assert.equal(await fs.readFile(file,'utf8'),original);
+  assert.equal(report.counts.changed,1);
+  assert.match(report.files[0].before,/headerVersion: old/);assert.doesNotMatch(report.files[0].after,/headerVersion/);
+  assert.equal(await fs.readFile(file,'utf8'),original);
   report=await runHeaderTool(['--vault',root,'--file','Fausto.md','--write']);assert.equal(report.written,1);
-  const updated=await fs.readFile(file,'utf8');assert.doesNotMatch(updated,/headerVersion/);assert.match(updated,/tags: \[person\]/);
+  const updated=await fs.readFile(file,'utf8');assert.equal(updated.split('# Fausto\n')[0],source.split('# Old\n')[0]);
   report=await runHeaderTool(['--vault',root,'--file','Fausto.md','--check']);assert.equal(headerToolExitCode(report),0);
+  const oldInfo=original.replace('[!taelgar-header]','[!info]+ Bio');
+  await fs.writeFile(file,oldInfo);
+  report=await runHeaderTool(['--vault',root,'--file','Fausto.md','--write']);
+  assert.equal(report.written,0);assert.equal(report.counts.skipped,1);
+  assert.equal(await fs.readFile(file,'utf8'),oldInfo);
+  report=await runHeaderTool(['--vault',root,'--file','Fausto.md','--add','--write']);
+  assert.equal(report.files[0].kind,'added');assert.equal(report.written,1);
+  const added=await fs.readFile(file,'utf8');
+  assert.doesNotMatch(added,/^headerVersion:/m);
+  assert.ok(added.endsWith(oldInfo.slice(oldInfo.indexOf('> [!info]'))));
 });
 
 test('bulk mode skips infrastructure and unmarked notes, reports ambiguity, and does not write a batch with parse errors',async t=>{
@@ -210,7 +222,7 @@ test('installed standalone bundle runs with inferred vault and no repository imp
     assert.ok(isBuiltin(tokens[i+2].value),tokens[i+2].value);
   const run=args=>execFileSync(process.execPath,[destination,...args],{cwd:directory,encoding:'utf8',windowsHide:true});
   const output=run(['--file','Fausto.md']);
-  assert.match(output,/^WOULD CONVERT Fausto.md\nPreview: 1 change, 0 unchanged, 0 skipped, 0 errors; 0 files written\.\s*$/);
+  assert.match(output,/^WOULD REGENERATE Fausto.md\nPreview: 1 change, 0 unchanged, 0 skipped, 0 errors; 0 files written\.\s*$/);
   assert.doesNotMatch(output,/\(human\)|Old|"files"|"counts"/);
   assert.deepEqual((await fs.readdir(root)).sort(),['.obsidian','Fausto.md'],'no JSON file is created without --report');
   const reportFile=path.join(root,'preview.json');
@@ -232,7 +244,7 @@ test('installed standalone bundle runs with inferred vault and no repository imp
   assert.equal(checked.code,1);assert.match(checked.stdout,/^PROBLEM Problem.md — /);assert.doesNotMatch(checked.stdout,/Fausto|Preview:|"files"/);
   assert.equal(JSON.parse(await fs.readFile(filteredReport,'utf8')).files.length,2,'--errors only filters stdout, not the full JSON report');
   await fs.mkdir(path.join(root,'People'));await fs.writeFile(path.join(root,'People/Nested.md'),source);
-  assert.match(run(['--dir','People']),/^WOULD CONVERT People\/Nested.md\nPreview: 1 change,/);
+  assert.match(run(['--dir','People']),/^WOULD REGENERATE People\/Nested.md\nPreview: 1 change,/);
   run(['--dir','People','--write']);
   checked=check(['--dir','People','--check','--errors']);assert.equal(checked.code,0);assert.equal(checked.stdout,'');
   assert.equal(await fs.readFile(path.join(root,'Problem.md'),'utf8'),'---\ntags: [person]\n---\nIntro.\n\n> [!taelgar-header]\n');

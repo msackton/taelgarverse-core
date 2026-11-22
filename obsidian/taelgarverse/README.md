@@ -7,15 +7,15 @@ Name Explorer remains separate. Requires Obsidian 1.8.0+.
 ## Saved header commands
 
 Use **Taelgarverse: Regenerate page header** or **Taelgarverse: Add header to
-current note**, assignable in Settings → Hotkeys. They rewrite only a recognized
-header range using current editor metadata, preserving other frontmatter and article
-text. An empty `> [!taelgar-header]` callout is an explicit insertion flag.
+current note**, assignable in Settings → Hotkeys. They use current editor
+metadata to update the native header range and remove any top-level
+`headerVersion` field. The rest of the frontmatter and article text stay
+as written. An empty `> [!taelgar-header]` callout is an explicit insertion flag.
 Writing skips untagged notes and notes with session-note, meta, background,
 source or story tags before detecting any headers; Add does not override this.
 Explicit callouts on those pages still render normally.
-Successful conversion, regeneration and Add remove the obsolete top-level
-`headerVersion` field in the same edit. Previews include that removal; skipped
-notes keep all frontmatter unchanged.
+Regenerate refreshes an existing native callout. Add can also insert one.
+Ordinary `[!info]` callouts and fenced code stay in the note body.
 
 The installed `header-tool.cjs` offers the same source rewrite for a single file
 (`--file`), a directory and its subdirectories (`--dir`), or all eligible Markdown
@@ -125,11 +125,6 @@ The callout body is saved fallback text. Rendering replaces only the callout,
 including any index controls, using the bundled header rules; Dataview and
 CustomJS are not required. Reading view and native Live Preview use the same
 handler. Source mode exposes the saved Markdown. Rendering never rewrites notes.
-Old `taelgar-header` code fences, HTML header markers and implicit
-`headerVersion` generation are unsupported. Use the saved-header commands above
-to convert recognized saved info headers. Empty legacy code fences require an
-explicit source conversion. Website publication performs its own migration on
-the working copy without changing the vault.
 Location links use Obsidian's own resolution, including when a campaign homepage
 and a location note share a name.
 The generated information keeps normal callout styling and native editing.

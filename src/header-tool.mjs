@@ -9,7 +9,8 @@ export const headerToolUsage=`Taelgarverse header tool
   node header-tool.cjs --all [--add] [--write] [--report FILE]
   --vault PATH overrides the vault inferred from the installed plugin directory.
   Without --write, show a preview and change no notes.
-  Successful header writes remove obsolete headerVersion; other frontmatter is preserved.
+  Regenerate existing taelgar-header callouts, or use --add to insert one.
+  Header edits remove the top-level headerVersion field and preserve other frontmatter and ordinary info callouts.
   Choose exactly one of --file, --dir or --all; file/directory paths are vault-relative.
   --dir recursively scans one directory inside the vault (use . for the whole vault).
   --dir and --all scan Markdown outside dot directories, node_modules, _scripts and _sessions.
@@ -27,7 +28,7 @@ export const headerToolUsage=`Taelgarverse header tool
 export function formatHeaderToolStatus(report) {
   if(report.help)return report.help;
   const line=value=>String(value ?? '').split(/\r?\n/,1)[0].replace(/\s+/g,' ').trim();
-  const operations={converted:'CONVERT',regenerated:'REGENERATE',added:'ADD'};
+  const operations={regenerated:'REGENERATE',added:'ADD'};
   const isProblem=file=>file.status==='error' || file.problem || (!report.dryRun && file.status==='changed' && !file.written);
   const lines=report.files.filter(file=>!report.errorsOnly || isProblem(file)).map(file=>{
     let status=file.status.toUpperCase(),reason=file.reason;

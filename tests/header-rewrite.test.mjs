@@ -22,7 +22,7 @@ test('saved H1 titles match the shared formatter for inferred articles, explicit
   assert.equal(savedHeaderTitle({tags:['person'],name:'Named Note'},'Untitled.md'),'Named Note');
 });
 
-test('writer eligibility excludes untagged files and blocked tags before detecting either header style, including with Add',()=>{
+test('writer eligibility excludes untagged files and blocked tags before detecting headers, including with Add',()=>{
   for(const tags of [undefined,null,[],[''],[123],{},' ',...['session-note','meta','background','source','story'].flatMap(tag=>
     [[tag],['person',tag],[tag,'person'],['person','#'+tag.toUpperCase()+'/detail']])]) {
     const yaml='---\n'+(tags===undefined?'':'tags: '+JSON.stringify(tags)+'\n')+'headerVersion: old\nname: Keep\n---\n';
@@ -96,63 +96,65 @@ test('events preserve date precision, collapse identical endpoints and ignore hi
   assert.equal(headerInfo({...base,DR:1,DR_end:'1749-02-29'}),'(battle, Example War)');
 });
 
-test('legacy conversion replaces precisely the header and retains YAML bytes and the entire authored suffix',()=>{
+test('regeneration replaces precisely the native header and retains YAML bytes and the entire authored suffix',()=>{
   const yaml='\uFEFF---\r\nname: Fausto # keep comment\r\ntags: [person]\r\nspecies: human\r\npronunciation: FOW-stoh\r\nborn: 1714-06-12\r\n---\r\n';
   const suffix='\r\n%% Authored comment %%\r\n\r\n# Body heading\r\n\r\n> [!info] Authored\r\n> Keep.\r\n';
-  const source=yaml+'\r\n# Old title\r\n*(OLD)*\r\n>[!info]+ Biographical Info\r\n> Old description\r\n>> `$=dv.view("_scripts/view/get_Whereabouts")`\r\n'+suffix;
+  const source=yaml+'\r\n# Old title\r\n*(OLD)*\r\n>[!taelgar-header]+ Biographical Info\r\n> Old description\r\n>> `$=dv.view("_scripts/view/get_Whereabouts")`\r\n'+suffix;
   const result=rewriteHeader(source,{filename:'People/Fausto.md'});
-  assert.equal(result.kind,'converted');assert.equal(result.status,'changed');
+  assert.equal(result.kind,'regenerated');assert.equal(result.status,'changed');
   assert.equal(result.source,yaml+'# Fausto\r\n*(FOW-stoh)*\r\n> [!taelgar-header]\r\n> (human, b. 1714)\r\n'+suffix);
   assert.equal(rewriteHeader(result.source,{filename:'People/Fausto.md'}).status,'unchanged');
 });
 
-test('successful conversion, regeneration and Add remove headerVersion in the same range edit',()=>{
+test('Add and Regenerate remove headerVersion in the same edit as the native header',()=>{
   const yaml='---\nname: Fausto # keep\nheaderVersion: 2023.11.25 # obsolete\ntags: [person]\nspecies: human\n---\n';
   for(const [body,options,kind] of [
-    ['# Old\n> [!info]+ Bio\n> Old\n',{},'converted'],
-    ['# Fausto\n> [!taelgar-header]\n> (human)\n',{},'regenerated'],
+    ['# Old\n> [!taelgar-header]\n> Old\n',{},'regenerated'],
+    ['# Old\n> [!taelgar-header]\n> Old\n',{add:true},'regenerated'],
     ['',{add:true},'added'],
   ]) {
     const source=yaml+body+'\nAuthored prose.\n',result=rewriteHeader(source,{filename:'Fausto.md',...options});
     assert.equal(result.status,'changed');assert.equal(result.kind,kind);
     assert.equal(result.source,yaml.replace('headerVersion: 2023.11.25 # obsolete\n','')+'# Fausto\n> [!taelgar-header]\n> (human)\n\nAuthored prose.\n');
     assert.equal(source.slice(0,result.start)+result.replacement+source.slice(result.end),result.source);
+    assert.equal(result.start,yaml.indexOf('headerVersion:'));
     assert.match(result.before,/headerVersion:/);assert.doesNotMatch(result.after,/headerVersion:/);
     assert.equal(rewriteHeader(result.source,{filename:'Fausto.md'}).status,'unchanged');
   }
 });
 
-test('headerVersion removal preserves quoted keys, comments, BOM, CRLF and nested or literal occurrences',()=>{
+test('regeneration removes a quoted headerVersion key and preserves other metadata, comments, BOM, CRLF and literal occurrences',()=>{
   const yaml='\uFEFF---\r\n# Keep this comment\r\n"headerVersion": "old" # obsolete\r\nname: Fausto # keep inline\r\ntags: [person]\r\nnotes: |\r\n  headerVersion: literal text\r\ndisplayDefaults:\r\n  headerVersion: nested\r\n---\r\n';
   const suffix='\r\nArticle.\r\n\r\n```yaml\r\nheaderVersion: example\r\n```\r\n';
-  const result=rewriteHeader(yaml+'# Old\r\n> [!info]\r\n> Old\r\n'+suffix,{filename:'Fausto.md'});
+  const result=rewriteHeader(yaml+'# Old\r\n> [!taelgar-header]\r\n> Old\r\n'+suffix,{filename:'Fausto.md'});
   assert.equal(result.source,yaml.replace('"headerVersion": "old" # obsolete\r\n','')+'# Fausto\r\n> [!taelgar-header]\r\n'+suffix);
 });
 
-test('headerVersion removal handles null, multiline and duplicate top-level values without changing other fields',()=>{
+test('regeneration removes null, multiline and duplicate top-level headerVersion values',()=>{
   for(const field of ['headerVersion:\n','headerVersion: |\n  old\n  value\n','headerVersion: {old: value}\n','headerVersion: old\nheaderVersion: newer\n']) {
     const yaml='---\n'+field+'# Keep next field comment\ntags: [person]\nname: Fausto\n---\n';
-    const result=rewriteHeader(yaml+'# Old\n> [!info]\n> Old\n',{filename:'Fausto.md'});
+    const result=rewriteHeader(yaml+'# Old\n> [!taelgar-header]\n> Old\n',{filename:'Fausto.md'});
     assert.equal(result.source,yaml.replace(field,'')+'# Fausto\n> [!taelgar-header]\n');
   }
 });
 
-test('flow-style frontmatter removes only headerVersion and its separator',()=>{
+test('regeneration removes only headerVersion and its separator in flow-style frontmatter',()=>{
   for(const [yaml,expected] of [
     ['{headerVersion: old, tags: [person], name: Fausto}','{ tags: [person], name: Fausto}'],
     ['{tags: [person], headerVersion: old, name: Fausto}','{tags: [person] , name: Fausto}'],
     ['{tags: [person], name: Fausto, headerVersion: old}','{tags: [person], name: Fausto }'],
     ['{headerVersion: old, headerVersion: newer, tags: [person]}','{  tags: [person]}'],
   ]) {
-    const result=rewriteHeader('---\n'+yaml+'\n---\n# Old\n> [!info]\n> Old\n',{filename:'Fausto.md'});
+    const result=rewriteHeader('---\n'+yaml+'\n---\n# Old\n> [!taelgar-header]\n> Old\n',{filename:'Fausto.md'});
     assert.equal(result.source,'---\n'+expected+'\n---\n# Fausto\n> [!taelgar-header]\n');
   }
 });
 
-test('unsafe shared anchors and unmarked or ambiguous headers never remove headerVersion',()=>{
+test('headerVersion cleanup stops when it would break a shared YAML anchor',()=>{
   const yaml='---\nheaderVersion: &version old\nlintVersion: *version\ntags: [person]\n---\n';
-  assert.throws(()=>rewriteHeader(yaml+'# Old\n> [!info]\n> Old\n'),/Cannot remove headerVersion without affecting other frontmatter/);
-  for(const body of ['An unmarked note.\n','# Old\nAuthored prose.\n\n> [!info]\n> Keep.\n']) {
+  assert.throws(()=>rewriteHeader(yaml+'# Old\n> [!taelgar-header]\n> Old\n',{filename:'Fausto.md'}),
+    /Cannot remove headerVersion without affecting other frontmatter/);
+  for(const body of ['An unmarked note.\n','# Old\n> [!info]+ Bio\n> Keep.\n','# Old\nAuthored prose.\n\n> [!info]\n> Keep.\n']) {
     const result=rewriteHeader(yaml+body);
     assert.equal(result.status,'skipped');assert.equal(result.source,undefined);
   }
@@ -175,18 +177,33 @@ test('Add header preserves the body and reuses the leading title range without d
     assert.equal(rewriteHeader(result.source,{filename:'File.md',add:true}).status,'unchanged');
   }
   for(const body of ['Introductory prose.\n\n> [!info] Article information\n> Keep.\n','> [!info] Article information\n> Keep.\n']) {
-    const result=rewriteHeader('---\ntags: [person]\n---\n'+body,{filename:'New.md',add:true});
-    assert.equal(result.kind,'added');assert.ok(result.source.endsWith(body),'an ordinary article callout is preserved by Add');
+    for(const heading of ['','# Old name\n']){
+      const source='---\nheaderVersion: old\ntags: [person]\n---\n'+heading+body;
+      assert.equal(rewriteHeader(source,{filename:'New.md'}).status,'skipped');
+      const result=rewriteHeader(source,{filename:'New.md',add:true});
+      assert.equal(result.kind,'added');assert.ok(result.source.endsWith(body),'an ordinary article callout is preserved by Add');
+      assert.doesNotMatch(result.source,/^headerVersion:/m);
+    }
   }
 });
 
-test('ambiguous prefixes, ordinary callouts and literal/nested examples are not destructive conversion targets',()=>{
-  for(const prefix of ['An authored introduction.\n\n','# Title\n%% A comment %%\n','![Portrait](image.png)\n\n']) {
+test('editing respects ambiguous prefixes, ordinary callouts and literal header examples',()=>{
+  for(const prefix of ['An authored introduction.\n\n','# Title\n%% A comment %%\n','![Portrait](image.png)\n\n','# Title\n> [!info] Keep.\n\n']) {
     const source='---\ntags: [person]\n---\n'+prefix+'> [!taelgar-header]\n> Saved.\n';
-    assert.equal(rewriteHeader(source,{filename:'File.md',add:true}).status,'skipped');
+    for(const add of [false,true]){
+      const result=rewriteHeader(source,{filename:'File.md',add});
+      assert.equal(result.status,'skipped');assert.equal(result.problem,true);
+    }
   }
   for(const source of ['> [!info] Authored\n> Body.\n','```markdown\n> [!taelgar-header]\n```\n',
     '> > [!taelgar-header]\n','- item\n  > [!taelgar-header]\n'])assert.equal(rewriteHeader('---\ntags: [person]\n---\n'+source).status,'skipped');
-  assert.equal(rewriteHeader('---\ntags: [person]\n---\n```taelgar-header\n```\n',{add:true}).status,'skipped');
+  for(const block of ['```taelgar-header\n```\n','```taelgar-header\n===\n```\n','~~~text\n===\n~~~\n']){
+    const source='---\nheaderVersion: old\ntags: [person]\n---\n'+block;
+    const regenerate=rewriteHeader(source);
+    assert.equal(regenerate.status,'skipped');assert.equal(regenerate.problem,undefined);assert.equal(regenerate.source,undefined);
+    const added=rewriteHeader(source,{add:true,filename:'Example.md'});
+    assert.equal(added.kind,'added');
+    assert.equal(added.source,'---\ntags: [person]\n---\n# Example\n> [!taelgar-header]\n\n'+block);
+  }
   assert.throws(()=>rewriteHeader('---\nname: Unclosed\n'),/Unclosed YAML/);
 });

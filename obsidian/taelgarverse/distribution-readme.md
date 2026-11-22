@@ -98,11 +98,12 @@ Live Preview share the callout handler; Source mode exposes the saved Markdown.
 Headers refresh after metadata or calendar-date changes and show a clear error
 for circular relationships. Rendering never rewrites notes.
 
-Old header code fences, HTML markers and implicit `headerVersion` generation
-are unsupported. Use **Regenerate page header** or **Add header to current note**,
-assignable to hotkeys, for explicit saved-header edits. An empty native callout
-opts into regeneration. The installed `header-tool.cjs` supports standalone
-single-file/bulk previews and writes, without a core checkout; Node is required.
+Use **Regenerate page header** to refresh an existing native callout or
+**Add header to current note** to insert one. Both commands can be assigned to
+hotkeys. Both remove any top-level `headerVersion` field and preserve other
+frontmatter and ordinary info callouts. The installed `header-tool.cjs`
+supports standalone single-file and bulk previews and writes without a core
+checkout. It requires Node.
 Use `--report` for JSON, `--errors` for problems and `--check` for a read-only
 exit-code check. Untagged notes and excluded tag types are skipped.
 The website generates headers from native callouts authored in the vault.

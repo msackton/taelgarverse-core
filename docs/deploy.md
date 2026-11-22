@@ -806,10 +806,12 @@ changes; `--add` explicitly allows inserting headers in unmarked notes. Without
 without `--add`, subject to note eligibility. Untagged notes and notes tagged
 `session-note`, `meta`, `background`, `source` or `story` (including descendant
 tags) are skipped before header detection, in single-file and bulk modes.
-Neither `--add` nor an existing header overrides these exclusions. Successful
-header writes also remove the top-level `headerVersion` field while preserving
-the remaining frontmatter. The JSON preview includes that removal in the
-before/after replacement region. Skipped notes retain it. Repeated regeneration is idempotent.
+These exclusions apply to both Add and Regenerate. The tool updates the
+`taelgar-header` callout and its leading title and pronunciation. The same edit
+removes any top-level `headerVersion` field and preserves other frontmatter,
+ordinary `[!info]` callouts, and fenced code. The JSON preview shows the full
+replacement range, including the field removal. Repeated regeneration is
+idempotent.
 
 Use `--errors` to print only actual errors and ambiguous/unsupported headers.
 Expected eligibility skips and unmarked notes are hidden, as are ordinary pending

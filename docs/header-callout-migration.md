@@ -3,8 +3,9 @@
 The callout renderer and explicit source-regeneration tools are implemented.
 Rendering never migrates or rewrites source notes automatically. Plugin
 installation, releases, content publication and website deployment remain
-separate actions. Dynamic replacement of the region above a callout is not
-implemented; the explicit writer can replace a recognized saved header.
+separate actions. The explicit writer adds or regenerates native callouts and
+removes any top-level `headerVersion` field in the same edit. It preserves
+other frontmatter and ordinary info callouts.
 Current authoring syntax belongs in [vault usage](vault.md#generated-bio-block).
 
 ## Runtime contract
@@ -40,6 +41,8 @@ production deployment.
 - Obsidian: removed the `taelgar-header` code-block processor, saved-title
   detection and code-block/automatic-pronunciation styling. Header indexes mount
   through the callout handler only.
+- Source editing: retired conversion of legacy `[!info]` headers and detection
+  of old header fences. Add and Regenerate work with native callouts.
 - Publication: retired the core static CLI and the Obsidian publishing adapters.
   Website publication evaluates DQL in Node.
 - Compiled notes: no longer emit inferred `bio`/`headerMarkerEnd` boundaries or
@@ -82,7 +85,7 @@ notes (untagged or excluded tags), 144 eligible unmarked notes, and no parse
 errors. Eligibility is checked before old/new header detection. No notes were written. This broader selection differs from the
 website Store inventory above. See [CLI usage](deploy.md#saved-header-commands).
 
-The conversion review should:
+The migration review covered these checks:
 
 1. Distinguish saved headers, old native fences, versioned handouts with authored
    openings, and ambiguous layouts. Do not classify every versioned heading as
