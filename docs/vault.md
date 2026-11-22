@@ -227,11 +227,9 @@ relationships produce a clear header error.
 
 Rendering recognizes only native callouts. Old `taelgar-header` fences remain
 code, HTML markers and `headerVersion` do not trigger generation, and saved
-legacy headers remain static Markdown when rendered directly. Website content
-preparation separately converts recognized eligible legacy headers on its
-working copy, using the saved-header writer; existing native headers remain
-authored. The original vault need not be migrated to publish compatible content.
-See the [publication transition](publishing-pipelines.md#header-callout-transition)
+legacy headers render as static Markdown. Website preparation takes the header
+format from the authored note. See
+[publishing header callouts](publishing-pipelines.md#publishing-header-callouts)
 and [legacy review](header-callout-migration.md).
 
 ### Writing or adding a saved header
@@ -1004,9 +1002,7 @@ evaluates selected closed DQL blocks normally through Dataview, including those
 scans, and reports Dataview errors or per-query timeouts under the same
 strict/`--no-strict` policy as other queries.
 
-A Node header preparation pass converts eligible legacy headers on the
-publication copy and preserves existing native headers. A separate conversion
-pass recognizes complete supported DataviewJS index patterns,
+The conversion pass recognizes complete supported DataviewJS index patterns,
 rewriting them to `taelgar-index`. A recognized campaign-interactions view becomes
 `taelgar-interactions`. No JavaScript is executed. Native indexes use the reader's
 current context. The original vault notes remain unchanged.

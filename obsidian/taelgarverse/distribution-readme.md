@@ -104,8 +104,8 @@ assignable to hotkeys, for explicit saved-header edits. An empty native callout
 opts into regeneration. The installed `header-tool.cjs` supports standalone
 single-file/bulk previews and writes, without a core checkout; Node is required.
 Use `--report` for JSON, `--errors` for problems and `--check` for a read-only
-exit-code check. Untagged notes and excluded tag types are skipped. Website
-publication converts legacy headers on its working copy without changing the vault.
+exit-code check. Untagged notes and excluded tag types are skipped.
+The website generates headers from native callouts authored in the vault.
 
 Header blocks require the Taelgar vault's `metadata.json` in its Obsidian
 configuration folder and `_sessions/campaign-registry.json` and its campaign index notes. Dataview and

@@ -139,7 +139,7 @@ test('a vault without remaining DQL prepares without starting Obsidian',async t=
   assert.equal(result.counts.queries,0);assert.doesNotMatch(f.store.entries[0].note.body,/Removed|dataviewjs/);
 });
 
-test('Obsidian website mode leaves native blocks, saved headers and JavaScript for the later Node conversion',async t=>{
+test('Obsidian website mode leaves native blocks, saved headers and JavaScript untouched',async t=>{
   const source='---\nheaderVersion: 1\ntags: [group]\n---\n# Saved\n>[!info] Header\n\n'+
     '```taelgar-index\ntype: members\n```\n\n```taelgar-map\nimage: [[Map.png]]\n```\n\n'+
     '```dataviewjs\nawait dv.view("_scripts/view/get_CampaignInteractions");\n```\n\n```dataview\nLIST\n```\n';
@@ -214,8 +214,8 @@ test('content preparation cleans and materializes before packaging without a leg
   const index=JSON.parse(await fs.readFile(prepared.indexFile,'utf8')),entry=index.entries.find(e=>e.id==='Note.md');
   const shardFile=path.join(path.dirname(prepared.indexFile),'notes',entry.note.shard+'.json');
   const packed=JSON.parse(await fs.readFile(shardFile,'utf8'))['Note.md'];
-  assert.match(packed,/# Note\n> \[!taelgar-header\]/);assert.match(packed,/Materialized \[\[Target\]\]/);
-  assert.doesNotMatch(packed,/Saved header/);assert.equal(prepared.headerConversion.counts.changed,1);
+  assert.match(packed,/# Saved header\n>\[!info\] Old\n/);assert.match(packed,/Materialized \[\[Target\]\]/);
+  assert.equal(entry.note.metadata.headerVersion,1);
   assert.doesNotMatch(packed,/dataview|## Remove/);
   assert.equal(await fs.readFile(path.join(f.vault,'Note.md'),'utf8'),source);
 });

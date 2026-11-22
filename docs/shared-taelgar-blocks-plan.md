@@ -122,9 +122,8 @@ Live-note comparisons are opt-in with `npm test -- --live-vault`; see
   routine suite covers Elaine I's simultaneous titles, Derik III's grouped
   kingdoms, Sura and Akan's travel, Hralgar's release, Antonia's mirror/ship
   chain, the garrison's organization chain, and custom artifact/event sentences.
-- `header-preparation`: publication conversion of supported legacy headers,
-  repeat-pass stability and preservation of authored text. Checks packaging,
-  Node/Worker rendering and the error path for ambiguous headers.
+- `header-preparation`: publication preserves authored header markup and the
+  Node and Worker renderers generate headers from native callouts.
 - `header-complex`: an integrated synthetic history with concurrent memberships,
   primary affiliations, different offices in different places, independent
   successors, changing borders, secondary locations, an unknown current

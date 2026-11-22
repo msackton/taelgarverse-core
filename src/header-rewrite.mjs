@@ -1,5 +1,4 @@
 import {parse,parseDocument,isMap,isScalar} from 'yaml';
-import MarkdownIt from 'markdown-it';
 import {isDeepStrictEqual} from 'node:util';
 import {getPageType} from './header-core/metadata.mjs';
 import {NameManager} from './header-core/names.mjs';
@@ -206,33 +205,4 @@ function replaceHeader(source,{metadata,start,end,kind,filename,coreMeta,frontma
   if(suffix && !/^[\t ]*\r?\n/.test(suffix))replacement+=newline;
   const result=source.slice(0,replacementStart)+replacement+suffix;
   return {status:result===source?'unchanged':'changed',kind,start:replacementStart,end,replacement,before:source.slice(replacementStart,end),after:replacement,source:result};
-}
-
-// Publication uses the same saved-header writer, but never regenerates a native
-// callout's authored title, pronunciation or fallback. Legacy syntax is converted
-// here, outside all rendering adapters; the source-editing commands stay explicit.
-export function migrateLegacyHeader(source,{filename='Untitled.md',coreMeta}={}) {
-  const {metadata,start,frontmatter}=headerSource(source),eligibility=headerEligibility(metadata);
-  if(!eligibility.eligible)return {status:'skipped',reason:eligibility.reason};
-  const body=source.slice(start);
-  const callouts=scanTopLevelCallouts(body,['taelgar-header','info']);
-  if(callouts.some(callout=>callout.type==='taelgar-header'))return {status:'unchanged',reason:'Already uses a native header callout.'};
-  const titleEnd=leadingTitle(body),isLeading=offset=>!body.slice(0,offset).trim() || titleEnd===offset;
-  let fences=scanFencedCodeBlocks(body).filter(block=>block.language==='taelgar-header');
-  if(fences.length) {
-    const lines=new Set(new MarkdownIt({html:true}).parse(body,{}).filter(token=>token.type==='fence' && token.level===0).map(token=>token.map[0]+1));
-    fences=fences.filter(block=>lines.has(block.startLine));
-  }
-  const fence=fences.find(block=>isLeading(block.start));
-  if(fence) {
-    if(!fence.closed || fence.body.trim() || fence.info.toLowerCase()!=='taelgar-header')
-      return {status:'skipped',problem:true,reason:'Legacy header fence must be closed and empty; review it explicitly.'};
-    return replaceHeader(source,{metadata,start,end:start+fence.end,kind:'converted',filename,coreMeta,frontmatter});
-  }
-  const marker=/^ {0,3}<!--\s*taelgar(?::|-)header\s*-->[\t ]*(?:\r?\n|$)/gm;
-  for(const match of body.matchAll(marker))if(isLeading(match.index))
-    return replaceHeader(source,{metadata,start,end:start+match.index+match[0].length,kind:'converted',filename,coreMeta,frontmatter});
-  if(callouts.length)return rewriteHeader(source,{filename,coreMeta});
-  if(fences.length)return {status:'skipped',problem:true,reason:'Unexpected content before a legacy header fence.'};
-  return {status:'skipped',reason:'No recognized legacy header.'};
 }

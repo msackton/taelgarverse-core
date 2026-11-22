@@ -99,12 +99,10 @@ publication/maintenance path; a website code deployment alone does not delete R2
 objects.
 
 Content preparation copies the vault to a temporary working directory, evaluates
-supported DQL in Node, then runs a separate compatibility conversion. Known saved
-headers become an authored title, optional pronunciation and `taelgar-header`
-through the shared Node saved-header writer. Existing native callouts remain
-unchanged; this is not a vault source migration. Supported complete DataviewJS index patterns
-become `taelgar-index`. Unmatched closed JavaScript blocks retain the existing
-omission policy and appear in a conversion report. Images, backlinks, search and
+supported DQL in Node, then runs a separate compatibility conversion. Supported
+complete DataviewJS index patterns become `taelgar-index`. Unmatched closed
+JavaScript blocks retain the existing omission policy and appear in a conversion
+report. Images, backlinks, search and
 runtime compilation follow those two stages. Original notes and media stay
 unchanged, and Obsidian can be closed. The original vault supplies header
 metadata and session inputs. See [publishing pipelines](publishing-pipelines.md).
@@ -271,15 +269,9 @@ The updated core connects the search UI to that published D1 index.
 warnings: those queries may appear as unavailable content on the website. Leave
 out `--no-strict` if you want any query problem to stop publication.
 
-Legacy header conversion runs automatically on the publication copy after DQL
-and before JavaScript cleanup. It uses the source regeneration formats, without
-adding headers to unmarked/ineligible notes or regenerating native callouts.
-Ambiguous saved headers and nonempty/unclosed legacy fences stop preparation,
-including with `--no-strict`. Inspect
-`.cache/cloudflare/header-conversion-report.json` for per-file results and
-before/after header text. The source vault is unchanged. The website renderer
-still requires native callouts; after deploying that renderer, republish content
-to restore converted headers without committing to a vault migration date.
+The website generates headers from native `taelgar-header` callouts in the
+vault. Use the [saved header commands](#saved-header-commands) to update a
+note's header before publication.
 
 Node selects queries only from included notes; `noPublish`, stub tags and folder
 markers remove notes before query planning. The retired `excludePublish` field

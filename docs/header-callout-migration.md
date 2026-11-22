@@ -16,7 +16,7 @@ generation ignores it. The shared core retains website and Obsidian layouts.
 
 | Consumer | Implementation and checks |
 | --- | --- |
-| taelgar.org | Node and Worker replace top-level source callout ranges before Markdown rendering. The R2 and compiled-runtime paths use the same handler. Publication preserves native source callouts and converts eligible legacy headers on the working copy. |
+| taelgar.org | Node and Worker replace top-level source callout ranges before Markdown rendering. The R2 and compiled-runtime paths use the same handler. Publication uses the native callouts authored in the vault. |
 | Old static website | Core's Taelgarverse materializer replaces callouts with generated Markdown for its export date. `website` selects cards/icons; `static` selects the Obsidian-style info callout. Select this materializer explicitly; the original standalone plugin is unchanged. |
 | Obsidian | One callout postprocessor serves Reading view and Obsidian's native Live Preview callout widget. No separate header replacement extension competes with that widget. Native callout editing and Source mode expose saved Markdown. Rendering never writes the note. |
 
@@ -34,10 +34,10 @@ production deployment.
 - Website renderer: removed generation triggered by `headerVersion`/`tags`, HTML
   markers or old header fences. It replaces only explicit callouts and does not
   rewrite surrounding headings or pronunciation.
-- Website preparation: removed header migration from
-  `src/website-compatibility.mjs`. A dedicated publication pass now reuses the
-  saved-header writer for eligible legacy headers, without restoring legacy
-  rendering. DQL/DataviewJS conversion and cleanup remain separate features.
+- Website preparation: removed both the old normalization in
+  `src/website-compatibility.mjs` and the dedicated publication pass that later
+  migrated eligible legacy headers. DQL materialization and DataviewJS conversion
+  and cleanup operate independently.
 - Obsidian: removed the `taelgar-header` code-block processor, saved-title
   detection and code-block/automatic-pronunciation styling. Header indexes mount
   through the callout handler only.
@@ -110,19 +110,9 @@ The old static website must select core's materializer via the documented
 `TAELGAR_MATERIALIZER` override in [publishing pipelines](publishing-pipelines.md).
 Its default original materializer does not implement the new syntax.
 
-The website transition no longer requires a vault source migration. Content
-preparation runs `scripts/convert-website-headers.mjs`, which reuses the shared
-saved-header writer on publication inputs only. It converts eligible saved info
-headers, closed empty legacy header fences and leading HTML header markers.
-Existing native headers and unmarked/ineligible notes remain unchanged. Unsafe
-boundaries stop preparation with a per-file report. The same stage runs in
-build-only and full local previews; neither publishes content.
-
-Deploy the callout-only website code, then republish content. Existing published
-legacy headers can regress temporarily between those actions, which the user
-has accepted. Publication restores eligible headers independently of when the
-source vault is migrated; local Obsidian and the old static website retain
-their own authoring/materializer requirements. Code alone does not change an
-already-published snapshot. See the [publication transition](publishing-pipelines.md#header-callout-transition).
+The vault migration let the publisher retire its automatic header conversion
+pass. Use the explicit saved-header tools for source edits and see
+[publishing header callouts](publishing-pipelines.md#publishing-header-callouts)
+for the current publication behavior.
 Production deployment/publication, remote pushes and a vault commit each retain
 their explicit permission gates.
