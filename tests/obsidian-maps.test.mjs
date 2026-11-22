@@ -111,6 +111,7 @@ test('Taelgarverse keeps Images opt-in within the existing plugin and preserves 
   for(const enabled of [undefined,true]){
     const h=host(),plugin=new h.default();plugin.app=h.app;plugin.savedData={legacyLeafletBlocks:true,sessionReviewEnabled:true,photoshopExporter:'D:/old-checkout/export_core.py',...(enabled===undefined?{}:{imageViewer:enabled})};
     await plugin.onload();assert.equal(plugin.settings.imageViewer,enabled===true);
+    assert.ok(!plugin.commands.some(c=>c.id==='materialize-dataview'));
     assert.ok(plugin.commands.some(c=>c.id==='create-map-from-image' && typeof c.callback==='function'));
     assert.ok(plugin.commands.some(c=>c.id==='create-map-from-photoshop' && typeof c.callback==='function'));
     assert.equal(plugin.images.enabled,enabled===true);assert.equal(plugin.settings.legacyLeafletBlocks,true);

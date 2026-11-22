@@ -98,6 +98,5 @@ publication preparation; local preview isolates errors to affected maps.
 
 Legacy image/bounds maps retain their existing semantics. Old development
 manifest/frame blocks require explicit conversion to Photoshop coordinates.
-The old static materializer reports version 2 conversion as unsupported and
-retains the authored fence. Website deployment, vault publication and plugin
-release remain independent actions.
+Website deployment, vault publication and plugin release remain independent
+actions.

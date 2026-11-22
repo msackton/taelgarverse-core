@@ -5,12 +5,9 @@ import {MapsFeature} from './features/maps.mjs';
 import {ImagesFeature} from './features/images.mjs';
 import {HeadersFeature} from './features/headers.mjs';
 import {InteractionsFeature} from './features/interactions.mjs';
-import {ExporterFeature} from './features/exporter.mjs';
-import {MaterializerFeature} from './features/materializer.mjs';
 import {RelationshipsFeature} from './features/relationships.mjs';
 import {CalendarFeature} from './features/calendar.mjs';
 import {SessionReviewFeature} from './features/session-review.mjs';
-import {DATAVIEW_EXPORT_VERSION} from '../../src/dataview-export.mjs';
 
 class TaelgarverseSettings extends PluginSettingTab {
   constructor(plugin){super(plugin.app,plugin);this.plugin=plugin;}
@@ -55,9 +52,6 @@ class TaelgarverseSettings extends PluginSettingTab {
 }
 
 export default class Taelgarverse extends Plugin {
-  get dataviewExportVersion(){return DATAVIEW_EXPORT_VERSION;}
-  exportDataview(request){return this.materializer.exportDataview(request);}
-
   async onload(){
     this.settings={legacyLeafletBlocks:false,imageViewer:false,automaticInteractions:true,headerIndexPopups:true,calendarEnabled:false,relationshipsEnabled:false,calendarCampaign:'modern',...await this.loadData()};
     delete this.settings.photoshopDropboxCredentials; // Removed account-path integration.
@@ -70,8 +64,6 @@ export default class Taelgarverse extends Plugin {
     this.images=this.addChild(new ImagesFeature(this));
     this.headers=this.addChild(new HeadersFeature(this));
     this.interactions=this.addChild(new InteractionsFeature(this));
-    this.exporter=this.addChild(new ExporterFeature(this));
-    this.materializer=this.addChild(new MaterializerFeature(this));
     this.calendar=this.addChild(new CalendarFeature(this));
     this.relationships=this.addChild(new RelationshipsFeature(this));
     this.sessionReview=this.addChild(new SessionReviewFeature(this));

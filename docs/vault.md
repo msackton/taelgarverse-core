@@ -60,9 +60,8 @@ matching ignores capitalization and an optional leading `#`. Only the exact tag
 matches, not `status/stubbed` or `status/stub/child`. Inline body hashtags do not
 control this policy. Local website previews use the same rule. Source notes and
 separately stored media remain untouched. Remove the tag and republish to include
-the note. Text already copied into other notes is unaffected. The default Node
-Dataview backend does not index stub notes; the optional Obsidian backend queries
-the original vault, so its results can still mention them.
+the note. Text already copied into other notes is unaffected. Publication's
+Dataview index excludes stub notes.
 
 To exclude any individual note from the publication package, add this property
 to its YAML frontmatter:
@@ -77,9 +76,8 @@ including in local previews. It applies in every campaign/date view, including
 Behind the Curtain. Use a boolean (an Obsidian checkbox property); the quoted
 string `"true"` does not enable it. Setting `noPublish: false` or removing the
 property restores normal eligibility, but does not override `status/stub` or
-other exclusion rules. Source notes and separately stored media are unchanged;
-text copied into another note or returned by the optional Obsidian query backend
-is unaffected. Republish content for changes to reach the website; an existing
+other exclusion rules. Source notes, separately stored media and text copied into
+another note are unaffected. Republish content for changes to reach the website; an existing
 active snapshot is not changed by editing this property.
 
 Notes with unreadable text or invalid properties are skipped with a warning.
@@ -213,8 +211,7 @@ the file. Shared plugin services own the metadata snapshot and authoring-date
 selection; Calendar signals changes to subscribed headers, indexes, interactions
 and relationships. Legacy calendar/CustomJS changes use one shared two-second
 polling bridge. Date changes reuse cached interaction data; they do not rebuild
-the recap/reference index. The static materializer emits website or Obsidian-style Markdown for
-its configured export date, using `website` or `static` header type respectively.
+the recap/reference index.
 
 Only top-level callouts are recognized. Examples in code, nested blockquotes,
 and list items remain literal. Standard callout title/fold syntax is accepted
@@ -983,24 +980,15 @@ Other images may be made smaller during publication. See
 ## Dataview and other generated content
 
 The taelgar.org publisher copies the vault into a working directory and
-materializes supported plain Dataview queries in Node by default. Obsidian can
-be closed. `--materializer obsidian` selects the new Taelgarverse materializer's
-website DQL mode in the open source vault. Both choices leave native blocks
-intact for the same conversion and dynamic rendering stages.
-The Node backend fetches a pinned GitHub Dataview release into core's local
-cache and uses built-in settings; it does not depend on the vault's Dataview
-installation. `--dataview-directory` explicitly selects another verified bundle
+materializes supported plain Dataview queries in Node. It fetches a pinned
+GitHub Dataview release into core's local cache and uses built-in settings.
+`--dataview-directory` explicitly selects a verified bundle
 and its optional saved settings. See [dependency caching](publishing-pipelines.md#taelgarorg).
 Those query results are static until republication; changing the website's
 campaign or date does not rerun DQL. Notes omitted by `noPublish`, stub tags or
 folder markers are removed before query planning. Node indexes the remaining working copy,
-excluding underscore folders and any subtree marked `.nopublish`. The optional
-Obsidian backend uses its live vault index, which can include those folders;
-queries depending on excluded notes can therefore differ between backends.
-Current-page chronology scans remain unsupported in Node. The Obsidian backend
-evaluates selected closed DQL blocks normally through Dataview, including those
-scans, and reports Dataview errors or per-query timeouts under the same
-strict/`--no-strict` policy as other queries.
+excluding underscore folders and any subtree marked `.nopublish`. Current-page
+chronology scans appear as unsupported queries in the materialization report.
 
 The conversion pass recognizes complete supported DataviewJS index patterns,
 rewriting them to `taelgar-index`. A recognized campaign-interactions view becomes
@@ -1012,12 +1000,6 @@ retain the existing omission policy. Every unmatched block is listed in the
 conversion report. Remaining unsupported DQL and inline expressions show
 warnings or unavailable-content messages. The website does not execute scripts.
 HTML in the normal article body remains supported.
-
-The old static site keeps its original Obsidian materializer by default. An
-explicit override selects Taelgarverse's materializer, which renders
-native header callouts and index/interaction fences to static Markdown, changes `taelgar-map`
-fences to `leaflet`, and retains legacy Dataview, DataviewJS, supported inline
-expressions and CustomJS header behavior. See [publishing pipelines](publishing-pipelines.md).
 
 ## Search
 

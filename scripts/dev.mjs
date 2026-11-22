@@ -1,12 +1,13 @@
 import fs from 'node:fs/promises';
-import {watch} from 'node:fs';
+import {existsSync,watch} from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import {ROOT,loadSettings} from '../src/config.mjs';
 import {buildBrowser} from './build-browser.mjs';
 import {installObsidian} from './install-obsidian.mjs';
-import {main as publishContent,parseOptions,findObsidianCommand,runCommand} from './publish-content.mjs';
+import {main as publishContent,parseOptions,runCommand} from './publish-content.mjs';
 import {loadCloudflareConfig} from './prepare-cloudflare.mjs';
 import {NO_PUBLISH_MARKER} from '../src/folder-exclusions.mjs';
 
@@ -17,23 +18,21 @@ export const help=`Usage: npm run dev -- [options]
   --full --plugin          Install the plugin, then run the full local preview
   --vault PATH             Override the configured vault for this run
   --config FILE            Override automatic config.local.json selection
-  --materializer BACKEND   Full preview: node (default) or obsidian
   --dataview-directory PATH Full Node preview: external pinned Dataview bundle
   --port NUMBER            Preview port (default 8765, or PORT)
-  --obsidian-command PATH  Override Obsidian CLI detection
-  --obsidian-vault NAME    Obsidian vault name when different from its directory name
+  --obsidian-command PATH  Override CLI detection for plugin reload
+  --obsidian-vault NAME    Vault name or ID for plugin reload
   --help                   Show this help
 
 Quick preview restarts when notes or source change; refresh your browser afterward.
-Full preview defaults to Node with a pinned GitHub Dataview download, verified in a local cache for offline reuse.
---materializer obsidian selects Taelgarverse's website DQL mode in the open vault. It accepts
-uncommitted notes and reports unsupported queries. Rerun it after changing notes.
+Full preview evaluates DQL in Node with a pinned Dataview bundle verified and cached locally.
+It accepts uncommitted notes and reports unsupported queries. Rerun it after changing notes.
 Neither preview updates the live site. --plugin only changes the local installation.
 `;
 
 export function parseDevOptions(args){
-  const options={full:false,plugin:false,materializer:'node',port:Number(process.env.PORT || 8765)};
-  const values={'--vault':'vault','--config':'config','--port':'port','--materializer':'materializer','--dataview-directory':'dataviewDirectory','--obsidian-command':'obsidianCommand','--obsidian-vault':'obsidianVault'};
+  const options={full:false,plugin:false,port:Number(process.env.PORT || 8765)};
+  const values={'--vault':'vault','--config':'config','--port':'port','--dataview-directory':'dataviewDirectory','--obsidian-command':'obsidianCommand','--obsidian-vault':'obsidianVault'};
   for(let i=0;i<args.length;i++){
     const arg=args[i];
     if(['--full','--plugin','--help'].includes(arg))options[arg.slice(2)]=true;
@@ -43,10 +42,20 @@ export function parseDevOptions(args){
     }else throw new Error('Unknown dev option: '+arg+'; use --help');
   }
   if(!Number.isInteger(options.port) || options.port<1 || options.port>65535)throw new Error('Port must be between 1 and 65535');
-  if(!['node','obsidian'].includes(options.materializer))throw new Error('--materializer must be node or obsidian.');
-  if(!options.full && (args.includes('--materializer') || options.dataviewDirectory))throw new Error('--materializer and --dataview-directory require --full.');
-  if(options.materializer==='obsidian' && options.dataviewDirectory)throw new Error('--dataview-directory applies only to --materializer node.');
+  if(!options.full && options.dataviewDirectory)throw new Error('--dataview-directory requires --full.');
   return options;
+}
+
+export function findObsidianCommand(explicit, platform = process.platform, env = process.env, exists = existsSync) {
+  if (explicit || env.OBSIDIAN_COMMAND) return explicit || env.OBSIDIAN_COMMAND;
+  const candidates = platform === 'win32' ? [
+    path.win32.join(env.ProgramFiles || 'C:\\Program Files', 'Obsidian', 'Obsidian.com'),
+    path.win32.join(env.LOCALAPPDATA || path.win32.join(os.homedir(), 'AppData', 'Local'), 'Programs', 'Obsidian', 'Obsidian.com'),
+  ] : platform === 'darwin' ? [
+    '/Applications/Obsidian.app/Contents/MacOS/Obsidian',
+    path.join(os.homedir(), 'Applications/Obsidian.app/Contents/MacOS/Obsidian'),
+  ] : [];
+  return candidates.find(exists) || 'obsidian';
 }
 
 function foreground(args,env={}){
@@ -141,7 +150,7 @@ export async function dev(options,dependencies={}){
     throw new Error('Full local preview requires local R2/D1 bindings; remove remote:true from the local configuration');
   }
   const local=parseOptions(['--local','--allow-dirty','--no-strict']);
-  Object.assign(local,{config:options.config,vault:options.vault,materializer:options.materializer,dataviewDirectory:options.dataviewDirectory,obsidianCommand:options.obsidianCommand,obsidianVault:options.obsidianVault});
+  Object.assign(local,{config:options.config,vault:options.vault,dataviewDirectory:options.dataviewDirectory});
   console.log('Full dry run: materialization, images, maps, search, and LOCAL R2/D1 activation.');
   await (dependencies.publish || publishContent)(local);
   const args=['node_modules/wrangler/bin/wrangler.js','dev','--local','--config','.cache/cloudflare/wrangler.json',

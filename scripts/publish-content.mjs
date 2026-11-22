@@ -1,7 +1,6 @@
 import fs from 'node:fs/promises';
 import {existsSync, readFileSync} from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
@@ -18,23 +17,22 @@ import {SearchIndex,readPreparedSearch,validateSearchDescriptor} from './search-
 import {activationPointer,validatePointer,createRetentionStorage,prunePublication} from './content-retention.mjs';
 import {createCloudflareClient} from './cloudflare-client.mjs';
 import {uploadContent} from './upload-content.mjs';
-import {materializeWebsite} from './materialize-website.mjs';
+import {materializeWebsiteDataview} from './materialize-website-dataview.mjs';
 import {copyWorkingVault} from './website-working-vault.mjs';
 import {DATAVIEW_RELEASE} from '../src/dataview-node/bundle.mjs';
 import {Store} from '../src/store.mjs';
-export {validateMaterializationReport} from '../src/dataview-export.mjs';
 
 export const CHECKPOINT_KEY = 'published/current.json';
 const CACHE = path.join(ROOT, '.cache/publish');
 const json = async (file, value) => fs.writeFile(file, JSON.stringify(value, null, 2) + '\n');
 
 export function parseOptions(argv) {
-  const options = {force: false, allowDirty: false, noStrict: false, local: false, buildOnly: false, unblock: false, assetsOnly: false,materializer:'node',
+  const options = {force: false, allowDirty: false, noStrict: false, local: false, buildOnly: false, unblock: false, assetsOnly: false,
     maxSize: IMAGE_DEFAULTS.maxSize, quality: IMAGE_DEFAULTS.quality};
   const flags = {'--force': 'force', '--allow-dirty': 'allowDirty', '--no-strict': 'noStrict',
     '--local': 'local', '--build-only': 'buildOnly', '--unblock': 'unblock', '--assets-only': 'assetsOnly', '--help': 'help', '-h': 'help'};
-  const values = {'--config': 'config', '--vault': 'vault', '--obsidian-command': 'obsidianCommand',
-    '--obsidian-vault': 'obsidianVault', '--materializer':'materializer', '--dataview-directory':'dataviewDirectory', '--max-image-size': 'maxSize', '--image-quality': 'quality'};
+  const values = {'--config': 'config', '--vault': 'vault', '--dataview-directory':'dataviewDirectory',
+    '--max-image-size': 'maxSize', '--image-quality': 'quality'};
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (flags[arg]) options[flags[arg]] = true;
@@ -51,8 +49,6 @@ export function parseOptions(argv) {
   if (options.local && options.buildOnly) throw new Error('Choose --local or --build-only.');
   if (options.unblock && options.buildOnly) throw new Error('--unblock requires publication; it cannot be combined with --build-only.');
   if (options.assetsOnly && options.buildOnly) throw new Error('Choose --assets-only or --build-only.');
-  if(!['node','obsidian'].includes(options.materializer))throw new Error('--materializer must be node or obsidian.');
-  if(options.materializer==='obsidian' && options.dataviewDirectory)throw new Error('--dataview-directory applies only to --materializer node.');
   return options;
 }
 
@@ -89,18 +85,6 @@ export async function repositoryState(vault, run = runCommand) {
   const repository = repositoryIdentity(await git(['config', '--get', 'remote.origin.url']));
   const status = await git(['status', '--porcelain', '--untracked-files=normal']);
   return {commit, repository, dirty: Boolean(status)};
-}
-
-export function findObsidianCommand(explicit, platform = process.platform, env = process.env, exists = existsSync) {
-  if (explicit || env.OBSIDIAN_COMMAND) return explicit || env.OBSIDIAN_COMMAND;
-  const candidates = platform === 'win32' ? [
-    path.win32.join(env.ProgramFiles || 'C:\\Program Files', 'Obsidian', 'Obsidian.com'),
-    path.win32.join(env.LOCALAPPDATA || path.win32.join(os.homedir(), 'AppData', 'Local'), 'Programs', 'Obsidian', 'Obsidian.com'),
-  ] : platform === 'darwin' ? [
-    '/Applications/Obsidian.app/Contents/MacOS/Obsidian',
-    path.join(os.homedir(), 'Applications/Obsidian.app/Contents/MacOS/Obsidian'),
-  ] : [];
-  return candidates.find(exists) || 'obsidian';
 }
 
 export function validateCheckpoint(value) {
@@ -213,15 +197,11 @@ export function buildFingerprint(settings, options, config={}) {
   hash.update(JSON.stringify(readInteractionBundles(settings)));
   for (const [host,source] of Object.entries(readCampaignHomes(settings))) hash.update(JSON.stringify([host,source.replace(/\r\n/g,'\n')]));
   hash.update(JSON.stringify({version: 2, image: {maxSize: options.maxSize, quality: options.quality, ...IMAGE_VERSION},
-    materializer:options.materializer ?? 'node',strict: !options.noStrict, default_date: settings.default_date,searchDestination:{account:config.account_id,databases:config.d1_databases || []}}));
-  const dataviewDirectory=options.materializer==='obsidian'?(settings.vault_dir?path.join(settings.vault_dir,'.obsidian/plugins/dataview'):null):options.dataviewDirectory;
-  if(options.materializer!=='obsidian' && !dataviewDirectory)hash.update(JSON.stringify({dataview:DATAVIEW_RELEASE,settings:'dataview-defaults'}));
+    strict: !options.noStrict, default_date: settings.default_date,searchDestination:{account:config.account_id,databases:config.d1_databases || []}}));
+  const {dataviewDirectory}=options;
+  if(!dataviewDirectory)hash.update(JSON.stringify({dataview:DATAVIEW_RELEASE,settings:'dataview-defaults'}));
   else for(const file of ['manifest.json','main.js','data.json']) {
-    const filename=dataviewDirectory && path.join(dataviewDirectory,file);hash.update(filename && existsSync(filename)?readFileSync(filename):'<missing Dataview '+file+'>');
-  }
-  if(options.materializer==='obsidian')for(const file of ['manifest.json','main.js']) {
-    const filename=settings.vault_dir && path.join(settings.vault_dir,'.obsidian/plugins/taelgarverse',file);
-    hash.update(filename && existsSync(filename)?readFileSync(filename):'<missing Taelgarverse '+file+'>');
+    const filename=path.join(dataviewDirectory,file);hash.update(existsSync(filename)?readFileSync(filename):'<missing Dataview '+file+'>');
   }
   for (const filename of [settings.nav_source, settings.home_source,
     new URL('./publish-content.mjs', import.meta.url), new URL('./optimize-images.mjs', import.meta.url),
@@ -230,15 +210,12 @@ export function buildFingerprint(settings, options, config={}) {
     new URL('../src/website-sources.mjs', import.meta.url), new URL('../src/campaign-sites.mjs', import.meta.url),
     new URL('../src/campaign-registry.mjs', import.meta.url),
     new URL('../src/folder-exclusions.mjs', import.meta.url),
-    new URL('./export-dataview.mjs', import.meta.url), new URL('../src/dataview-export.mjs', import.meta.url),
-    new URL('./materialize-website.mjs',import.meta.url),new URL('./materialize-website-dataview.mjs',import.meta.url),new URL('./website-working-vault.mjs',import.meta.url),new URL('./convert-website.mjs',import.meta.url),
+    new URL('./materialize-website-dataview.mjs',import.meta.url),new URL('./website-working-vault.mjs',import.meta.url),new URL('./convert-website.mjs',import.meta.url),
     new URL('../src/header-core/metadata.mjs',import.meta.url),
     new URL('../src/website-compatibility.mjs',import.meta.url),new URL('../src/dataview-node/engine.mjs',import.meta.url),
     new URL('../src/dataview-node/bundle.mjs',import.meta.url),
     new URL('../src/dataview-node/index.mjs',import.meta.url),new URL('../src/dataview-node/filesystem.mjs',import.meta.url),
     new URL('../src/publication-markdown.mjs', import.meta.url), new URL('../src/markdown-fences.mjs', import.meta.url), new URL('../src/markdown-blocks.cjs', import.meta.url),
-    new URL('../obsidian/taelgarverse/features/exporter.mjs', import.meta.url),
-    new URL('../obsidian/taelgarverse/features/materializer.mjs',import.meta.url),
     new URL('./build-maps.mjs', import.meta.url), new URL('../src/maps.mjs', import.meta.url),
     new URL('../src/map-distance.mjs', import.meta.url), new URL('../src/map-feature-path.mjs', import.meta.url), new URL('../src/map-path-files.mjs', import.meta.url),
     new URL('./prepare-cloudflare.mjs', import.meta.url), new URL('../src/store.mjs', import.meta.url),
@@ -331,10 +308,8 @@ export async function main(options) {
               lastLog = Date.now();
             }
           },derivativeCache,{log:console.log,writePreparedNotes:true,materialize:async store=>{
-            const report=await materializeWebsite(store,{directory:working,vaultPath:vault,
-              materializer:options.materializer,dataviewDirectory:options.dataviewDirectory,noStrict:options.noStrict,stats:workingVault.stats,
-              obsidianCommand:options.materializer==='obsidian'?findObsidianCommand(options.obsidianCommand):undefined,obsidianVault:options.obsidianVault},
-              {run:runCommand,log:console.log});
+            const report=await materializeWebsiteDataview(store,{directory:working,
+              dataviewDirectory:options.dataviewDirectory,noStrict:options.noStrict,stats:workingVault.stats},{log:console.log});
             await fs.copyFile(report.reportFile,path.join(CACHE,'materialization-report.json'));
             return {...report,reportFile:path.join(CACHE,'materialization-report.json')};
           }});
@@ -378,15 +353,11 @@ export async function main(options) {
 
 const help = `Usage: npm run publish -- [options]
 Checks the Taelgar commit in R2, copies a working vault, materializes DQL, converts known legacy blocks, uploads, and verifies D1 search before activation.
-Defaults to Node with a pinned GitHub Dataview download, cached locally and reusable offline; no vault installation required.
---materializer obsidian uses the current Taelgarverse materializer's website DQL mode in the open vault, with Dataview and Obsidian's CLI enabled.
+Evaluates DQL in Node with a pinned GitHub Dataview download that can be reused offline.
 Settings: config.json, plus config.local.json automatically when present.
 
   --config FILE            Alternative to automatic config.local.json (or TAELGARVERSE_CONFIG)
   --vault PATH             Taelgar Git checkout for this run (overrides vault_dir)
-  --materializer BACKEND    node (default) or obsidian; both feed the same website conversion stage
-  --obsidian-command PATH   Override automatic Windows/macOS CLI detection
-  --obsidian-vault NAME     Optional Obsidian vault name or ID
   --no-strict               Permit failed/unsupported queries, reporting each one
   --dataview-directory PATH Explicit Node bundle/settings override; otherwise uses the verified GitHub release cache
   --assets-only             Upload missing images/media without activating notes, search, or cleanup

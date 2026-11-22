@@ -4,10 +4,8 @@ A pure Node.js API that renders Taelgarverse pages from original vault Markdown
 for a requested in-world DR date. The API, YAML parser, filters, header adapter,
 Markdown renderer, tests, and benchmark all run in Node. Rendering needs no Python,
 MkDocs build, or running Obsidian application. The content publisher also runs
-without Obsidian: it copies a working vault, evaluates DQL in Node, and converts
-recognized legacy patterns before packaging content. An explicit
-`--materializer obsidian` option uses Taelgarverse's website DQL mode instead;
-Node remains the default and no automatic fallback occurs.
+without Obsidian. It copies a working vault, evaluates DQL in Node, and converts
+recognized legacy patterns before packaging content.
 
 The live [Cloudflare site](https://taelgarverse.msackton.workers.dev/) runs the same
 application in a Worker with R2-backed content. Merges to this repository's `main`
@@ -23,29 +21,22 @@ and the Obsidian plugin have separate publication workflows.
 | Website code deployment | GitHub's **Test and deploy website**, after tests pass on `main` |
 | Obsidian release | GitHub's **Release Taelgarverse for Obsidian** workflow, or a tag named `obsidian/<version>` |
 | Update live vault content | `npm run publish -- --no-strict` |
-| Update live content with Obsidian DQL | `npm run publish -- --materializer obsidian --no-strict` |
-| Opt-in Taelgarverse Markdown export for the old static website | `npm run materialize:static -- --vault PATH --out OUTPUT` |
 
 Both previews use http://127.0.0.1:8765/. Full preview and content publication
 use a pinned GitHub Dataview release, downloaded on first DQL use and verified
 in `.cache/dataview/0.5.68` for offline reuse. No vault Dataview installation is
 needed. `node scripts/cache-dataview.mjs` prepares this dependency in advance.
-Use `--materializer obsidian` with full preview or publication to select the
-open vault's Dataview engine explicitly. Both backends use the same website
-conversion stage. [Explicit bundle/settings overrides](docs/publishing-pipelines.md#acquiring-dataview-outside-the-vault)
-remain available through `--dataview-directory`.
-The old static-site exporter still uses Obsidian and CustomJS. The plugin release
-workflow needs its one-time GitHub credential setup; see the plugin guide below.
-The legacy site's wrapper keeps the original materializer by default; see
-[pipeline selection](docs/publishing-pipelines.md#old-static-website) for the
-explicit `TAELGAR_MATERIALIZER` switch.
+Use `--dataview-directory` to select an
+[explicit Dataview bundle and settings](docs/publishing-pipelines.md#acquiring-dataview-outside-the-vault).
+The plugin release workflow needs its one-time GitHub credential setup. See the
+plugin guide below.
 Website deployment also needs [one-time GitHub/Cloudflare setup](docs/deploy.md#one-time-github-website-deployment-setup),
 including removal of the independent Cloudflare Git deployment trigger.
 The core documentation is:
 
 - [Deploy](docs/deploy.md): publish vault content, configure authorization, and recover from failures.
 - [Architecture](docs/architecture.md): components, release boundaries, and documentation maintenance rules.
-- [Publishing pipelines](docs/publishing-pipelines.md): static export, Node website preparation, and compatibility conversion.
+- [Publishing pipelines](docs/publishing-pipelines.md) covers Node Dataview, website preparation, and compatibility conversion.
 - [Vault usage](docs/vault.md): input files, metadata, contexts, and rendering behavior.
 - [Cloudflare](docs/cloudflare.md): hosted resources, bindings, and snapshot storage.
 - [Maps](docs/maps.md#reusable-viewer-and-map-catalogue): reusable viewer package and published map catalogue API.

@@ -17,7 +17,6 @@ generation ignores it. The shared core retains website and Obsidian layouts.
 | Consumer | Implementation and checks |
 | --- | --- |
 | taelgar.org | Node and Worker replace top-level source callout ranges before Markdown rendering. The R2 and compiled-runtime paths use the same handler. Publication uses the native callouts authored in the vault. |
-| Old static website | Core's Taelgarverse materializer replaces callouts with generated Markdown for its export date. `website` selects cards/icons; `static` selects the Obsidian-style info callout. Select this materializer explicitly; the original standalone plugin is unchanged. |
 | Obsidian | One callout postprocessor serves Reading view and Obsidian's native Live Preview callout widget. No separate header replacement extension competes with that widget. Native callout editing and Source mode expose saved Markdown. Rendering never writes the note. |
 
 Tests cover dated output in both layouts, source boundaries and CRLF, authored
@@ -41,9 +40,8 @@ production deployment.
 - Obsidian: removed the `taelgar-header` code-block processor, saved-title
   detection and code-block/automatic-pronunciation styling. Header indexes mount
   through the callout handler only.
-- Static materializer: removed native header-fence handling and always disables
-  the inherited CustomJS header-regeneration pass. Non-header Dataview and
-  CustomJS capabilities remain available for the old static pipeline.
+- Publication: retired the core static CLI and the Obsidian publishing adapters.
+  Website publication evaluates DQL in Node.
 - Compiled notes: no longer emit inferred `bio`/`headerMarkerEnd` boundaries or
   saved-header rewrite source. The renderer reads callouts from the note body;
   old compiled hints are not rendering instructions.
@@ -63,11 +61,6 @@ output comparisons. The Node/Worker adapters and new callout handler do not
 invoke these exports. Moving those compatibility helpers entirely into the
 reference test harness is a useful subsequent cleanup; retaining them does not
 enable a legacy syntax in the callout handler.
-
-The Taelgarverse static pass renders native callouts directly. Its retired
-saved-header helper and dynamic-website marker preparation machinery have been
-removed; CLI and desktop requests reject the old mode. Website DQL requests use
-the separate exporter. Static Dataview/CustomJS execution remains supported.
 
 Vault-owned CustomJS/Templater scripts and the original materializer have not
 been rewritten. They can still produce old syntax if invoked. Update their
@@ -103,12 +96,8 @@ The conversion review should:
    other frontmatter, arbitrary authored prose, images and other callouts.
 4. Include both notes and creation/regeneration templates in the reviewed scope.
    Keep unresolved/ambiguous cases in the report for human review.
-5. Compare Obsidian output, taelgar.org local/compiled rendering and static
-   materializer exports on the converted corpus at multiple dates.
-
-The old static website must select core's materializer via the documented
-`TAELGAR_MATERIALIZER` override in [publishing pipelines](publishing-pipelines.md).
-Its default original materializer does not implement the new syntax.
+5. Compare Obsidian output and taelgar.org local and compiled rendering on the
+   converted corpus at multiple dates.
 
 The vault migration let the publisher retire its automatic header conversion
 pass. Use the explicit saved-header tools for source edits and see

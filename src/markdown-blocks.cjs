@@ -1,5 +1,4 @@
 // Shared Markdown block boundaries for render protection and source rewrites.
-// CommonJS keeps the legacy static materializer on the same implementation.
 const MarkdownIt = require('markdown-it');
 const markdown = new MarkdownIt({html:true});
 const fenceRule = markdown.block.ruler.__rules__.find(rule=>rule.name==='fence').fn;

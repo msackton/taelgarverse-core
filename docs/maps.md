@@ -284,8 +284,7 @@ crops share the full image's tile pyramid, and home/campaign-only maps participa
 in preparation. **Open full source image** explicitly opens the underlying PNG.
 
 Deploy the updated website code before publishing version 2 blocks. Install or
-release the Obsidian plugin separately. The old static materializer still does
-not convert version 2 blocks into legacy Leaflet syntax.
+release the Obsidian plugin separately.
 
 The website and local Node preview generate 512-pixel WebP tiles at multiple
 zoom levels for map images with an original edge of at least 2,048 pixels or a

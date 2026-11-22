@@ -3,9 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import {publishContent, parseOptions, repositoryIdentity, findObsidianCommand,
-  createStorage, CHECKPOINT_KEY, validateCheckpoint, runCommand, buildFingerprint,
-  validateMaterializationReport} from '../scripts/publish-content.mjs';
+import {publishContent, parseOptions, repositoryIdentity,
+  createStorage, CHECKPOINT_KEY, validateCheckpoint, runCommand, buildFingerprint} from '../scripts/publish-content.mjs';
 
 const state = {repository: 'github.com/tsackton/taelgar', commit: 'a'.repeat(40), dirty: false};
 const fingerprint = 'b'.repeat(64), revision = 'c'.repeat(64);
@@ -98,12 +97,7 @@ test('CLI options and native executable detection support Windows and macOS path
   for (const args of [['--max-image-size', '0'], ['--image-quality', '101'], ['--vault'], ['--local', '--build-only'], ['--unknown']]) {
     assert.throws(() => parseOptions(args));
   }
-  const windows = 'C:\\Program Files\\Obsidian\\Obsidian.com';
-  assert.equal(findObsidianCommand(null, 'win32', {ProgramFiles: 'C:\\Program Files'}, file => file === windows), windows);
-  const mac = '/Applications/Obsidian.app/Contents/MacOS/Obsidian';
-  assert.equal(findObsidianCommand(null, 'darwin', {}, file => file === mac), mac);
-  assert.equal(findObsidianCommand('/custom/path', 'darwin', {}, () => false), '/custom/path');
-  assert.equal(findObsidianCommand(null, 'darwin', {OBSIDIAN_COMMAND: '/env/path'}, () => false), '/env/path');
+  assert.throws(()=>parseOptions(['--materializer','obsidian']),/Unknown argument: --materializer/);
   assert.equal(repositoryIdentity('git@github.com:tsackton/taelgar.git'), state.repository);
   assert.equal(repositoryIdentity('https://user:token@github.com/tsackton/taelgar.git'), state.repository);
 });
@@ -138,18 +132,6 @@ test('publisher CLI failures show a prominent error and exit unsuccessfully', as
   });
 });
 
-test('publisher requires a complete, versioned result for the exact Dataview request',()=>{
-  const request={id:'fixture',queries:[{id:'q0'},{id:'q1'}]};
-  const results=[{id:'q0',status:'ok',markdown:'- Result'},{id:'q1',status:'error',message:'Bad query'}];
-  const report={schemaVersion:1,id:request.id,status:'ok',outputComplete:true,results};
-  assert.doesNotThrow(()=>validateMaterializationReport(report,request));
-  for(const changes of [{status:'failed'},{outputComplete:false},{schemaVersion:0},{id:'stale'}]) {
-    assert.throws(()=>validateMaterializationReport({...report,...changes},request),/complete Dataview export/);
-  }
-  assert.throws(()=>validateMaterializationReport({...report,results:results.slice(0,1)},request),/missing/);
-  assert.throws(()=>validateMaterializationReport({...report,results:[results[0],results[0]]},request),/duplicate/);
-});
-
 test('build fingerprints tolerate Windows line endings and machine paths, but notice image and publication settings', async t => {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'taelgar-publish-test-'));
   t.after(async () => {
@@ -162,12 +144,7 @@ test('build fingerprints tolerate Windows line endings and machine paths, but no
   await fs.writeFile(other, '- People\n');
   const settings = {nav_source: navigation, default_date: '1750-01-01', campaigns: ['dufr']};
   const options = parseOptions([]);
-  assert.equal(options.materializer,'node');
   const value = buildFingerprint(settings, options);
-  assert.notEqual(value,buildFingerprint(settings,{...options,materializer:'obsidian'}));
-  assert.equal(parseOptions(['--materializer','obsidian']).materializer,'obsidian');
-  assert.throws(()=>parseOptions(['--materializer','unknown']),/node or obsidian/);
-  assert.throws(()=>parseOptions(['--materializer','obsidian','--dataview-directory','/bundle']),/only to --materializer node/);
   assert.equal(value, buildFingerprint({...settings, nav_source: other}, options));
   assert.equal(value, buildFingerprint({...settings, ignore_file: 'missing-legacy-ignore.txt', campaigns: ['adma']}, options));
   assert.notEqual(value, buildFingerprint(settings, {...options, maxSize: 4096}));
@@ -184,7 +161,7 @@ test('build fingerprints tolerate Windows line endings and machine paths, but no
   assert.notEqual(value,buildFingerprint(settings,options));
 });
 
-test('default Node fingerprint ignores vault Dataview files while explicit and Obsidian selections track them',async t=>{
+test('publisher fingerprint ignores vault Dataview files unless selected as an explicit bundle',async t=>{
   const directory=await fs.mkdtemp(path.join(os.tmpdir(),'taelgar-dataview-fingerprint-'));
   t.after(async()=>{assert.equal(path.dirname(path.resolve(directory)),path.resolve(os.tmpdir()));assert.ok(path.basename(directory).startsWith('taelgar-dataview-fingerprint-'));await fs.rm(directory,{recursive:true,force:true});});
   const bundle=path.join(directory,'.obsidian/plugins/dataview');await fs.mkdir(bundle,{recursive:true});
@@ -192,11 +169,11 @@ test('default Node fingerprint ignores vault Dataview files while explicit and O
   const initial=buildFingerprint(settings,options);
   await fs.writeFile(path.join(bundle,'main.js'),'installed code');await fs.writeFile(path.join(bundle,'data.json'),'{}');
   assert.equal(buildFingerprint(settings,options),initial);
-  const explicit={...options,dataviewDirectory:bundle},obsidian={...options,materializer:'obsidian'};
-  const explicitBefore=buildFingerprint(settings,explicit),obsidianBefore=buildFingerprint(settings,obsidian);
+  const explicit=parseOptions(['--dataview-directory',bundle]);
+  const explicitBefore=buildFingerprint(settings,explicit);
   await fs.writeFile(path.join(bundle,'data.json'),'{"tableIdColumnName":"Custom"}');
   assert.equal(buildFingerprint(settings,options),initial);
-  assert.notEqual(buildFingerprint(settings,explicit),explicitBefore);assert.notEqual(buildFingerprint(settings,obsidian),obsidianBefore);
+  assert.notEqual(buildFingerprint(settings,explicit),explicitBefore);
 });
 
 test('R2 storage distinguishes missing object, legacy pointer, invalid data, and authentication failure', async t => {
