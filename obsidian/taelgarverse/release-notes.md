@@ -1,14 +1,10 @@
-Taelgarverse 1.1.0
+Taelgarverse 2.0.0
 
-- Redesign Session review around an editable entity map and an entity-by-entity review queue. Edit type, status, and session role inline; use Accept or Save and next to record human review.
-- Open source passages and active agent feedback in a Details popup. Show agent confidence and its recorded explanation, with transcript and session-note links when available.
-- Exclude entities with a short reason and restore them from the excluded list while retaining their evidence and review history.
-- Create an empty, linked staging note from the per-entity screen or the main map's Details popup. Reuse existing campaign folders, prompt for unclear names, and use Obsidian's cached names and aliases to avoid a slow vault-wide collision scan.
-- Continue after a transcript or session-input change through explicit confirmation that records the acknowledged revision. Vault-note content changes no longer block processing or reset review status.
-- Keep session feedback, agent follow-up instructions, and change history on the main map. Saved feedback waits for an explicitly requested agent follow-up; it does not run an agent automatically.
+**Update your vault before upgrading the plugin.** Campaign features now read `_sessions/campaign-registry.json`. Each campaign ID points to an index note that supplies its name and directories. Vaults that still use `_scripts/session_note_campaigns.json` need to migrate. For the Taelgar vault, pull the latest `main` before updating through BRAT.
 
-Before using Session review, update the vault's `check-session-entities` Python helpers and skill to the matching entity-review version. The plugin release does not install those vault files. Enable Session review in Taelgarverse settings and reload the plugin after updating.
+- Campaign interactions group session references and handouts by their registered folder or an explicit campaign on the note. A handout can live outside the campaign folder and still appear under the right campaign.
+- Session Review discovers entity maps in each campaign’s registered session bundle directory.
+- Note maps now have a compact toolbar for panning, sketching, selecting, erasing, and measuring. Measure straight lines or trace routes freehand. Each measured route has its own number and distance, and Undo and Redo let you revise annotations.
+- The relationship explorer uses its People and Places views. It ignores legacy `graphPositions` coordinates.
 
-Desktop-only; the minimum Obsidian version remains 1.8.0. This release updates the plugin independently of vault content publication.
-
-Validation: the full automated core suite passed (1,874 tests), along with targeted entity-review and staging-helper checks. The workflow also runs local R2/D1 integration tests and Worker packaging before publication. The development build has been exercised during entity-review testing; a separate BRAT installation of the published assets has not been verified.
+Requires Obsidian Desktop 1.8.0 or later.
