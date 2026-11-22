@@ -4,6 +4,7 @@ import {createWorker} from '../src/worker-handler.mjs';
 import {openSnapshot} from '../src/runtime-snapshot.mjs';
 import {bucketText} from '../src/runtime-io.mjs';
 import {readSnapshotPart} from '../src/snapshot-cache.mjs';
+import {withSnapshotLoads} from '../src/snapshot-loads.mjs';
 import {runtimeHash} from '../src/runtime-format.mjs';
 import {coreRelease,publication,Bucket,PageCache} from './helpers/page-cache-fixture.mjs';
 
@@ -44,7 +45,7 @@ test('corrupt edge entries recover from R2 and invalid R2 bytes never enter eith
   bucket.objects.set(file,'[]');
   const snapshot=await openSnapshot(bucket,manifest.revision,opts);
   await assert.rejects(snapshot.searchStore(),{status:503});
-  assert.equal(cache.values.size,0);assert.equal(snapshot.cache.size,0);assert.equal(snapshot.pending.size,0);
+  assert.equal(cache.values.size,0);assert.equal(snapshot.cache.size,0);
   bucket.objects.set(file,original);
   assert.equal((await snapshot.searchStore()).entries.length,expected.length);
   // Even a reused filename is separated by its manifest hash.
@@ -52,23 +53,23 @@ test('corrupt edge entries recover from R2 and invalid R2 bytes never enter eith
   assert.deepEqual(await readSnapshotPart(bucket,manifest.revision,{...descriptor,sha256:runtimeHash(other)},opts),[]);
 });
 
-test('a stalled shared shard releases all waiters and a late response cannot clear or replace a retry',async()=>{
+test('a stalled shard releases all waiters in the request and a late response cannot replace a retry',async()=>{
   const bucket=new Bucket(publication().objects),manifest=manifestOf(bucket),get=bucket.get.bind(bucket),old=deferred(),retry=deferred();
   const file='revisions/'+manifest.revision+'/'+manifest.parts.search.file;
   let calls=0,cancelled=false;
   bucket.get=key=>key===file ? (++calls===1?old.promise:retry.promise) : get(key);
   const snapshot=await openSnapshot(bucket,manifest.revision,{cache:null,timeoutMs:20,log:quiet});
-  const first=await Promise.allSettled([snapshot.searchStore(),snapshot.searchStore()]);
+  const first=await withSnapshotLoads(()=>Promise.allSettled([snapshot.searchStore(),snapshot.searchStore()]));
   assert.ok(first.every(result=>result.status==='rejected' && result.reason.status===503));
-  assert.equal(calls,1);assert.equal(snapshot.pending.size,0);assert.equal(snapshot.parts.size,0);
+  assert.equal(calls,1);assert.equal(snapshot.parts.size,0);
   const next=snapshot.searchStore();
   await new Promise(resolve=>setImmediate(resolve));
   old.resolve({body:new ReadableStream({cancel(){cancelled=true;}})});
   await new Promise(resolve=>setImmediate(resolve));
-  assert.equal(cancelled,true);assert.equal(snapshot.pending.size,1);assert.equal(snapshot.cache.size,0);
+  assert.equal(cancelled,true);assert.equal(snapshot.cache.size,0);
   retry.resolve(await get(file));
   assert.ok((await next).entries.length);assert.equal(calls,2);
-  assert.equal(snapshot.pending.size,0);assert.equal(snapshot.cache.size,1);
+  assert.equal(snapshot.cache.size,1);
 });
 
 test('storage deadlines cancel a stalled body and permit a later read',async()=>{
@@ -89,6 +90,29 @@ test('pointer and manifest deadlines fail promptly and the same Worker recovers'
     assert.equal(failed.status,503);assert.equal(failed.headers.get('Cache-Control'),'no-store');
     assert.equal(failed.headers.get('Retry-After'),'1');
     stalled=false;assert.equal((await request(worker,bucket)).status,200);
+  }
+});
+
+test('overlapping requests can load a manifest, renderer or note when the first request stalls',async()=>{
+  for(const suffix of ['/runtime.json','/render.json','/notes/']){
+    const bucket=new Bucket(publication().objects),get=bucket.get.bind(bucket),started=deferred(),held=deferred();
+    let reads=0;
+    bucket.get=key=>{
+      if(!key.includes(suffix) || ++reads!==1)return get(key);
+      started.resolve();
+      return held.promise;
+    };
+    const worker=createWorker(coreRelease,{...options,timeoutMs:1000,requestTimeoutMs:500});
+    const first=request(worker,bucket);
+    try{
+      await Promise.race([started.promise,first.then(()=>assert.fail('Expected a stalled read for '+suffix))]);
+      const second=await request(worker,bucket);
+      assert.equal(second.status,200,suffix);
+      assert.match((await second.json()).html,/Original biography/);
+    }finally{
+      held.resolve(null);
+      await first;
+    }
   }
 });
 
@@ -114,13 +138,15 @@ test('request deadline records the pending phase and cannot cache a late page',a
   assert.equal(cache.values.size,0);
 });
 
-test('a joining request deadline evicts stuck shared initialization without letting it replace a fresh snapshot',async()=>{
+test('a request deadline leaves the opened manifest available to later requests',async()=>{
   const bucket=new Bucket(publication().objects),get=bucket.get.bind(bucket),late=deferred();let stalled=true;
   bucket.get=key=>stalled && key.endsWith('/search-metadata.json')?late.promise:get(key);
   const worker=createWorker(coreRelease,{...options,timeoutMs:1000,requestTimeoutMs:20});
   assert.equal((await request(worker,bucket,'/api/search?q=Person')).status,503);
   stalled=false;
+  bucket.calls.length=0;
   assert.equal((await request(worker,bucket,'/api/search?q=Person')).status,200);
+  assert.ok(!bucket.calls.some(key=>key.endsWith('/runtime.json')));
   const manifest=manifestOf(bucket);
   late.resolve(await get('revisions/'+manifest.revision+'/'+manifest.parts.search.file));
   await new Promise(resolve=>setImmediate(resolve));

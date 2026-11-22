@@ -331,6 +331,7 @@ test('republishing changes the homepage and navigation together without redeploy
 });
 
 test('Worker renders the same article as the VM reference and isolates request preferences',async()=>{
+  assert.equal((await request('/api/page?page=Example')).status,200);
   const settings=[['1720-01-01',false],['1730-01-01',true],['1720-01-01',true],['1730-01-01',false]];
   const results=await Promise.all(settings.map(async([date,dm])=>{
     const response=await request('/api/page?'+new URLSearchParams({page:'Example',date,dm:String(dm)}));

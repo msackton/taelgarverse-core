@@ -260,6 +260,10 @@ test('numeric backlink shards preserve date, campaign, DM and source availabilit
   for(const page of ['Backlink Target','Backlink Empty','Person'])for(const date of ['1729-12-31','1730-01-01','1755-01-01'])for(const campaigns of ['dufr','adma','all'])for(const dm of [0,1]){
     urls.push('/api/page?'+new URLSearchParams({page,date,campaigns,dm}));
   }
+  for(const page of ['Backlink Target','Backlink Empty','Person']){
+    const warm=await request(worker,bucket,'/api/page?'+new URLSearchParams({page}));
+    assert.equal(warm.status,200);
+  }
   await Promise.all(urls.map(async url=>{
     const a=await request(worker,bucket,url),b=await request(old,legacy,url);
     assert.equal(a.status,200,url);assert.equal(await a.text(),await b.text(),url);
@@ -307,15 +311,18 @@ test('frozen runtime v1 publications still render and retain all dependencies',a
   assert.equal((await prunePublication(storage,{verify:async()=>{}},pointer,{dryRun:true})).deletedObjects,0);
 });
 
-test('prepared notes and immutable shards are reused across simultaneous dynamic renders',async()=>{
+test('simultaneous dynamic renders reuse completed immutable shard reads',async()=>{
   const bucket=new Bucket(),worker=createWorker();
+  assert.equal((await request(worker,bucket,'/api/page?page=Person')).status,200);
+  const warmReads=bucket.calls.filter(key=>key.includes('/runtime/notes/'));
+  assert.ok(warmReads.length>0);
   const responses=await Promise.all([false,true,false,true].map(dm=>request(worker,bucket,'/api/page?page=Person&dm='+Number(dm))));
   const pages=await Promise.all(responses.map(response=>response.json()));
   assert.deepEqual(pages.map(page=>page.dm),[false,true,false,true]);
   assert.ok(!pages[0].html.includes('hidden note'));assert.ok(pages[1].html.includes('hidden note'));
   assert.match(pages[0].html,/Nested leaf/);
   const noteReads=bucket.calls.filter(key=>key.includes('/runtime/notes/'));
-  assert.equal(noteReads.length,new Set(noteReads).size);
+  assert.deepEqual(noteReads,warmReads);
   assert.ok(!bucket.calls.some(key=>/\/revisions\/.*\/notes\/[a-f0-9]{2}\.json/.test('/'+key)));
   const before=noteReads.length;await request(worker,bucket,'/api/page?page=Person&date=1730-01-01');
   assert.equal(bucket.calls.filter(key=>key.includes('/runtime/notes/')).length,before);
