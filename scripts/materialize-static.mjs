@@ -380,40 +380,6 @@ export function createProgressMonitor(progressPath, options = {}) {
   };
 }
 
-export function summarizeReport(report) {
-  if (!report.counts) return report;
-  return {
-    status: report.status,
-    exitCode: report.exitCode,
-    mode: report.mode,
-    strict: report.strict,
-    filesScanned: report.counts.filesScanned,
-    filesSkipped: report.counts.filesSkipped,
-    filesChanged: report.counts.filesChanged,
-    dataviewBlocks: report.counts.dataviewBlocks,
-    dataviewJsBlocks: report.counts.dataviewJsBlocks,
-    inlineExpressions: report.counts.inlineExpressions,
-    headersRegenerated: report.counts.headersRegenerated,
-    unsupported: report.counts.unsupported,
-    errors: report.counts.errors,
-    remaining: {
-      dataviewBlocks: report.counts.remainingDataviewBlocks,
-      dataviewJsBlocks: report.counts.remainingDataviewJsBlocks,
-      inlineExpressions: report.counts.remainingInlineExpressions,
-    },
-    performance: report.performance
-      ? {
-          totalMs: report.performance.totalMs,
-          prepareRuntimeMs: report.performance.prepareRuntimeMs,
-          processFilesMs: report.performance.processFilesMs,
-          copyMs: report.performance.copyMs,
-          timingTotals: report.performance.timingTotals,
-          slowFiles: (report.performance.slowFiles || []).slice(0, 10),
-        }
-      : undefined,
-  };
-}
-
 export function formatReportOutcome(report, reportPath) {
   const failed = report.status === "failed" || Number(report.exitCode || 0) !== 0;
   const counts = report.counts;

@@ -1,9 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseNote} from '../src/content-store.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {synthesizedNotes,synthesizedExamples} from './fixtures/header-synthesized-cases.mjs';
-import {HeaderDataError,renderBio} from '../src/header-core/index.mjs';
+import {HeaderDataError} from '../src/header-core/index.mjs';
 
 const world=(date='1720-01-01',extraNotes={})=>headerFixture({date,baseNotes:synthesizedNotes,extraNotes});
 const contains=(text,...pieces)=>{for(const piece of pieces)assert.ok(text.includes(piece),'Missing '+JSON.stringify(piece)+' in\n'+text);};
@@ -13,21 +12,21 @@ test('synthesized person separates two primary houses from an ordinary membershi
   assert.deepEqual(a.getPrimaryAffiliations(person).map(x=>x.org),['North House','South House']);
   assert.deepEqual(a.getNonPrimaryAffiliations(person).map(x=>x.org),['Astronomers']);
   assert.equal(a.getFormattedNonPrimaryAffiliations(person),'Member of the [[Astronomers]]');
-  for(const headerType of ['static','website']){
-    const text=h.render('Leda',{headerType});
-    contains(text,'LEH-dah','they/them','20 years old','[[North House]], and the [[South House]]','[[Astronomers]]');
-    assert.equal((text.match(/LEH-dah/g)??[]).length,1);
+  for(const mode of ['obsidian','website']){
+    const text=h.callout('Leda',{mode});
+    contains(text,'they/them','20 years old','[[North House]], and the [[South House]]','[[Astronomers]]');
+    assert.doesNotMatch(text,/LEH-dah/);
   }
 });
 
 test('synthesized lantern follows its carrier into a village, county and realm',()=>{
-  const h=world(),text=h.render('Traveller’s Lantern',{headerType:'static'});
-  contains(text,'# The Traveller’s Lantern','uncommon magical lantern','Created January 1st, 1710',
+  const h=world(),text=h.callout('Traveller’s Lantern');
+  contains(text,'uncommon magical lantern','Created January 1st, 1710',
     'Carried by [[Leda]], in [[Aster]], the [[East County]], the [[North Realm]]');
 });
 
 test('synthesized lost compass remembers the container location at the last sighting',()=>{
-  const h=world('1720-06-07'),text=h.render('Glass Compass',{headerType:'static'});
+  const h=world('1720-06-07'),text=h.callout('Glass Compass');
   assert.equal(h.services.WhereaboutsManager.getWhereabouts(h.metadata('Glass Compass')).current.location,null);
   contains(text,'Last seen in the [[Sea Chest]], the [[Loft|Observatory Loft]], [[Aster]], the [[East County]] on June 5th, 1720');
   assert.doesNotMatch(text,/Skylark|Bellport/);
@@ -38,20 +37,20 @@ test('synthesized lost compass remembers the container location at the last sigh
 test('synthesized destroyed pier uses its custom end status and retains the location chain',()=>{
   const h=world('1721-01-01'),metadata=h.metadata('Pier');
   assert.equal(h.services.DateManager.getPageDates(metadata).isAlive,false);
-  const text=h.render('Pier',{headerType:'static'});
+  const text=h.callout('Pier');
   contains(text,'washed away','April 1st, 1720','[[Aster]], the [[East County]], the [[North Realm]]');
 });
 
 test('synthesized two-day elapsed event preserves its dates, parent event and location',()=>{
-  const h=world(),text=h.render('Bridge Opening',{headerType:'static'});
+  const h=world(),text=h.callout('Bridge Opening');
   contains(text,'April 1st, 1710','April 3rd, 1710','2 days','[[Spring Festival]]','[[Aster]]');
   const dates=h.services.DateManager.getPageDates(h.metadata('Bridge Opening'));
   assert.equal(dates.endDate.days-dates.startDate.days,2);
 });
 
 test('synthesized spirit supports explicit pronouns without inventing a species or birth date',()=>{
-  const h=world(),text=h.render('Lantern Keeper',{headerType:'static'});
-  contains(text,'# Lantern Keeper','spirit','xe/xem');
+  const h=world(),text=h.callout('Lantern Keeper');
+  contains(text,'spirit','xe/xem');
   assert.doesNotMatch(text,/Born|undefined|NaN|human/);
 });
 
@@ -66,23 +65,19 @@ for(const [date,aster,bellport] of [
   assert.equal(a.getLeadBy('Aster'),aster);assert.equal(a.getLeadBy('Bellport'),bellport);
 });
 
-test('synthesized plain note has a title and no fabricated bio information',()=>{
+test('a plain note has no generated information in either layout',()=>{
   const h=world();
-  for(const headerType of ['static','website']){
-    const parsed=parseNote(h.render('Field Notes',{headerType}));
-    assert.equal(parsed.body.trim(),'# Field Notes');
-    assert.equal(renderBio(h.runtime,{name:'Field Notes',metadata:h.metadata('Field Notes'),date:'1720-01-01',headerType}).trim(),'# Field Notes');
-  }
+  for(const mode of ['obsidian','website'])assert.equal(h.callout('Field Notes',{mode}).trim(),'');
 });
 
 test('all eight synthesized examples render both ways without mutating their shared inputs',()=>{
   const h=world(),before=JSON.stringify(h.input);
   assert.equal(synthesizedExamples.length,8);
-  for(const example of [...synthesizedExamples,...synthesizedExamples.toReversed()])for(const headerType of ['static','website']){
-    const first=h.render(example.path,{date:example.date,headerType});
-    assert.equal(h.render(example.path,{date:example.date,headerType}),first);
+  for(const example of [...synthesizedExamples,...synthesizedExamples.toReversed()])for(const mode of ['obsidian','website']){
+    const first=h.callout(example.path,{date:example.date,mode});
+    assert.equal(h.callout(example.path,{date:example.date,mode}),first);
     assert.doesNotMatch(first,/undefined|NaN|\[object Object\]/,example.id);
-    assert.equal((parseNote(first).body.match(/^# /gm)??[]).length,1);
+    assert.doesNotMatch(first,/^# /m,example.id);
   }
   assert.equal(JSON.stringify(h.input),before);
 });

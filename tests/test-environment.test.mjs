@@ -6,11 +6,12 @@ import {createHash} from 'node:crypto';
 import {selectTests} from '../scripts/test.mjs';
 import {fixtureVault,testSettings} from './helpers/test-settings.mjs';
 
-test('default and emulator suites cannot accidentally select live-vault checks',()=>{
-  const files=['z.test.mjs','headers.live-vault.mjs','a.test.mjs','dataview.live-vault.mjs','search.integration.mjs'];
+test('routine, emulator, live-vault and historical header suites select distinct files',()=>{
+  const files=['z.test.mjs','headers.live-vault.mjs','a.test.mjs','dataview.live-vault.mjs','search.integration.mjs','header-vault.historical.mjs'];
   assert.deepEqual(selectTests(files),['a.test.mjs','z.test.mjs']);
   assert.deepEqual(selectTests(files,['--integration']),['search.integration.mjs']);
   assert.deepEqual(selectTests(files,['--live-vault']),['dataview.live-vault.mjs','headers.live-vault.mjs']);
+  assert.deepEqual(selectTests(files,['--historical-headers']),['header-vault.historical.mjs']);
   for(const args of [['--unknown'],['--integration','--live-vault']])assert.throws(()=>selectTests(files,args),/Use npm test/);
 });
 

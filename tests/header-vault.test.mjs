@@ -1,63 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {parseNote} from '../src/content-store.mjs';
-import {vaultCases,vaultOutputs,vaultHeaderFixture,vaultCasePath} from './helpers/vault-header-fixture.mjs';
-import {renderBio} from '../src/header-core/index.mjs';
+import {vaultHeaderFixture,vaultCasePath} from './helpers/vault-header-fixture.mjs';
 
 const fixture=vaultHeaderFixture();
-const isTestCase=metadata=>(metadata.tags??[]).some(tag=>/^testcase(?:\/|$)/.test(tag));
-const daysInMonth=[31,28,31,30,31,30,31,31,30,31,30,31];
-function adjacent(date,offset){
-  let [year,month,day]=date.split('-').map(Number);day+=offset;
-  if(day===0){if(--month===0){--year;month=12;}day=daysInMonth[month-1];}
-  if(day>daysInMonth[month-1]){day=1;if(++month===13){++year;month=1;}}
-  return [year,month,day].map((n,i)=>String(n).padStart(i?2:4,'0')).join('-');
-}
 
-test('all frozen testcase tags, including child tags, have exactly one active output matrix',()=>{
-  const paths=vaultCases.cases.map(c=>c.path);
-  assert.equal(paths.length,21);
-  assert.equal(new Set(paths).size,paths.length);
-  assert.deepEqual(paths,vaultCases.pages.filter(p=>isTestCase(p.metadata)).map(p=>p.path));
-  assert.deepEqual(Object.keys(vaultOutputs),[...paths,...vaultCases.relatedCases.map(c=>c.path)]);
-  assert.ok(fixture.metadata(vaultCasePath('Akan')).tags.includes('testcase/with-whereabouts'));
-});
-
-for(const example of vaultCases.cases){
-  const name=example.path.split('/').at(-1);
-  test('all recorded transitions have before/on/after expectations: '+name,()=>{
-    assert.deepEqual(Object.keys(vaultOutputs[example.path]),example.dates);
-    for(const boundary of example.boundaries){
-      const d=fixture.services.DateManager;
-      assert.equal(d.normalizeDate(boundary.value,boundary.isEnd).days,d.normalizeDate(boundary.date).days,boundary.field);
-      for(const offset of [-1,0,1])assert.ok(example.dates.includes(adjacent(boundary.date,offset)),boundary.field+' / '+offset);
-    }
-  });
-  for(const date of example.dates)for(const headerType of ['static','website'])
-    test('tagged vault header: '+name+' / '+date+' / '+headerType,()=>{
-      const expected=vaultOutputs[example.path][date][headerType];
-      assert.equal(fixture.render(example.path,{date,headerType}),expected);
-      assert.equal(renderBio(fixture.runtime,{name:name.replace(/\.md$/,''),metadata:fixture.metadata(example.path),date,headerType}),
-        parseNote(expected).body);
-    });
-}
-
-for(const example of vaultCases.relatedCases)for(const date of example.dates)for(const headerType of ['static','website'])
-  test('historical kingdom header: '+example.path.split('/').at(-1)+' / '+date+' / '+headerType,()=>{
-    const expected=vaultOutputs[example.path][date][headerType];
-    assert.equal(fixture.render(example.path,{date,headerType}),expected);
-    assert.equal(renderBio(fixture.runtime,{name:example.path.split('/').at(-1).replace(/\.md$/,''),
-      metadata:fixture.metadata(example.path),date,headerType}),parseNote(expected).body);
-  });
-
-test('all tagged samples render one title and their complete details from the block',()=>{
-  for(const example of vaultCases.cases)for(const headerType of ['static','website']){
-    const body=parseNote(fixture.render(example.path,{headerType})).body;
-    assert.match(body,/^# /);
-    const actual=renderBio(fixture.runtime,{name:example.path.split('/').at(-1).replace(/\.md$/,''),
-      metadata:fixture.metadata(example.path),date:'1752-01-01',headerType});
-    assert.equal(actual,body);
-    assert.equal((actual.match(/^# /gm)||[]).length,1,example.path);
+test('both current header layouts update the chalice location on October 5',()=>{
+  for(const mode of ['obsidian','website']){
+    const before=fixture.callout('Chalice of the Runepriest',{date:'1748-10-04',mode});
+    const after=fixture.callout('Chalice of the Runepriest',{date:'1748-10-05',mode});
+    assert.match(before,/Current location: lost/);
+    assert.match(after,/Current location: \[\[Tharn Todor\]\]/);
   }
 });
 
@@ -83,7 +35,7 @@ test('Derik III groups his three kingdoms while retaining his earlier title and 
   assert.deepEqual(a.getNonPrimaryAffiliations(metadata).map(x=>[x.org,x.title]),[
     ['Vostok','Prince of the North'],['Sembara','High King'],['Tyrwingha','High King'],['Vostok','High King'],
   ]);
-  const text=h.render(vaultCasePath('Derik III'),{headerType:'static'});
+  const text=h.callout('Derik III');
   assert.ok(text.includes('Prince of the North of [[Vostok]] (DR 1511 - DR 1519)'));
   assert.ok(text.includes('High King of [[Sembara]], [[Tyrwingha]], and [[Vostok]] (since DR 1519)'));
   assert.deepEqual(a.getNonPrimaryAffiliations(metadata).map(x=>x.endDate.days),
@@ -119,9 +71,9 @@ test('Antonia follows the mirror through a moving ship but her encounter keeps t
 });
 
 test('Taviose and the Cleenseau garrison retain long place and organization chains',()=>{
-  const taviose=fixture.render(vaultCasePath('Taviose'),{headerType:'static'});
+  const taviose=fixture.callout('Taviose');
   assert.ok(taviose.includes('[[Manor of Cleenseau]], the [[Barony of Aveil]], [[Sembara]], [[Greater Sembara]]'));
-  const garrison=fixture.render(vaultCasePath('Army Garrison of Cleenseau'),{headerType:'static'});
+  const garrison=fixture.callout('Army Garrison of Cleenseau');
   assert.ok(garrison.includes('[[Dunfry Regiment]], the [[Army of the West]], the [[Sembaran Army]], [[Sembara]]'));
   assert.ok(garrison.includes('Captain: [[Ida Rosfeld|Captain Ida Rosfeld]]'));
 });
@@ -133,7 +85,7 @@ test('custom place, object and event display defaults preserve their authored se
     ['Battle of Urlich Pass',['Fought in DR 1545','Fought in [[Urlich Pass]], the [[Sentinel Range]]']],
     ['Wave Dancer',['Home area: the [[Eastern Green Sea]]','moored in the [[Wahacha|main port of Wacahca]]']],
   ]){
-    const output=fixture.render(vaultCasePath(name),{headerType:'static'});
+    const output=fixture.callout(name);
     for(const phrase of phrases)assert.ok(output.includes(phrase),name+' / '+phrase);
   }
 });

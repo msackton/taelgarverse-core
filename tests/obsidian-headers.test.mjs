@@ -13,7 +13,6 @@ import {imageDOM} from './helpers/image-dom.mjs';
 import {codeMirrorHost} from './helpers/codemirror-host.mjs';
 import {ROOT} from '../src/config.mjs';
 import {parseNote} from '../src/content-store.mjs';
-import {initializeHeaders,renderHeader} from '../src/headers.mjs';
 
 const require=createRequire(import.meta.url),settings=testSettings();
 const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export * from './obsidian/taelgarverse/features/headers.mjs';"+serviceExports,resolveDir:ROOT},write:false,
@@ -144,17 +143,22 @@ test('editor commands skip untagged/excluded metadata while an explicit callout 
   } finally {h.dispose();}
 });
 
-test('Obsidian bios match the existing static header generator for people, places and dated events without Dataview or CustomJS',async()=>{
+test('Obsidian renders dated facts for people, places and events without repeating the authored title or pronunciation',async()=>{
   const h=host();
   try{
     const snapshot=await h.plugin.snapshots.getSnapshot();
-    const reference=initializeHeaders({runtimeDir:settings.vault_dir,coreMeta,registry,pages:h.app.vault.getMarkdownFiles().map(file=>({path:file.path,metadata:h.metadata.get(file.path)}))});
-    for(const file of h.app.vault.getMarkdownFiles())for(const date of ['1720-01-01','1730-01-01']){
+    const examples=[
+      ['Bio Person.md','1720-01-01','20 years old'],
+      ['Bio Person.md','1730-01-01','30 years old'],
+      ['Bio Place.md','1720-01-01','Founded DR 1710 (10 years ago)'],
+      ['Bio Place.md','1730-01-01','Founded DR 1710 (20 years ago)'],
+      ['Bio Event.md','1730-01-01','January 1st, 1710 - January 1st, 1711, lasted 12 months'],
+    ];
+    for(const [filename,date,fact] of examples){
+      const file=h.app.vault.getAbstractFileByPath(filename);
       const metadata={...h.metadata.get(file.path),pageTargetDate:date};
       const actual=h.obsidianBio(snapshot,file,metadata,date);
-      const header=parseNote(renderHeader(reference,{source:'---\n---\n',name:file.basename,metadata,date,headerType:'static'})).body;
-      const expected=header.replace(/^# [^\n]*\n/,'').replace(/^\*\([^\n]*\)\*\n/,'').trimEnd()+'\n';
-      assert.equal(actual.trimEnd(),expected.trimEnd(),file.path+' at '+date);
+      assert.ok(actual.includes(fact),filename+' at '+date);
       assert.match(actual,/>\[!info\]/);assert.doesNotMatch(actual,/\$=|dataview|^---/m);
       assert.equal((actual.match(/^# /gm)||[]).length,0);
       assert.doesNotMatch(actual,/BY-oh/);

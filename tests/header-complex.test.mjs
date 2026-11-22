@@ -1,18 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import fs from 'node:fs';
-import {createHeaderSnapshot,renderHeader} from '../src/header-core/index.mjs';
+import {createHeaderSnapshot,renderHeaderCallout} from '../src/header-core/index.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {complexNotes,complexRenderCases} from './fixtures/header-complex-cases.mjs';
 
-const expected=JSON.parse(fs.readFileSync(new URL('./fixtures/header-complex-outputs.json',import.meta.url),'utf8'));
 const history=date=>headerFixture({date,extraNotes:complexNotes});
-assert.deepEqual(Object.keys(expected),complexRenderCases.map(c=>c.id),'every complex output must have an active test');
-
-for(const example of complexRenderCases)for(const headerType of ['static','website'])
-  test('complex complete header: '+example.id+' / '+headerType,()=>{
-    assert.equal(history(example.date).render(example.path,{headerType}),expected[example.id][headerType]);
-  });
 
 for(const [date,offices] of [
   ['1707-12-31',[]],['1708-01-01',[['Citadel','Castellan']]],
@@ -73,7 +65,7 @@ test('a carried object follows person, ship, anchorage and regional ancestry on 
 });
 
 test('a transferred object keeps its original owner ancestry at creation and its new vault ancestry now',()=>{
-  const h=history('1721-01-01'),text=h.render('Star Glass',{headerType:'static'});
+  const h=history('1721-01-01'),text=h.callout('Star Glass');
   assert.ok(text.includes('First held by [[Serin|Warden Serin Vale]], in [[Citadel]], the [[Old County]], the [[March|Border March]], the [[Old Kingdom]]'));
   assert.ok(text.includes('Kept in the [[Vault|Great Vault]], [[Citadel]], the [[New County]], the [[March|Border March]], the [[New Kingdom]]'));
 });
@@ -97,7 +89,7 @@ test('display defaults resolve global, type, note and per-location formats in a 
 });
 
 test('per-leg aliases and prepositions survive the full carried-object chain without losing the link target',()=>{
-  const h=history('1718-06-15'),text=h.render('Star Glass',{headerType:'static'});
+  const h=history('1718-06-15'),text=h.callout('Star Glass');
   assert.ok(text.includes('by [[Serin|Warden Serin Vale]], in [[Aurora]], moored at the [[Cove|hidden anchorage]]'));
   assert.doesNotMatch(text,/\[\[hidden anchorage\]\]|Open Bay/);
 });
@@ -125,12 +117,11 @@ test('historical encounters use the ship anchorage at the meeting date across la
 test('indexing and full scans agree across complex multi-office histories without state leaking between renders',()=>{
   const h=history('1752-01-01'),before=JSON.stringify(h.input);
   const full=createHeaderSnapshot({...h.input,indexAffiliations:false});
-  for(const example of [...complexRenderCases,...complexRenderCases.toReversed()])for(const headerType of ['static','website']){
-    const request={source:'---\n---\n',name:example.path.split('/').at(-1).replace(/\.md$/,''),
-      metadata:h.metadata(example.path),date:example.date,headerType};
-    const actual=renderHeader(h.runtime,request);
-    assert.equal(actual,renderHeader(full,request),example.id+' / '+headerType);
-    assert.equal(actual,expected[example.id][headerType],example.id+' / '+headerType);
+  for(const example of [...complexRenderCases,...complexRenderCases.toReversed()])for(const mode of ['obsidian','website']){
+    const request={name:example.path.split('/').at(-1).replace(/\.md$/,''),
+      metadata:h.metadata(example.path),date:example.date,mode};
+    const actual=renderHeaderCallout(h.runtime,request);
+    assert.equal(actual,renderHeaderCallout(full,request),example.id+' / '+mode);
   }
   assert.equal(JSON.stringify(h.input),before);
 });

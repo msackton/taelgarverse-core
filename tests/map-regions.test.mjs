@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseHTML} from 'linkedom';
+import {createMapEditorDOM} from './helpers/map-editor-dom.mjs';
 import {validateMapLayers,resolvedMapLayers} from '../src/map-layers.mjs';
 import {validateManifest,validateMapDefinition} from '../src/map-core.mjs';
 import {addMapRegions} from '../src/browser/map-regions.mjs';
@@ -62,8 +63,7 @@ test('failed manifest attachment preserves the new file and identifies its recov
 });
 
 function editor(){
-  const {document,window}=parseHTML('<figure><div class="map-canvas"></div><figcaption></figcaption></figure>');
-  Object.defineProperty(window.HTMLSelectElement.prototype,'value',{configurable:true,get(){return [...this.options].find(o=>o.selected)?.value??this.options[0]?.value??'';},set(value){for(const o of this.options)o.removeAttribute('selected');const target=[...this.options].find(o=>o.value===String(value));if(target)target.selected=true;}});
+  const {document}=createMapEditorDOM();
   const {app,files}=vault(),figure=document.querySelector('figure'),canvas=document.querySelector('div'),handlers={};let saved;
   const map={on:(name,fn)=>handlers[name]=fn,off:name=>delete handlers[name],getCenter:()=>({lng:100,lat:600})};
   const L={layerGroup:()=>({addTo(){return this;},clearLayers(){},remove(){}}),polyline:()=>({addTo(){}}),circleMarker:()=>({addTo(){}})};

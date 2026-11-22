@@ -393,13 +393,13 @@ npm test
 node scripts/benchmark.mjs
 ~~~
 
-Tests use synthetic notes, frozen tagged-vault samples and independent
-comparisons with versioned legacy CustomJS fixtures in core. They cover
+Tests use synthetic notes and frozen tagged-vault samples. They cover
 dates/lifecycle/locations, leadership parity, private and malformed comments,
 campaign filtering, links, Markdown extensions, assets, HTTP errors, and date
 isolation. Default tests and local emulator integration tests need no sibling
 vault. Temporary fixtures are created and cleaned under ignored .cache/.
-Use `npm test -- --live-vault` only when explicitly checking the configured
+Use `npm test -- --historical-headers` to replay the saved headers against
+versioned legacy fixtures. Use `npm test -- --live-vault` to check the configured
 working vault. See [test modes and fixture provenance](tests/README.md).
 
 The benchmark renders six real-vault requests without an HTML cache. It reports

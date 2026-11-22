@@ -9,7 +9,7 @@ import {build} from 'esbuild';
 import {ROOT} from '../src/config.mjs';
 import {Engine} from '../src/engine.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
-import {synthesizedNotes,synthesizedExamples} from './fixtures/header-synthesized-cases.mjs';
+import {synthesizedNotes} from './fixtures/header-synthesized-cases.mjs';
 
 test('the maintained core bundles and renders in a browser environment without host globals or Node modules',async()=>{
   const result=await build({entryPoints:[path.join(ROOT,'src/header-core/index.mjs')],bundle:true,
@@ -18,14 +18,12 @@ test('the maintained core bundles and renders in a browser environment without h
   const module={exports:{}};
   const sandbox={module,exports:module.exports,structuredClone};
   vm.runInNewContext(result.outputFiles[0].text,sandbox);
-  const {createHeaderSnapshot,renderBio}=module.exports;
+  const {createHeaderSnapshot,renderHeaderCallout}=module.exports;
   const h=headerFixture({baseNotes:synthesizedNotes});
   const snapshot=createHeaderSnapshot(h.input);
-  for(const example of synthesizedExamples){
-    const text=renderBio(snapshot,{name:path.posix.basename(example.path,'.md'),metadata:h.metadata(example.path),date:example.date});
-    assert.doesNotMatch(text,/undefined|NaN|\[object Object\]/,example.id);
-    assert.equal((text.match(/^# /gm)||[]).length,1,example.id);
-  }
+  const text=renderHeaderCallout(snapshot,{name:'Leda',metadata:h.metadata('Leda'),date:'1720-01-01'});
+  assert.match(text,/>\[!info\]/);
+  assert.match(text,/20 years old/);
   assert.equal(sandbox.customJS,undefined);assert.equal(sandbox.app,undefined);
   assert.equal(sandbox.DataviewAPI,undefined);assert.equal(sandbox.require,undefined);
 });

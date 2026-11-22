@@ -64,7 +64,7 @@ flowchart LR
 
 | Code | Responsibility |
 | --- | --- |
-| `obsidian/taelgarverse/features/session-review.mjs`, `obsidian/taelgarverse/features/session-review-index.mjs`, `obsidian/taelgarverse/features/session-review-python.mjs`, `obsidian/taelgarverse/features/session-review-process.mjs`, `src/browser/session-review.mjs`, `src/browser/entity-review.mjs` | Focused entity-map table and human-review queue, explicit confirmation of changed transcript/session fingerprints, native session discovery, Python executable resolution, and bounded asynchronous process transport with normalized Windows launch paths. Vault-note content hashes do not guard processing. The vault entity review helpers own durable feedback JSON, recoverable map/history writes, and exclusive empty staging-note creation with campaign-folder and name-collision checks; guarded regeneration preserves human decisions. Their shared source reader opt-in permits actual transcript SHA inspection without weakening other workflows' default checks. The standalone transcript UI is retained outside this hub. See [session review](session-review.md). |
+| `obsidian/taelgarverse/features/session-review.mjs`, `obsidian/taelgarverse/features/session-review-index.mjs`, `obsidian/taelgarverse/features/session-review-python.mjs`, `obsidian/taelgarverse/features/session-review-process.mjs`, `src/browser/session-review.mjs`, `src/browser/entity-review.mjs` | Focused entity-map table and human-review queue, explicit confirmation of changed transcript/session fingerprints, native session discovery, Python executable resolution, and bounded asynchronous process transport with normalized Windows launch paths. Vault-note content hashes do not guard processing. The vault entity review helpers own durable feedback JSON, recoverable map/history writes, and exclusive empty staging-note creation with campaign-folder and name-collision checks; guarded regeneration preserves human decisions. Their shared source reader opt-in permits actual transcript SHA inspection without weakening other workflows' default checks. Transcript corrections and finalization use the vault skills. See [session review](session-review.md). |
 | `obsidian/taelgarverse/python-runtime.mjs` | Shared Python executable discovery and Windows launch-path normalization for session review and Photoshop layer loading/export. Skips non-executable Windows aliases; callers retain their own transport, progress and cancellation behavior. |
 | `scripts/publish-content.mjs`, `scripts/materialize-website.mjs` | Git checkpoint, working vault copy, explicit DQL backend selection (Node default, optional Obsidian), compatibility conversion, image optimization, upload, then activation. No automatic engine fallback. |
 | `scripts/materialize-website-dataview.mjs`, `src/dataview-node/`, `scripts/website-working-vault.mjs` | Copy source inputs and original file timestamps, prune underscore/`.nopublish` subtrees before copying, index the remaining working vault, and evaluate DQL in Node using a pinned Dataview bundle. No desktop process. |
@@ -250,10 +250,10 @@ repeated vault scans. A reverse affiliation index narrows leadership queries; th
 service applies the query date. Unexpected affiliation shapes fall back to a
 full scan. The core needs no app/Dataview shim, global calendar or CustomJS state.
 
-Header refactoring is guarded by synthetic unit tests, frozen examples of every
-captured vault `testcase` page, complex relationship histories, fixed outputs in both
-formats, and independent comparisons with frozen copies of the original classes. Fixture
-updates and known pre-existing defects are described in the
+Routine header tests cover current callouts, dates and complex relationship
+histories. `npm test -- --historical-headers` compares the former generators
+with saved output in both formats, including every captured vault `testcase`
+page. Fixture updates and known pre-existing defects are described in the
 [refactoring test baseline](shared-taelgar-blocks-plan.md#refactoring-test-baseline).
 
 Generated indexes cache only immutable candidate/path lookups on the metadata

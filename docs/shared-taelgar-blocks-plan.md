@@ -92,9 +92,9 @@ leading block with their former standalone H1 removed.
 ## Refactoring test baseline
 
 Before restructuring the header library, run `npm test`. For focused header
-checks, use `node --test "tests/header-*.test.mjs"`. `header-modules.test.mjs`
-compares against the original classes frozen in `tests/fixtures/legacy-vault`,
-with a pinned source commit and verified hashes. All default header tests use
+checks, use `node --test "tests/header-*.test.mjs"`. The optional
+`npm test -- --historical-headers` run compares the saved outputs with the
+original classes frozen in `tests/fixtures/legacy-vault`. All default header tests use
 synthetic notes or frozen vault inputs and run without a vault or Obsidian.
 Live-note comparisons are opt-in with `npm test -- --live-vault`; see
 [test modes](../tests/README.md).
@@ -107,32 +107,31 @@ Live-note comparisons are opt-in with `npm test -- --live-vault`; see
   articles, prepositions, pronouns, optional tokens, and template modifiers.
 - `header-affiliations`: membership intervals, leadership succession, grouping,
   campaign identities, validation, and encounters at their recorded dates.
-- `header-legacy-helpers`: existing query helper contracts, using an explicit
+- Historical `header-legacy-helpers`: original query helper contracts, using an explicit
   test-only Dataview stub for backlink-dependent methods. This does not make
   those helpers available in the bio renderer.
-- `header-legacy-defects`: nine characterization tests documenting the original
+- Historical `header-legacy-defects`: nine characterization tests documenting the original
   stack's failures, independently of the corrected replacement.
-- `header-output`: twenty scenarios with fixed Markdown in both static and
-  website formats, saved-header replacement, body preservation, one complete H1,
-  version selectors, immutable inputs, render isolation, and indexed/full-scan
-  leadership parity.
-- `header-vault`: all 21 vault pages tagged `testcase` or `testcase/*`, plus the
+- `header-output`: current callout render isolation and indexed/full-scan
+  leadership parity. Its historical suite covers twenty scenarios with fixed
+  Markdown in both formats, saved-header replacement and version selectors.
+- `header-vault`: the historical suite includes all 21 vault pages tagged `testcase` or `testcase/*`, plus the
   historical Sembara, Tyrwingha and Vostok pages. The fixtures cover 126 recorded
   date boundaries with checks before, on and after each boundary: 288 dated
-  renders of tagged pages and 54 kingdom renders, each in both formats. Explicit
-  assertions also cover Elaine I's simultaneous titles, Derik III's grouped
+  renders of tagged pages and 54 kingdom renders, each in both formats. The
+  routine suite covers Elaine I's simultaneous titles, Derik III's grouped
   kingdoms, Sura and Akan's travel, Hralgar's release, Antonia's mirror/ship
   chain, the garrison's organization chain, and custom artifact/event sentences.
-- `header-preparation`: canonicalization, repeat-pass stability, authored-content
-  preservation, malformed-block errors, and all 21 frozen vault cases through
-  real packaging and simulated R2 loading. Checks source immutability, stored
-  Markdown hashes, Node/Worker parity, and exactly one rendered title.
+- `header-preparation`: publication conversion of supported legacy headers,
+  repeat-pass stability and preservation of authored text. Checks packaging,
+  Node/Worker rendering and the error path for ambiguous headers.
 - `header-complex`: an integrated synthetic history with concurrent memberships,
   primary affiliations, different offices in different places, independent
   successors, changing borders, secondary locations, an unknown current
   location, historical encounters, a moving ship and a transferred artifact.
-  Fifteen complete headers in both formats complement domain assertions for
-  display-rule precedence and indexed/full-scan parity.
+  The routine suite checks display-rule precedence and indexed/full-scan parity
+  for both current callout layouts. The historical suite checks the fifteen
+  captured headers in both formats.
 - `header-synthesized`: eight independently invented examples (a person with two
   primary houses, a carried lantern, a lost compass in a moving container, a
   destroyed pier, a short event, a spirit, a jointly governed village and a
@@ -153,9 +152,9 @@ omits note bodies, lint bookkeeping and DM ownership/comments. Its source paths,
 tagged-page inventory and normalized boundary dates are recorded with the
 fixtures. `header-vault-outputs.json` freezes 684 outputs; the complex history has
 another 30 in `header-complex-outputs.json`. These tests never recapture outputs.
-The live-vault compatibility suite checks for added/removed test tags, compares
-both generators using the current metadata of all tagged pages, and runs the
-original classes independently against both sets of frozen expectations.
+The live-vault compatibility suite checks for added/removed test tags and compares
+both generators using the current metadata of all tagged pages. The historical
+suite runs the original classes independently against the frozen expectations.
 Changing live lore does not silently update this baseline: review any fixture
 refresh deliberately, including the dependency metadata and all affected dates.
 

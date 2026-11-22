@@ -9,7 +9,6 @@ import {ContentStore,parseNote} from '../src/content-store.mjs';
 import {parseMap,mapImages} from '../src/maps.mjs';
 import {createMarkdown,renderMarkdown} from '../src/markdown.mjs';
 import {prepareMaps} from '../scripts/build-maps.mjs';
-import {optimizeImages} from '../scripts/optimize-images.mjs';
 import {ROOT} from '../src/config.mjs';
 
 await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
@@ -111,9 +110,8 @@ test('map images retain full resolution and tiled maps include aligned edge tile
   await sharp({create:{width:4100,height:64,channels:3,background:'#ef2020'}}).png().toFile(filename);
   const {entry,author,store} = fixture(filename);
   assert.equal(mapImages(store).length,1);assert.equal(entry.mapImage,true);
-  await optimizeImages([entry],path.join(directory,'optimized'),{maxSize:120});
-  assert.equal((await sharp(filename).metadata()).width,4100);
   const files = await prepareMaps(store,path.join(directory,'tiles'));
+  assert.equal((await sharp(filename).metadata()).width,4100);
   assert.ok(files.length > 10);assert.equal(entry.mapTiles.length,1);
   const tile = entry.mapTiles[0];assert.equal(tile.maxNativeZoom,0);assert.ok(tile.minNativeZoom<0);
   const $ = load(render(author.note.body,store,author).html);

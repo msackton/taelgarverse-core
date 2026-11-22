@@ -3,15 +3,14 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
 import {build} from 'esbuild';
-import {parseHTML} from 'linkedom';
+import {createMapEditorDOM} from './helpers/map-editor-dom.mjs';
 import {ROOT} from '../src/config.mjs';
 import {captureMapPath,patchMapPath} from '../obsidian/taelgarverse/maps/path-persistence.mjs';
 const require=createRequire(import.meta.url),plain=x=>JSON.parse(JSON.stringify(x));
 const bundle=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse/maps/paths.mjs'],bundle:true,write:false,format:'cjs',platform:'node',external:['obsidian']});
 const tick=()=>new Promise(setImmediate);
 function host({editable=true}={}){
-  const {document,window}=parseHTML('<figure><div class="map-canvas"></div><figcaption></figcaption></figure>');
-  Object.defineProperty(window.HTMLSelectElement.prototype,'value',{configurable:true,get(){return [...this.options].find(o=>o.selected)?.value??this.options[0]?.value??'';},set(value){for(const o of this.options)o.removeAttribute('selected');const target=[...this.options].find(o=>o.value===String(value));if(target)target.selected=true;}});
+  const {document,window}=createMapEditorDOM();
   let frameId=0;const frames=new Map();window.requestAnimationFrame=fn=>{frames.set(++frameId,fn);return frameId;};window.cancelAnimationFrame=id=>frames.delete(id);
   const figure=document.querySelector('figure'),canvas=document.querySelector('div'),files=[{path:'River.md',basename:'River',extension:'md'},{path:'Road.md',basename:'Road',extension:'md'}];
   let text='---\nname: River\ntypeOf: waterway\n---\nBody',chooseNote,saved,writes=0,opened,zoom=2,defer;

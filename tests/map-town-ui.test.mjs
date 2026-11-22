@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {build} from 'esbuild';
-import {parseHTML} from 'linkedom';
+import {createMapEditorDOM} from './helpers/map-editor-dom.mjs';
 import {parse} from 'yaml';
 import {ROOT} from '../src/config.mjs';
 import {mapLocation} from '../src/map-location.mjs';
@@ -11,8 +11,7 @@ const bundle=await build({absWorkingDir:ROOT,entryPoints:['obsidian/taelgarverse
   format:'cjs',platform:'browser',external:['obsidian'],logLevel:'silent'});
 const tick=()=>new Promise(setImmediate);
 function setup({overlays=[],editable=true,zoom=2,usePicker=false,viewport=null}={}){
-  const {document,window}=parseHTML('<figure><div class="map-canvas"></div><figcaption></figcaption></figure>');
-  Object.defineProperty(window.HTMLSelectElement.prototype,'value',{configurable:true,get(){return [...this.options].find(o=>o.selected)?.value??this.options[0]?.value??'';},set(value){for(const o of this.options)o.removeAttribute('selected');const target=[...this.options].find(o=>o.value===String(value));if(target)target.selected=true;}});
+  const {document,window}=createMapEditorDOM();
   const figure=document.querySelector('figure'),canvas=figure.querySelector('div'),handlers={},layers=[],files=[
     {path:'Places/Town.md',basename:'Town',extension:'md'},{path:'Places/Other.md',basename:'Other',extension:'md'}];
   let text='---\nname: "Town" # preserved\n---\nBody\n',writes=0,fail=false,deferred=null,pickerChoice,opened;

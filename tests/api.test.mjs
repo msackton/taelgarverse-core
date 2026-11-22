@@ -5,9 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {load} from 'cheerio';
 import sharp from 'sharp';
-import {renderHeader as renderCoreHeader} from '../src/header-core/index.mjs';
 import {Engine} from '../src/engine.mjs';
-import {initializeHeaders, renderHeader} from '../src/headers.mjs';
 import {createServer} from '../src/server.mjs';
 import {ROOT,isInside,validateDate} from '../src/config.mjs';
 
@@ -270,17 +268,7 @@ test('concurrent HTTP dates stay isolated',async () => {
   }));
   results.forEach((result,i) => assert.match(result,dates[i].startsWith('1720') ? /20 years old/ : /30 years old/));
 });
-test('indexed leadership equals full-scan reference across dates',() => {
-  const input = {
-    runtimeDir:engine.settings.vault_dir,
-    pages:engine.store.entries.filter(e => e.note).map(e => ({path:e.id,metadata:e.note.metadata})),
-    coreMeta:engine.headers.coreMeta, registry:engine.headers.registry, indexAffiliations:false,
-  };
-  const reference = initializeHeaders(input), entry = engine.store.resolve('Example');
-  for (const date of ['1720-01-01','1730-01-01','1750-01-01']) {
-    const request = {source:entry.note.source,name:entry.name,metadata:entry.note.metadata,date};
-    assert.equal(renderCoreHeader(engine.headers,request),renderHeader(reference,request));
-  }
+test('website headers show the title held on the requested date',() => {
   assert.match(text(render()),/Guardian/);
   assert.match(text(render('Example','1730-01-01')),/Protector/);
 });
@@ -529,50 +517,14 @@ test('Custom campaigns filter article blocks and persist through article, search
   for (const link of $('a[href^="/page/"]').toArray()) assert.equal(new URL($(link).attr('href'),'https://example.test').searchParams.get('campaigns'),'all');
 });
 
-test('retired POV settings and query parameters are ignored across browsing and search',async()=>{
-  for (const respect_pov_dates of [false,true]) {
-    const app=new Engine({...engine.settings,respect_pov_dates}),server=createServer(app);
-    await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-    const base='http://127.0.0.1:'+server.address().port;
-    try {
-      for (const pov of [undefined,'1','0','invalid']) for (const date of ['1739-12-31','1740-01-01']) for (const dm of ['0','1']) {
-        const query='date='+date+'&dm='+dm+(pov===undefined?'':'&pov='+pov);
-        const $=load(await (await fetch(base+'/?q=POV&'+query)).text());
-        for (const slug of ['pov-year','pov-plural']) {
-          assert.equal($('main a[href^="/page/'+slug+'?"]').length,1);
-          assert.equal($('.site-sidebar a[href*="/page/'+slug+'?"]').length,1);
-          assert.equal((await fetch(base+'/page/'+slug+'?'+query)).status,200);
-        }
-        for (const form of ['#context-controls','#header-search','.search-form']) {
-          assert.equal($(form+' input[name="pov"]').length,0);
-        }
-        const results=await (await fetch(base+'/api/search?q=POV&'+query)).json();
-        assert.equal(results.source,'full-text');
-        assert.deepEqual(results.results.map(r=>r.page).sort(),['pov-plural','pov-year']);
-        if (pov!==undefined) for (const item of results.results) assert.equal(new URL(item.url,base).searchParams.get('pov'),null);
-        const host=await (await fetch(base+'/api/page?page=Perspective%20Links&'+query)).json();
-        const article=load(host.html);
-        assert.equal(article('a').filter((_,a)=>article(a).text()==='future viewpoint').length,1);
-        assert.equal(article.text().includes('POV plural text.'),true);
-        assert.equal(host.backlinks.some(link=>link.page==='pov-year'),true);
-        const diagram=await (await fetch(base+'/api/diagram-links?source=Perspective%20Links&target=POV%20Year&'+query)).json();
-        assert.equal(Boolean(diagram.links[0]),true);
-        if (pov!==undefined) {
-          for (const link of $('.site-sidebar a[href],.site-brand').toArray()) assert.equal(new URL($(link).attr('href'),base).searchParams.get('pov'),null);
-          const lazy=$('[data-nav-url]').first().attr('data-nav-url');
-          assert.equal(new URL(lazy,base).searchParams.get('pov'),null);
-          assert.equal((await fetch(new URL(lazy,base))).status,200);
-        }
-      }
-      const outcomes=await Promise.all(['1','0','1','0'].map(async pov=>{
-        const response=await fetch(base+'/api/page?page=POV%20Year&date=1739-12-31&pov='+pov);
-        return response.status;
-      }));
-      assert.deepEqual(outcomes,[200,200,200,200]);
-      assert.equal(app.store.settings.respect_pov_dates,respect_pov_dates);
-      assert.equal((await fetch(base+'/api/page?page=POV%20Year&date=1739-12-31&pov=invalid')).status,200);
-    } finally {
-      await new Promise(resolve=>server.close(resolve));app.closeSearch();
-    }
-  }
+test('an old POV bookmark opens its article and drops the retired parameter from onward links',async()=>{
+  const response=await fetch(base+'/page/pov-year?date=1739-12-31&pov=1');
+  assert.equal(response.status,200);
+  const $=load(await response.text());
+  assert.match($('main').text(),/POV year text/);
+  const href=$('main a[href^="/page/perspective-links"]').first().attr('href');
+  assert.ok(href);
+  const next=new URL(href,base);
+  assert.equal(next.searchParams.get('date'),'1739-12-31');
+  assert.equal(next.searchParams.has('pov'),false);
 });

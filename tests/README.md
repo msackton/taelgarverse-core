@@ -18,9 +18,18 @@ ignores personal configuration. Tests may replace its content path with their
 own temporary notes. The configuration-loader tests use separate temporary
 configuration roots. Do not call bare `loadSettings()` from a default test.
 
-The [frozen legacy sources](fixtures/legacy-vault/README.md) provide independent
-header comparisons. Synthetic notes, frozen tagged-note metadata and captured
-expected outputs stay versioned in core. Fixture updates require review.
+## Historical header comparisons
+
+```powershell
+npm test -- --historical-headers
+```
+
+This optional run compares the former header generator with captured Markdown
+for tagged notes, historical kingdoms and synthetic examples in both layouts.
+It also checks the [frozen legacy sources](fixtures/legacy-vault/README.md)
+against the captures and reproduces their documented defects. All inputs are
+versioned in core. The ordinary run exercises current callouts, date boundaries,
+publication conversion and Obsidian editing.
 
 ## Optional live-vault checks
 
@@ -37,8 +46,8 @@ can fail when live content has drifted from captured samples. The deleted
 CustomJS methods do not need to be restored: the legacy algorithm stays frozen
 even in this mode.
 
-`--live-vault` and `--integration` are separate modes and cannot be combined.
-They are not implicit prerequisites of the default suite or deployment CI.
+Select one optional mode per run. Deployment CI runs the default and local
+emulator suites.
 
 ## Common map tools
 
