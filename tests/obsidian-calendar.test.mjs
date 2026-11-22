@@ -11,13 +11,15 @@ import {ROOT} from '../src/config.mjs';
 const require=createRequire(import.meta.url);
 const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export * from './obsidian/taelgarverse/features/calendar.mjs';"+serviceExports,resolveDir:ROOT},write:false,bundle:true,platform:'node',format:'cjs',external:['obsidian'],logLevel:'silent'});
 const registry={campaigns:{alpha:{name:'Alpha',code:'a',campaignRoot:'Campaigns/A'},beta:{name:'Beta',code:'b',campaignRoot:'Campaigns/B'}}};
-const indexed=indexedCampaigns(registry);
 function emitter(){const listeners=new Map(),calls=[];return {
   on(name,callback){const list=listeners.get(name)??new Set();list.add(callback);listeners.set(name,list);return ()=>list.delete(callback);},
   trigger(name,...args){calls.push([name,...args]);for(const callback of listeners.get(name)??[])callback(...args);},calls,
   get count(){return [...listeners.values()].reduce((sum,list)=>sum+list.size,0);}
 };}
 function host(saved={}){
+  const indexed=indexedCampaigns(registry);
+  indexed.files.get(indexed.index.a).metadata.campaignType='full';
+  indexed.files.get(indexed.index.b).metadata.campaignType='miniseries';
   class Component{
     constructor(){this.disposers=[];this.children=new Set();}
     register(dispose){this.disposers.push(dispose);}
@@ -49,8 +51,30 @@ function host(saved={}){
   const dates=new module.exports.ObsidianDateService(app);dates.onload();dates.subscribe(()=>{renders++;});
   const feature=new module.exports.CalendarFeature(plugin);feature.onload();
   const dispose=()=>{feature.unload();dates.unload();};
-  return {feature,plugin,dates,dispose,globals,files,cache,vault,workspace,commands,views,settings,get saves(){return saves;},get renders(){return renders;},get ribbons(){return ribbons;},get reads(){return reads;},get closed(){return closed;}};
+  return {feature,plugin,dates,dispose,globals,files,indexed,cache,vault,workspace,commands,views,settings,get saves(){return saves;},get renders(){return renders;},get ribbons(){return ribbons;},get reads(){return reads;},get closed(){return closed;}};
 }
+
+test('calendar main-campaign flags follow index type and main-only continuity without restricting date settings',async()=>{
+  const h=host();
+  try{
+    await h.feature.ready;
+    const index=h.indexed.files.get(h.indexed.index.a);
+    for(const [campaignType,continuity,expected] of [
+      ['full',['main'],true],['full','main',true],['miniseries',['main'],false],
+      ['oneshot',['main'],false],[undefined,['main'],false],['unknown',['main'],false],
+      ['full',['taelgar-2'],false],['full',['main','taelgar-2'],false],['full',[],false],['full',undefined,false],
+    ]){
+      Object.assign(index.metadata,{campaignType,continuity,canon:'selective'});
+      await h.feature.refresh();
+      const data=await h.feature.data();
+      assert.equal(data.campaigns.find(c=>c.id==='a').mainCampaign,expected,JSON.stringify({campaignType,continuity}));
+      assert.equal(data.campaigns.length,2);assert.equal(data.context.id,'a');
+      assert.equal(h.globals.TaelgarverseCalendar.getCurrentDate(),'1748-07-23');
+    }
+    index.metadata.continuity=['main'];h.cache.trigger('changed',index);await pause(230);await h.feature.ready;
+    assert.equal((await h.feature.data()).campaigns.find(c=>c.id==='a').mainCampaign,true);
+  }finally{h.dispose();}
+});
 
 test('regular campaign setting supplies query dates and all campaign dots without event-body reads',async()=>{
   const h=host();try{
@@ -105,11 +129,11 @@ test('turning off during an asynchronous load cannot publish the calendar API af
   const h=host({calendarEnabled:false});let release;
   try{
     const previous={getCurrentDate:()=> '1700-01-01'};h.globals.TaelgarverseCalendar=previous;
-    h.plugin.app.vault.adapter.read=()=>new Promise(resolve=>{release=()=>resolve(JSON.stringify(indexed.index));});
+    h.plugin.app.vault.adapter.read=()=>new Promise(resolve=>{release=()=>resolve(JSON.stringify(h.indexed.index));});
     const enabling=h.feature.setEnabled(true);await pause(0);
     await h.feature.setEnabled(false);release();await enabling;
     assert.equal(h.globals.TaelgarverseCalendar,previous);assert.equal(h.ribbons,0);assert.equal(h.feature.state,null);
-    h.plugin.app.vault.adapter.read=async()=>JSON.stringify(indexed.index);
+    h.plugin.app.vault.adapter.read=async()=>JSON.stringify(h.indexed.index);
     await h.feature.setEnabled(true);assert.notEqual(h.globals.TaelgarverseCalendar,previous);
     await h.feature.setEnabled(false);assert.equal(h.globals.TaelgarverseCalendar,previous);
   }finally{h.dispose();}

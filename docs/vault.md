@@ -549,8 +549,19 @@ play date, session number, DR date, and source path; use the latest session's fu
 private/generated folders, Worldbuilding, and `.nopublish` folders are excluded
 before selecting sessions, as in the website's source store. A latest session
 without a usable date makes its campaign unavailable; the calendar does not
-silently pick an older session. Unavailable campaigns stay in the legend without
-a dot. **Latest campaign date** uses the latest dated campaign, falling back to
+silently pick an older session. By default, the legend and date dots show only
+campaigns whose index has `campaignType: full`, whose `continuity` is `main`
+(or `[main]`), and whose latest session supplies a usable date. Campaign types
+are `full`, `miniseries`, and `oneshot`; a missing or other type is hidden from
+this default view. This filter is independent of `canon`.
+
+Check **Show all campaigns** above the legend to include every registered
+campaign, including other continuities and unavailable dates. Unavailable
+campaign cards are disabled and have no dot. The checkbox applies only to the
+open view, survives month browsing and metadata refreshes, and starts unchecked
+when a new view opens. It never changes the active campaign, date settings, or
+query-date API. An active Custom date retains its own card and dot in both views.
+**Latest campaign date** uses the latest dated campaign, falling back to
 DR 1750-01-01 when none exists. Update session metadata to advance a named
 campaign's date; the calendar does not edit notes.
 

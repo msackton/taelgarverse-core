@@ -3,6 +3,7 @@
 .taelgar-calendar .tc-header{display:flex;align-items:start;justify-content:space-between;gap:16px;margin-bottom:18px}.taelgar-calendar .tc-current{margin:0;color:var(--tc-muted);font-size:.9em}
 .taelgar-calendar .tc-navigation{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:16px}.taelgar-calendar .tc-year{width:6em}.taelgar-calendar .tc-navigation select{min-width:8em}
 .taelgar-calendar .tc-campaigns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px}
+.taelgar-calendar .tc-campaign-filter{display:flex;align-items:center;gap:6px;width:fit-content;margin-bottom:12px;font-size:.85em;color:var(--tc-muted);cursor:pointer}
 .taelgar-calendar button.tc-campaign{display:flex;align-items:center;gap:9px;height:auto;padding:6px 10px;text-align:left;background:transparent;box-shadow:none;border:1px solid var(--tc-border);color:inherit}
 .taelgar-calendar button.tc-campaign.is-active{border-color:var(--interactive-accent,#5e8a7c)}.taelgar-calendar button.tc-campaign:disabled{opacity:.55}
 .taelgar-calendar .tc-campaign-name,.taelgar-calendar .tc-campaign-date{display:block;line-height:1.5}.taelgar-calendar .tc-campaign-name{font-size:.85em}.taelgar-calendar .tc-campaign-date{font-size:.75em;color:var(--tc-muted)}

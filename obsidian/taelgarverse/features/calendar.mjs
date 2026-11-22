@@ -111,7 +111,11 @@ export class CalendarFeature extends Component {
     if(this.disposed)throw new Error('Calendar unloaded');
     if(!this.enabled)throw new Error('Calendar disabled');
     if(!this.state?.contexts)throw new Error(this.state?.error??'No campaign registry in this vault');
-    return {context:this.api.getContext(),campaigns:this.api.getCampaignDates(),error:this.state.error};
+    const campaigns=this.api.getCampaignDates().map(context=>{
+      const campaign=this.state.registry.campaigns[context.id];
+      return {...context,mainCampaign:campaign?.campaignType==='full' && campaign.mainContinuity===true};
+    });
+    return {context:this.api.getContext(),campaigns,error:this.state.error};
   }
   async open(){
     if(!this.enabled || this.disposed)return;

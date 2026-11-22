@@ -5,12 +5,38 @@ import {mountCampaignCalendar} from '../src/browser/campaign-calendar.mjs';
 import {imageDOM} from './helpers/image-dom.mjs';
 
 const campaigns=[
-  {id:'alpha',label:'Alpha',date:'1748-07-23',available:true,source:'Campaigns/A/Session.md'},
-  {id:'beta',label:'Beta',date:'1748-07-23',available:true,source:'Campaigns/B/Session.md'},
-  {id:'old',label:'Old campaign',date:'1715-05-02',available:true,source:'Campaigns/Old/Session.md'},
+  {id:'alpha',label:'Alpha',date:'1748-07-23',available:true,mainCampaign:true,source:'Campaigns/A/Session.md'},
+  {id:'beta',label:'Beta',date:'1748-07-23',available:true,mainCampaign:true,source:'Campaigns/B/Session.md'},
+  {id:'old',label:'Old campaign',date:'1715-05-02',available:true,mainCampaign:true,source:'Campaigns/Old/Session.md'},
   {id:'undated',label:'Undated',date:null,available:false,unavailableReason:'No published session date'},
 ];
 const data={context:campaigns[0],campaigns};
+
+test('Show all campaigns switches cards and dots locally and survives refreshes and month browsing',async()=>{
+  const h=imageDOM(),root=h.document.createElement('div');h.document.body.append(root);let reads=0;
+  const side={id:'side',label:'Side adventure',date:'1748-07-23',available:true,mainCampaign:false};
+  let value={context:side,campaigns:[...campaigns.map(c=>c.id==='undated'?{...c,mainCampaign:true}:c),side]};
+  const calendar=mountCampaignCalendar(root,{initialDate:side.date,loadCalendar:async()=>{reads++;return value;}});
+  try{
+    await calendar.ready;
+    const checkbox=root.querySelector('input[type="checkbox"]');
+    assert.equal(checkbox.checked,false);assert.match(checkbox.parentElement.textContent,/Show all campaigns/);
+    assert.equal(root.querySelectorAll('.tc-campaign').length,3);
+    assert.equal(root.querySelectorAll('.tc-date-dots .tc-campaign-dot').length,2);
+    checkbox.checked=true;h.event(checkbox,'change');
+    assert.equal(root.querySelectorAll('.tc-campaign').length,5);
+    assert.equal(root.querySelectorAll('.tc-date-dots .tc-campaign-dot').length,3);
+    assert.equal(root.querySelector('.tc-campaign[data-calendar-campaign="undated"]').disabled,true);
+    assert.match(root.querySelector('.tc-current').textContent,/Side adventure/);assert.equal(reads,1);
+    h.click(root.querySelector('[data-calendar-action="next"]'));assert.equal(checkbox.checked,true);
+    value={...value,campaigns:value.campaigns.filter(c=>c.id!=='old')};await calendar.refresh();
+    assert.equal(root.querySelectorAll('.tc-campaign').length,4);assert.equal(checkbox.checked,true);
+    checkbox.checked=false;h.event(checkbox,'change');
+    assert.equal(root.querySelectorAll('.tc-campaign').length,2);
+    assert.equal(root.querySelector('.tc-campaign[data-calendar-campaign="side"]'),null);
+    assert.match(root.querySelector('.tc-current').textContent,/Side adventure/);assert.equal(reads,2);
+  }finally{calendar.dispose();}
+});
 
 test('minimal calendar shows one moon per day and separate campaign dots; browsing never selects a campaign or rereads notes',async()=>{
   const h=imageDOM(),root=h.document.createElement('div');h.document.body.append(root);let reads=0;
@@ -18,10 +44,10 @@ test('minimal calendar shows one moon per day and separate campaign dots; browsi
   try{
     await calendar.ready;
     assert.equal(root.querySelectorAll('.tc-weekdays th').length,7);assert.equal(root.querySelectorAll('.tc-moon-icon').length,31);
-    assert.equal(root.querySelectorAll('.tc-campaign').length,4);
+    assert.equal(root.querySelectorAll('.tc-campaign').length,3);
     const dots=root.querySelectorAll('[data-calendar-date="1748-07-23"] .tc-date-dots .tc-campaign-dot');
     assert.equal(dots.length,2);assert.match(dots[0].getAttribute('aria-label'),/Alpha/);assert.match(dots[1].getAttribute('aria-label'),/Beta/);
-    assert.equal(root.querySelector('.tc-campaign[data-calendar-campaign="undated"]').disabled,true);
+    assert.equal(root.querySelector('.tc-campaign[data-calendar-campaign="undated"]'),null);
     assert.equal(root.querySelector('.tc-agenda'),null);assert.equal(root.querySelector('.tc-layers'),null);
     h.click(root.querySelector('.tc-campaign[data-calendar-campaign="old"]'));
     assert.deepEqual(calendar.state,{year:1715,month:5});assert.equal(root.querySelectorAll('.tc-date-dots .tc-campaign-dot').length,1);
@@ -39,7 +65,7 @@ test('a custom current date has its own dot without changing registered campaign
   const calendar=mountCampaignCalendar(root,{initialDate:value.context.date,loadCalendar:async()=>value});
   try{
     await calendar.ready;
-    assert.equal(root.querySelectorAll('.tc-campaign').length,5);
+    assert.equal(root.querySelectorAll('.tc-campaign').length,4);
     assert.match(root.querySelector('[data-calendar-date="1748-07-24"] .tc-campaign-dot').title,/Custom/);
     assert.equal(root.querySelectorAll('[data-calendar-date="1748-07-23"] .tc-date-dots .tc-campaign-dot').length,2);
     h.click(root.querySelector('[data-calendar-action="previous"]'));

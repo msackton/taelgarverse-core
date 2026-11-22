@@ -81,7 +81,15 @@ Current dates use the website's latest-session resolver. The selected campaign
 supplies native headers, `taelgar-index` blocks, interactions, and the local
 CustomJS date hook; Fantasy Calendar and Calendarium are not required. Explicit
 test overrides and `pageTargetDate` still take precedence. To advance a named
-campaign's date, update its session metadata. Missing dates appear as unavailable.
+campaign's date, update its session metadata.
+
+The calendar defaults to full campaigns with live dates in the main continuity.
+Set `campaignType: full`, `miniseries`, or `oneshot` in each registered campaign
+index. Only `full` with `continuity: [main]` (or `main`) and a usable latest-session
+date appears by default. Check **Show all campaigns** to see every registered
+game, including disabled cards for unavailable dates. This checkbox changes only
+the open view and starts unchecked in a new view; active-campaign settings and
+query dates remain available for all campaigns.
 
 To set a date manually, choose **Custom** as the active campaign, enter a DR date
 as **YYYY-MM-DD** in **Custom date**, and click **Set date**. Custom starts at the

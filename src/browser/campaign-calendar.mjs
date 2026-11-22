@@ -23,6 +23,9 @@ export function mountCampaignCalendar(root,{loadCalendar,initialDate}) {
   drMonthNames.forEach((name,index)=>{const option=el('option','',name,month);option.value=String(index+1);});
   const year=el('input','tc-year',null,navigation);year.type='number';year.min='1';year.max='9999';year.setAttribute('aria-label','DR year');year.dataset.calendarField='year';
   el('span','','DR',navigation);button('→','next',navigation).setAttribute('aria-label','Next month');const today=button('Active campaign date','today',navigation);
+  const filter=el('label','tc-campaign-filter',null,root),showAll=el('input','',null,filter);
+  showAll.type='checkbox';showAll.checked=false;showAll.dataset.calendarField='show-all-campaigns';
+  el('span','','Show all campaigns',filter);
   const legend=el('div','tc-campaigns',null,root);legend.setAttribute('aria-label','Campaign current dates');
   const status=el('p','tc-status','Loading campaign dates…',root);status.setAttribute('aria-live','polite');
   const grid=el('table','tc-grid',null,root);
@@ -43,7 +46,8 @@ export function mountCampaignCalendar(root,{loadCalendar,initialDate}) {
   function render() {
     if(!data || disposed)return;
     const model=calendarMonth(state.year,state.month);
-    const campaigns=data.context?.kind==='custom'?[...data.campaigns,data.context]:data.campaigns;
+    const visible=data.campaigns.filter(campaign=>showAll.checked || campaign.mainCampaign && campaign.available);
+    const campaigns=data.context?.kind==='custom'?[...visible,data.context]:visible;
     for(const option of month.options)option.selected=option.value===String(state.month);year.value=String(state.year);
     current.textContent=data.context?'Active: '+data.context.label+' · '+data.context.date+' DR':'Choose an active campaign in settings';today.disabled=!data.context;
     status.textContent=data.error??'';status.hidden=!data.error;
