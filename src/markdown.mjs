@@ -10,6 +10,9 @@ import {IMAGE_TYPES, AUDIO_TYPES, availableInContext} from './content-store.mjs'
 import {decorateDMNotes} from './dm.mjs';
 import {renderMap} from './maps.mjs';
 import {renderIndexBlock} from './website-indexes.mjs';
+import {campaignFences,parseCampaignBlock} from './campaign-blocks.mjs';
+import {campaignForBlock} from './campaign-source.mjs';
+import {renderCampaignView} from './campaign-view.mjs';
 
 import {icons} from './icons.mjs';
 const aliases = {summary:'abstract',tldr:'abstract',hint:'tip',important:'tip',check:'success',done:'success',
@@ -17,15 +20,52 @@ const aliases = {summary:'abstract',tldr:'abstract',hint:'tip',important:'tip',c
 export const anchorId = value => value.trim().toLowerCase().replace(/[^\p{L}\p{N}_\s-]/gu, '').replace(/\s+/g, '-');
 export const fragmentId = value => value.startsWith('^') ? value.slice(1) : anchorId(value);
 
-function wikiTarget(env, target) {
+function exactTarget(store,path) {
+  const matches=store.canonical.get(path) || store.canonical.get(path+'.md');
+  return matches?.size===1 ? {status:'found',entry:[...matches][0]} : {status:matches ? 'ambiguous' : 'missing'};
+}
+
+function wikiTarget(env, target, strictPath=false) {
   if (!target) return {status:'heading',entry:env.entry};
   // Explicit relative paths belong to the authoring note, including inside embeds.
   if (/^\.\.?\//.test(target)) {
     const relative = path.posix.normalize(path.posix.join(path.posix.dirname(env.entry.id),target));
-    const matches = env.store.canonical.get(relative) || env.store.canonical.get(relative + '.md');
-    return matches?.size === 1 ? {status:'found',entry:[...matches][0]} : {status:matches ? 'ambiguous' : 'missing'};
+    return exactTarget(env.store,relative);
   }
+  if(strictPath && target.includes('/')) return exactTarget(env.store,target);
   return env.store.lookup(target);
+}
+
+function campaignLink(env,indexPath,target,label) {
+  const text=escapeHtml(label);
+  if(/^https?:\/\//i.test(target)) return '<a href="'+escapeHtml(target)+'">'+text+'</a>';
+  if(/^[a-z][a-z\d+.-]*:|^\/\//i.test(target)) return text;
+  const [file,fragment]=target.split('#',2);
+  let decoded=file;
+  try { decoded=decodeURIComponent(file); } catch { /* Keep a literal percent in a filename. */ }
+  const entry=wikiTarget({...env,entry:{id:indexPath}},decoded || indexPath,true).entry;
+  if(!entry?.note || !availableInContext(entry,env.context || {date:env.date,campaigns:[]})) return text;
+  const href=pageUrl(entry.slug,env.date,env.context)+(fragment ? '#'+fragmentId(fragment) : '');
+  return '<a href="'+escapeHtml(href)+'">'+text+'</a>';
+}
+
+function renderCampaignFence(type,source,env) {
+  try {
+    const options=parseCampaignBlock(type,source);
+    if(!env.campaignSource) throw new Error('Campaign records are unavailable in this publication.');
+    const campaign=campaignForBlock(env.campaignSource.indexes,env.entry.id,options);
+    const loading=env.noteLoading;
+    if(!loading) throw new Error('Campaign records are unavailable in this view.');
+    const loaded=loading.campaigns.get(campaign);
+    if(!loaded) {
+      loading.pendingCampaigns.add(campaign);
+      return '';
+    }
+    if(loaded.error!==undefined) throw new Error(loaded.error);
+    return renderCampaignView(type,loaded.record,options,(target,label)=>campaignLink(env,loaded.record.indexPath,target,label));
+  } catch(error) {
+    return '<p role="status">'+escapeHtml(campaignFences[type]+': '+error.message)+'</p>';
+  }
 }
 
 function calloutClass(value) {
@@ -170,6 +210,8 @@ export function createMarkdown(options = {}) {
     // empty Obsidian placement block must not add a visible code frame there.
     if (type==='taelgar-interactions' && !tokens[index].content.trim()) return '';
     if (/^taelgar-index(?:\s|$)/i.test(type)) return renderIndexBlock(tokens[index].content,env);
+    if(type===campaignFences.roster) return renderCampaignFence('roster',tokens[index].content,env);
+    if(type===campaignFences.sessions) return renderCampaignFence('sessions',tokens[index].content,env);
     if (/^mermaid(?:\s|$)/i.test(type)) {
       const query = contextQuery(env.context || {kind:'custom',date:env.date});
       query.set('source',env.entry.id);
@@ -296,7 +338,8 @@ export function renderMarkdown(md, source, env) {
     (h.children.length ? list(h.children) : '') + '</li>').join('') + '</ul>';
   const toc = outline.length ? '<div class="toc">' + list(outline) + '</div>' : '';
   const popups = decorateDMNotes($,env.dmNotes,text => renderMarkdown(env.notesMarkdown,text,{
-    store:env.store, entry:env.entry, date:env.date, context:env.context, warnings:env.warnings, pageLinks:env.pageLinks, noteEmbeds:env.noteEmbeds,
+    store:env.store, entry:env.entry, date:env.date, context:env.context, warnings:env.warnings, pageLinks:env.pageLinks,
+    noteEmbeds:env.noteEmbeds,noteLoading:env.noteLoading,campaignSource:env.campaignSource,
   }).html);
   if (popups) $.root().append(popups);
   return {html: $.html(), toc};

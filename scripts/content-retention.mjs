@@ -6,21 +6,27 @@ import {createCloudflareClient,searchCredentials} from './cloudflare-client.mjs'
 import {validateSearchDescriptor} from './search-index.mjs';
 import {DERIVATIVE_MANIFEST_KEY,manifestRecords} from './derivative-cache.mjs';
 import {withPublicationProgress} from './publication-progress.mjs';
-import {validRuntimeDescriptor,runtimeHash,supportedRuntimeVersion} from '../src/runtime-format.mjs';
+import {validRuntimeDescriptor,runtimeFilePattern,runtimeHash,supportedRuntimeVersion} from '../src/runtime-format.mjs';
+import {campaignSnapshotEntries} from '../src/snapshot-campaigns.mjs';
 import {syncPublicationHosts} from './hostname-firewall.mjs';
 
 export const POINTER_KEY='published/current.json';
 const revisionPattern=/^[a-f0-9]{64}$/;
 const assetPattern=/^assets\/[a-f0-9]{64}$/;
-const snapshotPattern=/^revisions\/([a-f0-9]{64})\/(?:index\.json|runtime\.json|notes\/[a-f0-9]{2}\.json|runtime\/(?:render|navigation|headers|backlinks|search-metadata|maps|assets\/[a-f0-9]{2}|(?:notes|backlinks)\/[0-9]{4,})\.json)$/;
+const revisionObjectPattern=/^revisions\/([a-f0-9]{64})\/(.+)$/;
+const legacyFilePattern=/^(?:index\.json|runtime\.json|notes\/[a-f0-9]{2}\.json)$/;
 // Retired objects are sweep candidates even inside active/previous revisions.
 const retiredTranscriptPattern=/^revisions\/[a-f0-9]{64}\/transcripts\/[a-f0-9]{2}\.json$/;
 
+function snapshotRevision(key) {
+  const match=typeof key==='string' ? key.match(revisionObjectPattern) : null;
+  if(match && (legacyFilePattern.test(match[2]) || runtimeFilePattern.test(match[2]))) return match[1];
+}
+
 export function validatePublicationUploads(revision,uploads){
-  if(!revisionPattern.test(revision || '') || !Array.isArray(uploads) || !uploads.length || uploads.some(item=>{
-    const match=typeof item?.key==='string'?item.key.match(snapshotPattern):null;
-    return !assetPattern.test(item?.key || '') && (!match || match[1]!==revision);
-  }))throw new Error('Upload manifest contains unexpected object keys; use only this snapshot and content-addressed assets');
+  if(!revisionPattern.test(revision || '') || !Array.isArray(uploads) || !uploads.length ||
+    uploads.some(item=>!assetPattern.test(item?.key || '') && snapshotRevision(item?.key)!==revision))
+    throw new Error('Upload manifest contains unexpected object keys; use only this snapshot and content-addressed assets');
   return uploads;
 }
 
@@ -99,7 +105,7 @@ export async function createRetentionStorage(config,{local=false,persistTo=path.
     async putPointer(pointer){validatePointer(pointer);await storage.ensureHosts(pointer);const response=await request('/'+POINTER_KEY,'PUT',JSON.stringify(pointer)+'\n');await response.body?.cancel();},
     async putDerivativeManifest(manifest){const response=await request('/'+DERIVATIVE_MANIFEST_KEY,'PUT',JSON.stringify({schemaVersion:1,records:manifestRecords(manifest)}));await response.body?.cancel();},
     async putFile(key,file){
-      if(!assetPattern.test(key) && !snapshotPattern.test(key))throw new Error('Invalid immutable upload key');
+      if(!assetPattern.test(key) && !snapshotRevision(key))throw new Error('Invalid immutable upload key');
       const {size}=await fs.stat(file);
       if(size>300000000)throw new Error('R2 REST uploads are limited to 300 MB per object: '+key);
       const response=await client.request(base+'/'+key.split('/').map(encodeURIComponent).join('/'),()=>({
@@ -148,7 +154,7 @@ export async function prunePublication(storage,index,pointer,{log=()=>{},dryRun=
     const retained=[pointer,...(pointer.previous?[pointer.previous]:[])],keep=new Set();
     progress(`Retention: verifying ${retained.length} retained snapshot(s).`);
     for(const snapshot of retained){
-      const key=`revisions/${snapshot.revision}/index.json`,content=await storage.getJSON(key);
+      const prefix=`revisions/${snapshot.revision}/`,key=prefix+'index.json',content=await storage.getJSON(key);
       if(content?.schemaVersion!==1 || content.revision!==snapshot.revision || !Array.isArray(content.entries))throw new Error('Retained R2 snapshot is missing or invalid; cleanup stopped');
       keep.add(key);
       for(const entry of content.entries){
@@ -160,13 +166,18 @@ export async function prunePublication(storage,index,pointer,{log=()=>{},dryRun=
           keep.add(entry.objectKey);
         }
       }
+      for(const [,descriptor] of campaignSnapshotEntries(content.campaignRecords)) {
+        if(descriptor.file) keep.add(prefix+descriptor.file);
+      }
       if(content.runtime){
-        const prefix=`revisions/${snapshot.revision}/`,manifest=await storage.getJSON(prefix+'runtime.json');
+        const manifest=await storage.getJSON(prefix+'runtime.json');
         if(!supportedRuntimeVersion(manifest?.version) || manifest.revision!==snapshot.revision || !manifest.parts || !manifest.assets)throw new Error('Retained runtime manifest is missing or invalid; cleanup stopped');
         const descriptors=[...Object.values(manifest.parts),...Object.values(manifest.assets)];
         if(descriptors.some(value=>!validRuntimeDescriptor(value)) || !validRuntimeDescriptor(manifest.parts.render))throw new Error('Invalid retained runtime descriptor');
         const render=await storage.getJSON(prefix+manifest.parts.render.file);
         if(!render || runtimeHash(JSON.stringify(render))!==manifest.parts.render.sha256 || !Array.isArray(render.entries))throw new Error('Retained runtime render index is missing or invalid');
+        if(JSON.stringify(render.campaignRecords)!==JSON.stringify(content.campaignRecords))
+          throw new Error('Retained campaign records do not match the runtime render index');
         if(manifest.version===1){
           for(const entry of render.entries)if(entry.note)descriptors.push(entry.note.prepared);
         }else{
@@ -194,7 +205,10 @@ export async function prunePublication(storage,index,pointer,{log=()=>{},dryRun=
     const present=new Set(objects.map(o=>o.key));
     for(const key of keep)if(!present.has(key))throw new Error('Retained R2 object is missing; cleanup stopped');
     const revisions=new Set(retained.map(s=>s.revision));
-    const removed=objects.filter(o=>{const match=o.key.match(snapshotPattern);return retiredTranscriptPattern.test(o.key) || (match?!revisions.has(match[1]):assetPattern.test(o.key) && !keep.has(o.key));});
+    const removed=objects.filter(o=>{
+      const revision=snapshotRevision(o.key);
+      return retiredTranscriptPattern.test(o.key) || (revision ? !revisions.has(revision) : assetPattern.test(o.key) && !keep.has(o.key));
+    });
     const result={retained:[...revisions],deletedObjects:removed.length,deletedBytes:removed.reduce((sum,o)=>sum+(o.size || 0),0)};
     await assertCurrent();
     if(dryRun)return {...result,dryRun:true};

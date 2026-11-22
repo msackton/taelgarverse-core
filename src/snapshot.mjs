@@ -6,6 +6,8 @@ import {createHeaderSnapshot} from './header-core/index.mjs';
 import {bucketText} from './runtime-io.mjs';
 import {loadSnapshotValue} from './snapshot-loads.mjs';
 import {compileMapSources} from './map-catalogue.mjs';
+import {snapshotCampaignSource} from './snapshot-campaigns.mjs';
+import {readSnapshotPart} from './snapshot-cache.mjs';
 
 export class SnapshotStore extends ContentStore {
   constructor(index,bucket,lookups,options={}) {
@@ -44,8 +46,11 @@ export async function loadSnapshot(bucket,revision,options={}) {
   if (index.homeSource != null && typeof index.homeSource !== 'string') throw new RenderError(503,'Homepage content must be Markdown text');
   const store=new SnapshotStore(index,bucket,undefined,options);
   const headers=createHeaderSnapshot({pages:store.entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta:index.coreMeta,registry:index.registry});
+  const campaignParts=new Map();
   const engine=new RenderEngine({settings:index.settings,store,headers,navigationSource:index.navigationSource,
-    homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null,interactionIndex:index.interactions});
+    homeSource:index.homeSource ?? null,campaignHomes:index.campaignHomes,backlinkIndex:index.backlinks || null,interactionIndex:index.interactions,
+    campaignSource:snapshotCampaignSource(index.campaignRecords,descriptor=>loadSnapshotValue(campaignParts,descriptor.file,
+      ()=>readSnapshotPart(bucket,revision,descriptor,options),16))});
   const mapSources=new Map();
   engine.loadMapSources=()=>loadSnapshotValue(mapSources,'maps',async()=>{
     const entries=store.entries.filter(entry=>entry.note),sources=[];

@@ -2,19 +2,19 @@ import {Component} from 'obsidian';
 import {createHeaderSnapshot} from '../../../src/header-core/index.mjs';
 import {Contexts} from '../../../src/contexts.mjs';
 
-import {readCampaignRegistry, registryPath} from './campaign-registry.mjs';
+import {readCampaignRegistrySource, registryPath} from './campaign-registry.mjs';
 
 export async function readObsidianSnapshot(app) {
-  const [coreMeta,registry] = await Promise.all([
+  const [coreMeta,{registry,index}] = await Promise.all([
     app.vault.adapter.read((app.vault.configDir || '.obsidian') + '/metadata.json').then(JSON.parse),
-    readCampaignRegistry(app),
+    readCampaignRegistrySource(app),
   ]);
   const pages = app.vault.getMarkdownFiles().map(file => ({path:file.path,metadata:app.metadataCache.getFileCache(file)?.frontmatter || {}}));
   const runtime = createHeaderSnapshot({pages,coreMeta,registry},{
     resolveLink:target=>app.metadataCache.getFirstLinkpathDest(target,app.vault.getRoot().path)?.path,
   });
   const fallback = new Contexts({entries:pages.map(page=>({id:page.path,note:{metadata:page.metadata}}))},registry,{default_date:'1750-01-01'}).resolve().date;
-  return {runtime,fallback};
+  return {runtime,fallback,campaignIndex:index,campaignRegistry:registry};
 }
 
 // Plugin-owned metadata cache. Rendering features only subscribe and consume.

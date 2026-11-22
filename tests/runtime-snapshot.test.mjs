@@ -380,7 +380,7 @@ test('retention validates every compiled dependency before cleanup',async()=>{
     list:async prefix=>[...bucket.objects].filter(([key])=>key.startsWith(prefix)).map(([key,value])=>({key,size:Buffer.byteLength(value)}))};
   const search={verify:async()=>{}};
   assert.equal((await prunePublication(storage,search,pointer,{dryRun:true})).deletedObjects,0);
-  for(const folder of ['notes','backlinks']){
+  for(const folder of ['notes','backlinks','campaigns']){
     const key=[...bucket.objects.keys()].find(key=>key.includes('/runtime/'+folder+'/')),value=bucket.objects.get(key);
     assert.ok(key,folder);bucket.objects.delete(key);
     await assert.rejects(prunePublication(storage,search,pointer,{dryRun:true}),/missing/);

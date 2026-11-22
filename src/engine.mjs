@@ -1,4 +1,5 @@
-import {readVaultCampaigns} from './vault-campaigns.mjs';
+import {readVaultCampaignRegistry} from './vault-campaigns.mjs';
+import {readVaultCampaignSource} from './vault-campaign-records.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import {Store} from './store.mjs';
@@ -14,7 +15,7 @@ export {document} from './render-engine.mjs';
 export class Engine extends RenderEngine {
   constructor(settings) {
     const store = new Store(settings);
-    const registry=readVaultCampaigns(settings.vault_dir);
+    const {indexes,registry}=readVaultCampaignRegistry(settings.vault_dir);
     const interactions=readInteractionBundles(settings,registry);
     store.warnings.push(...interactions.warnings);
     const headers = createHeaderSnapshot({
@@ -25,7 +26,8 @@ export class Engine extends RenderEngine {
     super({settings,store,headers,
       navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,
       homeSource:settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null,
-      campaignHomes:readCampaignHomes(settings),interactionBundles:interactions.bundles});
+      campaignHomes:readCampaignHomes(settings),interactionBundles:interactions.bundles,
+      campaignSource:readVaultCampaignSource(settings.vault_dir,{indexes,registry})});
     this.releases = {core:repositoryVersion(ROOT),content:repositoryVersion(settings.vault_dir),local:true};
   }
   search(input,context){this.localSearch ??= new LocalSearch(this.store);return this.localSearch.search(input,context);}

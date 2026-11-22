@@ -31,3 +31,9 @@ export function bundleArtifactIdentity(bundles, artifactPath) {
   const parts = artifactPath.split('/');
   return parts.at(-2) === 'cleaned' ? bundles.identify(parts.slice(0, -2).join('/')) : null;
 }
+
+export function sessionBundleManifest(files) {
+  const manifests=files.filter(name=>name.endsWith('-session.yaml'));
+  if(manifests.length>1) throw new Error('Multiple session manifests: '+manifests.join(', '));
+  return manifests[0];
+}

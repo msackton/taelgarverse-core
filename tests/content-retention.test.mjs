@@ -5,10 +5,13 @@ import {publishContent} from '../scripts/publish-content.mjs';
 
 const rev=letter=>letter.repeat(64),asset=letter=>'assets/'+rev(letter),key=letter=>`revisions/${rev(letter)}/index.json`;
 test('every publication path restricts uploads to immutable keys from its own revision',()=>{
-  assert.doesNotThrow(()=>validatePublicationUploads(rev('a'),[{key:key('a')},{key:asset('b')} ]));
+  assert.doesNotThrow(()=>validatePublicationUploads(rev('a'),[
+    {key:key('a')},{key:asset('b')},{key:`revisions/${rev('a')}/runtime/campaigns/elderwood.json`},
+  ]));
   for(const uploads of [[],null,[null],[{key:POINTER_KEY}],[{key:key('b')}],[{key:'revisions/'+rev('a')+'/../index.json'}]])assert.throws(()=>validatePublicationUploads(rev('a'),uploads),/unexpected object keys/);
   assert.throws(()=>validatePublicationUploads('.*',[{key:key('a')}]),/unexpected object keys/);
   for(const suffix of ['01.json','../01.json','zz.json','01/extra.json'])assert.throws(()=>validatePublicationUploads(rev('a'),[{key:`revisions/${rev('a')}/transcripts/${suffix}`}]),/unexpected object keys/);
+  assert.throws(()=>validatePublicationUploads(rev('a'),[{key:`revisions/${rev('a')}/runtime/campaigns/../render.json`}]),/unexpected object keys/);
 });
 test('only successful distinct activations rotate the one rollback snapshot; same revision and rollback preserve it',()=>{
   const a={revision:rev('a')},b=activationPointer(a,{revision:rev('b')});

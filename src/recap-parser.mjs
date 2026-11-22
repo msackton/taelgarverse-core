@@ -9,10 +9,14 @@ function dates(value) {
   const match=/^(\d{4}-\d{2}-\d{2})(?:\s+(?:to|->|–)\s+(\d{4}-\d{2}-\d{2}))?\s*$/.exec(value || '');
   return {date:match?.[1] || null,end:match?.[2] || null};
 }
-export function parseSessionRecap(text, key, identity) {
+export function sessionRecapHeader(text) {
   text=text.replace(/\r\n?/g,'\n');
   if (!/^## Session Header[ \t]*$/m.test(text)) throw new Error('Recap has no Session Header');
-  const header=fields(section(text,'## Session Header'));
+  return fields(section(text,'## Session Header'));
+}
+export function parseSessionRecap(text, key, identity) {
+  text=text.replace(/\r\n?/g,'\n');
+  const header=sessionRecapHeader(text);
   const cast=section(text,'## Cast').split(/^### NPCs\s*$/m)[1]?.split(/^### /m)[0] || '';
   const metPeople=[...cast.matchAll(/^-\s+(.+?)\s+\(([^)]+)\)\s*:/gm)]
     .filter(match=>match[2].split(',').some(status=>status.trim().toLowerCase()==='met')).map(match=>match[1].trim());
