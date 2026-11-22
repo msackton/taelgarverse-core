@@ -18,7 +18,9 @@ Successful conversion, regeneration and Add remove the obsolete top-level
 notes keep all frontmatter unchanged.
 
 The installed `header-tool.cjs` offers the same source rewrite for a single file
-or all eligible Markdown, outside Obsidian and without a core checkout. It
+(`--file`), a directory and its subdirectories (`--dir`), or all eligible Markdown
+(`--all`), outside Obsidian and without a core checkout. Directory paths are
+vault-relative and use the same infrastructure exclusions as `--all`. It
 previews by default with one status line per file; `--report FILE.json` saves
 the detailed JSON separately. `--errors` shows only problems, and `--check`
 performs a read-only exit-code check (0 current, 1 changes/problems). `--add`

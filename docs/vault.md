@@ -306,8 +306,11 @@ when writing a saved summary, and location chains are not expanded.
 
 The plugin also installs a self-contained `header-tool.cjs` in its own directory.
 See [standalone and bulk commands](deploy.md#saved-header-commands) for use outside
-Obsidian. Bulk conversion previews changes by default and is a separate operation
-from content publication.
+Obsidian. Select one note with `--file`, a recursive vault-relative directory
+with `--dir`, or the whole vault with `--all`. Both directory modes exclude dot
+directories, `node_modules`, `_scripts` and `_sessions`, and skip symlinks;
+`--dir` cannot select an excluded directory or leave the vault. Bulk conversion
+previews changes by default and is a separate operation from content publication.
 
 ## Generated indexes
 

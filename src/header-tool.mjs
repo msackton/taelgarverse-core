@@ -5,11 +5,15 @@ import {headerSourceEligibility,rewriteHeader} from './header-rewrite.mjs';
 
 export const headerToolUsage=`Taelgarverse header tool
   node header-tool.cjs --file "People/Fausto.md" [--add] [--write]
+  node header-tool.cjs --dir "People" [--add] [--write] [--report FILE]
   node header-tool.cjs --all [--add] [--write] [--report FILE]
   --vault PATH overrides the vault inferred from the installed plugin directory.
   Without --write, show a preview and change no notes.
   Successful header writes remove obsolete headerVersion; other frontmatter is preserved.
-  --all scans Markdown outside dot directories, node_modules, _scripts and _sessions.
+  Choose exactly one of --file, --dir or --all; file/directory paths are vault-relative.
+  --dir recursively scans one directory inside the vault (use . for the whole vault).
+  --dir and --all scan Markdown outside dot directories, node_modules, _scripts and _sessions.
+  Directory symlinks are not followed.
   Untagged notes and session-note/meta/background/source/story tags are skipped,
   including descendant tags, even with --add or an existing header.
   Stdout shows one status line per file and a summary, without header contents.
@@ -52,10 +56,10 @@ function parseArgs(args) {
   for(let i=0;i<args.length;i++) {
     const key=args[i];
     if(['--all','--add','--write','--help','--errors','--check'].includes(key))options[key.slice(2)]=true;
-    else if(['--vault','--file','--report'].includes(key) && args[i+1] && !args[i+1].startsWith('--'))options[key.slice(2)]=args[++i];
+    else if(['--vault','--file','--dir','--report'].includes(key) && args[i+1] && !args[i+1].startsWith('--'))options[key.slice(2)]=args[++i];
     else throw new Error('Unknown or incomplete option: '+key);
   }
-  if(!options.help && (!!options.file===!!options.all))throw new Error('Choose exactly one of --file or --all.');
+  if(!options.help && [options.file,options.dir,options.all].filter(Boolean).length!==1)throw new Error('Choose exactly one of --file, --dir or --all.');
   if(!options.help && options.check && options.write)throw new Error('--check is read-only and cannot be combined with --write.');
   return options;
 }
@@ -70,13 +74,30 @@ async function inferredVault(scriptPath) {
   return path.resolve(directory,'../../..');
 }
 
+const excludedDirectory=name=>name.startsWith('.') || ['node_modules','_scripts','_sessions'].includes(name);
+
+async function checkedDirectory(root,directory) {
+  const absolute=path.resolve(root,directory);
+  if(absolute!==root && !inside(root,absolute))throw new Error('The directory must be inside the vault.');
+  let current=root;
+  for(const name of path.relative(root,absolute).split(path.sep).filter(Boolean)) {
+    if(excludedDirectory(name))throw new Error('The directory cannot be inside dot directories, node_modules, _scripts or _sessions.');
+    current=path.join(current,name);
+    const stat=await fs.lstat(current);
+    if(stat.isSymbolicLink() || !stat.isDirectory())throw new Error('The directory must be a real directory, not a file or symlink.');
+  }
+  const real=await fs.realpath(absolute);
+  if(real!==root && !inside(root,real))throw new Error('The directory must be inside the vault.');
+  return absolute;
+}
+
 async function markdownFiles(root) {
   const files=[];
   async function visit(directory) {
     for(const entry of (await fs.readdir(directory,{withFileTypes:true})).sort((a,b)=>a.name.localeCompare(b.name))) {
       if(entry.isSymbolicLink() || entry.name.startsWith('.'))continue;
       const file=path.join(directory,entry.name);
-      if(entry.isDirectory() && !['node_modules','_scripts','_sessions'].includes(entry.name))await visit(file);
+      if(entry.isDirectory() && !excludedDirectory(entry.name))await visit(file);
       else if(entry.isFile() && /\.md$/i.test(entry.name))files.push(file);
     }
   }
@@ -104,7 +125,8 @@ export async function runHeaderTool(args,{cwd=process.cwd(),scriptPath=process.a
   const options=parseArgs(args);
   if(options.help)return {help:headerToolUsage};
   const root=await fs.realpath(options.vault?path.resolve(cwd,options.vault):await inferredVault(scriptPath));
-  const files=options.all?await markdownFiles(root):[await checkedFile(root,options.file)];
+  const files=options.file?[await checkedFile(root,options.file)]:
+    await markdownFiles(options.dir?await checkedDirectory(root,options.dir):root);
   const reportPath=options.report?path.resolve(cwd,options.report):null;
   if(reportPath) {
     if(path.extname(reportPath).toLowerCase()!=='.json')throw new Error('The report must use a .json filename.');

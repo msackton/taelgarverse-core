@@ -79,6 +79,67 @@ test('CLI previews, writes a specific note, supports --add and is idempotent',as
   assert.equal(report.files[0].kind,'added');assert.ok((await fs.readFile(file,'utf8')).endsWith('Opening paragraph.\n'));
 });
 
+test('--dir recursively previews and writes only eligible Markdown in the selected subtree',async t=>{
+  const root=await fixture(t),directory='People and Places',originals=new Map();
+  for(const [file,body] of Object.entries({
+    [directory+'/Fausto.md']:source,[directory+'/Nested/Other.MD']:source,
+    [directory+'/Ineligible.md']:'---\ntags: [source]\n---\n> [!taelgar-header]\n',
+    [directory+'/Unmarked.md']:'---\ntags: [person]\n---\nAuthored.\n',
+    [directory+'/asset.txt']:source,[directory+'/.hidden/Hidden.md']:source,
+    [directory+'/node_modules/Package.md']:source,[directory+'/_scripts/Script.md']:source,
+    [directory+'/_sessions/Session.md']:source,'Sibling/Keep.md':source,'Outside.md':source})) {
+    originals.set(file,body);await fs.mkdir(path.dirname(path.join(root,file)),{recursive:true});
+    await fs.writeFile(path.join(root,file),body);
+  }
+  let report=await runHeaderTool(['--vault',root,'--dir',directory,'--check']);
+  assert.deepEqual(report.files.map(file=>file.file),[directory+'/Fausto.md',directory+'/Ineligible.md',directory+'/Nested/Other.MD',directory+'/Unmarked.md']);
+  assert.equal(report.counts.changed,2);assert.equal(report.counts.skipped,2);assert.equal(report.written,0);
+  assert.equal(headerToolExitCode(report),1);
+  for(const [file,body] of originals)assert.equal(await fs.readFile(path.join(root,file),'utf8'),body);
+  const reportFile=path.join(root,'directory-preview.json');
+  report=await runHeaderTool(['--vault',root,'--dir',path.join(root,directory),'--write','--report',reportFile]);
+  assert.equal(report.written,2);assert.equal(JSON.parse(await fs.readFile(reportFile,'utf8')).written,2);
+  for(const [file,body] of originals)if(!report.files.some(result=>result.file===file && result.written))
+    assert.equal(await fs.readFile(path.join(root,file),'utf8'),body,'unselected and skipped files remain intact');
+  report=await runHeaderTool(['--vault',root,'--dir',directory,'--check','--errors']);
+  assert.equal(headerToolExitCode(report),0);assert.equal(formatHeaderToolStatus(report),'');
+  report=await runHeaderTool(['--vault',root,'--dir',directory,'--add','--write']);assert.equal(report.written,1);
+  assert.equal(report.files.find(file=>file.file.endsWith('/Unmarked.md')).kind,'added');
+  await fs.mkdir(path.join(root,'Empty'));
+  report=await runHeaderTool(['--vault',root,'--dir','Empty']);assert.equal(report.files.length,0);
+  const all=await runHeaderTool(['--vault',root,'--all']);
+  report=await runHeaderTool(['--vault',root,'--dir','.']);assert.deepEqual(report.files,all.files);
+});
+
+test('--dir requires exactly one selector and rejects missing, external, excluded, file and symlink paths',async t=>{
+  const root=await fixture(t),outside=await fixture(t);
+  await fs.mkdir(path.join(root,'People'));
+  await fs.writeFile(path.join(root,'People/Fausto.md'),source);
+  for(const args of [[],['--dir','People','--all'],['--dir','People','--file','People/Fausto.md'],['--file','People/Fausto.md','--all']])
+    await assert.rejects(runHeaderTool(['--vault',root,...args]),/Choose exactly one of --file, --dir or --all/);
+  await assert.rejects(runHeaderTool(['--vault',root,'--dir']),/incomplete option/);
+  await assert.rejects(runHeaderTool(['--vault',root,'--dir','Missing']),/ENOENT/);
+  await assert.rejects(runHeaderTool(['--vault',root,'--dir',outside]),/inside the vault/);
+  await assert.rejects(runHeaderTool(['--vault',root,'--dir','..']),/inside the vault/);
+  await assert.rejects(runHeaderTool(['--vault',root,'--dir','People/Fausto.md']),/real directory/);
+  for(const directory of ['.obsidian','People/.hidden','node_modules','_scripts','_sessions'])
+    await assert.rejects(runHeaderTool(['--vault',root,'--dir',directory]),/directory cannot be inside/);
+  const link=path.join(root,'Linked');await fs.symlink(path.join(root,'People'),link,process.platform==='win32'?'junction':'dir');
+  await assert.rejects(runHeaderTool(['--vault',root,'--dir','Linked']),/symlink/);
+  await assert.rejects(runHeaderTool(['--vault',root,'--dir','Linked/Nested']),/symlink/);
+  await fs.symlink(outside,path.join(root,'People/Outside'),process.platform==='win32'?'junction':'dir');
+  const report=await runHeaderTool(['--vault',root,'--dir','People']);assert.equal(report.files.length,1);
+});
+
+test('--dir plans the entire subtree before writing and preserves notes if any YAML is invalid',async t=>{
+  const root=await fixture(t);await fs.mkdir(path.join(root,'People'));
+  await fs.writeFile(path.join(root,'People/Fausto.md'),source);
+  await fs.writeFile(path.join(root,'People/Broken.md'),'---\ninvalid: [\n---\n');
+  const report=await runHeaderTool(['--vault',root,'--dir','People','--write']);
+  assert.equal(report.counts.error,1);assert.equal(report.counts.changed,1);assert.equal(report.written,0);
+  assert.equal(await fs.readFile(path.join(root,'People/Fausto.md'),'utf8'),source);
+});
+
 test('CLI loads vault naming defaults while allowing explicit per-note article overrides',async t=>{
   const root=await fixture(t),file=path.join(root,'Fausto.md');await fs.writeFile(file,source);
   await fs.writeFile(path.join(root,'.obsidian/metadata.json'),JSON.stringify({typeDisplayDefaults:{person:{defArt:'the'}}}));
@@ -170,4 +231,9 @@ test('installed standalone bundle runs with inferred vault and no repository imp
   checked=check(['--all','--check','--errors','--report',filteredReport]);
   assert.equal(checked.code,1);assert.match(checked.stdout,/^PROBLEM Problem.md — /);assert.doesNotMatch(checked.stdout,/Fausto|Preview:|"files"/);
   assert.equal(JSON.parse(await fs.readFile(filteredReport,'utf8')).files.length,2,'--errors only filters stdout, not the full JSON report');
+  await fs.mkdir(path.join(root,'People'));await fs.writeFile(path.join(root,'People/Nested.md'),source);
+  assert.match(run(['--dir','People']),/^WOULD CONVERT People\/Nested.md\nPreview: 1 change,/);
+  run(['--dir','People','--write']);
+  checked=check(['--dir','People','--check','--errors']);assert.equal(checked.code,0);assert.equal(checked.stdout,'');
+  assert.equal(await fs.readFile(path.join(root,'Problem.md'),'utf8'),'---\ntags: [person]\n---\nIntro.\n\n> [!taelgar-header]\n');
 });

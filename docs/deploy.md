@@ -817,6 +817,7 @@ From the vault directory:
 ```sh
 node .obsidian/plugins/taelgarverse/header-tool.cjs --file "People/Fausto.md"
 node .obsidian/plugins/taelgarverse/header-tool.cjs --file "People/Fausto.md" --add --write
+node .obsidian/plugins/taelgarverse/header-tool.cjs --dir "People" --report people-header-preview.json
 node .obsidian/plugins/taelgarverse/header-tool.cjs --all --report header-preview.json
 ```
 
@@ -864,10 +865,21 @@ The installed script infers its vault from its plugin directory. Use
 entry point is `node scripts/header-tool.mjs --vault ../taelgar --file "People/Fausto.md"`.
 `--help` lists the options.
 
-`--all` visits local Markdown outside dot directories, `node_modules`, `_scripts`
-and `_sessions`. Unlike website publication it includes local unpublished/DM
-notes. It skips symlinks and reports unrecognized/ambiguous headers without
-editing them. Review the report before a bulk `--write`; `--all --add` deliberately
+Choose exactly one selection option: `--file`, `--dir` or `--all`. File and
+directory paths resolve relative to the vault, even when the command runs from
+another working directory; absolute paths inside the vault also work.
+
+`--dir "People"` recursively visits Markdown in that directory and its
+subdirectories. Use `--dir .` for the whole vault, equivalent to `--all`. Both
+directory modes exclude dot directories, `node_modules`, `_scripts` and
+`_sessions`. Selecting an excluded directory (or a directory within one), a file,
+a symlink or a path outside the vault is rejected; a missing directory is an error.
+Empty directories produce a zero-file report. All existing preview, `--write`,
+`--add`, `--check`, `--errors` and `--report` options apply to `--dir`.
+
+`--all` visits local Markdown outside those same excluded directories. Unlike
+website publication it includes local unpublished/DM notes. It skips symlinks
+and reports unrecognized/ambiguous headers without editing them. Review the report before a bulk `--write`; `--all --add` deliberately
 also inserts headers into otherwise unmarked notes in that selection.
 
 The tool edits saved files; use the Obsidian commands for notes with unsaved
