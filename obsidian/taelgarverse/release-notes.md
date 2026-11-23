@@ -1,9 +1,5 @@
-Taelgarverse 2.2.0
+Taelgarverse 3.0.0
 
-- Add historical member rosters with `membership: historical`. They include former and deceased members who had joined by the selected date.
-- Add `ignoreDeath: true` for current rosters that retain membership after death. Explicit affiliation end dates still apply.
-- Add People Present indexes with `type: people-in-place`. They list living people currently in a place, including visitors. Add `indexes: [people-in-place]` for a header popup.
-- Show Born and Died in member tables with `mode: table` and `columns: life-dates`.
-- Show **Unknown** in Current Location when current whereabouts are unknown. A last-known sighting no longer fills that column.
-
-Requires Obsidian Desktop 1.8.0 or later.
+- Convert inline `taelgar-index` blocks to one of two query types. For residents use `type: whereabouts`, `from: person`, and `via: home`. For membership rosters use `type: affiliation` and `from: person`. Replace frontmatter index buttons with inline blocks.
+- Find subjects by home, current or last-known location, or by dated affiliation and leadership. Use `scope: ever` for people who formerly belonged to a group. Tables support ordered columns and sorting, and `where` filters result notes by frontmatter.
+- Use `taelgar-map` for maps rendered by Taelgarverse. The plugin no longer handles legacy `leaflet` fences. Website Dataview evaluation now runs in the Node publisher, replacing the plugin's export and materialization commands.
