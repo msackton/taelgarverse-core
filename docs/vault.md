@@ -1011,14 +1011,10 @@ folder markers are removed before query planning. Node indexes the remaining wor
 excluding underscore folders and any subtree marked `.nopublish`. Current-page
 chronology scans appear as unsupported queries in the materialization report.
 
-The conversion pass recognizes complete supported DataviewJS index patterns,
-rewriting them to `taelgar-index`. A recognized campaign-interactions view becomes
-`taelgar-interactions`. No JavaScript is executed. Native indexes use the reader's
-current context. The original vault notes remain unchanged.
-
-Unrecognized closed DataviewJS blocks and headings made empty by their removal
-retain the existing omission policy. Every unmatched block is listed in the
-conversion report. Remaining unsupported DQL and inline expressions show
+Website preparation omits closed DataviewJS blocks and headings emptied by their
+removal. The cleanup report lists each block by file and line. Use `taelgar-index`
+for tables that follow the reader's current context.
+Remaining unsupported DQL and inline expressions show
 warnings or unavailable-content messages. The website does not execute scripts.
 HTML in the normal article body remains supported.
 

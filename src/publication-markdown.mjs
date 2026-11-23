@@ -1,15 +1,25 @@
-import {convertWebsiteNote} from './website-compatibility.mjs';
 import {scanFencedCodeBlocks,scanSectionHeadings,applyReplacements,prefixMarkdownLines} from './markdown-fences.mjs';
 
-// Publication copies only. DQL evaluation runs in the preceding Node stage;
-// conversion and cleanup never execute JavaScript or edit original notes.
-export function preparePublicationNote(note) {
-  return cleanupPublicationNote(convertWebsiteNote(note).note);
+export function cleanupPublicationStore(store) {
+  const report={schemaVersion:2,omitted:[],sectionsRemoved:0};
+  for(const entry of store.entries) {
+    if(!entry.note)continue;
+    try {
+      const {note,removedLines,sectionsRemoved}=cleanupPublicationNote(entry.note);
+      entry.note=note;
+      for(const line of removedLines)report.omitted.push({file:entry.id,line});
+      report.sectionsRemoved+=sectionsRemoved;
+    } catch(error) {
+      throw new Error(entry.id+': '+error.message,{cause:error});
+    }
+  }
+  return report;
 }
 
 export function cleanupPublicationNote(note) {
   const fences=scanFencedCodeBlocks(note.body);
   const removed=fences.filter(block=>block.language==='dataviewjs' && block.closed);
+  if(!removed.length)return {note,removedLines:[],sectionsRemoved:0};
   const replacements=removed.map(block=>({start:block.start,end:block.end,text:prefixMarkdownLines('\n',block.openingPrefix,block.continuationPrefix)}));
   let sectionsRemoved=0;
   for(const heading of scanSectionHeadings(note.body,fences).reverse()) {
@@ -24,6 +34,5 @@ export function cleanupPublicationNote(note) {
   }
   const body=applyReplacements(note.body,replacements);
   const frontmatter=note.source.slice(0,note.source.length-note.body.length);
-  return {note:body===note.body ? note : {...note,body,source:frontmatter+body},
-    dataviewJsBlocksRemoved:removed.length,sectionsRemoved};
+  return {note:{...note,body,source:frontmatter+body},removedLines:removed.map(block=>block.startLine),sectionsRemoved};
 }

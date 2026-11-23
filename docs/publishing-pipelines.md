@@ -8,7 +8,7 @@ repository checks out this publisher and runs it on GitHub Actions.
 flowchart LR
     V[Original vault] --> C[Copy working vault]
     C --> D[Evaluate plain Dataview in Node]
-    D --> X[Convert recognized legacy patterns]
+    D --> X[Omit closed DataviewJS blocks]
     X --> P[Existing image, search and packaging pipeline]
     P --> N[taelgar.org publication]
 ```
@@ -41,9 +41,8 @@ in the publication fingerprint. Publication runs these stages:
    The retired `excludePublish` field has no effect. Do not execute DataviewJS. Strict
    errors apply no partial replacements; `--no-strict` reports failures and
    keeps the failed query blocks.
-3. **Conversion.** Recognize complete supported DataviewJS patterns and write
-   canonical native blocks to the prepared copy. Then apply the existing
-   unmatched-JavaScript/empty-heading cleanup policy.
+3. **Markdown cleanup.** Omit closed DataviewJS blocks and remove headings
+   left empty by their omission. Authored native blocks pass through to the renderer.
 4. **Existing preparation.** Discover images, generate derivatives and maps,
    compile backlinks/search/runtime data, and package the revision as before.
 5. **Publication.** Only a normal, explicitly authorized publish run uploads and
@@ -133,56 +132,28 @@ npm run publish -- --build-only --allow-dirty --no-strict
 This command prepares a complete local revision without contacting R2 or D1.
 Use `npm run dev -- --full` for an interactive preview with local Worker storage.
 
-After success, `.cache/publish/materialization-report.json` contains DQL results
-and errors; `conversion-report.json` contains every recognized rewrite and
-unmatched script location. The materialization report records `backend` and
-engine identity. Failed runs retain their working directory for
-inspection. Successful runs remove that temporary copy.
+After a successful build, `.cache/publish/materialization-report.json` records
+DQL results, errors, and engine identity. The vault workflow collects the cleanup
+report under its existing filename, `.cache/publish/conversion-report.json`.
+Version 2 lists each omitted DataviewJS block by file and line in the materialized
+Markdown body and counts headings removed. Failed runs retain the working directory for
+inspection. Successful runs remove the temporary copy.
 
-Conversion can also run independently on a copied vault inside core:
-
-```sh
-node scripts/convert-website.mjs --source .cache/my-working-vault
-```
-
-It refuses the original vault. Its report is saved beside that working copy.
-This standalone command runs DataviewJS conversion and cleanup.
 Shared header metadata, homepage/navigation and session inputs still come from
 the configured original vault. They are file inputs, not calls to Obsidian.
 
-## Conversion contract
+## Markdown cleanup
 
-Query selection and JavaScript conversion and cleanup share Markdown-it fence
-boundaries, including list/quote containers and CRLF source
-offsets. Replacements preserve the enclosing list and quote prefixes. Outer
-code examples and indented code are protected from query execution and cleanup;
-unclosed query fences are reported rather than materialized.
+DQL selection and DataviewJS cleanup share Markdown-it fence boundaries,
+including lists and block quotes. The publisher omits closed DataviewJS fences
+and headings emptied by their removal. It preserves enclosing list and quote
+prefixes, surrounding prose, and fenced or indented code examples.
 
-`src/website-compatibility.mjs` parses JavaScript with Acorn and never evaluates
-it. A supported table must be a complete `const {util} = customJS; dv.table(...)`
-pipeline with known columns, formatting calls, one supported predicate and
-optional supported sort calls. Extra code, extra predicates, historical
-membership filters, different columns, or unknown calls prevent conversion.
+Use `taelgar-index` for tables that follow the reader's selected date and campaign.
+The website generates [campaign interactions](campaign-interactions.md) from vault records.
 
-Current rules cover:
-
-- Supported current-membership tables become `taelgar-index` with `type: members`.
-- Supported location tables become Residents, Places or Settlements indexes.
-  Literal targets are preserved; a current-note target stays implicit. Targets
-  must resolve to a group for Members or a place for location indexes.
-- The plain campaign-interactions view call becomes `taelgar-interactions`.
-
-Converted indexes use the native model, sorting, visibility rules and columns;
-they are a deliberate website feature upgrade. They stay dynamic when readers
-change date/campaign. They do not promise byte-identical legacy table output.
-
-The initial live corpus converts 39 of 155 DataviewJS blocks. The remaining 116
-are listed before the existing omission policy removes them from new-site
-publication. The DQL report lists unsupported current-page chronology scans.
-
-Use the [Dataview comparison harness](../experiments/dataview/README.md) to extend
-the Node adapter against actual plugin results. Add conversion rules only with
-complete matching examples, near-miss rejection cases, and rendering checks.
+The [Dataview comparison harness](../experiments/dataview/README.md) compares
+plain DQL results from the Node adapter with the Obsidian plugin.
 
 ### Publishing header callouts
 

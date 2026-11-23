@@ -29,7 +29,7 @@ for tagged notes, historical kingdoms and synthetic examples in both layouts.
 It also checks the [frozen legacy sources](fixtures/legacy-vault/README.md)
 against the captures and reproduces their documented defects. The VM and
 generated comparison implementations live in [test support](helpers/legacy-headers/).
-The ordinary run exercises current callouts, publication conversion and
+The ordinary run exercises current callouts, publication cleanup and
 Obsidian editing. It also uses the generated reference for date-boundary and
 index comparisons.
 

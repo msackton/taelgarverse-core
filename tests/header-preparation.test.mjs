@@ -9,7 +9,6 @@ import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {openSnapshot} from '../src/runtime-snapshot.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
 import {Engine} from '../src/engine.mjs';
-import {convertWebsiteNote} from '../src/website-compatibility.mjs';
 import {parseNote} from '../src/content-store.mjs';
 import {copyWorkingVault} from '../scripts/website-working-vault.mjs';
 
@@ -21,11 +20,6 @@ const forms={
  marker:'<!-- taelgar:header -->\n',
  saved:'# Old title\n>[!info] Saved details\n> Saved human\n',
 };
-for(const [name,header] of Object.entries(forms))test('website conversion preserves '+name+' without header compatibility rewrites',()=>{
- const source=yaml+header+'\nAuthored prose.\n';
- const result=convertWebsiteNote(parseNote(source));assert.equal(result.note.source,source);assert.deepEqual(result.changes,[]);
-});
-
 test('publication preserves header source and Node, R2 and the compiled Worker render only native headers',async t=>{
  await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
  const directory=await fs.mkdtemp(path.join(ROOT,'.cache/header-callout-'));

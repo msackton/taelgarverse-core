@@ -4,12 +4,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {ROOT,isInside} from '../src/config.mjs';
 import {Store,parseNote} from '../src/store.mjs';
-import {preparePublicationNote} from '../src/publication-markdown.mjs';
+import {cleanupPublicationNote,cleanupPublicationStore} from '../src/publication-markdown.mjs';
 import {filterComments} from '../src/comments.mjs';
-import {convertWebsiteNote,recognizeDataviewJs} from '../src/website-compatibility.mjs';
-import {copyWorkingVault} from '../scripts/website-working-vault.mjs';
+import {copyWorkingVault,saveWorkingNotes} from '../scripts/website-working-vault.mjs';
 import {materializeWebsiteDataview} from '../scripts/materialize-website-dataview.mjs';
-import {convertWebsiteStore,saveWorkingNotes} from '../scripts/convert-website.mjs';
 
 test('Node preserves headers and cleans JavaScript-only headings while preserving prose, examples and conditional delimiters',()=>{
   const source=['---','headerVersion: 2023.11.25','tags: [person]','---','# Old title','>[!info] Old info','',
@@ -19,68 +17,35 @@ test('Node preserves headers and cleans JavaScript-only headings while preservin
     '## Existing empty heading','',
     '````markdown','```dataviewjs','This example remains.','```','````','',
     '> [!info] Query','> ```dataview','> LIST FROM #person','> ```',''].join('\n');
-  const note=parseNote(source),result=preparePublicationNote(note);
-  assert.equal(result.dataviewJsBlocksRemoved,3);assert.equal(result.sectionsRemoved,3);
+  const note=parseNote(source),result=cleanupPublicationNote(note);
+  assert.equal(result.removedLines.length,3);assert.equal(result.sectionsRemoved,3);
   assert.match(result.note.body,/^# Old title\n>\[!info\] Old info/);
   assert.doesNotMatch(result.note.body,/Remove parent|Remove child|Setext section|Never execute/);
   assert.match(result.note.body,/Retain prose\nKeep this prose/);assert.match(result.note.body,/Existing empty heading/);
   assert.match(result.note.body,/This example remains/);assert.match(result.note.body,/> LIST FROM #person/);
   assert.doesNotThrow(()=>filterComments(result.note.body,{date:'1750-01-01',campaigns:['dufr']}));
-  assert.equal(note.source,source);assert.equal(preparePublicationNote(result.note).note.source,result.note.source);
-  assert.equal(preparePublicationNote(parseNote(source.replaceAll('\n','\r\n'))).note.source,result.note.source);
+  assert.equal(note.source,source);assert.equal(cleanupPublicationNote(result.note).note.source,result.note.source);
+  assert.equal(cleanupPublicationNote(parseNote(source.replaceAll('\n','\r\n'))).note.source,result.note.source);
 });
 
 test('publication preserves authored prose on notes with old header metadata',()=>{
   const prefix='---\nheaderVersion: 2023.11.25\ntags: [source]\n---\n';
   for(const body of ['\nDear friends,\n\nA letter.\n','\n## Research\n\nNotes.\n','\n````markdown\n```taelgar-header\n```\n````\n']) {
-    const note=parseNote(prefix+body),prepared=preparePublicationNote(note).note;
+    const note=parseNote(prefix+body),prepared=cleanupPublicationNote(note).note;
     assert.equal(prepared.source,prefix+body);
-    assert.equal(preparePublicationNote(prepared).note.source,prepared.source);
+    assert.equal(cleanupPublicationNote(prepared).note.source,prepared.source);
     assert.equal(note.source,prefix+body);
   }
 });
 
-const members=`const { util } = customJS;
-dv.table(["Person", "Info", "Current Location"], dv.pages("#person")
-  .where(p => util.isAffiliated(dv.current().file.name, p.file))
-  .map(p => [util.s("<name> (<pronouns> <pronunciation>)", p.file),
-    util.s("<ancestry> <maintype>", p.file), util.s("<lastknown:2r> (<lastknowndate>)", p.file, dv.current().pageTargetDate)]));`;
-
-test('conversion recognizes complete legacy table syntax, never executes JS, and preserves wrappers and prose',()=>{
-  const original=parseNote('---\nheaderVersion: 1\ntags: [group]\n---\n# Saved\n>[!info] Old\n\n%%^Campaign:dufr%%\n> ```dataviewjs\n'+
-    members.split('\n').map(l=>'> '+l).join('\n')+'\n> ```\n%%^End%%\n\nProse.\n');
-  const result=convertWebsiteNote(original,{sourcePath:'Guild.md'});
-  assert.match(result.note.body,/^# Saved\n>\[!info\] Old/);assert.match(result.note.body,/> ```taelgar-index\n> type: members\n> mode: table/);
-  assert.match(result.note.body,/%%\^Campaign:dufr%%/);assert.match(result.note.body,/%%\^End%%/);assert.match(result.note.body,/Prose\./);
-  assert.equal(result.changes.length,1);assert.equal(result.unconverted.length,0);
-  assert.equal(convertWebsiteNote(result.note).note.source,result.note.source);
-  assert.match(original.body,/Saved/);
-  assert.equal(recognizeDataviewJs(members.replaceAll('"',"'")).rule,'legacy-members');
-  for(const altered of [members+'\nthrow new Error("side effect");',members.replace('isAffiliated','isOrWasAffiliated'),
-    members.replace('.map(', '[map]('),members.replace('{ util }','{ [util]: util }'),
-    members.replace('Current Location','Born'),members.replace('.where(p => util.isAffiliated(dv.current().file.name, p.file))',
-      '.where(p => util.isAffiliated(dv.current().file.name, p.file) && p.special)')])assert.equal(recognizeDataviewJs(altered),null);
-  const unknown=convertWebsiteNote(parseNote('```dataviewjs\nthrow new Error("Never execute");\n```\n'));
-  assert.match(unknown.note.body,/Never execute/);assert.equal(unknown.unconverted.length,1);
-  const incompatible=convertWebsiteNote(parseNote('```dataviewjs\n'+members+'\n```\n'));
-  assert.match(incompatible.note.body,/dataviewjs/);assert.match(incompatible.unconverted[0].reason,/group target/);
-});
-
-test('conversion reports an asset target instead of treating it as a native index page',async()=>{
-  const note=parseNote('```dataviewjs\n'+members.replace('dv.current().file.name','"asset.png"')+'\n```\n');
-  const store={entries:[{id:'Guild.md',note}],lookup:()=>({entry:{id:'asset.png',note:null}})};
-  const report=await convertWebsiteStore(store);
-  assert.equal(report.changes.length,0);assert.equal(report.unconverted.length,1);
-  assert.match(report.unconverted[0].reason,/group target/);assert.equal(report.dataviewJsBlocksRemoved,1);
-});
-
-test('Node stages run DQL on a copied raw vault before conversion and never rewrite source notes',async t=>{
+test('Node stages run DQL on a copied raw vault before JavaScript cleanup and never rewrite source notes',async t=>{
   await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
   const dir=await fs.mkdtemp(path.join(ROOT,'.cache','website-stages-'));
   t.after(async()=>{assert.ok(isInside(path.join(ROOT,'.cache'),dir));await fs.rm(dir,{recursive:true,force:true});});
   const vault=path.join(dir,'original'),working=path.join(dir,'working');await fs.mkdir(vault);
   const source='---\nheaderVersion: 1\ntags: [group]\n---\n# Saved header\n>[!info] Old\n\n'+
-    '```dataview\nLIST FROM #person\n```\n\n```dataviewjs\n'+members+'\n```\n';
+    '```dataview\nLIST FROM #person\n```\n\n```dataviewjs\nawait dv.view("_scripts/view/get_CampaignInteractions");\n```\n\n'+
+    '```taelgar-index\ntype: members\n```\n';
   await fs.writeFile(path.join(vault,'Guild.md'),source);await fs.mkdir(path.join(vault,'_private'));await fs.writeFile(path.join(vault,'_private','Indexed.md'),'# Private source note');
   const stub='---\ntags: [person, status/stub]\nmapPath: {source: _maps/missing.json}\n---\n```dataview\nINVALID STUB QUERY\n```';
   await fs.writeFile(path.join(vault,'Stub.md'),stub);
@@ -102,10 +67,11 @@ test('Node stages run DQL on a copied raw vault before conversion and never rewr
     return {api:{tryQueryMarkdown:async()=>'- [[Result]]'},errors:[],identity:{version:'fixture'},index:{pages:new Map()},links:{ambiguities:new Map()}};
   }});
   assert.equal(report.backend,'node');assert.equal(report.counts.materialized,1);
-  const conversion=await convertWebsiteStore(store);await saveWorkingNotes(store);
+  const cleanup=cleanupPublicationStore(store);await saveWorkingNotes(store);
   const output=await fs.readFile(path.join(working,'Guild.md'),'utf8');
   assert.match(output,/\[\[Result\]\]/);assert.match(output,/taelgar-index/);assert.match(output,/Saved header/);
-  assert.doesNotMatch(output,/dataviewjs|LIST FROM/);assert.equal(conversion.unconverted.length,0);
+  assert.doesNotMatch(output,/dataviewjs|taelgar-interactions|LIST FROM/);
+  assert.deepEqual(cleanup,{schemaVersion:2,omitted:[{file:'Guild.md',line:6}],sectionsRemoved:0});
   assert.equal(await fs.readFile(path.join(vault,'Guild.md'),'utf8'),source);
   assert.equal(await fs.readFile(path.join(vault,'Stub.md'),'utf8'),stub);
   assert.equal(await fs.readFile(path.join(vault,'Unpublished.md'),'utf8'),unpublished);

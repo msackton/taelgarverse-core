@@ -10,7 +10,7 @@ independent release paths.
 | Document | Owns |
 | --- | --- |
 | [Deploy](deploy.md) | Human instructions for publishing content, credentials, local previews, and recovery. |
-| [Publishing pipelines](publishing-pipelines.md) | Node Dataview, bundle acquisition, and compatibility rewrite rules. |
+| [Publishing pipelines](publishing-pipelines.md) | Node Dataview, bundle acquisition, and publication cleanup. |
 | [Architecture](architecture.md) | Component boundaries, code map, and maintenance rules for agents. |
 | [Vault usage](vault.md) | Which vault files and fields are consumed, rendering semantics, and limitations. |
 | [Cloudflare](cloudflare.md) | Current hosted topology, bindings, storage layout, and operational behavior. |
@@ -30,7 +30,7 @@ implementation scope. Syntax and behavior belong in [vault usage](vault.md#gener
 flowchart LR
     V[taelgar vault] --> F[Copy working vault]
     F --> Q[Plain Dataview in Node]
-    Q --> X[Convert recognized legacy blocks]
+    Q --> X[Omit closed DataviewJS blocks]
     X --> P[Node content preparation]
     V --> S[Homepage and menu Markdown]
     S --> P
@@ -60,15 +60,14 @@ flowchart LR
 | --- | --- |
 | `obsidian/taelgarverse/features/session-review.mjs`, `obsidian/taelgarverse/features/session-review-index.mjs`, `obsidian/taelgarverse/features/session-review-python.mjs`, `obsidian/taelgarverse/features/session-review-process.mjs`, `src/browser/session-review.mjs`, `src/browser/entity-review.mjs` | Focused entity-map table and human-review queue, explicit confirmation of changed transcript/session fingerprints, native session discovery, Python executable resolution, and bounded asynchronous process transport with normalized Windows launch paths. Vault-note content hashes do not guard processing. The vault entity review helpers own durable feedback JSON, recoverable map/history writes, and exclusive empty staging-note creation with campaign-folder and name-collision checks; guarded regeneration preserves human decisions. Their shared source reader opt-in permits actual transcript SHA inspection without weakening other workflows' default checks. Transcript corrections and finalization use the vault skills. See [session review](session-review.md). |
 | `obsidian/taelgarverse/python-runtime.mjs` | Shared Python executable discovery and Windows launch-path normalization for session review and Photoshop layer loading/export. Skips non-executable Windows aliases; callers retain their own transport, progress and cancellation behavior. |
-| `scripts/publish-content.mjs` | Git checkpoint, working vault copy, Node Dataview, compatibility conversion, image optimization, upload, and activation. |
+| `scripts/publish-content.mjs` | Git checkpoint, working vault copy, Node Dataview, Markdown cleanup, image optimization, upload, and activation. |
 | `scripts/materialize-website-dataview.mjs`, `src/dataview-node/`, `scripts/website-working-vault.mjs` | Copy source inputs and original file timestamps, prune underscore/`.nopublish` subtrees before copying, index the remaining working vault, and evaluate DQL in Node using a pinned Dataview bundle. No desktop process. |
 | `src/dataview-node/bundle.mjs`, `scripts/cache-dataview.mjs` | Exact GitHub release pin, checksum verification, atomic local dependency-cache downloads, offline reuse and explicit bundle validation. The Node default never reads the vault's Dataview installation/settings. |
-| `scripts/convert-website.mjs`, `src/website-compatibility.mjs` | Separate conversion stage: parse complete recognized DataviewJS table patterns into native blocks; report unmatched code before applying existing cleanup policy. |
 | `scripts/publication-progress.mjs` | Phase status, elapsed time, optional local timing records, and ten-second progress reminders around publishing operations; timers stop on success or failure. |
 | `scripts/upload-content.mjs`, `scripts/cloudflare-client.mjs` | Separate incremental asset and snapshot transfers, bounded retries, request pacing, and shared refreshable Cloudflare credentials. Used by full and manual publication. |
 | `scripts/dev.mjs`, `scripts/test.mjs`, `.github/workflows/tests.yml` | Public development/test entry points, live-vault watching, full local publication preview, plugin installation, and GitHub test/package gates. |
 | `.github/workflows/website.yml` | Reuse CI tests, then deploy Worker/static assets on `main`. Serialize production pipelines; deployment credentials are available only in the deployment step. See the one-time cutover in [Deploy](deploy.md#one-time-github-website-deployment-setup). |
-| `scripts/prepare-cloudflare.mjs`, `src/publication-markdown.mjs`, `src/markdown-fences.mjs`, `src/markdown-blocks.cjs` | Orchestrate DQL, compatibility conversion and remaining JavaScript cleanup, then package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. Runtime header generation uses the native callouts authored in vault notes. |
+| `scripts/prepare-cloudflare.mjs`, `src/publication-markdown.mjs`, `src/markdown-fences.mjs`, `src/markdown-blocks.cjs` | Materialize DQL and omit closed DataviewJS blocks, then package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. Runtime header generation uses the native callouts authored in vault notes. |
 | `scripts/compile-runtime.mjs`, `src/runtime-format.mjs` | Compile versioned lookups, availability, campaign contexts, navigation views, parsed notes and separate route manifests during publication. No HTML prerendering. |
 | `scripts/derivative-cache.mjs` | R2 recipe catalog for responsive images/map pyramids, output inventory validation, and publication of reusable records after successful asset uploads. Local/offline consumers retain filesystem generation. |
 | `scripts/build-images.mjs` | Responsive-image recipes, bounded parallel generation, cache-reuse counts, and deterministic asset registration. See [image delivery](images.md#publication-and-caching). |
@@ -267,7 +266,7 @@ including when a type filter would otherwise prevent the depth limit advancing.
 
 `src/markdown-blocks.cjs` uses Markdown-it block rules to identify fences and
 indented code with original source offsets. Comment protection, website query
-selection/conversion and map editing share these
+selection, publication cleanup, and map editing share these
 boundaries. Source rewrites retain list markers on the first line and quote/list
 continuation prefixes afterward. Inline-code protection remains in `comments.mjs`.
 
@@ -275,12 +274,10 @@ Body Dataview/JavaScript is not executed by either renderer. Supported
 Dataview queries are materialized during publication and do not rerun when a
 visitor changes context.
 
-The new website publisher copies source files into a request-owned working vault,
-materializes supported plain DQL in Node, then runs compatibility conversion
-before any image discovery, backlinks, search or runtime compilation. The
-conversion recognizes complete supported JavaScript syntax without executing it; it does not rewrite headers.
-Native blocks remain dynamic at render time. Unrecognized DataviewJS follows the
-existing omission policy and is reported. Original notes are never rewritten.
+The publisher copies source files into a working vault, materializes plain DQL in Node,
+and omits closed DataviewJS blocks before image discovery, backlinks, search, and
+runtime compilation. The cleanup report lists each omitted block. Authored native
+indexes remain dynamic at render time.
 The publisher downloads an exact pinned GitHub Dataview release on first DQL
 use and verifies/reuses its core-local cache offline. It uses built-in settings
 without reading the vault's Dataview installation. `--dataview-directory` is an

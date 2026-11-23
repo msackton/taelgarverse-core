@@ -51,3 +51,9 @@ export async function copyWorkingVault(vault,output,{log=()=>{}}={}) {
   log('Working vault: '+copied+' files copied; source notes unchanged.');
   return {directory:output,stats};
 }
+
+export async function saveWorkingNotes(store) {
+  const original=await fs.realpath(store.settings.vault_dir),working=await fs.realpath(store.settings.source_dir);
+  if(!isInside(ROOT,working) || working===path.resolve(ROOT) || isInside(original,working) || isInside(working,original))throw new Error('Prepared notes must be written to a separate working vault inside core.');
+  for(const entry of store.entries)if(entry.note)await fs.writeFile(entry.filename,entry.note.source);
+}

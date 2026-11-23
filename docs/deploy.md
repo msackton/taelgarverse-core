@@ -30,7 +30,7 @@ After `npm ci`, use one of these commands from core:
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Reads the live vault without Obsidian. Restarts on vault/source changes; refresh the browser. Some Dataview content can be incomplete. |
-| `npm run dev -- --full` | Copies a working vault, materializes plain Dataview queries in Node, converts recognized legacy blocks, processes images/maps/search, loads local R2/D1, and starts the local Worker. No live publication. Rerun after editing notes. |
+| `npm run dev -- --full` | Copies a working vault, materializes plain Dataview queries in Node, omits closed DataviewJS blocks, processes images/maps/search, loads local R2/D1, and starts the local Worker. No live publication. Rerun after editing notes. |
 | `npm run dev -- --plugin` | Builds and installs Taelgarverse in the configured vault. Tries to reload it in running Obsidian; otherwise asks for a restart. |
 | `npm test` | Runs the automated suite using frozen core fixtures; no vault or Obsidian required. |
 | `npm test -- --live-vault` | Explicitly checks configured live notes and the installed Dataview bundle against test references. Read-only; separate from CI. |
@@ -95,12 +95,9 @@ publication/maintenance path; a website code deployment alone does not delete R2
 objects.
 
 Content preparation copies the vault to a temporary working directory, evaluates
-supported DQL in Node, then runs a separate compatibility conversion. Supported
-complete DataviewJS index patterns become `taelgar-index`. Unmatched closed
-JavaScript blocks retain the existing omission policy and appear in a conversion
-report. Images, backlinks, search and
-runtime compilation follow those two stages. Original notes and media stay
-unchanged, and Obsidian can be closed. The original vault supplies header
+supported DQL in Node, then omits closed DataviewJS blocks and headings emptied
+by their removal. Images, backlinks, search, and runtime compilation follow.
+Preparation uses copies of the original files and can run while Obsidian is closed. The original vault supplies header
 metadata and session inputs. See [publishing pipelines](publishing-pipelines.md).
 The copy skips underscore folders and folders containing `.nopublish`, including
 their entire subtrees, before reading or copying their contents.
@@ -263,10 +260,10 @@ markers remove notes before query planning. The retired `excludePublish` field
 has no effect.
 It indexes the copied Markdown for query inputs; underscore folders and folders
 marked `.nopublish` are absent from that copy and index. It executes DQL only. Query errors appear in
-`.cache/publish/materialization-report.json`; recognized conversions and
-unmatched JavaScript appear in `.cache/publish/conversion-report.json` after a
-successful run. Failed runs retain the working vault and diagnostics in the
-printed temporary directory. A corrupt cache, failed first download, or invalid
+`.cache/publish/materialization-report.json`. After a successful build,
+`.cache/publish/conversion-report.json` lists the file and line of each omitted
+DataviewJS block in the prepared note body. Failed runs retain the working vault
+and diagnostics in the printed temporary directory. A corrupt cache, failed first download, or invalid
 explicit bundle stops Node preparation when query evaluation is needed, even
 with `--no-strict`. The materialization report lists unsupported current-page
 chronology queries.
@@ -424,7 +421,7 @@ activation; cleanup may still be deleting obsolete R2 objects or compacting D1.
 The final completion message follows cleanup and removal of temporary export
 files. These are phase counts, not an estimated overall completion percentage.
 
-Earlier phases also report elapsed seconds: working-copy creation, Node DQL evaluation, compatibility conversion, R2 recipe loading,
+Earlier phases also report elapsed seconds: working-copy creation, Node DQL evaluation, DataviewJS omission, R2 recipe loading,
 vault scanning, image-size discovery, responsive images, map tiles, packaging,
 backlinks, and search/runtime compilation. Completion logs include each phase's
 duration and the overall publish duration. Successful runs save milliseconds in

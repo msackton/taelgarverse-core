@@ -210,9 +210,9 @@ export function buildFingerprint(settings, options, config={}) {
     new URL('../src/website-sources.mjs', import.meta.url), new URL('../src/campaign-sites.mjs', import.meta.url),
     new URL('../src/campaign-registry.mjs', import.meta.url),
     new URL('../src/folder-exclusions.mjs', import.meta.url),
-    new URL('./materialize-website-dataview.mjs',import.meta.url),new URL('./website-working-vault.mjs',import.meta.url),new URL('./convert-website.mjs',import.meta.url),
+    new URL('./materialize-website-dataview.mjs',import.meta.url),new URL('./website-working-vault.mjs',import.meta.url),
     new URL('../src/header-core/metadata.mjs',import.meta.url),
-    new URL('../src/website-compatibility.mjs',import.meta.url),new URL('../src/dataview-node/engine.mjs',import.meta.url),
+    new URL('../src/dataview-node/engine.mjs',import.meta.url),
     new URL('../src/dataview-node/bundle.mjs',import.meta.url),
     new URL('../src/dataview-node/index.mjs',import.meta.url),new URL('../src/dataview-node/filesystem.mjs',import.meta.url),
     new URL('../src/publication-markdown.mjs', import.meta.url), new URL('../src/markdown-fences.mjs', import.meta.url), new URL('../src/markdown-blocks.cjs', import.meta.url),
@@ -314,7 +314,8 @@ export async function main(options) {
             await fs.copyFile(report.reportFile,path.join(CACHE,'materialization-report.json'));
             return {...report,reportFile:path.join(CACHE,'materialization-report.json')};
           }});
-        await json(path.join(CACHE,'conversion-report.json'),prepared.conversion);
+        // The vault publication workflow collects this artifact by its historical filename.
+        await json(path.join(CACHE,'conversion-report.json'),prepared.cleanup);
         Object.assign(timings,prepared.timings);
         const images = prepared.images;
         console.log(`R2 recipes reused: ${derivativeCache.hits.images} image(s), ${derivativeCache.hits.maps} map pyramid(s); no derivative downloads or encoding for these.`);
@@ -353,7 +354,7 @@ export async function main(options) {
 }
 
 const help = `Usage: npm run publish -- [options]
-Checks the Taelgar commit in R2, copies a working vault, materializes DQL, converts known legacy blocks, uploads, and verifies D1 search before activation.
+Checks the Taelgar commit in R2, copies a working vault, materializes DQL, omits closed DataviewJS blocks, uploads, and verifies D1 search before activation.
 Evaluates DQL in Node with a pinned GitHub Dataview download that can be reused offline.
 Settings: config.json, plus config.local.json automatically when present.
 
