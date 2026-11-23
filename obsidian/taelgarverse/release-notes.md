@@ -1,8 +1,9 @@
-Taelgarverse 2.1.0
+Taelgarverse 2.2.0
 
-- Add `taelgar-roster` and `taelgar-session` blocks for registered campaigns. Use them on the campaign index or set `campaign` to the registry ID in another note.
-- Roster links now group recorded play by player and character. Set `characterPresence: true` to include in-world presence and show where it differs from recorded play.
-- Session blocks show campaign totals, date spans, and links to named session notes. Choose `characters`, `participants`, or `people` for cast, attendance, or a combined view.
-- Set `summary: only` to show the campaign summary alone or `summary: false` to show the session list alone. Session details open below each row.
+- Add historical member rosters with `membership: historical`. They include former and deceased members who had joined by the selected date.
+- Add `ignoreDeath: true` for current rosters that retain membership after death. Explicit affiliation end dates still apply.
+- Add People Present indexes with `type: people-in-place`. They list living people currently in a place, including visitors. Add `indexes: [people-in-place]` for a header popup.
+- Show Born and Died in member tables with `mode: table` and `columns: life-dates`.
+- Show **Unknown** in Current Location when current whereabouts are unknown. A last-known sighting no longer fills that column.
 
 Requires Obsidian Desktop 1.8.0 or later.
