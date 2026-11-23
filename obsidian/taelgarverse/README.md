@@ -273,14 +273,18 @@ Place, Region, Type Of, and Population, sorted by their dated home region.
 Settlements includes ruins and matches current, last-known and secondary
 locations using the existing `inLocation(..., true, true, date)` rules.
 Use `type: people-in-place` or `indexes: [people-in-place]` to show living people
-currently in the place, including visitors. Residents who are away are omitted.
-Set `recursive: false` inline to limit results to the immediate place.
+currently in a place or object, including visitors aboard ships. Residents also
+accepts object targets and follows the active home. Set `recursive: false`
+inline to require a direct match to the target.
 All inline indexes accept `scope: current` for matches at the selected date,
 `scope: historical` to also include matches at death or destruction, and
 `scope: ever` for any match through the selected date. Replace
 `membership: historical` with `scope: ever`. Use `scope: historical` for
-memberships active at death. Members tables accept `columns: life-dates`
-to show Born and Died alongside Person and Info.
+memberships active at death. Inline tables accept ordered `columns` and `sortBy`
+lists. For example, use `columns: [name, region, type]` on a Places table or
+`columns: [name, roles, joined, left, died]` on a Members table. Joined and Left
+refer to the same qualifying affiliation period. For a roster ordered by birth,
+use `columns: [name, info, born, died]` and `sortBy: [born, name]`.
 Rivers follows `typeOf: waterway` or `typeOf: lake` and includes secondary watershed membership.
 Places lists contained place notes, such as a town's quarters, buildings and shops.
 Inline Places blocks accept `placeType: built` or `placeType: natural`; omit the

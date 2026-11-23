@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {load} from 'cheerio';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {headerFixture as legacyFixture} from './helpers/legacy-header-fixture.mjs';
-import {indexNotes,indexSources,featureIndexNotes} from './fixtures/indexes.mjs';
+import {indexNotes,indexSources,featureIndexNotes,objectIndexNotes} from './fixtures/indexes.mjs';
 import {headerIndexes,headerIndexesForMetadata,parseIndex,queryIndex,indexHasResults} from '../src/indexes.mjs';
 import {indexGrid,indexPopupShell} from '../src/index-view.mjs';
 import {handleRequest} from '../src/application.mjs';
@@ -36,14 +36,23 @@ test('index authoring validates arrays and YAML, supplies defaults, and deduplic
   assert.equal(parseIndex('type: members').recursive,false);
   assert.equal(parseIndex('type: people-in-place').recursive,true);
   assert.deepEqual(headerIndexes(['people-in-place']),['people-in-place']);
-  const historical=parseIndex('type: members\nscope: historical\nmode: table\ncolumns: life-dates');
+  const historical=parseIndex('type: members\nscope: historical\nmode: table\ncolumns: [name, info, born, died]');
   assert.equal(historical.scope,'historical');
-  assert.equal(historical.columns,'life-dates');
+  assert.deepEqual(historical.columns,['name','info','born','died']);
+  const columns=parseIndex('type: places\nmode: table\ncolumns: [region, name]\nsortBy: [region, type, name]');
+  assert.deepEqual(columns.columns,['region','name']);
+  assert.deepEqual(columns.sortBy,['region','type','name']);
+  for(const source of ['type: members\ncolumns: [name]', 'type: members\nsortBy: [joined]',
+    'type: residents\nmode: table\ncolumns: [joined]', 'type: members\nmode: table\ncolumns: life-dates',
+    'type: places\nmode: table\ncolumns: [name, name]', 'type: members\nmode: table\ncolumns: []',
+    'type: members\nmode: table\nsortBy: [region]', 'type: members\nmode: table\nsortBy: name']) {
+    assert.throws(()=>parseIndex(source),/columns|sortBy/);
+  }
   for(const type of ['members','residents','people-in-place','settlements','rivers','places'])for(const scope of ['current','historical','ever']) {
     assert.equal(parseIndex('type: '+type+'\nscope: '+scope).scope,scope);
   }
   for(const source of ['type: members\nmembership: historical','type: members\nignoreDeath: true',
-    'type: places\nscope: all','type: residents\nscope: null','type: members\ncolumns: life-dates']) {
+    'type: places\nscope: all','type: residents\nscope: null']) {
     assert.throws(()=>parseIndex(source),/membership|ignoreDeath|scope|columns/);
   }
   assert.equal(parseIndex('type: places\nplaceType: built').placeType,'built');
@@ -84,6 +93,19 @@ test('people-in-place includes visitors and local residents using only their cur
   const residentAway=query('residents','Town',{},extraNotes);
   assert.ok(paths(residentAway).includes('People/Alice.md'));
   assert.ok(!paths(residentAway).includes('People/Visitor.md'));
+});
+
+test('people indexes accept any object target and keep dated containment and visibility rules',()=>{
+  const {runtime}=fixture(objectIndexNotes);
+  const withTarget=(type,target,options={},canSee=visible)=>queryIndex(runtime,{type,target,...options},{date:'1720-01-01',visible:canSee});
+  assert.deepEqual(paths(withTarget('residents','Sky Kite',{scope:'current'})),['People/Crew.md','People/Occupant.md']);
+  assert.deepEqual(paths(withTarget('people-in-place','Vessel',{scope:'current'})),['People/Boarding Visitor.md','People/Occupant.md']);
+  assert.deepEqual(paths(withTarget('people-in-place','Vessel',{scope:'current',recursive:false})),['People/Boarding Visitor.md']);
+  assert.deepEqual(paths(withTarget('people-in-place','Vessel',{scope:'ever'})),
+    ['People/Boarding Visitor.md','People/Crew.md','People/Deceased Occupant.md','People/Former Passenger.md','People/Occupant.md']);
+  assert.deepEqual(paths(withTarget('residents','Mirror',{scope:'historical'})),['People/Deceased Occupant.md','People/Occupant.md']);
+  assert.throws(()=>withTarget('people-in-place','Mirror',{},page=>page.path!=='Objects/Mirror.md'),/unavailable/);
+  for(const type of ['places','rivers','settlements'])assert.throws(()=>withTarget(type,'Vessel'),/requires a place target/);
 });
 
 test('settlements use the canonical settlement type and dated hierarchy, include ruins, and honor direct scope',()=>{
@@ -338,6 +360,19 @@ function website(extraSources={},assets=[]) {
   return new RenderEngine({settings:store.settings,store,headers:runtime,navigationSource:null});
 }
 
+test('website renders object people tables and an object header popup',()=>{
+  const sources=indexSources(objectIndexNotes);
+  sources['Objects/Vessel.md']+='\n\n```taelgar-index\ntype: people-in-place\nmode: table\nscope: current\ncolumns: [name, currentLocation]\n```';
+  const engine=website(sources);
+  const $=load(engine.render('Objects/Vessel.md','1720-01-01','custom').html,{},false);
+  assert.deepEqual($('tbody tr td:first-child a').map((_,cell)=>$(cell).text()).get(),['Boarding Visitor','Occupant']);
+  assert.match($('tbody tr').last().find('td').last().find('a').first().attr('href'),/objects\/mirror/);
+  assert.deepEqual($('.taelgar-index-popup summary').map((_,item)=>$(item).text()).get(),['Residents','People Present']);
+  const popup=load(engine.renderIndex('Objects/Vessel.md','residents','1720-01-01','custom'),{},false);
+  assert.equal(popup('.taelgar-index-count').text(),'2 residents');
+  assert.match(popup('.taelgar-index-card').first().text(),/Crew/);
+});
+
 test('website header popups and inline grids filter before counts and retain reader context',()=>{
   const engine=website({
     'Places/Empty.md':"---\ntags: [place]\nindexes: [residents, settlements]\n---\n> [!taelgar-header]\n\nAuthored prose.",
@@ -389,7 +424,7 @@ test('website all-time tables show dated life columns and People Present has a h
     'People/Former.md':{tags:['person'],born:1690,died:1721,affiliations:[{org:'Guild',end:1710}]},
     'Places/Town.md':{...indexNotes['Places/Town.md'],indexes:['people-in-place']},
   });
-  sources['Roster.md']='```taelgar-index\ntype: members\ntarget: Guild\nscope: ever\nmode: table\ncolumns: life-dates\n```';
+  sources['Roster.md']='```taelgar-index\ntype: members\ntarget: Guild\nscope: ever\nmode: table\ncolumns: [name, info, born, died]\nsortBy: [born, name]\n```';
   const engine=website(sources);
   const at=date=>load(engine.render('Roster',date,'custom').html,{},false);
   const $=at('1720-01-01');
@@ -406,6 +441,58 @@ test('website all-time tables show dated life columns and People Present has a h
   assert.equal(popup('.taelgar-index-count').text(),'2 people');
   assert.deepEqual(popup('.taelgar-index-link').map((_,link)=>popup(link).text()).get().filter(name=>name==='Bob'||name==='Visitor'),['Bob','Visitor']);
   assert.doesNotMatch(popup('.taelgar-index').text(),/Alice|Dead|Future/);
+});
+
+test('membership table columns keep joined and left dates on the same qualifying period',()=>{
+  const sources=indexSources({
+    'People/Multiple Periods.md':{tags:['person'],affiliations:[
+      {org:'Guild',start:1701,end:1702,title:'Apprentice'},
+      {org:'Guild',start:1714,end:1719,title:'Steward'},
+      {org:'Guild',start:1722,end:1725,title:'Treasurer'},
+    ]},
+    'People/Later End.md':{tags:['person'],affiliations:[{org:'Guild',start:1713,end:1724}]},
+    'People/Term at Death.md':{tags:['person'],died:1718,leaderOf:[{place:'Guild',start:1712,end:1718,title:'Captain'}]},
+    'People/Reign Fallback.md':{tags:['person'],reignStart:1716,leaderOf:[{place:'Guild',title:'Librarian'}]},
+  });
+  sources['Roster.md']='```taelgar-index\ntype: members\ntarget: Guild\nscope: ever\nmode: table\ncolumns: [name, roles, joined, left, died]\nsortBy: [joined, name]\n```';
+  const engine=website(sources);
+  const render=date=>load(engine.render('Roster',date,'custom').html,{},false);
+  const $=render('1720-01-01');
+  const rows=$('tbody tr').map((_,row)=>[$(row).find('td').map((_,cell)=>$(cell).text()).get()]).get();
+  assert.deepEqual($('th').map((_,heading)=>$(heading).text()).get(),['Person','Roles','Joined','Left','Died']);
+  assert.deepEqual(rows.map(row=>row[0]),['Alice Example (she/her AL-iss)','Term at Death','Later End','Multiple Periods','Bob','Reign Fallback','Dead']);
+  assert.deepEqual(rows.find(row=>row[0]==='Multiple Periods'),['Multiple Periods','Apprentice · Steward','DR 1714','DR 1719','—']);
+  assert.deepEqual(rows.find(row=>row[0]==='Term at Death'),['Term at Death','Captain','DR 1712','—','DR 1718']);
+  assert.deepEqual(rows.find(row=>row[0]==='Later End').slice(2),['DR 1713','—','—']);
+  assert.deepEqual(rows.find(row=>row[0]==='Reign Fallback').slice(2),['DR 1716','—','—']);
+  assert.deepEqual(rows.find(row=>row[0]==='Dead').slice(2,4),['—','—']);
+  const later=render('1726-01-01');
+  const latest=later('tbody tr').filter((_,row)=>later(row).find('td').first().text()==='Multiple Periods');
+  assert.deepEqual(latest.find('td').map((_,cell)=>later(cell).text()).get().slice(2),['DR 1722','DR 1725','—']);
+});
+
+test('geography columns can be reordered and sorted by visible or hidden fields',()=>{
+  const sources=indexSources({
+    'Places/Alpha Region.md':{tags:['place'],typeOf:'region',whereabouts:'Realm'},
+    'Places/A-late.md':{tags:['place'],typeOf:'tower',whereabouts:'Alpha Region',population:1200,created:1718,destroyed:1742},
+    'Places/Z-early.md':{tags:['place'],typeOf:'tower',whereabouts:'Alpha Region',population:50,created:1699,destroyed:1712},
+    'Places/Secondary Site.md':{tags:['place'],typeOf:'ruin',whereabouts:[{type:'secondary',location:'Realm'}]},
+  });
+  sources['Places table.md']='```taelgar-index\ntype: places\ntarget: Realm\nmode: table\ncolumns: [region, name, type, population, created, destroyed]\nsortBy: [region, type, population, name]\n```';
+  sources['Hidden sort.md']='```taelgar-index\ntype: places\ntarget: Realm\nmode: table\ncolumns: [name]\nsortBy: [created]\n```';
+  const engine=website(sources);
+  const $=load(engine.render('Places table','1720-01-01','custom').html,{},false);
+  assert.deepEqual($('th').map((_,cell)=>$(cell).text()).get(),['Region','Place','Type Of','Population','Created','Destroyed']);
+  const rows=$('tbody tr').map((_,row)=>[$(row).find('td').map((_,cell)=>$(cell).text()).get()]).get();
+  assert.deepEqual(rows.slice(0,2),[
+    ['Alpha Region','Z-early','tower','pop. 50','DR 1699','DR 1712'],
+    ['Alpha Region','A-late','tower','pop. 1,200','DR 1718','—'],
+  ]);
+  assert.equal(rows.at(-1)[0],'Unknown','missing regions sort last');
+  assert.match($('tbody tr:first-child td:first-child a').attr('href'),/alpha-region/);
+  const hidden=load(engine.render('Hidden sort','1720-01-01','custom').html,{},false);
+  assert.equal(hidden('th').text(),'Place');
+  assert.deepEqual(hidden('tbody tr').slice(0,2).map((_,row)=>hidden(row).text()).get(),['Z-early','A-late']);
 });
 
 test('all inline index types have one H2 label in grids and tables, including empty indexes',()=>{

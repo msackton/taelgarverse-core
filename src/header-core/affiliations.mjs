@@ -81,10 +81,11 @@ export class AffiliationManager {
             }
         }
         else {
+            const explicitEndDate = dates.normalizeDate(affiliation.end, true)
             result =
             {
                 startDate: dates.normalizeDate(affiliation.start, false) ?? defaultStart ?? minDate,
-                endDate: dates.normalizeDate(affiliation.end, true) ?? defaultEnd ?? maxDate,
+                endDate: explicitEndDate ?? defaultEnd ?? maxDate,
                 org: affiliation.org,
                 type: affiliation.type,
                 title: affiliation.title,
@@ -92,6 +93,7 @@ export class AffiliationManager {
                 formatPast: affiliation.formatPast ?? affiliation.aPast ?? affiliation.aPastWithStart,
                 formatCurrent: affiliation.formatCurrent ?? affiliation.aCurrent
             }
+            if (explicitEndDate) result.explicitEndDate = explicitEndDate
         }
 
         if (!result.org && affiliation.place) {

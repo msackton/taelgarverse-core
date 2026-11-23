@@ -1,6 +1,7 @@
 import {parse} from 'yaml';
 import {createHeaderContext,HeaderDataError} from './header-core/index.mjs';
 import {getPageType} from './header-core/metadata.mjs';
+import {indexColumnValue,indexTableColumns,validateIndexTableOptions} from './index-columns.mjs';
 
 export const indexLabels = Object.freeze({residents:'Residents','people-in-place':'People Present',settlements:'Settlements',members:'Members',rivers:'Rivers',places:'Places'});
 const indexTypes=Object.keys(indexLabels).join(', ');
@@ -19,12 +20,11 @@ function validatePlaceType(type,placeType) {
   if (placeType !== 'built' && placeType !== 'natural') throw new Error('placeType must be built or natural.');
 }
 
-function validateScopeAndColumns({type,scope,columns,mode}) {
+function validateIndexOptions(options) {
+  const {type,placeType,scope}=options;
+  validatePlaceType(type,placeType);
   if (scope !== undefined && !['current','historical','ever'].includes(scope)) throw new Error('scope must be current, historical, or ever.');
-  if (type !== 'members' && columns !== undefined) throw new Error('columns is only supported for members indexes.');
-  if (columns !== undefined && (columns !== 'life-dates' || mode !== 'table')) {
-    throw new Error('columns must be life-dates and requires mode: table.');
-  }
+  validateIndexTableOptions(options);
 }
 
 export function headerIndexes(value) {
@@ -45,19 +45,19 @@ export function headerIndexesForMetadata(metadata = {}) {
 export function parseIndex(source) {
   const value = parse(source,{maxAliasCount:20});
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Use YAML with a supported index type: '+indexTypes+'.');
-  for (const key of Object.keys(value)) if (!['type','target','show','recursive','mode','placeType','heading','scope','columns'].includes(key)) throw new Error('Unknown index option: '+key);
+  for (const key of Object.keys(value)) if (!['type','target','show','recursive','mode','placeType','heading','scope','columns','sortBy'].includes(key)) throw new Error('Unknown index option: '+key);
   if (typeof value.type !== 'string' || !Object.hasOwn(indexLabels,value.type)) throw new Error('type must be one of: '+indexTypes+'.');
   if (value.target !== undefined && (typeof value.target !== 'string' || !value.target.trim())) throw new Error('target must be a note name or path.');
   if (value.show !== undefined && !['obsidian','website','both'].includes(value.show)) throw new Error('show must be obsidian, website, or both.');
   if (value.recursive !== undefined && typeof value.recursive !== 'boolean') throw new Error('recursive must be true or false.');
   if (value.mode !== undefined && !['grid','table'].includes(value.mode)) throw new Error('mode must be grid or table.');
   if (value.heading !== undefined && typeof value.heading !== 'boolean') throw new Error('heading must be true or false.');
-  validatePlaceType(value.type,value.placeType);
-  validateScopeAndColumns(value);
+  validateIndexOptions(value);
   return {type:value.type,target:value.target?.trim(),show:value.show ?? 'both',recursive:value.recursive ?? value.type !== 'members',mode:value.mode ?? 'grid',heading:value.heading ?? true,
     ...(value.placeType !== undefined ? {placeType:value.placeType} : {}),
     ...(value.scope !== undefined ? {scope:value.scope} : {}),
-    ...(value.columns !== undefined ? {columns:value.columns} : {})};
+    ...(value.columns !== undefined ? {columns:value.columns} : {}),
+    ...(value.sortBy !== undefined ? {sortBy:value.sortBy} : {})};
 }
 
 const plain = value => typeof value === 'string' || typeof value === 'number' ? String(value) : '';
@@ -70,6 +70,26 @@ const compareNames=new Intl.Collator('en',{sensitivity:'base',numeric:true}).com
 const comparePaths=new Intl.Collator('en').compare;
 const candidateIndexes=new WeakMap();
 const dateAtDay=day=>({sort:day,days:day,isNormalizedDate:true});
+const sortText=value=>Array.isArray(value) ? value.map(part=>typeof part==='string' ? part : part.name).join('') :
+  typeof value==='string' ? value : value?.name;
+const knownDate=value=>Number.isFinite(value?.sort) && !value.isHiddenDate;
+
+function compareColumn(a,b) {
+  if(a===undefined || b===undefined)return Number(a===undefined)-Number(b===undefined);
+  return typeof a==='number' && typeof b==='number' ? a-b : compareNames(a,b);
+}
+
+function latestAffiliation(roles,date) {
+  let latest,lastMatch=-Infinity;
+  for(const role of roles) {
+    const end=Math.min(role.endDate.sort,date.sort);
+    if(!latest || end>lastMatch || (end===lastMatch && role.startDate.sort>latest.startDate.sort)) {
+      latest=role;
+      lastMatch=end;
+    }
+  }
+  return latest;
+}
 
 function indexCandidates(snapshot) {
   let index=candidateIndexes.get(snapshot);
@@ -98,12 +118,11 @@ export function queryIndex(snapshot,options,context) {return runIndexQuery(snaps
 export function indexHasResults(snapshot,options,context) {return runIndexQuery(snapshot,options,context,true);}
 
 function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>true}={},firstOnly=false) {
-  const {type,scope,recursive=type !== 'members'} = options;
+  const {type,scope,columns,sortBy:ordering,recursive=type !== 'members'} = options;
   if (!Object.hasOwn(indexLabels,type)) throw new Error('Unknown index type.');
-  validatePlaceType(type,options.placeType);
-  validateScopeAndColumns(options);
+  validateIndexOptions(options);
   const isMemberIndex=type==='members',presence=type==='people-in-place';
-  const lifeDates=options.columns==='life-dates';
+  const fields=new Set([...indexTableColumns(type,columns),...(ordering ?? [])]);
   const {dates,names,locations,affiliations,templates} = createHeaderContext(snapshot,{date});
   const at = dates.normalizeDate(date);
   const candidates=indexCandidates(snapshot),{byPath,people}=candidates;
@@ -132,8 +151,10 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
   };
   const target = options.target ? lookup(options.target) : byPath.get(sourcePath);
   if (!target || !visible(target)) throw new Error('The index target is unavailable.');
-  if (getPageType(target.metadata) !== (isMemberIndex ? 'group' : 'place')) {
-    throw new Error(isMemberIndex ? 'Members requires an organization target.' : 'This index requires a place target.');
+  const targetTypes=isMemberIndex ? ['group'] : placeIndex ? ['place'] : ['place','object'];
+  if (!targetTypes.includes(getPageType(target.metadata))) {
+    if(isMemberIndex)throw new Error('Members requires an organization target.');
+    throw new Error(placeIndex ? 'This index requires a place target.' : 'This index requires a place or object target.');
   }
   const displayName = page => names.getNameObject(page.path).name || page.name;
   const inOrganization = (organization,source) => {
@@ -213,13 +234,13 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
     }
     if(cycle)throw cycle;
   };
-  const locationItem = (whereabout,source) => {
+  const locationItem = (whereabout,source,format='n') => {
     const page=whereabout.location ? lookup(whereabout.location,source) : undefined;
     if (page && !visible(page)) return undefined;
     if (!whereabout.location) return undefined;
     const reference=linkTarget(whereabout.location),file=names.getFileForTarget(reference);
     const name=names.getNameObject(file?.path === page?.path ? reference : page?.path || reference,'place',{alias:whereabout.alias});
-    return {path:page?.path,name:names.formatName(name,'n')};
+    return {path:page?.path,name:names.formatName(name,format)};
   };
   // Template output is text with wikilinks, never HTML. Resolve each link before
   // rendering so every host keeps its native URLs and website visibility rules.
@@ -236,7 +257,7 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
     if (end<text.length) parts.push(text.slice(end));
     return parts;
   };
-  const items=[],warnings=new Set();
+  const items=[],warnings=new Set(),sortValues=new WeakMap();
   for (const page of placeIndex ? candidates[type] : people) {
     if (!visible(page) || page.path === target.path) continue;
     const metadata=page.metadata;
@@ -253,7 +274,7 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
           matchDate=end;
         }
       } else {
-        if(!life.isCreated && (!isMemberIndex || lifeDates))continue;
+        if(!life.isCreated && !isMemberIndex)continue;
         if(!life.isAlive && (type==='residents' || presence))continue;
       }
       let roles=[];
@@ -272,49 +293,79 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
         [...new Set([metadata.ancestry,metadata.species,metadata.typeOfAlias || metadata.typeOf].map(plain).filter(Boolean))].join(' · ');
       const details=type === 'settlements' && typeof metadata.population === 'number' && Number.isFinite(metadata.population) ? 'Population '+metadata.population.toLocaleString('en-US') :
         isMemberIndex ? [...new Set(roles.map(role=>plain(role.title)).filter(Boolean))].join(' · ') : '';
-      const settlement=type === 'settlements' ? {
-        name:templates.formatDisplayString('<name:n>',{name:page.name,frontmatter:metadata},at),
-        region:locationItem(whereaboutsFor(metadata,matchDate).home,page.path),
-        settlementType:templates.formatDisplayString('<maintype:n>',{name:page.name,frontmatter:metadata},at),
-        population:templates.formatDisplayString('<population>',{name:page.name,frontmatter:metadata},at),
-      } : {};
-      const place=type==='rivers' || type==='places' ? {
-        name:templates.formatDisplayString('<name:n>',{name:page.name,frontmatter:metadata},at),
-        placeType:templates.formatDisplayString('<maintype:n>',{name:page.name,frontmatter:metadata},at),
-      } : {};
-      let person={};
-      if (!placeIndex) {
-        const file={name:page.name,frontmatter:metadata};
-        const format=template=>formattedParts(templates.formatDisplayString(template,file,at),page.path);
-        person={
-          person:format('<name> (<pronouns> <pronunciation>)'),
-          info:format('<ancestry> <maintype>'),
-        };
-        if (lifeDates) {
-          const born=dates.normalizeDate(metadata.born,false),died=dates.normalizeDate(metadata.died,true);
-          person.born=born && !born.isHiddenDate ? born.display : '';
-          person.died=died && !died.isHiddenDate && died.sort<=at.sort ? died.display : '';
-          person.birthOrder=person.born ? born.sort : Number.MAX_SAFE_INTEGER;
-        } else {
+      const item={path:page.path,name:displayName(page),description,details,
+        pronunciation:plain(metadata.pronunciation),imageTarget:metadata.image};
+      const file={name:page.name,frontmatter:metadata};
+      const format=template=>templates.formatDisplayString(template,file,at);
+      const keys={};
+      const setDate=(field,value,isEnd)=>{
+        if(!fields.has(field))return;
+        const normalized=dates.normalizeDate(value,isEnd);
+        if(!knownDate(normalized) || normalized.sort>at.sort) {
+          item[field]='';
+          return;
+        }
+        item[field]=normalized.display;
+        keys[field]=normalized.sort;
+      };
+      if(placeIndex) {
+        item.name=format('<name:n>');
+        item[type==='settlements' ? 'settlementType' : 'placeType']=format('<maintype:n>');
+        if(fields.has('region') || type==='settlements') {
+          item.region=locationItem(whereaboutsFor(metadata,matchDate).home,page.path,type==='settlements' ? 'n' : 'nx');
+        }
+        if(fields.has('population')) {
+          item.population=metadata.population===0 ? '0' : format('<population>');
+          const number=plain(metadata.population).trim();
+          if(number && Number.isFinite(Number(number)))keys.population=Number(number);
+        }
+        setDate('created',metadata.created,false);
+        setDate('destroyed',metadata.destroyed,true);
+      } else {
+        item.person=formattedParts(format('<name> (<pronouns> <pronunciation>)'),page.path);
+        item.info=formattedParts(format('<ancestry> <maintype>'),page.path);
+        if(fields.has('currentLocation')) {
           const current=life.isAlive ? currentLocation(whereaboutsFor(metadata)) : '';
           const destination=lookup(current,page.path);
           const hasCurrentLocation=current && (!destination || visible(destination));
-          person.currentLocation=hasCurrentLocation ? format(isMemberIndex ? '<current:2Fr>' : '<current:2>') : [];
-          person.home=format('<home:1>');
+          item.currentLocation=hasCurrentLocation ? formattedParts(format(isMemberIndex ? '<current:2Fr>' : '<current:2>'),page.path) : [];
+        }
+        if(fields.has('home'))item.home=formattedParts(format('<home:1>'),page.path);
+        setDate('born',metadata.born,false);
+        setDate('died',metadata.died,true);
+        if(fields.has('joined') || fields.has('left')) {
+          const period=latestAffiliation(roles,matchDate);
+          setDate('joined',period.startDate);
+          if(fields.has('left')) {
+            const died=dates.normalizeDate(metadata.died,true),end=period.explicitEndDate;
+            setDate('left',!knownDate(died) || end?.sort<died.sort ? end : undefined);
+          }
         }
       }
-      items.push({path:page.path,name:displayName(page),description,details,
-        pronunciation:plain(metadata.pronunciation),imageTarget:metadata.image,...settlement,...place,...person});
+      if(ordering)sortValues.set(item,ordering.map(column=>column==='population' ? keys.population :
+        keys[column] ?? (sortText(indexColumnValue(item,column)) || undefined)));
+      items.push(item);
     } catch (error) {
       if (!(error instanceof HeaderDataError)) throw error;
       warnings.add('Some pages were omitted because their relationship metadata contains a cycle.');
     }
   }
   if(firstOnly)return false;
-  items.sort((a,b)=>(lifeDates ? a.birthOrder-b.birthOrder : type === 'settlements' ? compareNames(a.region?.name || 'Unknown',b.region?.name || 'Unknown') :
-    type==='rivers' || type==='places' ? compareNames(a.placeType || 'Unknown',b.placeType || 'Unknown') : 0) ||
-    compareNames(a.name,b.name) || comparePaths(a.path,b.path));
+  items.sort((a,b)=>{
+    if(ordering) {
+      const left=sortValues.get(a),right=sortValues.get(b);
+      for(let i=0;i<ordering.length;i++) {
+        const result=compareColumn(left[i],right[i]);
+        if(result)return result;
+      }
+    } else {
+      const result=type==='settlements' ? compareNames(a.region?.name || 'Unknown',b.region?.name || 'Unknown') :
+        type==='rivers' || type==='places' ? compareNames(a.placeType || 'Unknown',b.placeType || 'Unknown') : 0;
+      if(result)return result;
+    }
+    return compareNames(a.name,b.name) || comparePaths(a.path,b.path);
+  });
   const label=(scope==='historical' ? 'Historical ' : scope==='ever' ? 'All-time ' : '')+indexLabels[type];
   return {type,label,target:displayName(target),items,warnings:[...warnings],
-    ...(lifeDates ? {columns:'life-dates'} : {})};
+    ...(columns !== undefined ? {columns} : {})};
 }

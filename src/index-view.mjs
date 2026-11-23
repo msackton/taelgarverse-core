@@ -1,4 +1,5 @@
 import {escapeHtml} from './common.mjs';
+import {indexColumnHeading,indexColumnValue,indexTableColumns} from './index-columns.mjs';
 
 const formattedParts=(parts,link)=>parts.map(part=>typeof part==='string' ? escapeHtml(part) : link(part)).join('');
 const indexName=(item,link)=>item.person ? formattedParts(item.person,link) : link(item)+
@@ -18,18 +19,17 @@ export function indexGrid(result,link,options={}) {
 }
 
 export function indexTable(result,link,options={}) {
-  const settlements=result.type==='settlements',features=result.type==='rivers' || result.type==='places';
-  const lifeDates=result.columns==='life-dates';
-  const headings=settlements ? ['Place','Region','Type Of','Population'] : features ? [result.type==='rivers' ? 'River' : 'Place','Type Of'] :
-    lifeDates ? ['Person','Info','Born','Died'] : ['Person','Info','Current Location','Home'];
-  const formatted=parts=>formattedParts(parts,link);
-  const rows=result.items.map(item=>{
-    const name=indexName(item,link);
-    const cells=settlements ? [name,item.region ? link(item.region) : 'Unknown',escapeHtml(item.settlementType || '—'),escapeHtml(item.population || '—')] : features ? [name,escapeHtml(item.placeType || '—')] :
-      lifeDates ? [name,formatted(item.info) || '—',escapeHtml(item.born || '—'),escapeHtml(item.died || '—')] :
-      [name,formatted(item.info) || '—',formatted(item.currentLocation) || 'Unknown',formatted(item.home) || 'Unknown'];
-    return '<tr>'+cells.map(cell=>'<td>'+cell+'</td>').join('')+'</tr>';
-  }).join('');
+  const columns=indexTableColumns(result.type,result.columns);
+  const headings=columns.map(column=>indexColumnHeading(result.type,column));
+  const cell=(item,column)=>{
+    if(column==='name')return indexName(item,link);
+    const value=indexColumnValue(item,column);
+    const missing=['region','currentLocation','home'].includes(column) ? 'Unknown' : '—';
+    if(Array.isArray(value))return formattedParts(value,link) || missing;
+    if(column==='region' && value)return link(value);
+    return escapeHtml(value || missing);
+  };
+  const rows=result.items.map(item=>'<tr>'+columns.map(column=>'<td>'+cell(item,column)+'</td>').join('')+'</tr>').join('');
   return indexSection(result,rows ? '<div class="taelgar-index-table-scroll"><table class="taelgar-index-table"><thead><tr>'+headings.map(heading=>'<th scope="col">'+heading+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div>' : '',false,options);
 }
 

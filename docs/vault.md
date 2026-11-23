@@ -311,6 +311,7 @@ indexes: [residents, settlements]
 
 For a watershed use `indexes: [rivers]`; for a town use `indexes: [places]`.
 Use `indexes: [people-in-place]` to show a People Present button on a place.
+Object notes, such as ships, can also use `indexes: [residents, people-in-place]`.
 For an organization (`tags: [group]`), Members is enabled automatically when
 `indexes` is omitted. Set `indexes: []` to suppress it, or provide another
 valid array to choose the header indexes explicitly. Types can be combined in
@@ -395,11 +396,16 @@ show: both
 | `heading` | Boolean, defaults to `true`. Set `false` to omit the inline index's H2 title. Table column headings, grid counts, and popup titles are unaffected. |
 | `recursive` | Boolean. Defaults to `true` for place indexes and `false` for Members. `false` matches only the immediate location or organization. Recursive Members also includes organizations connected through `partOf`. |
 | `scope` | Optional for any inline index. Choose `current`, `historical`, or `ever` to apply the date rules below. Omit to use the index's original selection rules. |
-| `columns` | Members tables only. Set to `life-dates` for Person, Info, Born, and Died. Sorts by birth date, with unknown birth dates last. Death dates appear once reached in the selected chronology. |
+| `columns` | Tables only. Supply a list of column names in display order. Omit to use the index's default columns. |
+| `sortBy` | Tables only. Supply a list of column names in ascending sort order. Columns used for sorting can be hidden from the table. Missing sort values come last. Omit to use the index's default order. |
 
-Residents, People Present, Settlements, Rivers and Places require a place target.
-Members requires a group target. Rivers can also list waterways and lakes in a
-barony or other place; Places is not restricted to towns.
+Residents and People Present accept place or object targets. For example, put
+`type: people-in-place` on a ship or container note to list its occupants. By
+default this includes people inside nested locations and objects when the dated
+whereabouts chain leads to the target. Use `recursive: false` for direct matches.
+Settlements, Rivers and Places require a place target. Members requires a group
+target. Rivers can also list waterways and lakes in a barony or other place;
+Places is not restricted to towns.
 
 ### Temporal scope
 
@@ -427,7 +433,8 @@ Use this roster on a group note to show everyone who belonged by the selected da
 type: members
 scope: ever
 mode: table
-columns: life-dates
+columns: [name, info, born, died]
+sortBy: [born, name]
 ```
 ````
 
@@ -501,7 +508,50 @@ example, use `type: rivers` on a watershed or `type: places` on a town, with
 Tables use compact rows, regular-weight links, and a single rule below the
 column headings, without a separate result-count line.
 
-With `mode: table`, Residents have four columns, using the existing people query's
+### Table columns and sorting
+
+Use an ordered `columns` list to choose the table fields. `sortBy` orders the
+rows independently, with the displayed name breaking ties. Dates and numeric
+populations sort by value.
+
+| Available on | Column names |
+| --- | --- |
+| Every index | `name` links to the note. The heading is Person, Place, or River. |
+| Residents, People Present, and Members | `info`, `currentLocation`, `home`, `born`, `died`. |
+| Members | `roles`, `joined`, `left`. Roles lists the qualifying affiliation and leadership titles. |
+| Places, Settlements, and Rivers | `region`, `type`, `population`, `created`, `destroyed`. Region uses the immediate home region at the matching date. |
+
+For Members, Joined and Left use the same qualifying affiliation period. When
+several periods qualify, the table uses the period with the latest matching day,
+then the latest start. Joined shows that period's recorded start. Left shows
+an explicit end reached by the selected date and before the person's death.
+Death dates and destruction dates appear once reached in the selected chronology.
+Missing dates appear as dashes.
+
+For example, a places table can show regions and group its rows by region and type:
+
+````markdown
+```taelgar-index
+type: places
+scope: current
+mode: table
+columns: [name, region, type]
+sortBy: [region, type, name]
+```
+````
+
+For a roster that shows affiliation dates and roles:
+
+````markdown
+```taelgar-index
+type: members
+scope: ever
+mode: table
+columns: [name, roles, joined, left, died]
+```
+````
+
+The default Residents table has four columns, using the existing people query's
 header templates:
 
 | Column | Template |
@@ -518,7 +568,7 @@ by home. The legacy helper's `includeDead` parameter is explicitly `false` for
 Residents. Resolvable names link to their pages, and website-hidden destinations
 show **Unknown**. Table rows have no image column.
 
-Member tables have four columns, using the existing query's header templates:
+The default Members table has four columns, using the existing query's header templates:
 
 | Column | Template |
 | --- | --- |
