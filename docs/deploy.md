@@ -42,9 +42,10 @@ the same local `--plugin --vault PATH` path, then enable Session review in the
 plugin settings. Transcript decisions and entity review are local vault writes;
 they do not deploy code or publish vault content.
 
-The reusable viewer package has a local build command, `npm run maps:pack`.
-CI saves the resulting archive as **taelgar-maps**; this does not publish an npm
-package or release the Obsidian plugin. The map catalogue API deploys through
+Run `npm run maps:pack` to build the reusable viewer archive locally. CI tests
+the archive on Windows and Ubuntu, saves it as **taelgar-maps**, and runs the two
+Python exporter suites before website deployments and Obsidian releases.
+The map catalogue API deploys through
 the normal website workflow and reads the compiled snapshot's map catalogue.
 See [map package and API](maps.md#reusable-viewer-and-map-catalogue).
 

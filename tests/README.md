@@ -53,6 +53,19 @@ emulator suites.
 
 ## Common map tools
 
+The shared CI workflow tests the map package on Windows and Ubuntu. To reproduce
+the package check locally, run `node --test tests/map-package.test.mjs` with
+`tar` on the path. The test extracts the archive and bundles its viewer as a consumer.
+
+Pull requests, main builds and Obsidian release builds also run both synthetic
+Photoshop exporter suites. To reproduce them in a Python 3.11 environment, run
+
+```sh
+python -m pip install -r scripts/map-export/requirements.txt
+python tests/map-export.test.py
+python tests/map-export-links.test.py
+```
+
 `npm run test:ui:maps` runs real Chromium against test-owned map figures. It checks
 local drawing, point outlines, selection/deletion, measurements, independent maps,
 and omission of the shared-only Ping tool from ordinary note maps,

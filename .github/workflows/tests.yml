@@ -9,6 +9,35 @@ permissions:
   contents: read
 
 jobs:
+  windows-map-package:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: node --test tests/map-package.test.mjs
+      - run: npm run maps:pack
+
+  map-exporter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: scripts/map-export/requirements.txt
+      - run: python -m pip install -r scripts/map-export/requirements.txt
+      - run: python tests/map-export.test.py
+      - run: python tests/map-export-links.test.py
+
   test:
     runs-on: ubuntu-latest
     defaults:
