@@ -1,9 +1,10 @@
 import {parse} from 'yaml';
 import {createHeaderContext, HeaderDataError} from './header-core/index.mjs';
 import {getPageType, pageTypes} from './header-core/metadata.mjs';
+import {matchAffiliation} from './index-affiliations.mjs';
 import {indexTableColumns, validateIndexTableOptions} from './index-columns.mjs';
 
-const keys = new Set(['type','from','via','target','recursive','scope','where','show','mode','heading','columns','sortBy']);
+const keys = new Set(['type','from','via','affiliationType','target','recursive','scope','where','show','mode','heading','columns','sortBy']);
 const scalar = value => typeof value === 'string' || typeof value === 'boolean' || Number.isFinite(value);
 const mapping = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const compare = new Intl.Collator('en', {sensitivity:'base', numeric:true}).compare;
@@ -13,11 +14,22 @@ const reference = text => typeof text === 'string' ? text.trim().replace(/^\[\[|
 const hasLocation = record => reference(record?.location) && reference(record.location).toLowerCase() !== 'unknown';
 
 function validate(options) {
-  if (!mapping(options)) throw new Error('Use a YAML mapping for a whereabouts index.');
+  if (!mapping(options)) throw new Error('Use a YAML mapping for a taelgar-index.');
   for (const key of Object.keys(options)) if (!keys.has(key)) throw new Error('Unknown index option: ' + key);
-  if (options.type !== 'whereabouts') throw new Error('type must be whereabouts.');
+  if (options.type !== 'whereabouts' && options.type !== 'affiliation') throw new Error('type must be whereabouts or affiliation.');
   if (!pageTypes.includes(options.from)) throw new Error('from must be one of: ' + pageTypes.join(', '));
-  if (!['home','current','lastKnown'].includes(options.via)) throw new Error('via must be home, current, or lastKnown.');
+  if (options.type === 'whereabouts') {
+    if (!['home','current','lastKnown'].includes(options.via)) throw new Error('via must be home, current, or lastKnown.');
+    if (options.affiliationType !== undefined) throw new Error('affiliationType requires type: affiliation.');
+  } else {
+    if (options.via !== undefined) throw new Error('via requires type: whereabouts.');
+    if (options.affiliationType !== undefined) {
+      const kinds = [].concat(options.affiliationType);
+      if (!kinds.length || kinds.some(kind => typeof kind !== 'string' || !kind.trim())) {
+        throw new Error('affiliationType must be a nonempty string or a nonempty list of strings.');
+      }
+    }
+  }
   for (const [key, choices] of Object.entries({scope:['current','historical','ever'], show:['both','obsidian','website'], mode:['grid','table']})) {
     if (options[key] !== undefined && !choices.includes(options[key])) throw new Error(key + ' must be one of: ' + choices.join(', '));
   }
@@ -38,7 +50,7 @@ function validate(options) {
 export function parseIndex(source) {
   const options = parse(source,{maxAliasCount:20});
   validate(options);
-  return {recursive:true, scope:'current', show:'both', mode:'grid', heading:true, ...options};
+  return {recursive:options.type === 'whereabouts', scope:'current', show:'both', mode:'grid', heading:true, ...options};
 }
 
 const indexes = new WeakMap();
@@ -68,8 +80,9 @@ function boundaryDays(records, first, last) {
 
 export function queryIndex(snapshot, options, {date, sourcePath, resolve, visible = () => true} = {}) {
   validate(options);
-  const {from, via, scope = 'current', recursive = true, where = {}, columns, sortBy} = options;
-  const {dates,names,locations,templates} = createHeaderContext(snapshot,{date});
+  const {type, from, via, scope = 'current', recursive = type === 'whereabouts', where = {}, columns, sortBy} = options;
+  const affiliationTypes = options.affiliationType === undefined ? null : new Set([].concat(options.affiliationType));
+  const {dates,names,locations,affiliations,templates} = createHeaderContext(snapshot,{date});
   const at = dates.normalizeDate(date);
   const {byPath,byType} = pagesFor(snapshot);
   const lookups = new Map(), records = new WeakMap(), dated = new WeakMap();
@@ -182,7 +195,11 @@ export function queryIndex(snapshot, options, {date, sourcePath, resolve, visibl
       const first = known(life.startDate) ? life.startDate.sort : -Infinity;
       const ended = known(life.endDate) && life.endDate.sort < at.sort;
       if (first > at.sort || (ended && (scope === 'current' || life.endDate.sort < first))) continue;
-      const matched = matchDate(page,first,ended ? life.endDate : at);
+      const until = ended ? life.endDate : at;
+      const affiliation = type === 'affiliation' ? matchAffiliation(
+        affiliations.getAffiliations(metadata,until), page.path, {target, lookup, recursive, scope, affiliationTypes, first, until}
+      ) : undefined;
+      const matched = type === 'affiliation' ? affiliation?.date : matchDate(page,first,until);
       if (!matched) continue;
       const format = template => templates.formatDisplayString(template,{name:page.name,frontmatter:metadata},at);
       const item = {path:page.path,name:format('<name:n>'),type:format('<maintype:n>'),
@@ -206,6 +223,15 @@ export function queryIndex(snapshot, options, {date, sourcePath, resolve, visibl
         item.population = metadata.population === 0 ? '0' : format('<population>');
         const number = Number(metadata.population);
         if (String(metadata.population).trim() && Number.isFinite(number)) keys.population = number;
+      }
+      if (affiliation && fields.has('roles')) item.roles = affiliation.roles.join(' · ');
+      if (affiliation) {
+        for (const [key,value] of [['joined',affiliation.term.startDate], ['left',affiliation.term.explicitEndDate]]) {
+          if (fields.has(key) && known(value) && value.sort <= until.sort) {
+            item[key] = value.display;
+            keys[key] = value.sort;
+          }
+        }
       }
       for (const field of ['born','died','created','destroyed']) {
         if (!fields.has(field)) continue;

@@ -20,7 +20,7 @@ version. Plugin files and BRAT preferences should stay outside vault Git trackin
 
 ## Generated indexes
 
-Use an inline whereabouts block to list notes by their dated locations.
+Inline `taelgar-index` blocks support two query types. Use `whereabouts` for dated locations and `affiliation` for rosters.
 
 ````markdown
 ```taelgar-index
@@ -31,7 +31,9 @@ mode: table
 ```
 ````
 
-The containing note is the default target. Choose `home`, `current` or `lastKnown` for the first hop. The result can be displayed as a grid or table. See the [whereabouts index reference](https://github.com/msackton/taelgarverse-core/blob/main/docs/vault.md#generated-indexes) for date scopes, filters, columns and sorting.
+For a roster on a group note, use `type: affiliation` and `from: person`. Add `scope: ever` to include former members.
+
+The containing note is the default target. For whereabouts, choose `home`, `current` or `lastKnown` for the first hop. The result can be displayed as a grid or table. See the [index reference](https://github.com/msackton/taelgarverse-core/blob/main/docs/vault.md#generated-indexes) for date scopes, filters, columns and sorting.
 
 ## Generated headers
 

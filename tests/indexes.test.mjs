@@ -205,3 +205,83 @@ test('site renders inline queries and ignores header indexes on places and group
   assert.doesNotMatch(render('Groups/No Buttons'),/taelgar-index-buttons|taelgar-index-popup|header-index-slot/);
   assert.equal((await handleRequest(new Request('https://test.invalid/api/index?page=Town&type=places'),engine)).status,404);
 });
+
+test('only affiliation and whereabouts are valid index types, at both public entry points',()=>{
+  const {runtime}=fixture();
+  const invalid=['residents','people-in-place','members','places','settlements','rivers','affiliations','toString',''];
+  for (const type of invalid) {
+    assert.throws(()=>parseIndex('from: person\ntype: '+JSON.stringify(type)),/type must be whereabouts or affiliation/);
+    assert.throws(()=>queryIndex(runtime,{from:'person',type},{date:'1720-01-01'}),/type must be whereabouts or affiliation/);
+  }
+  assert.equal(parseIndex('type: affiliation\nfrom: person').recursive,false);
+  assert.equal(parseIndex('type: whereabouts\nfrom: person\nvia: home').recursive,true);
+  for (const extra of ['via: home','affiliationType: []','affiliationType: [leader, false]','affiliationType: null','affiliationType: " "']) {
+    assert.throws(()=>parseIndex('type: affiliation\nfrom: person\n'+extra),/via|affiliationType/);
+  }
+  assert.throws(()=>parseIndex('type: whereabouts\nfrom: person\nvia: home\naffiliationType: leader'),/affiliationType/);
+});
+
+test('affiliation rosters share header normalization, include inclusive endpoints and keep term dates paired',()=>{
+  const org='Archive';
+  const {runtime}=fixture({
+    'Archive.md':{tags:['background']},
+    'Scribe.md':{tags:['person'],species:'human',affiliations:[
+      {org,type:'primary',title:'Scribe',start:'1700-03-02',end:'1710-05-01'},
+      {org,type:'scribe',title:'Scribe',start:'1715-01-03',end:'1718-06-09'},
+      {org,type:'leader',title:'Keeper',start:'1717-02-04',end:'1718-06-09'},
+      {org,type:'leader',title:'Future',start:'1725-01-01'}]},
+    'Retired.md':{tags:['person'],died:'1718-01-01',affiliations:[{org,start:1700,end:1710}]},
+    'Custodian.md':{tags:['person'],died:'1718-01-01',affiliations:[org]},
+    'Founder.md':{tags:['person'],title:'Founder',reignStart:'1700-02-03',leaderOf:[{place:org}]},
+    'Unborn.md':{tags:['person'],born:1750,affiliations:[org]},
+    'Medal.md':{tags:['object'],affiliations:[{org,type:'primary'}]},
+  });
+  const run=(options={},date='1720-01-01')=>queryIndex(runtime,{
+    type:'affiliation',from:'person',mode:'table',columns:['name','roles','joined','left'],...options
+  },{sourcePath:'Archive.md',date});
+  assert.deepEqual(paths(run()),['Founder.md']);
+  assert.equal(run().items[0].roles,'Founder');
+  assert.equal(run().items[0].joined,'February 3rd, 1700');
+  assert.deepEqual(paths(run({scope:'historical'})),['Custodian.md','Founder.md']);
+  const inherited=run({scope:'historical'}).items[0];
+  assert.equal(inherited.joined,undefined);
+  assert.equal(inherited.left,undefined);
+  assert.deepEqual(paths(run({scope:'ever'})),['Custodian.md','Founder.md','Retired.md','Scribe.md']);
+  const scribe=run({scope:'ever',where:{species:'human'}}).items[0];
+  assert.deepEqual([scribe.roles,scribe.joined,scribe.left],['Scribe · Keeper','February 4th, 1717','June 9th, 1718']);
+  assert.deepEqual(paths(run({affiliationType:['leader','scribe']},'1718-06-09')),['Founder.md','Scribe.md']);
+  assert.deepEqual(paths(run({affiliationType:'scribe'},'1715-01-03')),['Scribe.md']);
+  assert.equal(run({affiliationType:'scribe'},'1715-01-03').items[0].left,undefined);
+  assert.equal(run({scope:'ever',affiliationType:'primary'}).items[0].left,'May 1st, 1710');
+  assert.deepEqual(paths(run({from:'object',affiliationType:'primary'})),['Medal.md']);
+});
+
+test('recursive affiliation follows visible group partOf links and survives independent cyclic paths',()=>{
+  const {runtime}=fixture({
+    'League.md':{tags:['group'],aliases:['The League']},
+    'Company.md':{tags:['group'],partOf:'The League'},
+    'Cycle.md':{tags:['group'],partOf:'Cycle'},
+    'Soldier.md':{tags:['person'],affiliations:['Cycle','Company']},
+    'Cycle Only.md':{tags:['person'],affiliations:['Cycle']},
+    'Manor.md':{tags:['place'],partOf:'League'},
+    'Steward.md':{tags:['person'],affiliations:['Manor']},
+  });
+  function run(recursive,visible=()=>true) {
+    return queryIndex(runtime,{type:'affiliation',from:'person',target:'League',recursive},
+      {sourcePath:'League.md',date:'1720-01-01',visible});
+  }
+  assert.deepEqual(paths(run(false)),[]);
+  const result=run(true);
+  assert.deepEqual(paths(result),['Soldier.md']);
+  assert.ok(result.warnings.length);
+  assert.deepEqual(paths(run(true,page=>page.path!=='Company.md')),[]);
+});
+
+test('website affiliation tables render a single roster with hidden sort columns',()=>{
+  const source='\x60\x60\x60taelgar-index\ntype: affiliation\nfrom: person\ntarget: Guild\nmode: table\ncolumns: [roles, name]\nsortBy: [joined]\n\x60\x60\x60';
+  const engine=website({'Roster.md':source});
+  const $=load(engine.render('Roster','1720-01-01','custom').html);
+  assert.deepEqual($('th').map((_,cell)=>$(cell).text()).get(),['Roles','Person']);
+  assert.deepEqual($('tbody tr td:first-child').map((_,cell)=>$(cell).text()).get(),['Treasurer','Master']);
+  assert.match($('tbody tr').first().text(),/Alice Example/);
+});

@@ -319,11 +319,12 @@ heading: false
 
 | Key | Values and behavior |
 | --- | --- |
-| `type` | Required. `whereabouts`. |
+| `type` | Required. Exactly `whereabouts` or `affiliation`. |
 | `from` | Required page classification. Choose `person`, `place`, `object`, `group`, `power`, `event`, `ancestry` or `creature`. |
-| `via` | Required. Choose `home`, `current` or `lastKnown`. |
+| `via` | Required for `whereabouts`. Choose `home`, `current` or `lastKnown`. |
+| `affiliationType` | Optional for `affiliation`. Match a normalized relationship type such as `leader` or any in a list such as `[member, primary]`. Omit to include every type. |
 | `target` | Any resolvable, visible note name, alias or path. Quote wikilinks. The default is the note containing the block, including in a transclusion. |
-| `recursive` | Boolean, default `true`. Use `false` to match only the first hop. |
+| `recursive` | Boolean. Defaults to `true` for whereabouts and `false` for affiliation. Use `false` for direct matches. |
 | `scope` | `current` (default), `historical` or `ever`. |
 | `where` | Optional mapping of top-level result frontmatter fields. Fields combine with AND. A nonempty list of alternatives within a field means OR. Exact scalar matches preserve case and YAML types (string, number or boolean). Missing or list-valued fields do not match. An empty mapping accepts every candidate. |
 | `show` | `both` (default), `website` or `obsidian`. |
@@ -337,7 +338,25 @@ The first hop for `home` is exclusively the subject's recorded home. For `curren
 
 All kinds support `name`, `type`, `home` and `currentLocation`. People also support `info`, `born` and `died`. Other kinds support `created` and `destroyed`, and places additionally support `region` and `population`. People default to `[name, info, currentLocation, home]`, other kinds to `[name, type]`. Places sort by displayed type then name by default. Other kinds sort by name.
 
-Index blocks are evaluated inline. Header callouts render the bio; the former `indexes` frontmatter and automatic organization buttons are inactive. Existing preset blocks require conversion. Affiliation rosters have no whereabouts equivalent.
+### Affiliation rosters
+
+````markdown
+```taelgar-index
+type: affiliation
+from: person
+affiliationType: leader
+scope: ever
+mode: table
+columns: [name, roles, joined, left]
+sortBy: [joined, name]
+```
+````
+
+An affiliation query returns one row per subject with a qualifying `affiliations` or legacy `leaderOf` record. String memberships and leadership entries use the usual header normalization. The target can be any visible note. Direct matches are the default. With `recursive: true`, a record pointing to a group also matches its visible ancestors through organizational `partOf` links. `affiliationType` filters records, while `where` filters subject frontmatter.
+
+Start and end dates are inclusive. Current rosters require an active relationship on the selected date. Historical rosters evaluate a deceased or destroyed subject at its end date. All-time rosters include terms overlapping the subject's lifetime through the selected date. In tables, `roles` lists distinct qualifying titles. `joined` and `left` describe the term with the most recent qualifying day, using the later start to break ties. Unknown starts, future ends, and ends inferred solely from death or destruction stay blank. These columns can also be sort keys.
+
+Index blocks render inline. The former preset type names and automatic header index buttons are retired. To migrate an old `members` table, use `type: affiliation` and `from: person`. Former `membership: historical` rosters use `scope: ever`; former `columns: life-dates` tables can use `columns: [name, info, born, died]`.
 
 ## Campaign calendar prototype
 

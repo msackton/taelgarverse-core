@@ -7,8 +7,9 @@ export function indexTableColumns(from, columns) {
   return from === 'person' ? ['name', 'info', 'currentLocation', 'home'] : ['name', 'type'];
 }
 
-export function validateIndexTableOptions({from, mode, columns, sortBy}) {
-  const allowed = from === 'person' ? people : from === 'place' ? geography : [...common, 'created', 'destroyed'];
+export function validateIndexTableOptions({type, from, mode, columns, sortBy}) {
+  const base = from === 'person' ? people : from === 'place' ? geography : [...common, 'created', 'destroyed'];
+  const allowed = type === 'affiliation' ? [...base, 'roles', 'joined', 'left'] : base;
   for (const [key, value] of Object.entries({columns, sortBy})) {
     if (value === undefined) continue;
     if (mode !== 'table') throw new Error(key + ' requires mode: table.');
@@ -22,5 +23,5 @@ export function validateIndexTableOptions({from, mode, columns, sortBy}) {
 export function indexColumnHeading(from, column) {
   if (column === 'name') return from === 'person' ? 'Person' : from === 'place' ? 'Place' : 'Name';
   return {info:'Info', currentLocation:'Current Location', home:'Home', born:'Born', died:'Died',
-    region:'Region', type:'Type Of', population:'Population', created:'Created', destroyed:'Destroyed'}[column];
+    roles:'Roles', joined:'Joined', left:'Left', region:'Region', type:'Type Of', population:'Population', created:'Created', destroyed:'Destroyed'}[column];
 }

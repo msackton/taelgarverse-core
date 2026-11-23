@@ -200,3 +200,17 @@ test('Obsidian caches where filters independently, including after an invalid bl
     assert.equal((await h.block(source+'where: {species: human}')).element.innerHTML,filtered.element.innerHTML);
   } finally {h.dispose();}
 });
+
+test('Obsidian renders the affiliation block and isolates relationship filters in its cache',async()=>{
+  const h=host();
+  try {
+    const source='type: affiliation\nfrom: person\nmode: table\ncolumns: [name, roles]\n';
+    const roster=async extra=>(await h.block(source+extra,'Groups/Guild.md')).element;
+    const leaders=await roster('affiliationType: leader');
+    assert.match(leaders.querySelector('tbody').textContent,/Bob.*Master/);
+    const members=await roster('affiliationType: member');
+    assert.match(members.querySelector('tbody').textContent,/Alice Example.*Treasurer/);
+    assert.doesNotMatch(members.querySelector('tbody').textContent,/Master/);
+    assert.equal((await roster('affiliationType: leader')).innerHTML,leaders.innerHTML);
+  } finally {h.dispose();}
+});

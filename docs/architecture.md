@@ -112,7 +112,7 @@ flowchart LR
 | `src/header-callout.mjs`, `obsidian/taelgarverse/features/headers.mjs` | Top-level header-callout boundaries and one Obsidian postprocessor shared by Reading view and native Live Preview callouts (no competing header decoration). The host selects the date and resolves links; titles and pronunciation remain authored Markdown. See the [legacy review](header-callout-migration.md). |
 | `src/header-rewrite.mjs`, `src/header-tool.mjs`, `scripts/header-tool.mjs`, `obsidian/taelgarverse/header-tool.mjs` | Pure approved-format source rewriting with shared H1 naming/article rules, targeted editor commands, preview-first standalone/bulk tooling, and extraction of the embedded CLI into the installed plugin folder. Build/install keep the Node CLI self-contained without adding a BRAT runtime asset. See [saved header commands](deploy.md#saved-header-commands). |
 | `obsidian/taelgarverse/features/interactions.mjs`, `obsidian/taelgarverse/features/interaction-data.mjs` | Native vault metadata/link adapter, cached recap index, explicit interaction blocks, automatic Reading View footer and host-owned CodeMirror Live Preview widget. Known-to pages get a campaign picker; no note writes or website requests. |
-| `src/indexes.mjs`, `src/index-columns.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/website-indexes.mjs` | Shared inline whereabouts traversal, metadata filtering, table and card presentation, image resolution, and website visibility. See [generated indexes](vault.md#generated-indexes). |
+| `src/indexes.mjs`, `src/index-affiliations.mjs`, `src/index-columns.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/website-indexes.mjs` | Shared inline whereabouts and affiliation queries, metadata filtering, table and card presentation, image resolution, and website visibility. See [generated indexes](vault.md#generated-indexes). |
 | `src/campaign-calendar.mjs`, `src/campaign-calendar-context.mjs`, `src/lunar.mjs`, `src/browser/campaign-calendar.mjs`, `public/calendar.css`, `obsidian/taelgarverse/features/calendar.mjs` | Opt-in campaign-date calendar with DR date/month helpers, lunar phases, and normal Obsidian campaign/custom-date settings. Disabled by default; the component owns its active listeners and date API. A metadata-only adapter reuses website Contexts and exposes the date API for headers, indexes and CustomJS. The DOM view shows campaign dots and daily moon illumination; lunar crossings use the adopted full-moon anchor and exact three-hour ticks. The legacy CustomJS hook is an uncommitted experimental-vault change; no website route exists yet. See [campaign calendar](vault.md#campaign-calendar-prototype). |
 | `src/worker.mjs`, `src/worker-handler.mjs`, `src/runtime-snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
 | `tests/helpers/legacy-headers/` | Original VM and generated CustomJS references for historical, date-boundary, and index comparisons, plus manual fixture builders. |
@@ -286,23 +286,13 @@ during preparation.
 Direct `prepareContent` calls use the same ordering and can supply a materialization
 callback; without one, DQL remains unavailable at render time.
 
-Generated `taelgar-index` fences and frontmatter `indexes` arrays query the
-existing frozen header metadata at render time. They reuse dated whereabouts
-and affiliation services with host-provided resolution and visibility, requiring
-no extra snapshot format. Only Members grid descriptions require note-body reads,
-so existing published snapshots work without republication. The website filters candidates
-before counts and links, including formatted person info, location and home destinations.
-People and member tables reuse header templates and resolve their text/wikilink output into
-escaped text and host links. Member descriptions apply the reader's comment
-visibility before selecting the first ordinary Markdown paragraph, skipping
-callouts and other non-prose blocks. The shared extractor returns escaped plain
-text in the view; it does not render or expand embedded notes. Grid images use
-the existing `image` metadata field; publication includes those references in
-the responsive-image usage plan. Search/backlink compilation omits these generated rows;
-inline indexes retain the containing note as their source inside transclusions.
-Header buttons belong only to the `taelgar-header` callout renderer, after its complete
-output and outside the information callout. No general heading postprocessor adds
-buttons to ordinary titles or saved headers.
+Inline `taelgar-index` fences query frozen header metadata. Both hosts use the
+same parser and query engine for whereabouts and affiliation. Relationship
+traversal resolves references in the source note's context and checks reader
+visibility before including results. Rows, counts, and images use metadata.
+Generated rows are excluded from search and backlinks. Transcluded blocks
+use the containing note as their source. Header callouts render the bio.
+
 Obsidian registers shared snapshot and date services before rendering features.
 The snapshot service lazily coalesces metadata reads, replaces cached inputs on
 metadata/create/rename/delete or registry/display-metadata changes, and prevents
