@@ -104,6 +104,36 @@ test('Obsidian inline indexes render current metadata, respect show, and open na
   assert.equal(h.intervals.size,0);assert.equal(h.cache.count,0);assert.equal(h.vault.count,0);
 });
 
+test('Obsidian caches membership modes and columns independently and renders People Present',async()=>{
+  const h=host();
+  try {
+    const path='People/Former.md';
+    h.metadata.set(path,{tags:['person'],born:1690,died:1715,affiliations:[{org:'Guild',end:1710}]});
+    h.files.push({path,basename:'Former'});
+    const source='type: members\ntarget: Guild\nmode: table';
+    const render=async options=>(await h.block(source+options)).element;
+    const current=await render('');
+    assert.doesNotMatch(current.querySelector('tbody').textContent,/Dead|Former/);
+    const ignoreDeath=await render('\nignoreDeath: true');
+    assert.match(ignoreDeath.querySelector('tbody').textContent,/Dead.*Unknown/);
+    assert.doesNotMatch(ignoreDeath.querySelector('tbody').textContent,/Former/);
+    const history='\nmembership: historical';
+    const lifeDates=await render(history+'\ncolumns: life-dates');
+    assert.equal(lifeDates.querySelector('h2').textContent,'Historical Members');
+    assert.deepEqual(Array.from(lifeDates.querySelectorAll('th'),cell=>cell.textContent),['Person','Info','Born','Died']);
+    assert.match(lifeDates.querySelector('tbody tr').textContent,/Former.*1690.*1715/);
+    const location=await render(history);
+    assert.equal(location.querySelectorAll('th')[2].textContent,'Current Location');
+    assert.match(location.querySelector('tbody').textContent,/Former.*Unknown/);
+    assert.equal((await render('')).innerHTML,current.innerHTML);
+
+    const {element}=await h.block('type: people-in-place\nmode: table','Places/Town.md');
+    assert.equal(element.querySelector('h2').textContent,'People Present');
+    assert.match(element.querySelector('tbody').textContent,/Bob.*Visitor/);
+    assert.doesNotMatch(element.querySelector('tbody').textContent,/Alice|Dead|Future/);
+  } finally {h.dispose();}
+});
+
 test('Obsidian inline grids and tables have H2 labels, including empty results',async()=>{
   const h=host();
   try {
