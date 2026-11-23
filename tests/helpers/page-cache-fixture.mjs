@@ -3,7 +3,7 @@ import {ContentStore,parseNote} from '../../src/content-store.mjs';
 import {buildBacklinkIndex} from '../../src/backlinks.mjs';
 import {compileRuntime} from '../../scripts/compile-runtime.mjs';
 
-const coreMeta=JSON.parse(fs.readFileSync(new URL('../fixtures/runtime-v1.json',import.meta.url),'utf8')).index.coreMeta;
+const coreMeta=JSON.parse(fs.readFileSync(new URL('../fixtures/header-display-rules.json',import.meta.url),'utf8'));
 export const coreRelease={commit:'c'.repeat(40),dirty:false,publishedAt:'2026-10-21T12:00:00.000Z'};
 export function publication({revision='a'.repeat(64),text='Original biography.',linked='Other',home='# Welcome\n\n[[Person]]',siteCampaigns='dufr'}={}) {
   const notes={
@@ -18,7 +18,7 @@ export function publication({revision='a'.repeat(64),text='Original biography.',
   const entries=Object.entries(notes).map(([id,source])=>({id,name:id.slice(0,-3),title:id.slice(0,-3),extension:'.md',
     target:id.toLowerCase().replaceAll(' ','-'),slug:id.slice(0,-3).toLowerCase().replaceAll(' ','-'),note:parseNote(source)}));
   const settings={default_date:'1748-01-01',campaigns:[]},store=new ContentStore(entries,[],settings);
-  const index={entries,settings,warnings:[],sourceVersion:{commit:'d'.repeat(40),dirty:false},coreMeta,
+  const index={entries,settings,interactions:{version:2,byTarget:{}},warnings:[],sourceVersion:{commit:'d'.repeat(40),dirty:false},coreMeta,
     registry:{campaigns:{frontier:{name:'Frontier',code:'dufr'},adder:{name:'Adder',code:'adma'}}},backlinks:buildBacklinkIndex(store),
     navigationSource:'- [Home](index.md)\n- World\n    - {glob: .}',homeSource:home,
     campaignHomes:{frontier:'---\ncampaigns: ['+siteCampaigns+']\n---\n# Campaign home'}};

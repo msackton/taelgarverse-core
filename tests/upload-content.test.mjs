@@ -7,7 +7,7 @@ import {uploadContent} from '../scripts/upload-content.mjs';
 import {createCloudflareClient} from '../scripts/cloudflare-client.mjs';
 import {createRetentionStorage} from '../scripts/content-retention.mjs';
 
-const revision='a'.repeat(64),asset=letter=>'assets/'+letter.repeat(64),note='revisions/'+revision+'/index.json';
+const revision='a'.repeat(64),asset=letter=>'assets/'+letter.repeat(64),note='revisions/'+revision+'/runtime.json';
 async function fixture(t){
   const dir=await fs.mkdtemp(path.join(os.tmpdir(),'taelgar-upload-test-'));
   t.after(async()=>{assert.equal(path.dirname(path.resolve(dir)),path.resolve(os.tmpdir()));assert.ok(path.basename(dir).startsWith('taelgar-upload-test-'));await fs.rm(dir,{recursive:true});});

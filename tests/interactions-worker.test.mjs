@@ -1,3 +1,4 @@
+import {preparedPart} from './helpers/compiled-publication.mjs';
 import {writeCampaignIndex} from './helpers/write-campaign-index.mjs';
 import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
@@ -9,12 +10,10 @@ import {ROOT,isInside} from '../src/config.mjs';
 import {Engine} from '../src/engine.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {buildFingerprint} from '../scripts/publish-content.mjs';
-import {loadSnapshot} from '../src/snapshot.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
-import {compileRuntime} from '../scripts/compile-runtime.mjs';
 import {openSnapshot} from '../src/runtime-snapshot.mjs';
 
-test('publication compiles session encounters without beat data, Worker matches Node without session-body reads, and older snapshots retain campaign references',async()=>{
+test('publication compiles session encounters without beat data, Worker matches Node without session-body reads',async()=>{
   fs.mkdirSync(path.join(ROOT,'.cache'),{recursive:true});
   const directory=fs.mkdtempSync(path.join(ROOT,'.cache','interaction-worker-'));
   try {
@@ -65,7 +64,7 @@ test('publication compiles session encounters without beat data, Worker matches 
     assert.equal(buildFingerprint(settings,{}),before);
     fs.writeFileSync(recapFile,recap);
     const report=await prepareContent(settings,path.join(directory,'package'),{commit:'fixture',dirty:false});
-    const raw=fs.readFileSync(report.indexFile,'utf8'),index=JSON.parse(raw);
+    const raw=JSON.stringify(preparedPart(report,'render')),index=JSON.parse(raw);
     assert.equal(index.interactions.version,2);
     assert.equal(index.interactions.byTarget.person.filter(event=>event.kind==='encounter').length,1);
     assert.doesNotMatch(raw,/UNPUBLISHED PRIVATE TRANSCRIPT|Unpublished Unresolved Person|\/private\/|Source Range|u0001|session-recap\.md/);
@@ -76,7 +75,11 @@ test('publication compiles session encounters without beat data, Worker matches 
     const uploads=new Map(JSON.parse(fs.readFileSync(report.manifestFile,'utf8')).map(item=>[item.key,item.file]));
     const reads=[];
     const bucket={async get(key){reads.push(key);const file=uploads.get(key);if(!file)return null;return {json:async()=>JSON.parse(fs.readFileSync(file,'utf8'))};}};
-    const node=new Engine(settings),snapshot=await loadSnapshot(bucket,report.revision);
+    const node=new Engine(settings),snapshot=await (await openSnapshot(bucket,report.revision)).renderer();
+    const personId=index.entries.findIndex(entry=>entry.id==='Person.md');
+    const backlinks=preparedPart(report,'backlinks'),target=backlinks.targets.find(([id])=>id===personId);
+    const personReads=new Set([index.noteShards[index.entries[personId].note.prepared],backlinks.shards[target[1]]]
+      .map(part=>'revisions/'+report.revision+'/'+part.file));
     for(const dm of [false,true,false]) {
       reads.length=0;
       const actual=await snapshot.engine.renderAsync('Person','1720-01-02','custom',dm,['clee'],entry=>snapshot.store.getNote(entry));
@@ -94,7 +97,7 @@ test('publication compiles session encounters without beat data, Worker matches 
       const handout=grouped.querySelector('[data-reference-kind="document"] a');
       assert.equal(handout.textContent,'Handout');
       assert.match(handout.getAttribute('href'),/primary-sources\/handout/);
-      assert.ok(reads.every(key=>key.endsWith('/'+snapshot.store.resolve('Person').note.shard+'.json')),'only the person shard is loaded');
+      assert.ok(reads.every(key=>personReads.has(key)),'only the person shard is loaded');
       assert.equal(actual.interactions[0].events[0].text,'A full-session description.'+(dm ? ' DM session detail.' : ''));
       assert.equal(actual.interactions[0].events[0].title,'Full session title');
       assert.doesNotMatch(JSON.stringify(actual.interactions),/authoritative Short|hidden room|recap-001/);
@@ -115,7 +118,7 @@ test('publication compiles session encounters without beat data, Worker matches 
       const sessions=actual.interactions[0].events.filter(event=>event.kind==='session-reference');
       assert.equal(sessions.length,campaigns.includes('other')?1:0);
       if(sessions.length)assert.match(sessions[0].sessionUrl,/older-session/);
-      assert.ok(reads.every(key=>key.endsWith('/'+snapshot.store.resolve('Person').note.shard+'.json')),'fallbacks require no Worker session-body reads');
+      assert.ok(reads.every(key=>personReads.has(key)),'fallbacks require no Worker session-body reads');
     }
     assert.doesNotMatch(JSON.stringify(index.interactions),/SESSION PROSE NOT COMPILED/);
     for(const campaigns of [['clee','other'],['other'],[]]) {
@@ -132,14 +135,6 @@ test('publication compiles session encounters without beat data, Worker matches 
       assert.doesNotMatch(parsed.querySelector('#campaign-interactions')?.textContent || '',/Other Handout/);
       if(!intersecting.length)assert.equal(parsed.querySelector('#campaign-interactions'),null);
     }
-    const legacy=structuredClone(index);
-    for(const name of ['Untagged','List of NPCs','Background']) {
-      const source=node.store.lookup('Campaigns/Clee/'+name+'.md').entry.slug;
-      legacy.interactions.byTarget.person.push({id:'reference:clee:'+source,campaign:'clee',source,kind:'reference',when:[{}]});
-    }
-    const legacySnapshot=await loadSnapshot({get:async key=>key.endsWith('/index.json') ? {json:async()=>legacy} : originalGet(key)},report.revision);
-    const filtered=await legacySnapshot.engine.renderAsync('Person','1720-01-02','custom',false,['clee'],entry=>legacySnapshot.store.getNote(entry));
-    assert.deepEqual(filtered.interactions[0].events.filter(event=>event.kind==='reference').map(event=>event.title),['Story','Handout']);
     const env={CONTENT:{async get(key){if(key==='published/current.json')return {json:async()=>({revision:report.revision})};return originalGet(key);}},ASSETS:{fetch:async()=>new Response('asset')}};
     const response=await createWorker().fetch(new Request('https://cleenseau.taelgar.org/api/page?page=Person'),env);
     assert.equal(response.status,404); // No configured campaign host silently falls back.
@@ -157,27 +152,5 @@ test('publication compiles session encounters without beat data, Worker matches 
     assert.equal(reads.some(key=>/runtime\/(?:render|headers|backlinks|navigation)\.json$/.test(key)),false,'retired routes do not initialize article rendering');
     assert.equal(reads.some(key=>key.includes('/transcripts/')),false);
     assert.equal([...uploads.keys()].some(key=>key.includes('/transcripts/')),false,'new snapshots contain no transcript shards');
-    const old=structuredClone(index);delete old.interactions;
-    const oldBucket={async get(key){return key.endsWith('/index.json') ? {json:async()=>old} : originalGet(key);}};
-    const loaded=await loadSnapshot(oldBucket,report.revision);
-    const fallback=await loaded.engine.renderAsync('Person','1720-01-02','custom',false,['clee'],entry=>loaded.store.getNote(entry));
-    assert.equal(fallback.interactions[0].events.some(event=>event.kind==='reference'),true);
-    assert.equal(fallback.interactions[0].events.length,2);
-    assert.equal(fallback.interactions[0].events[1].title,'Handout');
-    assert.match(fallback.html,/Related campaign material/);
-    assert.doesNotMatch(fallback.html,/class="interaction-plot"/);
-    assert.deepEqual(fallback.backlinks.map(link=>link.page),['world']);
-    const oldRuntime=compileRuntime(old,node.store);
-    const oldCompiled=await openSnapshot({async get(key){
-      if(key.endsWith('/runtime.json'))return {json:async()=>({...oldRuntime.manifest,revision:report.revision})};
-      const relative=key.slice(('revisions/'+report.revision+'/').length),json=oldRuntime.objects.get(relative);
-      return json ? {text:async()=>json} : originalGet(key);
-    }},report.revision);
-    const {engine:oldEngine,store:oldStore}=await oldCompiled.renderer();
-    const oldResult=await oldEngine.renderAsync('Person','1720-01-02','custom',false,['clee'],entry=>oldStore.getNote(entry));
-    assert.deepEqual(oldResult.interactions,fallback.interactions,'older compiled publications retain non-session references using only the target backlink shard');
-    const invalid={...index,interactions:{version:99,byTarget:{}}};
-    await assert.rejects(loadSnapshot({get:async()=>({json:async()=>invalid})},report.revision),/interaction index format/);
-    await assert.rejects(loadSnapshot({get:async()=>({json:async()=>({...index,interactions:{version:1,byTarget:{}}})})},report.revision),/interaction index format/);
   } finally {const resolved=fs.realpathSync(directory);assert.ok(isInside(fs.realpathSync(path.join(ROOT,'.cache')),resolved));assert.ok(path.basename(resolved).startsWith('interaction-worker-'));fs.rmSync(resolved,{recursive:true});}
 });

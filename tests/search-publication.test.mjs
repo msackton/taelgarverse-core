@@ -217,7 +217,7 @@ test('prepared search is revision-bound, stays out of R2 uploads, and tampering 
   const source=path.join(directory,'source');fs.mkdirSync(source);fs.writeFileSync(path.join(source,'One.md'),'Public.\n%% private-fixture-marker %%');
   const report=await prepareContent({...testSettings(),source_dir:source,home_source:null,nav_source:null},path.join(directory,'output'),{commit:'a'.repeat(40),dirty:false});
   const manifest=readPreparedSearch(report);assert.ok(manifest.documents.some(d=>d.text.includes('private-fixture-marker')));
-  const index=fs.readFileSync(report.indexFile,'utf8');assert.equal(JSON.parse(index).settings.respect_pov_dates,undefined);assert.ok(!index.includes('private-fixture-marker'));assert.ok(!index.includes('searchFile'));
+  const index=fs.readFileSync(report.runtimeFile,'utf8');assert.equal(JSON.parse(index).settings.respect_pov_dates,undefined);assert.ok(!index.includes('private-fixture-marker'));assert.ok(!index.includes('searchFile'));
   const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));assert.ok(!uploads.some(item=>item.file===report.searchFile || item.key.endsWith('/search.json')));
   fs.writeFileSync(report.searchFile,JSON.stringify({...manifest,digest:'f'.repeat(64)}));
   await assert.rejects(stagePreparedSearch(report),/manifest\/digest/);

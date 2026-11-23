@@ -303,9 +303,8 @@ keeps the source accessible and does not prevent other diagrams from rendering.
 The [Mermaid library](https://mermaid.js.org/config/usage) is pinned and bundled
 locally with strict rendering and authored callbacks disabled. Family-tree nodes
 marked `internal-link` and explicit Mermaid URL destinations become ordinary,
-context-aware links. Internal links open an article preview with **Open page**;
-uncheck **Preview linked pages** for direct navigation. Links work in the enlarged
-diagram too. Missing, ambiguous, or unavailable pages stay unlinked. See
+context-aware links that open the destination directly, including in the enlarged
+diagram. Missing, ambiguous, or unavailable pages stay unlinked. See
 [diagram link behavior](docs/vault.md#links-navigation-and-media).
 The library is loaded only on pages containing visible diagrams. The API returns
 the escaped source and diagram containers; the article shell loads the browser renderer.

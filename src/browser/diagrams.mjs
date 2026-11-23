@@ -66,7 +66,7 @@ function popup(title, name) {
     if (event.target === dialog && startedOutside && outside(event)) dialog.close();
   });
   return {
-    dialog, heading, header, close, content,
+    header, close, content,
     open(control) {
       opener = control;
       dialog.showModal();
@@ -99,71 +99,6 @@ function centerFirstNode(content) {
 const larger = popup('Larger diagram', 'larger');
 let enlargedFigure;
 const sourcePopup = popup('Diagram source', 'source');
-const preview = popup('Page preview', 'page');
-let previewRequest, previewId = 0;
-const openPage = document.createElement('a');
-openPage.textContent = 'Open page';
-if (preview) {
-  preview.dialog.classList.add('diagram-page-preview');
-  preview.header.insertBefore(openPage, preview.close);
-  preview.dialog.addEventListener('close', () => previewRequest?.abort());
-}
-
-async function previewPage(control, link) {
-  previewRequest?.abort();
-  previewRequest = new AbortController();
-  preview.heading.textContent = link.title;
-  openPage.href = link.href;
-  preview.content.innerHTML = '<p role="status">Loading page…</p>';
-  const token = preview.open(control);
-  try {
-    const destination = new URL(link.href, location.href);
-    const query = new URLSearchParams(destination.search);
-    query.set('page', link.page);
-    const response = await fetch('/api/page?' + query, {
-      signal: AbortSignal.any([previewRequest.signal, AbortSignal.timeout(10000)]),
-    });
-    if (!response.ok) throw new Error('Preview unavailable');
-    const result = await response.json();
-    if (!preview.current(token)) return;
-    const article = document.createElement('article');
-    article.className = 'md-typeset';
-    article.innerHTML = result.html;
-    article.querySelectorAll('script').forEach(script => script.remove());
-    article.querySelectorAll('.mermaid-diagram').forEach(figure => {
-      const paragraph = document.createElement('p'), link = document.createElement('a');
-      link.href = destination.href;
-      link.textContent = 'Open page to view the diagram.';
-      paragraph.append(link);
-      figure.replaceWith(paragraph);
-    });
-    // Keep preview footnotes, headings and comment popovers separate from the
-    // article underneath, including when the diagram links back to its own page.
-    const prefix = 'diagram-preview-' + previewId++ + '-', ids = new Map();
-    article.querySelectorAll('[id]').forEach(element => {
-      ids.set(element.id, prefix + element.id);
-      element.id = prefix + element.id;
-    });
-    article.querySelectorAll('a[href^="#"]').forEach(anchor => {
-      const id = anchor.getAttribute('href').slice(1);
-      anchor.setAttribute('href', ids.has(id) ? '#' + ids.get(id) : destination.href.split('#')[0] + '#' + id);
-    });
-    for (const attribute of ['popovertarget', 'aria-labelledby', 'aria-describedby', 'aria-controls', 'for']) {
-      article.querySelectorAll('[' + attribute + ']').forEach(element => {
-        element.setAttribute(attribute, element.getAttribute(attribute).split(/\s+/).map(id => ids.get(id) || id).join(' '));
-      });
-    }
-    preview.content.replaceChildren(article);
-    if (destination.hash) {
-      let id;
-      try { id = ids.get(decodeURIComponent(destination.hash.slice(1))); } catch {}
-      if (id) document.getElementById(id)?.scrollIntoView({block: 'start'});
-    }
-  } catch {
-    if (preview.current(token)) preview.content.textContent = 'This preview could not be loaded. Use Open page to continue.';
-  }
-}
-
 async function diagramVertices(definition) {
   // Read the pinned flowchart parser's data; never bind authored callbacks.
   const diagram = await mermaid.mermaidAPI.getDiagramFromText(definition);
@@ -190,7 +125,7 @@ function clearDiagramLinks(drawing) {
   drawing.querySelectorAll('.node.clickable').forEach(node => node.classList.remove('clickable'));
 }
 
-function attachDiagramLinks(drawing, links, previews) {
+function attachDiagramLinks(drawing, links) {
   clearDiagramLinks(drawing);
   for (const {vertex, link} of links) {
     const node = diagramNode(drawing, vertex);
@@ -203,19 +138,6 @@ function attachDiagramLinks(drawing, links, previews) {
     if (vertex.window === '_blank') {
       anchor.setAttribute('target', '_blank');
       anchor.setAttribute('rel', 'noopener noreferrer');
-    }
-    if (link.page && preview && vertex.window !== '_blank') {
-      const update = () => {
-        if (previews.checked) anchor.setAttribute('aria-haspopup', 'dialog');
-        else anchor.removeAttribute('aria-haspopup');
-      };
-      update();
-      anchor.dataset.previewDiagram = previews.dataset.diagram;
-      anchor.addEventListener('click', event => {
-        if (!previews.checked || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-        event.preventDefault();
-        previewPage(anchor, link);
-      });
     }
     anchor.append(...node.childNodes);
     node.append(anchor);
@@ -241,16 +163,6 @@ for (const [index, figure] of [...document.querySelectorAll('.mermaid-diagram')]
   const source = figure.querySelector('.mermaid-source');
   const definition = source.querySelector('code').textContent;
   let bigger, actions, vertices, resolvedLinks = [];
-  const previews = document.createElement('input');
-  previews.type = 'checkbox';
-  previews.checked = true;
-  previews.dataset.diagram = String(index);
-  previews.addEventListener('change', () => {
-    document.querySelectorAll('a[data-preview-diagram="' + index + '"]').forEach(anchor => {
-      if (previews.checked) anchor.setAttribute('aria-haspopup', 'dialog');
-      else anchor.removeAttribute('aria-haspopup');
-    });
-  });
   if (larger && sourcePopup) {
     actions = document.createElement('div');
     actions.className = 'diagram-actions';
@@ -283,7 +195,7 @@ for (const [index, figure] of [...document.querySelectorAll('.mermaid-diagram')]
         larger.content.innerHTML = svg;
         const drawing = larger.content.querySelector('svg');
         describe(drawing);
-        attachDiagramLinks(drawing, resolvedLinks, previews);
+        attachDiagramLinks(drawing, resolvedLinks);
         fit.disabled = false;
         centerFirstNode(larger.content);
       } catch {
@@ -316,16 +228,10 @@ for (const [index, figure] of [...document.querySelectorAll('.mermaid-diagram')]
             links.push(...(await response.json()).links);
           }
           resolvedLinks = vertices.map((vertex, i) => ({vertex, link: links[i]}));
-          attachDiagramLinks(drawing, resolvedLinks, previews);
+          attachDiagramLinks(drawing, resolvedLinks);
           const enlarged = larger?.content.querySelector('svg');
-          if (enlargedFigure === figure && enlarged) attachDiagramLinks(enlarged, resolvedLinks, previews);
+          if (enlargedFigure === figure && enlarged) attachDiagramLinks(enlarged, resolvedLinks);
           retry.remove();
-          if (preview && links.some(link => link?.page) && actions && !previews.isConnected) {
-            const label = document.createElement('label');
-            label.className = 'diagram-preview-toggle';
-            label.append(previews, ' Preview linked pages');
-            actions.append(label);
-          }
         } catch {
           retry.disabled = false;
           (actions || figure).append(retry);

@@ -40,10 +40,10 @@ adds an index warning; it retains its normal article-rendering error.
 
 ## Publication and runtime
 
-`prepareContent` builds a versioned reverse index under `backlinks` in
-`revisions/<revision>/index.json`. It records source slugs and visibility rules,
-without copying article bodies or excerpts. It is included in the content
-revision hash and uploaded with the normal immutable snapshot. The publisher's
+Preparation writes `runtime/backlinks.json` and target-grouped shards in
+`runtime/backlinks/`. The index maps revision-local page IDs to shards. Each
+shard records referring page IDs and visibility rules. The descriptors and their
+hashes are part of the immutable content revision. The publisher's
 build fingerprint includes the backlink compiler and link/comment parsers, so
 changing them triggers a rebuild even when the vault commit is unchanged.
 
@@ -61,12 +61,5 @@ articles, or scan all note bodies. The Node preview builds the same index once
 at startup. New content revisions replace the index along with the article
 snapshot, so removed links disappear without redeploying the Worker.
 
-Enabling the feature in production requires the updated renderer and one fresh
-content publication through `npm run publish -- --no-strict` (omit
-`--no-strict` for strict query checking). Deploying code and publishing content
-remain separate operations: deploy the updated renderer before publishing a
-version 2 index, which the earlier renderer cannot read. Older snapshots remain
-renderable and omit the backlink section until republished. Version 2 records campaign combinations for
-Custom selections. Version 1 remains usable for zero/single-campaign views but
-omits backlinks in multi-campaign views until a fresh publication. An unknown
-backlink index version is rejected explicitly.
+Publish fresh content to update backlinks. The compiled rules cover campaign
+combinations in Custom selections.

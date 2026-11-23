@@ -6,7 +6,7 @@ import {createCloudflareClient,searchCredentials} from './cloudflare-client.mjs'
 import {validateSearchDescriptor} from './search-index.mjs';
 import {DERIVATIVE_MANIFEST_KEY,manifestRecords} from './derivative-cache.mjs';
 import {withPublicationProgress} from './publication-progress.mjs';
-import {validRuntimeDescriptor,runtimeFilePattern,runtimeHash,supportedRuntimeVersion} from '../src/runtime-format.mjs';
+import {assetPartition,validInteractionIndex,validRuntimeDescriptor,runtimeFilePattern,runtimeHash,validRuntimeManifest} from '../src/runtime-format.mjs';
 import {campaignSnapshotEntries} from '../src/snapshot-campaigns.mjs';
 import {syncPublicationHosts} from './hostname-firewall.mjs';
 
@@ -14,13 +14,12 @@ export const POINTER_KEY='published/current.json';
 const revisionPattern=/^[a-f0-9]{64}$/;
 const assetPattern=/^assets\/[a-f0-9]{64}$/;
 const revisionObjectPattern=/^revisions\/([a-f0-9]{64})\/(.+)$/;
-const legacyFilePattern=/^(?:index\.json|runtime\.json|notes\/[a-f0-9]{2}\.json)$/;
-// Retired objects are sweep candidates even inside active/previous revisions.
-const retiredTranscriptPattern=/^revisions\/[a-f0-9]{64}\/transcripts\/[a-f0-9]{2}\.json$/;
+// Obsolete sidecars are safe to sweep once both retained compiled revisions verify.
+const retiredPattern=/^revisions\/[a-f0-9]{64}\/(?:index\.json|(?:notes|transcripts)\/[a-f0-9]{2}\.json)$/;
 
 function snapshotRevision(key) {
   const match=typeof key==='string' ? key.match(revisionObjectPattern) : null;
-  if(match && (legacyFilePattern.test(match[2]) || runtimeFilePattern.test(match[2]))) return match[1];
+  if(match && (match[2]==='runtime.json' || runtimeFilePattern.test(match[2]))) return match[1];
 }
 
 export function validatePublicationUploads(revision,uploads){
@@ -46,6 +45,18 @@ export function activationPointer(current,next){
   return validatePointer({...next,retentionVersion:1,...(previous?{previous}:{})});
 }
 
+async function readPublicationManifest(storage,revision) {
+  const manifest=await storage.getJSON('revisions/'+revision+'/runtime.json');
+  if(!validRuntimeManifest(manifest,revision))throw new Error('Published runtime manifest is missing or invalid for revision '+revision);
+  return manifest;
+}
+
+async function publicationManifests(storage,pointer) {
+  validatePointer(pointer);
+  const snapshots=pointer.previous ? [pointer,pointer.previous] : [pointer];
+  return Promise.all(snapshots.map(snapshot=>readPublicationManifest(storage,snapshot.revision)));
+}
+
 // Same account/bucket as publication. Remote operations use the documented R2
 // object API; local operations share Wrangler's persisted Miniflare bucket.
 export async function createRetentionStorage(config,{local=false,persistTo=path.join(ROOT,'.wrangler/state'),fetcher=fetch,credentials=searchCredentials,client,wait,log=()=>{}}={}){
@@ -68,9 +79,9 @@ export async function createRetentionStorage(config,{local=false,persistTo=path.
     const mf=new Miniflare({...options,telemetry:{enabled:false}});
     try{
       const r2=await mf.getR2Bucket('CONTENT');
-      return {getJSON:async key=>(await r2.get(key))?.json() ?? null,
+      const storage={getJSON:async key=>(await r2.get(key))?.json() ?? null,
         putFile:async(key,file)=>{await r2.put(key,await fs.readFile(file));},
-        putPointer:async pointer=>{validatePointer(pointer);await r2.put(POINTER_KEY,JSON.stringify(pointer)+'\n',{httpMetadata:{contentType:'application/json'}});},
+        putPointer:async pointer=>{await publicationManifests(storage,pointer);await r2.put(POINTER_KEY,JSON.stringify(pointer)+'\n',{httpMetadata:{contentType:'application/json'}});},
         putDerivativeManifest:async manifest=>{await r2.put(DERIVATIVE_MANIFEST_KEY,JSON.stringify({schemaVersion:1,records:manifestRecords(manifest)}),{httpMetadata:{contentType:'application/json'}});},
         async list(prefix){
           const objects=[];let cursor;
@@ -83,6 +94,7 @@ export async function createRetentionStorage(config,{local=false,persistTo=path.
           return objects;
         },
         delete:keys=>r2.delete(keys),close:()=>mf.dispose()};
+      return storage;
     }catch(error){await mf.dispose();throw error;}
   }
   client ??=await createCloudflareClient(config,{fetcher,credentials,wait,log});
@@ -101,8 +113,8 @@ export async function createRetentionStorage(config,{local=false,persistTo=path.
   };
   const storage={
     async getJSON(key){const response=await request('/'+key.split('/').map(encodeURIComponent).join('/'));return response?response.json():null;},
-    async ensureHosts(pointer){validatePointer(pointer);return syncPublicationHosts(config,client,storage,pointer,{log});},
-    async putPointer(pointer){validatePointer(pointer);await storage.ensureHosts(pointer);const response=await request('/'+POINTER_KEY,'PUT',JSON.stringify(pointer)+'\n');await response.body?.cancel();},
+    async ensureHosts(pointer){return syncPublicationHosts(config,client,await publicationManifests(storage,pointer),{log});},
+    async putPointer(pointer){await storage.ensureHosts(pointer);const response=await request('/'+POINTER_KEY,'PUT',JSON.stringify(pointer)+'\n');await response.body?.cancel();},
     async putDerivativeManifest(manifest){const response=await request('/'+DERIVATIVE_MANIFEST_KEY,'PUT',JSON.stringify({schemaVersion:1,records:manifestRecords(manifest)}));await response.body?.cancel();},
     async putFile(key,file){
       if(!assetPattern.test(key) && !snapshotRevision(key))throw new Error('Invalid immutable upload key');
@@ -142,6 +154,48 @@ export async function createRetentionStorage(config,{local=false,persistTo=path.
   return storage;
 }
 
+async function collectRetainedObjects(storage,index,snapshot,keep){
+  const prefix='revisions/'+snapshot.revision+'/',key=prefix+'runtime.json';
+  const manifest=await readPublicationManifest(storage,snapshot.revision);
+  keep.add(key);
+  const descriptors=[...Object.values(manifest.parts),...Object.values(manifest.assets)];
+  const readPart=async descriptor=>{
+    const part=await storage.getJSON(prefix+descriptor.file);
+    if(part==null || runtimeHash(JSON.stringify(part))!==descriptor.sha256)throw new Error('Retained '+descriptor.file+' is missing or invalid');
+    return part;
+  };
+  const render=await readPart(manifest.parts.render);
+  if(!validInteractionIndex(render.interactions))throw new Error('Retained interaction index is missing or invalid');
+  if(!Array.isArray(render.entries) || !Array.isArray(render.noteShards) || render.entries.some(entry=>entry.note &&
+    (!Number.isSafeInteger(entry.note.prepared) || entry.note.prepared<0 || !render.noteShards[entry.note.prepared])))throw new Error('Invalid retained note shard reference');
+  if(render.entries.some(entry=>!entry.note && !manifest.assets[assetPartition(entry.target)]))throw new Error('Retained asset partition is missing');
+  descriptors.push(...render.noteShards);
+  for(const [,part] of campaignSnapshotEntries(render.campaignRecords))if(part.file)descriptors.push(part);
+  const backlinks=await readPart(manifest.parts.backlinks);
+  if(!Array.isArray(backlinks.shards) || !Array.isArray(backlinks.targets) || backlinks.targets.some(([id,shard])=>
+    !Number.isSafeInteger(id) || id<0 || !render.entries[id]?.note || !Number.isSafeInteger(shard) || shard<0 || !backlinks.shards[shard]))throw new Error('Invalid retained backlink index');
+  descriptors.push(...backlinks.shards);
+  const keepAssets=keys=>{
+    if(!Array.isArray(keys) || keys.some(key=>!assetPattern.test(key)))throw new Error('Invalid retained asset inventory');
+    for(const key of keys)keep.add(key);
+  };
+  if(manifest.assetKeys){
+    descriptors.push(manifest.assetKeys);
+    keepAssets(await readPart(manifest.assetKeys));
+  }else{
+    // Format 2 revisions published before the compact inventory have all asset keys in their partitions.
+    for(const descriptor of Object.values(manifest.assets)){
+      const entries=await readPart(descriptor);
+      if(!Array.isArray(entries))throw new Error('Invalid retained asset partition');
+      keepAssets(entries.map(entry=>entry.objectKey));
+    }
+  }
+  if(descriptors.some(value=>!validRuntimeDescriptor(value)))throw new Error('Invalid retained runtime descriptor');
+  for(const descriptor of descriptors)keep.add(prefix+descriptor.file);
+  if(snapshot.search && JSON.stringify(snapshot.search)!==JSON.stringify(manifest.search))throw new Error('Retained search descriptor does not match R2');
+  if(manifest.search)await index.verify(snapshot.revision,manifest.search);
+}
+
 // Caller holds the D1 publication lock throughout upload, activation and prune.
 // Only a recorded successful pointer supplies rollback history; timestamps on
 // unactivated uploads are never evidence that a snapshot was good.
@@ -153,51 +207,7 @@ export async function prunePublication(storage,index,pointer,{log=()=>{},dryRun=
     await assertCurrent();
     const retained=[pointer,...(pointer.previous?[pointer.previous]:[])],keep=new Set();
     progress(`Retention: verifying ${retained.length} retained snapshot(s).`);
-    for(const snapshot of retained){
-      const prefix=`revisions/${snapshot.revision}/`,key=prefix+'index.json',content=await storage.getJSON(key);
-      if(content?.schemaVersion!==1 || content.revision!==snapshot.revision || !Array.isArray(content.entries))throw new Error('Retained R2 snapshot is missing or invalid; cleanup stopped');
-      keep.add(key);
-      for(const entry of content.entries){
-        if(entry.note){
-          if(!/^[a-f0-9]{2}$/.test(entry.note.shard || ''))throw new Error('Invalid retained note shard');
-          keep.add(`revisions/${snapshot.revision}/notes/${entry.note.shard}.json`);
-        }else{
-          if(!assetPattern.test(entry.objectKey || ''))throw new Error('Invalid retained asset key');
-          keep.add(entry.objectKey);
-        }
-      }
-      for(const [,descriptor] of campaignSnapshotEntries(content.campaignRecords)) {
-        if(descriptor.file) keep.add(prefix+descriptor.file);
-      }
-      if(content.runtime){
-        const manifest=await storage.getJSON(prefix+'runtime.json');
-        if(!supportedRuntimeVersion(manifest?.version) || manifest.revision!==snapshot.revision || !manifest.parts || !manifest.assets)throw new Error('Retained runtime manifest is missing or invalid; cleanup stopped');
-        const descriptors=[...Object.values(manifest.parts),...Object.values(manifest.assets)];
-        if(descriptors.some(value=>!validRuntimeDescriptor(value)) || !validRuntimeDescriptor(manifest.parts.render))throw new Error('Invalid retained runtime descriptor');
-        const render=await storage.getJSON(prefix+manifest.parts.render.file);
-        if(!render || runtimeHash(JSON.stringify(render))!==manifest.parts.render.sha256 || !Array.isArray(render.entries))throw new Error('Retained runtime render index is missing or invalid');
-        if(JSON.stringify(render.campaignRecords)!==JSON.stringify(content.campaignRecords))
-          throw new Error('Retained campaign records do not match the runtime render index');
-        if(manifest.version===1){
-          for(const entry of render.entries)if(entry.note)descriptors.push(entry.note.prepared);
-        }else{
-          if(!Array.isArray(render.noteShards) || render.entries.some(entry=>entry.note &&
-            (!Number.isSafeInteger(entry.note.prepared) || entry.note.prepared<0 || !render.noteShards[entry.note.prepared])))throw new Error('Invalid retained note shard reference');
-          descriptors.push(...render.noteShards);
-          if(!validRuntimeDescriptor(manifest.parts.backlinks))throw new Error('Invalid retained backlink descriptor');
-          const backlinks=await storage.getJSON(prefix+manifest.parts.backlinks.file);
-          if(!backlinks || runtimeHash(JSON.stringify(backlinks))!==manifest.parts.backlinks.sha256 || !Array.isArray(backlinks.shards) ||
-            !Array.isArray(backlinks.targets) || backlinks.targets.some(([id,shard])=>!Number.isSafeInteger(id) || id<0 || !render.entries[id]?.note ||
-              !Number.isSafeInteger(shard) || shard<0 || !backlinks.shards[shard]))throw new Error('Retained backlink index is missing or invalid');
-          descriptors.push(...backlinks.shards);
-        }
-        if(descriptors.some(value=>!validRuntimeDescriptor(value)))throw new Error('Invalid retained prepared note descriptor');
-        keep.add(prefix+'runtime.json');
-        for(const descriptor of descriptors)keep.add(prefix+descriptor.file);
-      }
-      if(snapshot.search && JSON.stringify(snapshot.search)!==JSON.stringify(content.search))throw new Error('Retained search descriptor does not match R2');
-      if(content.search)await index.verify(snapshot.revision,content.search);
-    }
+    for(const snapshot of retained)await collectRetainedObjects(storage,index,snapshot,keep);
     progress('Retention: listing stored revisions.');
     const objects=await storage.list('revisions/');
     progress(`Retention: found ${objects.length} revision objects; listing assets.`);
@@ -205,9 +215,15 @@ export async function prunePublication(storage,index,pointer,{log=()=>{},dryRun=
     const present=new Set(objects.map(o=>o.key));
     for(const key of keep)if(!present.has(key))throw new Error('Retained R2 object is missing; cleanup stopped');
     const revisions=new Set(retained.map(s=>s.revision));
+    // An unlisted partition in a retained revision may own generated images or tiles.
+    // Its media cannot be safely collected until the manifest and listing agree.
+    for(const {key} of objects){
+      if(revisions.has(snapshotRevision(key)) && key.includes('/runtime/assets/') && !keep.has(key))
+        throw new Error('Retained runtime manifest omits an asset partition; cleanup stopped');
+    }
     const removed=objects.filter(o=>{
       const revision=snapshotRevision(o.key);
-      return retiredTranscriptPattern.test(o.key) || (revision ? !revisions.has(revision) : assetPattern.test(o.key) && !keep.has(o.key));
+      return retiredPattern.test(o.key) || (revision ? !revisions.has(revision) : assetPattern.test(o.key) && !keep.has(o.key));
     });
     const result={retained:[...revisions],deletedObjects:removed.length,deletedBytes:removed.reduce((sum,o)=>sum+(o.size || 0),0)};
     await assertCurrent();

@@ -1,3 +1,4 @@
+import {retentionObjects} from './helpers/compiled-publication.mjs';
 // Explicit local-only integration check; not part of the ordinary fast suite.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -28,12 +29,16 @@ test('real local R2 upload activates a readable commit checkpoint and skips the 
   const checkpointFile = path.join(directory, 'checkpoint.json');
   assert.equal(await storage.readCheckpoint(checkpointFile), null);
   const revision = 'a'.repeat(64), fingerprint = 'b'.repeat(64);
-  const file = path.join(directory, 'index.json');
-  await fs.writeFile(file, JSON.stringify({revision, schemaVersion: 1}));
   const manifestFile = path.join(directory, 'uploads.json');
   const assetKey='assets/'+'b'.repeat(64),assetFile=path.join(directory,'asset.json');
   await fs.writeFile(assetFile,JSON.stringify('media bytes'));
-  await fs.writeFile(manifestFile, JSON.stringify([{key:assetKey,file:assetFile},{key: `revisions/${revision}/index.json`, file}]));
+  const parts=[];
+  for(const [key,value] of retentionObjects(revision,[assetKey])){
+    const file=path.join(directory,key);
+    await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file,JSON.stringify(value));
+    parts.push({key,file});
+  }
+  await fs.writeFile(manifestFile, JSON.stringify([{key:assetKey,file:assetFile},...parts]));
   const derivativeManifestFile=path.join(directory,'derivatives.json'),recipe='images/'+'d'.repeat(64);
   await fs.writeFile(derivativeManifestFile,JSON.stringify({schemaVersion:1,records:{[recipe]:{data:null,outputs:[{
     target:'image-variants/'+'d'.repeat(64)+'/120.webp',key:assetKey,size:(await fs.stat(assetFile)).size,
@@ -54,10 +59,10 @@ test('real local R2 upload activates a readable commit checkpoint and skips the 
   assert.ok((await DerivativeCache.load(objects)).get('images','d'.repeat(64),()=>true));
   const size=(await fs.stat(assetFile)).size;
   await fs.unlink(assetFile);
-  await fs.writeFile(manifestFile,JSON.stringify([{key:assetKey,remoteOnly:true,size},{key:`revisions/${revision}/index.json`,file}]));
+  await fs.writeFile(manifestFile,JSON.stringify([{key:assetKey,remoteOnly:true,size},...parts]));
   writes.length=0;
   await publishContent({fingerprint}, deps);
-  assert.deepEqual(writes,[`revisions/${revision}/index.json`]);
+  assert.deepEqual(new Set(writes),new Set(parts.map(part=>part.key)));
   const saved = await storage.readCheckpoint(checkpointFile);
   assert.equal(saved.commit, state.commit);
   assert.equal(saved.revision, revision);
@@ -81,8 +86,9 @@ test('large local R2 inventories are plain paginated data and retention leaves a
   for(let offset=0;offset<1205;offset+=16)await Promise.all(Array.from({length:Math.min(16,1205-offset)},(_,i)=>storage.putFile(asset(offset+i),file)));
   const previous='a'.repeat(64),active='b'.repeat(64),pointer=activationPointer({revision:previous},{revision:active});
   for(const [revision,number] of [[previous,0],[active,1]]){
-    await fs.writeFile(file,JSON.stringify({schemaVersion:1,revision,entries:[{objectKey:asset(number)}]}));
-    await storage.putFile(`revisions/${revision}/index.json`,file);
+    for(const [key,value] of retentionObjects(revision,[asset(number)])){
+      await fs.writeFile(file,JSON.stringify(value));await storage.putFile(key,file);
+    }
   }
   await storage.putPointer(pointer);
   const objects=await storage.list('assets/');
@@ -100,6 +106,6 @@ test('large local R2 inventories are plain paginated data and retention leaves a
   assert.equal(result.deletedObjects,1203);assert.equal(result.deletedBytes,2406);
   assert.deepEqual((await storage.list('assets/')).map(o=>o.key),[asset(0),asset(1)]);
   assert.deepEqual(await storage.getJSON(CHECKPOINT_KEY),pointer);
-  for(const revision of [active,previous])assert.equal((await storage.getJSON(`revisions/${revision}/index.json`)).revision,revision);
+  for(const revision of [active,previous])assert.equal((await storage.getJSON(`revisions/${revision}/runtime.json`)).revision,revision);
   assert.equal((await prunePublication(storage,index,pointer)).deletedObjects,0);
 });

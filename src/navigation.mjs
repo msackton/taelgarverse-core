@@ -89,7 +89,7 @@ export class Navigation {
     const paths=values=>new Map(values.map(([key,trail])=>[key,trail.map(index=>nodes[index])]));
     return Object.assign(Object.create(Navigation.prototype),{nodes:new Map(nodes.map(node=>[node.id,node])),
       roots:compiled.roots.map(index=>nodes[index]),paths:paths(compiled.paths),nodePaths:paths(compiled.trails),
-      compiledNodes:nodes,preparedViews:new Map(compiled.visibility ? compiled.views.map(([key,index])=>[key,compiled.visibility[index]]) : compiled.views),viewCache:new Map()});
+      compiledNodes:nodes,preparedViews:new Map(compiled.views.map(([key,index])=>[key,compiled.visibility[index]])),viewCache:new Map()});
   }
 
   expand(dirs, entries, flatten = false) {
@@ -136,18 +136,12 @@ export class Navigation {
       return true;
     };
     if(prepared){
-      if(typeof prepared==='string'){
-        const bits=Buffer.from(prepared,'base64');
-        for(const [index,node] of this.compiledNodes.entries()){
-          const flags=(bits[index>>2]>>((index%4)*2))&3;
-          if(flags&1)visible.set(node.id,{...node,entry:flags&2?node.entry:undefined,children:node.children});
-        }
-        for(const node of visible.values())node.children=node.children.filter(child=>visible.has(child.id));
-      }else{
-        // Compiled runtime v1 stored [node index, linkable] pairs.
-        const ids=new Set(prepared.map(([index])=>this.compiledNodes[index].id));
-        for(const [index,link] of prepared){const node=this.compiledNodes[index];visible.set(node.id,{...node,entry:link?node.entry:undefined,children:node.children.filter(child=>ids.has(child.id))});}
+      const bits=Buffer.from(prepared,'base64');
+      for(const [index,node] of this.compiledNodes.entries()){
+        const flags=(bits[index>>2]>>((index%4)*2))&3;
+        if(flags&1)visible.set(node.id,{...node,entry:flags&2?node.entry:undefined,children:node.children});
       }
+      for(const node of visible.values())node.children=node.children.filter(child=>visible.has(child.id));
     }
     const roots = prepared ? this.roots.filter(node=>visible.has(node.id)) : this.roots.filter(visit);
     cached={visible,roots};this.viewCache.set(key,cached);

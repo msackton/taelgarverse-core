@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import {validRuntimeManifest} from '../src/runtime-format.mjs';
 import {randomUUID} from 'node:crypto';
 import {SEARCH_VERSION,searchHash,documentHash,validateSearchManifest,searchDescriptor} from './compile-search.mjs';
 import {withPublicationProgress} from './publication-progress.mjs';
@@ -63,11 +64,12 @@ export function validateSearchDescriptor(search){
   return search;
 }
 export function readPreparedSearch(report){
+  if(!report.runtimeFile)throw new Error('Prepare content again to generate a compiled runtime manifest');
   validRevision(report.revision);validateSearchDescriptor(report.search);
   const manifest=validateSearchManifest(JSON.parse(fs.readFileSync(report.searchFile,'utf8')));
   if(JSON.stringify(searchDescriptor(manifest))!==JSON.stringify(report.search))throw new Error('Prepared search descriptor does not match its manifest');
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
-  if(index.revision!==report.revision || JSON.stringify(index.search)!==JSON.stringify(report.search))throw new Error('Search manifest is not associated with this R2 content revision');
+  const index=JSON.parse(fs.readFileSync(report.runtimeFile,'utf8'));
+  if(!validRuntimeManifest(index,report.revision) || JSON.stringify(index.search)!==JSON.stringify(report.search))throw new Error('Search manifest is not associated with this R2 content revision');
   return manifest;
 }
 // Keep JSON parameters comfortably below D1's 2 MB bound-value limit. Large

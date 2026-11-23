@@ -38,7 +38,6 @@ sorted, deduplicated canonical codes. Unknown or ineligible selections and
 campaign overrides on a named preset return 400. API responses include the resolved
 `campaigns`. Custom All also has `context.allCampaigns: true`.
 
-Multi-campaign backlinks require a freshly published version 2 backlink index.
-Publication compiles combinations once; requests continue to use the index
-without reading the referring article bodies. Older snapshots still render
-articles, with multi-campaign backlinks enabled after republishing.
+Publication compiles campaign combinations into backlink shards. The Worker
+filters the target page's incoming references for the selected campaigns
+without reading the referring article bodies.

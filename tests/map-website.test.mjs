@@ -158,7 +158,7 @@ test('publication rejects map assets changed after validation and before packagi
   }
 });
 
-test('prepared maps survive Node, compiled Worker and legacy snapshot rendering with fetchable assets',async t=>{
+test('prepared maps survive Node and compiled Worker rendering with fetchable assets',async t=>{
   const f=await fixture(t,{sourceOffset:[2100,3100]});
   f.manifest.layers=['borders.map-layers.json'];
   const layers={version:1,layers:[{id:'regions',name:'Regions',regions:[{id:'one',name:'One',note:'One.md',points:[[2100,3100],[2400,3100],[2300,3190]]}]}]};
@@ -181,7 +181,7 @@ test('prepared maps survive Node, compiled Worker and legacy snapshot rendering 
   const uploads=JSON.parse(await fs.readFile(report.manifestFile,'utf8'));
   const objects=new Map(await Promise.all(uploads.map(async item=>[item.key,await fs.readFile(item.file)])));
   objects.set('published/current.json',await fs.readFile(report.pointerFile));
-  const index=JSON.parse(objects.get('revisions/'+report.revision+'/index.json'));
+  const index=JSON.parse(objects.get('revisions/'+report.revision+'/runtime/render.json'));
   const imageEntry=index.entries.find(entry=>entry.id==='assets/maps/core.png');
   assert.deepEqual(imageEntry.mapImageInfo,{format:'png',width:2308,height:96});
   assert.equal(index.entries.some(entry=>entry.id===riverSource),false,'geometry is not a public asset');
@@ -189,41 +189,37 @@ test('prepared maps survive Node, compiled Worker and legacy snapshot rendering 
   assert.deepEqual(index.entries.find(entry=>entry.id==='River.md').mapPathGeometry.points,river.points);
   assert.deepEqual(index.entries.find(entry=>entry.id.endsWith('.map.json')).mapManifest,f.manifest);
   class Bucket {
-    constructor(legacy){this.objects=new Map([...objects].filter(([key])=>!legacy || !key.includes('/runtime/') && !key.endsWith('/runtime.json')));}
+    constructor(){this.objects=objects;}
     async get(key,{range}={}){const bytes=this.objects.get(key);if(!bytes)return null;return {size:bytes.length,text:async()=>bytes.toString(),json:async()=>JSON.parse(bytes),body:new Blob([range?bytes.subarray(range.offset,range.offset+range.length):bytes]).stream()};}
   }
-  let expected;
-  for(const legacy of [false,true]){
-    const worker=createWorker(),env={CONTENT:new Bucket(legacy),ASSETS:{fetch:async()=>new Response('theme')}};
-    const request=url=>worker.fetch(new Request('https://taelgar.org'+url),env);
-    const response=await request('/api/page?page=Map');assert.equal(response.status,200);
-    const page=await response.json(),maps=configs(page.html);assert.equal(maps.length,2);assert.equal(maps[0].version,2);
-    const translated=baselineViewConfig(f.block,resolveMapSource(f.manifest,{width:2308,height:96}),'');
-    assert.deepEqual(maps[0].crop,translated.crop);assert.deepEqual(maps[0].overlays,translated.overlays);
-    assert.deepEqual(maps[0].regionLayers[0].regions,layers.layers[0].regions);
-    assert.equal(maps[0].regionLayers[0].toggleable,false);
-    assert.deepEqual(maps[0].sourceOffset,[2100,3100]);
-    assert.deepEqual(maps[0].detailLayers,[{...detail,image:'/assets/assets/maps/detail.png'}]);
-    assert.equal(maps[1].detailLayers,undefined,'separate map blocks opt in independently');
-    assert.deepEqual(Buffer.from(await (await request(maps[0].detailLayers[0].image)).arrayBuffer()),detailPNG);
-    assert.deepEqual(await (await request('/assets/assets/maps/detail.map-detail.json')).json(),detail);
-    assert.match(Object.values(maps[0].regionLinks)[0],/^\/page\/one/);
-    assert.equal(maps[0].mapPaths.length,1);assert.deepEqual(maps[0].mapPaths[0].points,river.points);
-    assert.equal(maps[0].mapPaths[0].importance,'regional');assert.match(maps[0].mapPaths[0].href,/^\/page\/river/);
-    assert.equal(maps[1].mapPaths.length,1,'crossing paths appear in multiple crops without endpoint filtering');
-    assert.equal((await request('/assets/'+riverSource)).status,404);
-    const layerResponse=await request('/assets/assets/maps/borders.map-layers.json');assert.deepEqual(await layerResponse.json(),layers);
-    assert.equal(maps[0].tile.baseUrl,maps[1].tile.baseUrl);assert.deepEqual(maps[0].measurement,{unit:'miles',hexMiles:24,xScale:.6,yScale:.6});
-    if(expected)assert.deepEqual(maps,expected);else expected=maps;
-    assert.deepEqual(Buffer.from(await (await request(maps[0].image)).arrayBuffer()),f.image);
-    const manifestResponse=await request('/assets/assets/maps/core.map.json');assert.match(manifestResponse.headers.get('content-type'),/application\/json/);
-    assert.deepEqual(await manifestResponse.json(),f.manifest);
-    const tile=await request(maps[0].tile.baseUrl+'/0/0/0.webp');assert.equal(tile.status,200);assert.match(tile.headers.get('content-type'),/image\/webp/);
-  }
+  const worker=createWorker(),env={CONTENT:new Bucket(),ASSETS:{fetch:async()=>new Response('theme')}};
+  const request=url=>worker.fetch(new Request('https://taelgar.org'+url),env);
+  const response=await request('/api/page?page=Map');assert.equal(response.status,200);
+  const page=await response.json(),maps=configs(page.html);assert.equal(maps.length,2);assert.equal(maps[0].version,2);
+  const translated=baselineViewConfig(f.block,resolveMapSource(f.manifest,{width:2308,height:96}),'');
+  assert.deepEqual(maps[0].crop,translated.crop);assert.deepEqual(maps[0].overlays,translated.overlays);
+  assert.deepEqual(maps[0].regionLayers[0].regions,layers.layers[0].regions);
+  assert.equal(maps[0].regionLayers[0].toggleable,false);
+  assert.deepEqual(maps[0].sourceOffset,[2100,3100]);
+  assert.deepEqual(maps[0].detailLayers,[{...detail,image:'/assets/assets/maps/detail.png'}]);
+  assert.equal(maps[1].detailLayers,undefined,'separate map blocks opt in independently');
+  assert.deepEqual(Buffer.from(await (await request(maps[0].detailLayers[0].image)).arrayBuffer()),detailPNG);
+  assert.deepEqual(await (await request('/assets/assets/maps/detail.map-detail.json')).json(),detail);
+  assert.match(Object.values(maps[0].regionLinks)[0],/^\/page\/one/);
+  assert.equal(maps[0].mapPaths.length,1);assert.deepEqual(maps[0].mapPaths[0].points,river.points);
+  assert.equal(maps[0].mapPaths[0].importance,'regional');assert.match(maps[0].mapPaths[0].href,/^\/page\/river/);
+  assert.equal(maps[1].mapPaths.length,1,'crossing paths appear in multiple crops without endpoint filtering');
+  assert.equal((await request('/assets/'+riverSource)).status,404);
+  const layerResponse=await request('/assets/assets/maps/borders.map-layers.json');assert.deepEqual(await layerResponse.json(),layers);
+  assert.equal(maps[0].tile.baseUrl,maps[1].tile.baseUrl);assert.deepEqual(maps[0].measurement,{unit:'miles',hexMiles:24,xScale:.6,yScale:.6});
+  assert.deepEqual(Buffer.from(await (await request(maps[0].image)).arrayBuffer()),f.image);
+  const manifestResponse=await request('/assets/assets/maps/core.map.json');assert.match(manifestResponse.headers.get('content-type'),/application\/json/);
+  assert.deepEqual(await manifestResponse.json(),f.manifest);
+  const tile=await request(maps[0].tile.baseUrl+'/0/0/0.webp');assert.equal(tile.status,200);assert.match(tile.headers.get('content-type'),/image\/webp/);
   const server=createServer(new Engine(f.settings));server.listen(0,'127.0.0.1');await once(server,'listening');
   t.after(()=>new Promise(resolve=>server.close(resolve)));
-  const response=await fetch('http://127.0.0.1:'+server.address().port+'/api/page?page=Map');assert.equal(response.status,200);
-  assert.deepEqual(configs((await response.json()).html),expected);
+  const localPage=await fetch('http://127.0.0.1:'+server.address().port+'/api/page?page=Map');assert.equal(localPage.status,200);
+  assert.deepEqual(configs((await localPage.json()).html),maps);
 });
 
 
