@@ -6,7 +6,6 @@ import {searchInput,searchPages} from './search.mjs';
 import {searchTypes} from './search-types.mjs';
 import {searchView,searchErrorView} from './search-view.mjs';
 import {homepage} from './homepage.mjs';
-import {indexLabels} from './indexes.mjs';
 import {resolveDiagramLink} from './diagram-links.mjs';
 import {mapCatalogue} from './map-catalogue.mjs';
 
@@ -40,11 +39,6 @@ const apiSpec = {
         {name:'dm',in:'query',schema:{type:'boolean',default:false},description:'See Behind the Curtain: 1/true shows comment notes and Campaign:none blocks; a viewing preference available to every visitor'}],
       responses:{200:{description:'Article HTML, TOC, backlinks, campaign interactions, date, campaigns and warnings'},400:{description:'Invalid input'},
         404:{description:'Missing/excluded/future page'},409:{description:'Ambiguous page'},422:{description:'Unsafe comment syntax or header error'}}}},
-    '/api/index':{get:{summary:'Load a visible header index grid on demand',parameters:[
-      {name:'page',in:'query',required:true,schema:{type:'string'}},{name:'type',in:'query',required:true,schema:{type:'string',enum:Object.keys(indexLabels)}},
-      {name:'context',in:'query',schema:{type:'string'}},{name:'date',in:'query',schema:{type:'string'}},
-      {name:'campaigns',in:'query',schema:{type:'string'}},{name:'dm',in:'query',schema:{type:'boolean'}}],
-      responses:{200:{description:'Context-filtered index HTML'},400:{description:'Missing parameters'},404:{description:'Unavailable page or index'}}}},
     '/health':{get:{summary:'Content snapshot status',responses:{200:{description:'Indexed page count and warnings'}}}},
     '/api/contexts':{get:{summary:'Available contexts, dates, campaign codes and date provenance',responses:{200:{description:'Context catalogue and warnings'}}}},
     '/api/diagram-links':{get:{summary:'Resolve diagram destinations in the source article context',parameters:[
@@ -66,7 +60,7 @@ function shell(title, content,header = '') {
   return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>' + escapeHtml(title) + '</title><link rel="stylesheet" href="/theme/preview.css"></head><body>' + header + '<main>' + content + '</main></body></html>';
 }
-async function dispatch(request,engine,{route=classifyRoute(request),renderPage=(page,date,context,dm,campaigns)=>engine.render(page,date,context,dm,undefined,campaigns),renderHome=(context,siteHost)=>engine.renderHome(context,undefined,siteHost),renderIndex=(...args)=>engine.renderIndex(...args),search=engine.search?.bind(engine),assets,theme,runtime='node',revision,releases=engine.releases}={}) {
+async function dispatch(request,engine,{route=classifyRoute(request),renderPage=(page,date,context,dm,campaigns)=>engine.render(page,date,context,dm,undefined,campaigns),renderHome=(context,siteHost)=>engine.renderHome(context,undefined,siteHost),search=engine.search?.bind(engine),assets,theme,runtime='node',revision,releases=engine.releases}={}) {
       if (route.name === 'methodNotAllowed') { return new Response(JSON.stringify({detail:'Method not allowed'}),{status:405,headers:{Allow:'GET, HEAD','Content-Type':'application/json'}}); }
       if (route.error) throw route.error;
       const {url,pathname,tail} = route;
@@ -118,11 +112,6 @@ async function dispatch(request,engine,{route=classifyRoute(request),renderPage=
         if (!branch) throw new RenderError(400,'branch is required');
         const context = resolveContext();
         return send(200,engine.navigation.branch(context,branch,url.searchParams.get('page')));
-      }
-      if (route.name === 'index') {
-        const page=url.searchParams.get('page'),type=url.searchParams.get('type');
-        if(!page || !type)throw new RenderError(400,'page and type are required');
-        return send(200,await renderIndex(page,type,date,contextId,dm,selectedCampaigns),'text/html');
       }
       if (route.name === 'pageApi') {
         const page = url.searchParams.get('page');

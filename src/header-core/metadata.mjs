@@ -1,3 +1,5 @@
+export const pageTypes = Object.freeze(['person','place','object','event','group','power','ancestry','creature']);
+
 // Shared metadata classification; no host or date state.
 export function getPageType(metadata) {
 
@@ -13,20 +15,9 @@ export function getPageType(metadata) {
         else if (metadata.file?.etags && Array.isArray(metadata.file.etags)) tags = metadata.file.etags.map(t => t.replace(/^#/, ''));
 
         // define fixed types
-        const typePrefixes = [
-            "person",
-            "place",
-            "object",
-            "event",
-            "group",
-            "power",
-            "ancestry",
-            "creature"
-        ];
-
         for (const tag of tags) {
             if (typeof tag !== "string") continue;
-            for (const type of typePrefixes) {
+            for (const type of pageTypes) {
                 if (tag.startsWith(type)) {
                     return type;
                 }

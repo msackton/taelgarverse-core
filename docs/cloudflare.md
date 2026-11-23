@@ -209,13 +209,7 @@ nested expansion. Hidden embeds and nested embeds outside a requested section do
 not trigger body reads. No HTML is prerendered. Prepared records preserve body
 text and header-block boundaries; metadata comes from the compiled render index.
 
-Header index buttons perform only a first-match existence probe; their card grids
-are requested from `/api/index` on activation. That API initializes the shared
-renderer metadata and header indexes without loading source or candidate note
-bodies. It revalidates source availability, enabled index type, date, campaigns,
-DM preferences, including campaign-host locks. Responses remain
-`no-store` and do not enter the page HTML cache. Inline indexes retain immediate
-rendering. These are source-code behaviors, not evidence of a deployment.
+Inline whereabouts indexes use published metadata and apply the reader context during article rendering.
 
 Health, contexts, docs and the API schema use only the runtime manifest. Media
 requests load their asset partition without initializing headers, Markdown or

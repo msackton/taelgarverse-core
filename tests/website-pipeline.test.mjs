@@ -45,7 +45,7 @@ test('Node stages run DQL on a copied raw vault before JavaScript cleanup and ne
   const vault=path.join(dir,'original'),working=path.join(dir,'working');await fs.mkdir(vault);
   const source='---\nheaderVersion: 1\ntags: [group]\n---\n# Saved header\n>[!info] Old\n\n'+
     '```dataview\nLIST FROM #person\n```\n\n```dataviewjs\nawait dv.view("_scripts/view/get_CampaignInteractions");\n```\n\n'+
-    '```taelgar-index\ntype: members\n```\n';
+    '```taelgar-index\ntype: whereabouts\nfrom: person\nvia: home\n```\n';
   await fs.writeFile(path.join(vault,'Guild.md'),source);await fs.mkdir(path.join(vault,'_private'));await fs.writeFile(path.join(vault,'_private','Indexed.md'),'# Private source note');
   const person='---\ntags: [person]\n---\n';
   await fs.writeFile(path.join(vault,'Result.md'),person);

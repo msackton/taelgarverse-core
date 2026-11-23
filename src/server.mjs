@@ -37,13 +37,6 @@ export function createServer(engine) {
           await prepareImages(engine.store,imageCache,{usages:imageUsages},entries);
           return render();
         },
-        async renderIndex(page,type,date,context,dm,campaigns) {
-          const render=()=>engine.renderIndex(page,type,date,context,dm,campaigns);
-          const result=render(),entries=imageEntries(engine.store,result);
-          if(!entries.length)return result;
-          await prepareImages(engine.store,imageCache,{usages:imageUsages},entries);
-          return render();
-        },
         async renderHome(context,siteHost) {
           await ready();
           const result = await engine.renderHomeAsync(context,loadNote,siteHost), entries = imageEntries(engine.store,result?.html || '');

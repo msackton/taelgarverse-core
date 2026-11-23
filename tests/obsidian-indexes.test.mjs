@@ -12,9 +12,6 @@ import {ROOT} from '../src/config.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {imageDOM} from './helpers/image-dom.mjs';
 import {indexNotes,featureIndexNotes,indexSources,objectIndexNotes} from './fixtures/indexes.mjs';
-import {mountIndexPopups} from '../src/browser/index-popups.mjs';
-import {indexPopup,indexPopupShell} from '../src/index-view.mjs';
-import {cintraSource,cintraSentence} from './fixtures/index-descriptions.mjs';
 
 const require=createRequire(import.meta.url);
 const compiled=await build({absWorkingDir:ROOT,stdin:{contents:"export * from './obsidian/taelgarverse/features/headers.mjs';"+serviceExports,resolveDir:ROOT},write:false,
@@ -91,15 +88,14 @@ function host(settings={}) {
 test('Obsidian inline indexes render current metadata, respect show, and open native note links',async()=>{
   const h=host();
   try {
-    const {element}=await h.block('type: residents');
+    const {element}=await h.block('type: whereabouts\nfrom: person\nvia: home');
     assert.match(element.textContent,/Alice Example/);assert.match(element.textContent,/Bob/);
     assert.doesNotMatch(element.textContent,/Visitor|Dead|Future/);
     const link=element.querySelector('.taelgar-index-link');h.click(link);
     assert.deepEqual(h.opened[0],['People/Alice.md','Places/Realm.md',false]);
     h.event(link,'click',{ctrlKey:true});assert.equal(h.opened[1][2],true);
-    const hidden=await h.block('type: residents\nshow: website');assert.equal(hidden.element.hidden,true);assert.equal(hidden.element.innerHTML,'');
-    const both=await h.block('type: members\ntarget: Guild\nshow: both');assert.match(both.element.textContent,/Treasurer/);
-    const invalid=await h.block('type: residents\nshow: invalid');assert.match(invalid.element.textContent,/show must/);
+    const hidden=await h.block('type: whereabouts\nfrom: person\nvia: home\nshow: website');assert.equal(hidden.element.hidden,true);assert.equal(hidden.element.innerHTML,'');
+    const invalid=await h.block('type: whereabouts\nfrom: person\nvia: home\nshow: invalid');assert.match(invalid.element.textContent,/show must/);
   } finally {h.dispose();}
   assert.equal(h.intervals.size,0);assert.equal(h.cache.count,0);assert.equal(h.vault.count,0);
 });
@@ -111,9 +107,9 @@ test('Obsidian people tables use object notes as local and explicit targets',asy
       h.metadata.set(path,{...metadata,pageTargetDate:'1720-01-01'});
       h.files.push({path,basename:path.split('/').at(-1).slice(0,-3)});
     }
-    const aboard=await h.block('type: people-in-place\nmode: table\nscope: current','Objects/Vessel.md');
+    const aboard=await h.block('type: whereabouts\nfrom: person\nvia: current\nmode: table\nscope: current','Objects/Vessel.md');
     assert.deepEqual(Array.from(aboard.element.querySelectorAll('tbody tr td:first-child a'),link=>link.textContent),['Boarding Visitor','Occupant']);
-    const mirror=await h.block('type: residents\ntarget: "[[Objects/Mirror.md]]"\nmode: table');
+    const mirror=await h.block('type: whereabouts\nfrom: person\nvia: home\ntarget: "[[Objects/Mirror.md]]"\nmode: table');
     assert.deepEqual(Array.from(mirror.element.querySelectorAll('tbody tr td:first-child a'),link=>link.textContent),['Occupant']);
   } finally {h.dispose();}
 });
@@ -128,7 +124,7 @@ test('Obsidian place indexes follow aliases at intermediate locations and prefer
       h.files.push({path,basename:name});
     }
     const places=async (options='')=>{
-      const {element}=await h.block('type: places\nmode: table'+options);
+      const {element}=await h.block('type: whereabouts\nfrom: place\nvia: current\nmode: table'+options);
       return Array.from(element.querySelectorAll('tbody tr td:first-child a'),a=>a.textContent);
     };
     assert.equal(h.app.metadataCache.getFirstLinkpathDest('Old Town','Places/Quarter.md'),undefined);
@@ -147,206 +143,10 @@ test('Obsidian place indexes follow aliases at intermediate locations and prefer
   } finally {h.dispose();}
 });
 
-test('Obsidian caches index scopes and table columns independently',async()=>{
-  const h=host();
-  try {
-    const path='People/Former.md';
-    h.metadata.set(path,{tags:['person'],born:1690,died:1715,affiliations:[{org:'Guild',end:1710}]});
-    h.files.push({path,basename:'Former'});
-    const source='type: members\ntarget: Guild\nmode: table';
-    const render=async options=>(await h.block(source+options)).element;
-    const current=await render('\nscope: current');
-    assert.doesNotMatch(current.querySelector('tbody').textContent,/Dead|Former/);
-    const historical=await render('\nscope: historical');
-    assert.match(historical.querySelector('tbody').textContent,/Dead.*Unknown/);
-    assert.doesNotMatch(historical.querySelector('tbody').textContent,/Former/);
-    const ever='\nscope: ever';
-    const datedTable=await render(ever+'\ncolumns: [name, info, born, died]\nsortBy: [born, name]');
-    assert.equal(datedTable.querySelector('h2').textContent,'All-time Members');
-    assert.deepEqual(Array.from(datedTable.querySelectorAll('th'),cell=>cell.textContent),['Person','Info','Born','Died']);
-    assert.match(datedTable.querySelector('tbody tr').textContent,/Former.*1690.*1715/);
-    const location=await render(ever);
-    assert.equal(location.querySelectorAll('th')[2].textContent,'Current Location');
-    assert.match(location.querySelector('tbody').textContent,/Former.*Unknown/);
-    assert.equal((await render('\nscope: current')).innerHTML,current.innerHTML);
-    const custom=ever+'\ncolumns: [left, name, joined, roles]';
-    const byName=await render(custom+'\nsortBy: [name]');
-    const byLeft=await render(custom+'\nsortBy: [left]');
-    assert.deepEqual(Array.from(byLeft.querySelectorAll('th'),cell=>cell.textContent),['Left','Person','Joined','Roles']);
-    assert.match(byName.querySelector('tbody tr').textContent,/Alice/);
-    assert.match(byLeft.querySelector('tbody tr').textContent,/1710.*Former/);
-    assert.equal((await render(custom+'\nsortBy: [name]')).innerHTML,byName.innerHTML);
-
-    const {element}=await h.block('type: people-in-place\nmode: table','Places/Town.md');
-    assert.equal(element.querySelector('h2').textContent,'People Present');
-    assert.match(element.querySelector('tbody').textContent,/Bob.*Visitor/);
-    assert.doesNotMatch(element.querySelector('tbody').textContent,/Alice|Dead|Future/);
-    const scoped=await h.block('type: people-in-place\nmode: table\nscope: historical','Places/Town.md');
-    assert.match(scoped.element.querySelector('tbody').textContent,/Dead/);
-    assert.doesNotMatch(element.querySelector('tbody').textContent,/Dead/);
-  } finally {h.dispose();}
-});
-
-test('Obsidian inline grids and tables have H2 labels, including empty results',async()=>{
-  const h=host();
-  try {
-    for(const [path,metadata] of Object.entries(featureIndexNotes)) {
-      h.metadata.set(path,metadata);h.files.push({path,basename:path.split('/').at(-1).replace(/\.md$/,'')});
-    }
-    for(const [type,source,label] of [['residents','Places/Realm.md','Residents'],['settlements','Places/Realm.md','Settlements'],['members','Groups/Guild.md','Members'],['rivers','Places/Basin.md','Rivers'],['places','Places/Town.md','Places'],['places','Places/Inn.md','Places']])for(const mode of ['grid','table']) {
-      const {element}=await h.block('type: '+type+'\nmode: '+mode,source);
-      const section=element.querySelector('.taelgar-index');
-      assert.equal(section.firstElementChild.tagName,'H2');
-      assert.equal(section.querySelectorAll('h2').length,1);
-      assert.equal(section.querySelector('h2').textContent,label);
-    }
-    const bio=await h.block('','Places/Realm.md','taelgar-header');
-    h.click(bio.element.querySelector('summary'));await pause(10);
-    const dialog=h.document.querySelector('dialog[open]');
-    assert.equal(dialog.querySelectorAll('h2').length,1,'the popup keeps its single dialog title');
-  } finally {h.dispose();}
-});
-
-test('Obsidian heading false preserves grid/table contents and empty messages',async()=>{
-  const h=host();
-  try {
-    for(const mode of ['grid','table'])for(const target of ['Places/Realm.md','Places/Inn.md']) {
-      const source='type: settlements\nmode: '+mode;
-      const shown=await h.block(source+'\nheading: true',target);
-      const hidden=await h.block(source+'\nheading: false',target);
-      const a=shown.element.querySelector('.taelgar-index'),b=hidden.element.querySelector('.taelgar-index');
-      assert.equal(a.querySelectorAll('h2').length,1);
-      assert.equal(b.querySelectorAll('h2').length,0);
-      a.querySelector('h2').remove();
-      assert.equal(b.innerHTML,a.innerHTML);
-      assert.equal(b.getAttribute('aria-label'),a.getAttribute('aria-label'));
-    }
-    const invalid=await h.block('type: settlements\nheading: "false"');
-    assert.match(invalid.element.textContent,/heading must be true or false/);
-  } finally {h.dispose();}
-});
-
-test('new header buttons follow the callout, stay outside it, and release open dialogs',async()=>{
-  const h=host();
-  try {
-    const bio=await h.block('','Places/Realm.md','taelgar-header');
-    assert.equal(bio.element.querySelectorAll('.taelgar-index-buttons').length,1);
-    assert.equal(bio.element.querySelectorAll('.taelgar-index-popup').length,2);
-    const buttons=bio.element.querySelector('.taelgar-index-buttons');
-    assert.equal(buttons.parentElement.className,'taelgar-generated-bio');
-    assert.equal(buttons.previousElementSibling.tagName,'BLOCKQUOTE');
-    assert.equal(buttons.closest('blockquote,[data-callout]'),null);
-    assert.equal(buttons.parentElement.lastElementChild,buttons);
-    const saved=await h.savedHeader();assert.equal(saved.element.querySelectorAll('.taelgar-index-buttons').length,0);
-    const direct=await h.savedHeader(true);assert.equal(direct.element.querySelectorAll('.taelgar-index-buttons').length,0,'an ordinary H1 is left alone');
-    assert.equal(buttons.querySelectorAll('.taelgar-index-card,img').length,0,'headers do not build popup rows');
-    const summary=buttons.querySelector('summary');h.click(summary);await pause(10);
-    const dialog=h.document.querySelector('dialog[open]');assert.ok(dialog);assert.match(dialog.textContent,/Alice Example/);
-    h.click(dialog.querySelector('.taelgar-index-link'));assert.equal(h.opened.length,1);
-    assert.equal(h.opened[0][1],'Places/Realm.md');
-    assert.equal(h.document.documentElement.classList.contains('taelgar-index-open'),true);
-    h.click(dialog.querySelector('.taelgar-index-close'));assert.equal(h.document.querySelector('dialog'),null);
-    assert.equal(h.document.activeElement,summary);
-    assert.equal(h.document.documentElement.classList.contains('taelgar-index-open'),false);
-    h.click(summary);bio.child.unload();assert.equal(h.document.querySelector('dialog'),null);
-    h.metadata.set('Groups/Empty.md',{tags:['group'],indexes:['members']});
-    h.files.push({path:'Groups/Empty.md',basename:'Empty'});
-    h.cache.trigger('changed');await pause(160);
-    const empty=await h.block('','Groups/Empty.md','taelgar-header');
-    assert.equal(empty.element.querySelector('.taelgar-index-popup'),null);
-    assert.equal(empty.element.querySelector('.taelgar-index-buttons'),null);
-    const inline=await h.block('type: members','Groups/Empty.md');
-    assert.match(inline.element.textContent,/No members found/);
-  } finally {h.dispose();}
-});
-
-test('disabled header popups preserve headers, inline indexes, and frontmatter',async()=>{
-  const h=host({headerIndexPopups:false});
-  try {
-    const before=JSON.stringify([...h.metadata]);
-    for(const path of ['Places/Realm.md','Groups/Guild.md']) {
-      const bio=await h.block('',path,'taelgar-header');
-      assert.equal(bio.element.querySelector('h1'),null);
-      assert.ok(bio.element.querySelector('blockquote'));
-      assert.equal(bio.element.querySelector('.taelgar-index-buttons'),null);
-    }
-    const table=await h.block('type: members\ntarget: Guild\nmode: table\nshow: obsidian');
-    assert.ok(table.element.querySelector('table'));
-    assert.match(table.element.textContent,/Alice Example/);
-    const grid=await h.block('type: residents');
-    assert.ok(grid.element.querySelector('.taelgar-index-grid'));
-    assert.equal(JSON.stringify([...h.metadata]),before);
-  } finally {h.dispose();}
-});
-
-test('header popup toggle closes dialogs immediately and refreshes existing and pending headers',async()=>{
-  const h=host();
-  try {
-    const bio=await h.block('','Places/Realm.md','taelgar-header');
-    const table=await h.block('type: residents\nmode: table');
-    const originalTable=table.element.querySelector('table');
-    h.click(bio.element.querySelector('summary'));await pause(10);
-    assert.ok(h.document.querySelector('dialog[open]'));
-    h.defer();
-    const disabling=h.feature.setHeaderIndexPopups(false);
-    assert.equal(h.document.querySelector('dialog'),null);
-    assert.equal(h.document.documentElement.classList.contains('taelgar-index-open'),false);
-    h.release();await disabling;
-    assert.equal(bio.element.querySelector('.taelgar-index-buttons'),null);
-    assert.equal(table.element.querySelector('table'),originalTable);
-    await h.feature.setHeaderIndexPopups(true);
-    assert.ok(bio.element.querySelector('summary'));
-    h.click(bio.element.querySelector('summary'));await pause(10);
-    assert.match(h.document.querySelector('dialog').textContent,/Alice Example/);
-    h.defer();const pending=h.block('','Places/Realm.md','taelgar-header');await pause(10);
-    const disabled=h.feature.setHeaderIndexPopups(false);
-    h.release();await disabled;
-    const later=await pending;
-    assert.equal(later.element.querySelector('.taelgar-index-buttons'),null);
-    assert.equal(h.document.querySelector('dialog'),null);
-  } finally {h.dispose();}
-});
-
-test('vault edits, date changes, renames and deletes refresh live indexes without stale popups',async()=>{
-  const h=host();
-  try {
-    const {element}=await h.block('type: members\ntarget: Guild');assert.match(element.textContent,/Treasurer/);
-    h.metadata.get('People/Alice.md').affiliations=[];h.cache.trigger('changed');await pause(160);
-    assert.doesNotMatch(element.textContent,/Alice Example/);
-    h.metadata.get('People/Alice.md').affiliations=[{org:'Guild',start:'1710-01-01',end:'1730-01-01'}];
-    h.vault.trigger('rename');await pause(160);assert.match(element.textContent,/Alice Example/);
-    h.globals.customJS={state:{overrideDate:'1735-01-01'}};
-    for(const tick of h.intervals.values())tick();await pause(10);assert.doesNotMatch(element.textContent,/Alice Example/);
-    h.globals.customJS.state.overrideDate='1720-01-01';
-    h.files.splice(h.files.findIndex(file=>file.path==='People/Alice.md'),1);h.vault.trigger('delete');await pause(160);
-    assert.doesNotMatch(element.textContent,/Alice Example/);
-  } finally {h.dispose();}
-});
-
-test('unloading during asynchronous bio rendering cannot mount stale index controls',async()=>{
-  const h=host();
-  try {
-    h.defer();const pending=h.block('','Places/Realm.md','taelgar-header');await pause(20);
-    h.dispose();h.release();const {element}=await pending;
-    assert.equal(element.textContent,'');assert.equal(element.querySelector('.taelgar-generated-bio,.taelgar-index-buttons'),null);assert.equal(h.document.querySelector('dialog'),null);
-  } finally {h.dispose();}
-});
-
-test('shared popups support native details fallback, backdrop dismissal and disposal',()=>{
-  const h=imageDOM(indexPopup({label:'Residents',target:'Town',items:[{name:'Alice'}],warnings:[]},item=>item.name));
-  const dispose=mountIndexPopups(h.document),summary=h.document.querySelector('summary');h.click(summary);
-  const dialog=h.document.querySelector('dialog');assert.equal(dialog.open,true);
-  h.event(dialog,'pointerdown',{clientX:-10,clientY:-10});h.event(dialog,'click',{clientX:-10,clientY:-10});
-  assert.equal(h.document.querySelector('dialog'),null);
-  h.click(summary);dispose();assert.equal(h.document.querySelector('dialog'),null);
-  h.window.HTMLElement.prototype.showModal=undefined;
-  const cleanup=mountIndexPopups(h.document);assert.equal(h.click(summary).defaultPrevented,false);cleanup();
-});
-
 test('Obsidian grids resolve local images and people tables link to current locations and homes',async()=>{
   const h=host();
   try {
-    const grid=await h.block('type: residents\nmode: grid');
+    const grid=await h.block('type: whereabouts\nfrom: person\nvia: home\nmode: grid');
     assert.equal(grid.element.querySelectorAll('img').length,1);
     assert.equal(grid.element.querySelector('img').getAttribute('src'),'app://local/portraits/alice.png');
     assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Alice Example \(she\/her AL-iss\)/);
@@ -354,7 +154,7 @@ test('Obsidian grids resolve local images and people tables link to current loca
     assert.equal(grid.element.querySelector('.taelgar-index-card .taelgar-index-detail').textContent,'Current Location: the Other Realm');
     assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Home: Inn/);
     assert.doesNotMatch(grid.element.textContent,/Visitor/);
-    const table=await h.block('type: residents\nmode: table');
+    const table=await h.block('type: whereabouts\nfrom: person\nvia: home\nmode: table');
     assert.equal(table.element.querySelectorAll('img,.taelgar-index-grid').length,0);
     const cells=table.element.querySelector('tbody tr').querySelectorAll('td');
     assert.equal(cells[0].textContent,'Alice Example (she/her AL-iss)');assert.equal(cells[1].textContent,'Townfolk human');
@@ -365,87 +165,7 @@ test('Obsidian grids resolve local images and people tables link to current loca
     assert.doesNotMatch(table.element.textContent,/Visitor/);
     const header=await h.block('','Places/Realm.md','taelgar-header');
     assert.equal(header.element.querySelectorAll('.taelgar-index-card,img').length,0);
-    h.click(header.element.querySelector('summary'));await pause(10);
-    const popup=h.document.querySelector('dialog');
-    assert.equal(popup.querySelectorAll('img').length,1);
-    assert.equal(popup.querySelectorAll('table').length,0);
-    assert.match(popup.querySelector('.taelgar-index-card').textContent,/Alice Example \(she\/her AL-iss\)/);
-  } finally {h.dispose();}
-});
-
-test('Obsidian settlement tables use home regions, type aliases and formatted populations, including ruins',async()=>{
-  const h=host();
-  try {
-    const table=await h.block('type: settlements\nmode: table');
-    assert.deepEqual([...table.element.querySelectorAll('th')].map(cell=>cell.textContent),['Place','Region','Type Of','Population']);
-    const rows=[...table.element.querySelectorAll('tbody tr')].map(row=>[...row.querySelectorAll('td')].map(cell=>cell.textContent));
-    assert.deepEqual(rows,[['Ruin','Realm','settlement','—'],['Town','Realm','town','pop. 1,234']]);
-    const region=table.element.querySelector('tbody tr td:nth-child(2) a');h.click(region);
-    assert.deepEqual(h.opened[0],['Places/Realm.md','Places/Realm.md',false]);
-  } finally {h.dispose();}
-});
-
-test('Obsidian member tables show Unknown after a location expires and grids show the first authored sentence',async()=>{
-  const h=host();
-  try {
-    const alice=h.metadata.get('People/Alice.md');
-    alice.pronouns='xe/xem';
-    alice.whereabouts=[{type:'away',location:'Inn',start:'1708-01-01',end:'1710-01-01'}];
-    const table=await h.block('type: members\ntarget: Guild\nmode: table');
-    assert.deepEqual([...table.element.querySelectorAll('th')].map(cell=>cell.textContent),['Person','Info','Current Location','Home']);
-    const cells=table.element.querySelector('tbody tr').querySelectorAll('td');
-    assert.equal(cells[0].textContent,'Alice Example (xe/xem AL-iss)');assert.equal(cells[1].textContent,'Townfolk human');
-    assert.equal(cells[2].textContent,'Unknown');
-    assert.equal(cells[2].querySelector('a'),null);
-    assert.equal(table.element.querySelectorAll('tbody tr').length,5,'local results follow affiliation dates, including future-born and publication-hidden members');
-    assert.equal(table.element.querySelectorAll('img').length,0);
-    const grid=await h.block('type: members\ntarget: Guild\nmode: grid');
-    assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Alice Example \(xe\/xem AL-iss\)/);
-    assert.match(grid.element.querySelector('.taelgar-index-card').textContent,/Alice's first authored sentence\./);
-    assert.doesNotMatch(grid.element.querySelector('.taelgar-index-card').textContent,/A second sentence/);
-    assert.doesNotMatch(grid.element.querySelector('.taelgar-index-card').textContent,/Current Location:/);
-    assert.doesNotMatch(grid.element.querySelector('.taelgar-index-card').textContent,/Home:/);
-  } finally {h.dispose();}
-});
-
-
-test('Obsidian auto-Members popups skip Cintra image callouts and explicit empty indexes override the default',async()=>{
-  const h=host();
-  try {
-    h.metadata.set('People/Cintra.md',{tags:['person'],affiliations:['Shakun Mystai']});
-    h.metadata.set('Groups/Shakun Mystai.md',{tags:['group']});
-    for(const path of ['People/Cintra.md','Groups/Shakun Mystai.md'])h.files.push({path,basename:path.split('/').at(-1).slice(0,-3)});
-    h.bodies.set('People/Cintra.md',cintraSource);
-    const bio=await h.block('','Groups/Shakun Mystai.md','taelgar-header');
-    assert.equal(bio.element.querySelector('summary').textContent,'Members');
-    h.click(bio.element.querySelector('summary'));await pause(10);
-    assert.ok(h.document.querySelector('dialog').textContent.includes(cintraSentence));
-    assert.doesNotMatch(h.document.querySelector('dialog').textContent,/Cintra, the Supreme Oracle|Private preparation/);
-    h.metadata.get('Groups/Shakun Mystai.md').indexes=[];
-    const empty=await h.block('','Groups/Shakun Mystai.md','taelgar-header');
-    assert.equal(empty.element.querySelector('.taelgar-index-buttons'),null);
-    h.metadata.get('Groups/Shakun Mystai.md').indexes={members:true};
-    const invalid=await h.block('','Groups/Shakun Mystai.md','taelgar-header');
-    assert.ok(invalid.element.querySelector('.taelgar-generated-bio'));
-    assert.match(invalid.element.querySelector('.taelgar-index-error').textContent,/indexes must be an array/);
-  } finally {h.dispose();}
-});
-
-test('Obsidian table indexes avoid description reads and closing a view cancels a pending grid mount',async()=>{
-  const h=host();
-  try {
-    h.app.vault.cachedRead=async()=>{throw new Error('Tables must not read descriptions');};
-    const table=await h.block('type: members\ntarget: Guild\nmode: table');
-    assert.ok(table.element.querySelector('table'));
-    let started,release;
-    const reading=new Promise(resolve=>{started=resolve;});
-    const source=new Promise(resolve=>{release=resolve;});
-    h.app.vault.cachedRead=()=>{started();return source;};
-    const pending=h.block('type: members\ntarget: Guild');
-    await reading;h.dispose();release(cintraSource);
-    const grid=await pending;
-    assert.equal(grid.element.innerHTML,'');
-    assert.equal(h.document.querySelector('.taelgar-index-grid'),null);
+    assert.equal(header.element.querySelector('.taelgar-index-buttons'),null);
   } finally {h.dispose();}
 });
 
@@ -453,7 +173,7 @@ test('reused Obsidian queries isolate render additions, dates, targets and metad
   const h=host();
   try {
     const snapshot=await h.plugin.snapshots.getSnapshot();
-    const run=(date='1720-01-01',source='Places/Realm.md')=>h.obsidianIndex(h.app,snapshot,{type:'residents'},source,date);
+    const run=(date='1720-01-01',source='Places/Realm.md')=>h.obsidianIndex(h.app,snapshot,{type:'whereabouts',from:'person',via:'home'},source,date);
     const first=run(),expected=JSON.stringify(first);
     first.items[0].name='Changed by one render';first.items[0].image='app://stale';
     first.items[0].person[0]='Changed nested part';first.warnings.push('Only this render');
@@ -463,90 +183,20 @@ test('reused Obsidian queries isolate render additions, dates, targets and metad
     h.metadata.get('People/Alice.md').whereabouts='Other Realm';
     h.cache.trigger('changed');await pause(160);
     const updated=await h.plugin.snapshots.getSnapshot();
-    const changed=h.obsidianIndex(h.app,updated,{type:'residents'},'Places/Realm.md','1720-01-01');
+    const changed=h.obsidianIndex(h.app,updated,{type:'whereabouts',from:'person',via:'home'},'Places/Realm.md','1720-01-01');
     assert.ok(!changed.items.some(item=>item.path==='People/Alice.md'));
   } finally {h.dispose();}
 });
 
-
-test('lazy popup loads coalesce, retry after failure, and ignore completion after disposal',async()=>{
-  const h=imageDOM(indexPopupShell({type:'members',label:'Members',target:'Guild'}));
-  let calls=0,resolve;
-  const load=()=>{calls++;return new Promise(done=>{resolve=done;});};
-  const dispose=mountIndexPopups(h.document,{load}),summary=h.document.querySelector('summary');
-  assert.equal(calls,0);h.click(summary);h.click(summary);await pause(0);assert.equal(calls,1);
-  dispose();resolve('<p>Stale rows</p>');await pause(0);
-  assert.doesNotMatch(h.document.body.textContent,/Stale rows/);assert.equal(h.document.querySelector('dialog'),null);
-  const retry=mountIndexPopups(h.document,{load:async()=>{if(++calls===2)throw new Error('Offline');return '<p>Loaded rows</p>';}});
-  h.click(summary);await pause(0);assert.match(h.document.body.textContent,/Close and reopen to retry/);
-  h.click(h.document.querySelector('dialog .taelgar-index-close'));h.click(summary);await pause(0);
-  assert.match(h.document.body.textContent,/Loaded rows/);assert.equal(calls,3);retry();
-  h.window.HTMLElement.prototype.showModal=undefined;
-  const fallback=mountIndexPopups(h.document,{load:async()=>'<p>Fallback rows</p>'});
-  assert.equal(h.click(summary).defaultPrevented,false);await pause(0);
-  assert.match(h.document.body.textContent,/Fallback rows/);fallback();
-});
-
-
-test('Places filters keep independent Obsidian cached grids, tables and existence checks',async()=>{
+test('Obsidian caches where filters independently, including after an invalid block',async()=>{
   const h=host();
   try {
-    const extra={...featureIndexNotes,
-      'Places/Wood.md':{tags:['place'],typeOf:'forest',whereabouts:'Quarter'},
-      'Places/Shrine.md':{tags:['place'],typeOf:'holy site',whereabouts:'Wood'},
-    };
-    for(const [path,metadata] of Object.entries(extra)) {
-      h.metadata.set(path,{...structuredClone(metadata),pageTargetDate:'1720-01-01'});
-      if(!h.files.some(file=>file.path===path))h.files.push({path,basename:path.split('/').at(-1).slice(0,-3)});
-    }
-    const all=await h.block('type: places','Places/Town.md');assert.match(all.element.textContent,/Wood/);assert.match(all.element.textContent,/Shrine/);
-    const built=await h.block('type: places\nplaceType: built\nmode: table','Places/Town.md');
-    assert.match(built.element.textContent,/Shop/);assert.match(built.element.textContent,/Shrine/);assert.doesNotMatch(built.element.textContent,/Wood/);
-    const natural=await h.block('type: places\nplaceType: natural','Places/Town.md');
-    assert.equal(natural.element.querySelectorAll('.taelgar-index-card').length,1);assert.match(natural.element.textContent,/Wood/);assert.doesNotMatch(natural.element.textContent,/Shop|Shrine/);
-    h.click(natural.element.querySelector('.taelgar-index-link'));assert.deepEqual(h.opened.at(-1),['Places/Wood.md','Places/Town.md',false]);
-    const snapshot=await h.plugin.snapshots.getSnapshot(),context='Places/Wood.md',date='1720-01-01';
-    h.obsidianIndex(h.app,snapshot,{type:'places',placeType:'built'},context,date);
-    assert.equal(h.obsidianIndexExists(h.app,snapshot,{type:'places',placeType:'built'},context,date),true);
-    assert.equal(h.obsidianIndexExists(h.app,snapshot,{type:'places',placeType:'natural'},context,date),false);
-    const invalid=await h.block('type: rivers\nplaceType: built','Places/Basin.md');assert.match(invalid.element.textContent,/only supported for places/);
+    const source='type: whereabouts\nfrom: person\nvia: home\nmode: table\ncolumns: [name]\n';
+    const filtered=await h.block(source+'where: {species: human}');
+    assert.match(filtered.element.textContent,/Alice Example/);
+    const empty=await h.block(source+'where: {species: dragon}');
+    assert.equal(empty.element.querySelector('tbody'),null);
+    assert.match((await h.block('type: members')).element.textContent,/Index unavailable/);
+    assert.equal((await h.block(source+'where: {species: human}')).element.innerHTML,filtered.element.innerHTML);
   } finally {h.dispose();}
-});
-
-test('Rivers and Places use native links, compact tables and lazy image-card popups in Obsidian',async()=>{
-  const h=host();
-  try {
-    for(const [path,metadata] of Object.entries(featureIndexNotes)) {
-      h.metadata.set(path,{...structuredClone(metadata),pageTargetDate:'1720-01-01'});
-      if(!h.files.some(file=>file.path===path))h.files.push({path,basename:path.split('/').at(-1).slice(0,-3)});
-    }
-    for(const [type,target,heading,expected] of [['rivers','Basin','River','Main River'],['places','Town','Place','Shop']]) {
-      const inline=await h.block('type: '+type+'\nmode: table','Places/'+target+'.md');
-      assert.deepEqual([...inline.element.querySelectorAll('th')].map(cell=>cell.textContent),[heading,'Type Of']);
-      assert.match(inline.element.textContent,new RegExp(expected));assert.doesNotMatch(inline.element.textContent,/Future/);
-      if(type==='rivers')assert.match(inline.element.textContent,/Lake/);
-      const header=await h.block('','Places/'+target+'.md','taelgar-header');
-      assert.equal(header.element.querySelectorAll('.taelgar-index-card,img').length,0);
-      h.click(header.element.querySelector('summary'));await pause(10);
-      const popup=h.document.querySelector('dialog[open]');assert.ok(popup);assert.match(popup.textContent,new RegExp(expected));
-      if(type==='rivers')assert.match(popup.textContent,/Lake/);
-      if(type==='rivers')assert.equal(popup.querySelector('img').getAttribute('src'),'app://local/portraits/alice.png');
-      h.click(popup.querySelector('.taelgar-index-link'));assert.equal(h.opened.at(-1)[1],'Places/'+target+'.md');
-      h.click(popup.querySelector('.taelgar-index-close'));
-    }
-  } finally {h.dispose();}
-});
-
-test('inline indexes recover at the same date after a calendar provider error',async()=>{
-  const h=host();
-  try{
-    const {element}=await h.block('type: residents');
-    const snapshot=await h.plugin.snapshots.getSnapshot();
-    delete h.metadata.get('Places/Realm.md').pageTargetDate;
-    h.globals.TaelgarverseCalendar={getCurrentDate(){throw new Error('Campaign unavailable');}};
-    h.plugin.dates.notify();await pause(20);assert.match(element.textContent,/Campaign unavailable/);
-    h.globals.TaelgarverseCalendar.getCurrentDate=()=> '1720-01-01';
-    h.plugin.dates.notify();await pause(20);assert.match(element.textContent,/Alice Example/);
-    assert.equal(await h.plugin.snapshots.getSnapshot(),snapshot);
-  }finally{h.dispose();}
 });

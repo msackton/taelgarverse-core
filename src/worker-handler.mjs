@@ -69,9 +69,6 @@ export function createWorker(coreRelease = {},{cache,snapshotCache,timeoutMs,cac
           const result=await measure('render',()=>engine.renderHomeAsync(context,entry=>store.getNote(entry),siteHost));
           renderedPage=!!result;return result;
         },
-        renderIndex(page,type,date,context,dm,campaigns) {
-          return measure('render',()=>engine.renderIndexAsync(page,type,date,context,dm,campaigns,entry=>store.getNote(entry)));
-        },
         assets(entry,request) {
           return serveAsset(request,entry,async range=>withTimeout(async signal=>{
             const object=await env.CONTENT.get(entry.objectKey,{range});

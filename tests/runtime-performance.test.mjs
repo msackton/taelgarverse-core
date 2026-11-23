@@ -15,7 +15,7 @@ const request=(worker,bucket,path='/api/page?page=Person',env={})=>worker.fetch(
 const manifestOf=bucket=>JSON.parse(bucket.objects.get('revisions/'+'a'.repeat(64)+'/runtime.json'));
 const options={cache:null,snapshotCache:null,log:quiet};
 
-test('every documented endpoint has a route and maps, indexes and diagram links get distinct timings',async()=>{
+test('every documented endpoint has a route and maps and diagram links get distinct timings',async()=>{
   const objects=publication().objects;
   const spec=await (await request(createWorker(coreRelease,options),new Bucket(objects),'/openapi.json')).json();
   for(const path of Object.keys(spec.paths)){
@@ -24,7 +24,6 @@ test('every documented endpoint has a route and maps, indexes and diagram links 
   }
   for(const [path,category,status] of [
     ['/api/maps','maps',200],
-    ['/%61pi/index','index',400],
     ['/api/diagram-links?source=Person&target=Other','diagram-links',200],
   ]){
     const bucket=new Bucket(objects),logs=[];
@@ -40,6 +39,7 @@ test('unknown, malformed and unsupported requests only read the publication mani
   const {objects}=publication();
   for(const [method,path,status] of [
     ['GET','/api/maps/extra',404],
+    ['GET','/%61pi/index',404],
     ['HEAD','/page/%ZZ',400],
     ['POST','/page/%ZZ',405],
   ]){

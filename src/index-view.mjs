@@ -1,5 +1,5 @@
 import {escapeHtml} from './common.mjs';
-import {indexColumnHeading,indexColumnValue,indexTableColumns} from './index-columns.mjs';
+import {indexColumnHeading,indexTableColumns} from './index-columns.mjs';
 
 const formattedParts=(parts,link)=>parts.map(part=>typeof part==='string' ? escapeHtml(part) : link(part)).join('');
 const indexName=(item,link)=>item.person ? formattedParts(item.person,link) : link(item)+
@@ -7,23 +7,21 @@ const indexName=(item,link)=>item.person ? formattedParts(item.person,link) : li
 
 // Shared markup; hosts supply website URLs or native Obsidian links.
 export function indexGrid(result,link,options={}) {
-  const members=result.type==='members';
   const cards=result.items.map(item=>'<li class="taelgar-index-card">'+
     (item.image ? '<img class="taelgar-index-image" src="'+escapeHtml(item.image)+'" alt="'+escapeHtml(item.name)+'" width="440" height="180" loading="lazy" decoding="async">' : '')+
     indexName(item,link)+
-    (item.info ? '<p>'+ (formattedParts(item.info,link) || '—')+'</p>' : item.description ? '<p>'+escapeHtml(item.description)+'</p>' : '')+
-    (members ? item.firstSentence ? '<p class="taelgar-index-detail">'+escapeHtml(item.firstSentence)+'</p>' : '' : item.currentLocation ? '<p class="taelgar-index-detail">Current Location: '+(formattedParts(item.currentLocation,link) || 'Unknown')+'</p>' : '')+
-    (!members && item.home ? '<p class="taelgar-index-detail">Home: '+(formattedParts(item.home,link) || 'Unknown')+'</p>' : '')+
-    (item.details ? '<p class="taelgar-index-detail">'+escapeHtml(item.details)+'</p>' : '')+'</li>').join('');
+    (item.info ? '<p>'+ (formattedParts(item.info,link) || '—')+'</p>' : item.type ? '<p>'+escapeHtml(item.type)+'</p>' : '')+
+    (item.currentLocation ? '<p class="taelgar-index-detail">Current Location: '+(formattedParts(item.currentLocation,link) || 'Unknown')+'</p>' : '')+
+    (item.home ? '<p class="taelgar-index-detail">Home: '+(formattedParts(item.home,link) || 'Unknown')+'</p>' : '')+'</li>').join('');
   return indexSection(result,cards ? '<ul class="taelgar-index-grid">'+cards+'</ul>' : '',true,options);
 }
 
 export function indexTable(result,link,options={}) {
-  const columns=indexTableColumns(result.type,result.columns);
-  const headings=columns.map(column=>indexColumnHeading(result.type,column));
+  const columns=indexTableColumns(result.from,result.columns);
+  const headings=columns.map(column=>indexColumnHeading(result.from,column));
   const cell=(item,column)=>{
     if(column==='name')return indexName(item,link);
-    const value=indexColumnValue(item,column);
+    const value=item[column];
     const missing=['region','currentLocation','home'].includes(column) ? 'Unknown' : '—';
     if(Array.isArray(value))return formattedParts(value,link) || missing;
     if(column==='region' && value)return link(value);
@@ -38,29 +36,13 @@ export function indexView(result,link,mode='grid',options={}) {
 }
 
 function indexSection(result,content,showCount=true,{heading=false}={}) {
-  const present=result.type==='people-in-place',singular=result.items.length===1;
-  const noun=present ? (singular?'person':'people') : (singular?result.label.toLowerCase().slice(0,-1):result.label.toLowerCase());
-  const empty=present ? 'No people present on this date.' : 'No '+result.label.toLowerCase()+' found for this date.';
+  const noun = result.items.length === 1 ? result.from : result.label.toLowerCase();
+  const empty = 'No '+result.label.toLowerCase()+' found for this date.';
   return '<section class="taelgar-index" aria-label="'+escapeHtml(result.label+' — '+result.target)+'">'+
     (heading ? '<h2>'+escapeHtml(result.label)+'</h2>' : '')+
-    (showCount && result.type!=='members' ? '<p class="taelgar-index-count">'+result.items.length+' '+noun+'</p>' : '')+
+    (showCount ? '<p class="taelgar-index-count">'+result.items.length+' '+noun+'</p>' : '')+
     (content || '<p>'+empty+'</p>')+
     result.warnings.map(message=>'<p class="taelgar-index-warning">'+escapeHtml(message)+'</p>').join('')+'</section>';
-}
-
-export function indexPopupShell({type,label,target,url},content='') {
-  return '<details class="taelgar-index-popup" data-index-type="'+escapeHtml(type || '')+'"'+
-    (content ? '' : ' data-index-lazy')+(url ? ' data-index-url="'+escapeHtml(url)+'"' : '')+'><summary aria-haspopup="dialog">'+escapeHtml(label)+'</summary>'+
-    '<div class="taelgar-index-panel"><div class="taelgar-index-heading"><h2>'+escapeHtml(label+' — '+target)+'</h2>'+
-    '<button type="button" class="taelgar-index-close" aria-label="Close index" hidden>×</button></div><div class="taelgar-index-content">'+
-    (content || (url ? '<noscript><a href="'+escapeHtml(url)+'">View '+escapeHtml(label)+'</a></noscript>' : ''))+'</div></div></details>';
-}
-
-export function indexPopup(result,link) {
-  if (!result.items.length) return '';
-  return '<details class="taelgar-index-popup"><summary aria-haspopup="dialog">'+escapeHtml(result.label)+(result.type==='members' ? '' : ' ('+result.items.length+')')+'</summary>'+
-    '<div class="taelgar-index-panel"><div class="taelgar-index-heading"><h2>'+escapeHtml(result.label+' — '+result.target)+'</h2>'+
-    '<button type="button" class="taelgar-index-close" aria-label="Close index" hidden>×</button></div>'+indexGrid(result,link)+'</div></details>';
 }
 
 export const indexError = error => '<p class="taelgar-index-error" role="status">Index unavailable: '+escapeHtml(error.message)+'</p>';

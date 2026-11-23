@@ -1,371 +1,240 @@
 import {parse} from 'yaml';
-import {createHeaderContext,HeaderDataError} from './header-core/index.mjs';
-import {getPageType} from './header-core/metadata.mjs';
-import {indexColumnValue,indexTableColumns,validateIndexTableOptions} from './index-columns.mjs';
+import {createHeaderContext, HeaderDataError} from './header-core/index.mjs';
+import {getPageType, pageTypes} from './header-core/metadata.mjs';
+import {indexTableColumns, validateIndexTableOptions} from './index-columns.mjs';
 
-export const indexLabels = Object.freeze({residents:'Residents','people-in-place':'People Present',settlements:'Settlements',members:'Members',rivers:'Rivers',places:'Places'});
-const indexTypes=Object.keys(indexLabels).join(', ');
+const keys = new Set(['type','from','via','target','recursive','scope','where','show','mode','heading','columns','sortBy']);
+const scalar = value => typeof value === 'string' || typeof value === 'boolean' || Number.isFinite(value);
+const mapping = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+const compare = new Intl.Collator('en', {sensitivity:'base', numeric:true}).compare;
+const known = date => Number.isFinite(date?.sort) && !date.isHiddenDate;
+const day = sort => ({sort,days:sort,isNormalizedDate:true});
+const reference = text => typeof text === 'string' ? text.trim().replace(/^\[\[|\]\]$/g,'').split('|')[0].split('#')[0] : '';
+const hasLocation = record => reference(record?.location) && reference(record.location).toLowerCase() !== 'unknown';
 
-// Broad groups follow the vault's Place Categories, using typeOf rather than
-// display aliases. Unclassified and extraplanar types stay in unfiltered Places.
-const placeTypes = {
-  built:new Set(['settlement','neighborhood','realm','inn','building','holy site','road','infrastructure','battlefield']),
-  natural:new Set(['region','watershed','forest','wetlands','desert','grassland','waterway','lake','marine feature',
-    'topographical feature','topographic feature','subterranean feature','island']),
-};
-
-function validatePlaceType(type,placeType) {
-  if (placeType === undefined) return;
-  if (type !== 'places') throw new Error('placeType is only supported for places indexes.');
-  if (placeType !== 'built' && placeType !== 'natural') throw new Error('placeType must be built or natural.');
-}
-
-function validateIndexOptions(options) {
-  const {type,placeType,scope}=options;
-  validatePlaceType(type,placeType);
-  if (scope !== undefined && !['current','historical','ever'].includes(scope)) throw new Error('scope must be current, historical, or ever.');
+function validate(options) {
+  if (!mapping(options)) throw new Error('Use a YAML mapping for a whereabouts index.');
+  for (const key of Object.keys(options)) if (!keys.has(key)) throw new Error('Unknown index option: ' + key);
+  if (options.type !== 'whereabouts') throw new Error('type must be whereabouts.');
+  if (!pageTypes.includes(options.from)) throw new Error('from must be one of: ' + pageTypes.join(', '));
+  if (!['home','current','lastKnown'].includes(options.via)) throw new Error('via must be home, current, or lastKnown.');
+  for (const [key, choices] of Object.entries({scope:['current','historical','ever'], show:['both','obsidian','website'], mode:['grid','table']})) {
+    if (options[key] !== undefined && !choices.includes(options[key])) throw new Error(key + ' must be one of: ' + choices.join(', '));
+  }
+  for (const key of ['recursive','heading']) {
+    if (options[key] !== undefined && typeof options[key] !== 'boolean') throw new Error(key + ' must be true or false.');
+  }
+  if (options.target !== undefined && (typeof options.target !== 'string' || !options.target.trim())) throw new Error('target must be a note name or path.');
+  if (options.where !== undefined) {
+    if (!mapping(options.where)) throw new Error('where must be a mapping of frontmatter fields.');
+    for (const [field,value] of Object.entries(options.where)) {
+      const values = Array.isArray(value) ? value : [value];
+      if (!field || !values.length || !values.every(scalar)) throw new Error('where requires scalar values or nonempty lists of scalars.');
+    }
+  }
   validateIndexTableOptions(options);
 }
 
-export function headerIndexes(value) {
-  if (value === undefined || value === null) return [];
-  if (!Array.isArray(value) || value.some(type=>typeof type !== 'string' || !Object.hasOwn(indexLabels,type))) {
-    throw new Error('indexes must be an array of supported types: '+indexTypes+'.');
-  }
-  return [...new Set(value)];
-}
-
-// Groups get a Members header index by default. Any explicit indexes value,
-// including an empty array, takes precedence over the inferred default.
-export function headerIndexesForMetadata(metadata = {}) {
-  if (metadata.indexes !== undefined) return headerIndexes(metadata.indexes);
-  return getPageType(metadata) === 'group' ? ['members'] : [];
-}
-
 export function parseIndex(source) {
-  const value = parse(source,{maxAliasCount:20});
-  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Use YAML with a supported index type: '+indexTypes+'.');
-  for (const key of Object.keys(value)) if (!['type','target','show','recursive','mode','placeType','heading','scope','columns','sortBy'].includes(key)) throw new Error('Unknown index option: '+key);
-  if (typeof value.type !== 'string' || !Object.hasOwn(indexLabels,value.type)) throw new Error('type must be one of: '+indexTypes+'.');
-  if (value.target !== undefined && (typeof value.target !== 'string' || !value.target.trim())) throw new Error('target must be a note name or path.');
-  if (value.show !== undefined && !['obsidian','website','both'].includes(value.show)) throw new Error('show must be obsidian, website, or both.');
-  if (value.recursive !== undefined && typeof value.recursive !== 'boolean') throw new Error('recursive must be true or false.');
-  if (value.mode !== undefined && !['grid','table'].includes(value.mode)) throw new Error('mode must be grid or table.');
-  if (value.heading !== undefined && typeof value.heading !== 'boolean') throw new Error('heading must be true or false.');
-  validateIndexOptions(value);
-  return {type:value.type,target:value.target?.trim(),show:value.show ?? 'both',recursive:value.recursive ?? value.type !== 'members',mode:value.mode ?? 'grid',heading:value.heading ?? true,
-    ...(value.placeType !== undefined ? {placeType:value.placeType} : {}),
-    ...(value.scope !== undefined ? {scope:value.scope} : {}),
-    ...(value.columns !== undefined ? {columns:value.columns} : {}),
-    ...(value.sortBy !== undefined ? {sortBy:value.sortBy} : {})};
+  const options = parse(source,{maxAliasCount:20});
+  validate(options);
+  return {recursive:true, scope:'current', show:'both', mode:'grid', heading:true, ...options};
 }
 
-const plain = value => typeof value === 'string' || typeof value === 'number' ? String(value) : '';
-const linkTarget = value => typeof value === 'string' ? value.trim().replace(/^\[\[|\]\]$/g,'').split('|')[0].split('#')[0] : '';
-const currentLocation = whereabouts => {
-  const reference=linkTarget(whereabouts.current.location).trim();
-  return reference.toLowerCase() === 'unknown' ? '' : reference;
-};
-const compareNames=new Intl.Collator('en',{sensitivity:'base',numeric:true}).compare;
-const comparePaths=new Intl.Collator('en').compare;
-const candidateIndexes=new WeakMap();
-const dateAtDay=day=>({sort:day,days:day,isNormalizedDate:true});
-const sortText=value=>Array.isArray(value) ? value.map(part=>typeof part==='string' ? part : part.name).join('') :
-  typeof value==='string' ? value : value?.name;
-const knownDate=value=>Number.isFinite(value?.sort) && !value.isHiddenDate;
-
-function compareColumn(a,b) {
-  if(a===undefined || b===undefined)return Number(a===undefined)-Number(b===undefined);
-  return typeof a==='number' && typeof b==='number' ? a-b : compareNames(a,b);
+const indexes = new WeakMap();
+function pagesFor(snapshot) {
+  if (indexes.has(snapshot)) return indexes.get(snapshot);
+  const byPath = new Map(), byType = new Map(pageTypes.map(type => [type, []]));
+  for (const page of snapshot.pages) {
+    byPath.set(page.path, page);
+    byType.get(getPageType(page.metadata))?.push(page);
+  }
+  const pages = {byPath, byType};
+  indexes.set(snapshot, pages);
+  return pages;
 }
 
-function latestAffiliation(roles,date) {
-  let latest,lastMatch=-Infinity;
-  for(const role of roles) {
-    const end=Math.min(role.endDate.sort,date.sort);
-    if(!latest || end>lastMatch || (end===lastMatch && role.startDate.sort>latest.startDate.sort)) {
-      latest=role;
-      lastMatch=end;
+// Probe the last day in each interval of constant whereabouts. Include changes
+// on ancestors as well as on the subject so an entire chain represents one day.
+function boundaryDays(records, first, last) {
+  const days = new Set([last]);
+  for (const record of records) {
+    for (const boundary of [record.logicalStart.sort - 1, record.logicalEnd.sort, record.awayEnd.sort]) {
+      if (first <= boundary && boundary < last) days.add(boundary);
     }
   }
-  return latest;
+  return [...days].sort((a,b) => b-a);
 }
 
-function indexCandidates(snapshot) {
-  let index=candidateIndexes.get(snapshot);
-  if(!index) {
-    index={byPath:new Map(),people:[],settlements:[],rivers:[],places:[]};
-    for(const page of snapshot.pages) {
-      index.byPath.set(page.path,page);
-      const type=getPageType(page.metadata);
-      if(type==='person')index.people.push(page);
-      else if(type==='place') {
-        index.places.push(page);
-        if(page.metadata.typeOf==='settlement')index.settlements.push(page);
-        else if(page.metadata.typeOf==='waterway' || page.metadata.typeOf==='lake')index.rivers.push(page);
-      }
-    }
-    candidateIndexes.set(snapshot,index);
-  }
-  return index;
-}
-
-// Hosts supply link resolution and visibility. All relationship calculations use
-// the same dated services as the bio, without loading bodies or executing JS.
-export function queryIndex(snapshot,options,context) {return runIndexQuery(snapshot,options,context);}
-
-// Header buttons need existence, not a sorted/formatted copy of every row.
-export function indexHasResults(snapshot,options,context) {return runIndexQuery(snapshot,options,context,true);}
-
-function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>true}={},firstOnly=false) {
-  const {type,scope,columns,sortBy:ordering,recursive=type !== 'members'} = options;
-  if (!Object.hasOwn(indexLabels,type)) throw new Error('Unknown index type.');
-  validateIndexOptions(options);
-  const isMemberIndex=type==='members',presence=type==='people-in-place';
-  const fields=new Set([...indexTableColumns(type,columns),...(ordering ?? [])]);
-  const {dates,names,locations,affiliations,templates} = createHeaderContext(snapshot,{date});
+export function queryIndex(snapshot, options, {date, sourcePath, resolve, visible = () => true} = {}) {
+  validate(options);
+  const {from, via, scope = 'current', recursive = true, where = {}, columns, sortBy} = options;
+  const {dates,names,locations,templates} = createHeaderContext(snapshot,{date});
   const at = dates.normalizeDate(date);
-  const candidates=indexCandidates(snapshot),{byPath,people}=candidates;
-  const placeIndex=type==='settlements' || type==='rivers' || type==='places';
-  const resolved=new Map(),whereaboutsRecords=new WeakMap(),whereaboutsCache=new WeakMap();
-  const recordsFor=metadata=>{
-    if(!whereaboutsRecords.has(metadata))whereaboutsRecords.set(metadata,locations.getWhereaboutsList(metadata));
-    return whereaboutsRecords.get(metadata);
-  };
-  const whereaboutsFor=(metadata,when=at)=>{
-    let byDay=whereaboutsCache.get(metadata);
-    if(!byDay){byDay=new Map();whereaboutsCache.set(metadata,byDay);}
-    if(!byDay.has(when.sort))byDay.set(when.sort,locations.getWhereabouts(metadata,when,recordsFor(metadata)));
-    return byDay.get(when.sort);
-  };
-  const lookup = (target,source=sourcePath) => {
-    target=linkTarget(target);
-    if (!target) return undefined;
-    let targets=resolved.get(source);
-    if(!targets){targets=new Map();resolved.set(source,targets);}
-    if(!targets.has(target)) {
-      const file=resolve ? undefined : names.getFileForTarget(target);
-      targets.set(target,resolve ? resolve(target,source) : file && byPath.get(file.path));
+  const {byPath,byType} = pagesFor(snapshot);
+  const lookups = new Map(), records = new WeakMap(), dated = new WeakMap();
+  function lookup(value, source) {
+    const ref = reference(value);
+    if (!ref) return undefined;
+    let cache = lookups.get(source);
+    if (!cache) lookups.set(source, cache = new Map());
+    if (!cache.has(ref)) {
+      const page = resolve ? resolve(ref,source) : byPath.get(names.getFileForTarget(ref)?.path);
+      cache.set(ref, page && visible(page) ? page : undefined);
     }
-    return targets.get(target);
-  };
-  const target = options.target ? lookup(options.target) : byPath.get(sourcePath);
-  if (!target || !visible(target)) throw new Error('The index target is unavailable.');
-  const targetTypes=isMemberIndex ? ['group'] : placeIndex ? ['place'] : ['place','object'];
-  if (!targetTypes.includes(getPageType(target.metadata))) {
-    if(isMemberIndex)throw new Error('Members requires an organization target.');
-    throw new Error(placeIndex ? 'This index requires a place target.' : 'This index requires a place or object target.');
+    return cache.get(ref);
   }
-  const displayName = page => names.getNameObject(page.path).name || page.name;
-  const inOrganization = (organization,source) => {
-    const visited=new Set();
-    while (organization) {
-      const page=lookup(organization,source);
-      if (!page) return false;
-      if (page.path === target.path) return true;
-      if (!recursive) return false;
-      if (visited.has(page.path)) throw new HeaderDataError('organization',[...visited,page.path]);
-      visited.add(page.path);
-      if (getPageType(page.metadata) !== 'group') return false;
-      organization=page.metadata.partOf;
-      source=page.path;
-    }
-    return false;
-  };
-  const visibleLocation=page=>page && (!(presence || scope) || visible(page));
-  // Geography also matches secondary locations. Existing blocks can additionally
-  // start from a last-known place when the selected date has no current location.
-  const inLocation = (candidate,when) => {
-    const whereabouts=whereaboutsFor(candidate.metadata,when),source=candidate.path;
-    let cycle;
-    const visit = (location,source,visited=[]) => {
-      const page=lookup(location,source);
-      if (!visibleLocation(page)) return false;
-      if (page.path === target.path) return true;
-      if (!recursive) return false;
-      if (visited.includes(page.path)) {cycle ??= [...visited,page.path];return false;}
-      const nextVisited=[...visited,page.path];
-      const next=whereaboutsFor(page.metadata,when);
-      return visit(next.current.location,page.path,nextVisited) || visit(next.secondary.location,page.path,nextVisited);
-    };
-    let matched;
-    if (type === 'residents') matched=visit(whereabouts.home.location,source);
-    else if (presence) matched=visit(currentLocation(whereabouts),source);
-    else matched=visit(scope ? currentLocation(whereabouts) : (whereabouts.current.location ? whereabouts.current : whereabouts.lastKnown).location,source) ||
-      visit(whereabouts.secondary.location,source);
-    if (!matched && cycle) throw new HeaderDataError('location',cycle);
-    return matched;
-  };
-  // On either side of a whereabouts boundary, every link in the containment
-  // chain must be evaluated on the same day. Probe the last day of each period.
-  const historicalLocationDays=(candidate,first,last)=>{
-    const days=new Set(),pending=[candidate],seen=new Set();
-    let canReachTarget=false;
-    while(pending.length) {
-      const page=pending.pop();
-      if(seen.has(page.path))continue;
-      seen.add(page.path);
-      for(const record of recordsFor(page.metadata)) {
-        for(const day of [record.logicalStart.sort-1,record.logicalEnd.sort,record.awayEnd.sort]) {
-          if(first<=day && day<last)days.add(day);
+  const target = options.target ? lookup(options.target,sourcePath) : byPath.get(sourcePath);
+  if (!target || !visible(target)) throw new Error('The index target is unavailable.');
+  function recordsFor(page) {
+    if (!records.has(page.metadata)) records.set(page.metadata,locations.getWhereaboutsList(page.metadata));
+    return records.get(page.metadata);
+  }
+  function whereabouts(page, when) {
+    let cache = dated.get(page.metadata);
+    if (!cache) dated.set(page.metadata, cache = new Map());
+    if (!cache.has(when.sort)) cache.set(when.sort,locations.getWhereabouts(page.metadata,when,recordsFor(page)));
+    return cache.get(when.sort);
+  }
+  function matchesOn(page, when, first) {
+    let wb = whereabouts(page,when);
+    // A last-known sighting belongs to its original day, including secondary
+    // geography and every containing location. A container can move later.
+    if (via === 'lastKnown' && !hasLocation(wb.current)) {
+      for (const sort of boundaryDays(recordsFor(page),first,when.sort)) {
+        const prior = whereabouts(page,day(sort));
+        if (hasLocation(prior.current)) {
+          when = day(sort);
+          wb = prior;
+          break;
         }
-        const next=lookup(record.location,page.path);
-        if(!visibleLocation(next))continue;
-        if(next.path===target.path)canReachTarget=true;
-        else if(recursive)pending.push(next);
       }
     }
-    return canReachTarget ? [...days].sort((a,b)=>b-a) : [];
-  };
-  const matchEver=(candidate,first,last)=>{
     let cycle;
-    const matches=when=>{
-      try{return inLocation(candidate,when);}
-      catch(error){
-        if(!(error instanceof HeaderDataError))throw error;
-        cycle=error;
-        return false;
-      }
-    };
-    if(matches(last))return last;
-    for(const day of historicalLocationDays(candidate,first,last.sort)) {
-      const when=dateAtDay(day);
-      if(matches(when))return when;
+    function visit(record, source, ancestors) {
+      if (!hasLocation(record)) return false;
+      const parent = lookup(record.location,source);
+      if (!parent) return false;
+      if (parent.path === target.path) return true;
+      if (!recursive) return false;
+      if (ancestors.has(parent.path)) { cycle = true; return false; }
+      ancestors.add(parent.path);
+      const next = whereabouts(parent,when);
+      const hit = visit(next.current,parent.path,ancestors) || visit(next.secondary,parent.path,ancestors);
+      ancestors.delete(parent.path);
+      return hit;
     }
-    if(cycle)throw cycle;
-  };
-  const locationItem = (whereabout,source,format='n') => {
-    const page=whereabout.location ? lookup(whereabout.location,source) : undefined;
-    if (page && !visible(page)) return undefined;
-    if (!whereabout.location) return undefined;
-    const reference=linkTarget(whereabout.location),file=names.getFileForTarget(reference);
-    const name=names.getNameObject(file?.path === page?.path ? reference : page?.path || reference,'place',{alias:whereabout.alias});
-    return {path:page?.path,name:names.formatName(name,format)};
-  };
-  // Template output is text with wikilinks, never HTML. Resolve each link before
-  // rendering so every host keeps its native URLs and website visibility rules.
-  const formattedParts = (text,source) => {
-    const parts=[];
-    let end=0;
+    const ancestors = new Set([page.path]);
+    const found = via === 'home' ? visit(wb.home,page.path,ancestors) :
+      visit(wb.current,page.path,ancestors) || visit(wb.secondary,page.path,ancestors);
+    if (!found && cycle) throw new HeaderDataError('location',[page.path]);
+    return found ? when : undefined;
+  }
+  function matchDate(page, first, last) {
+    if (scope !== 'ever') return matchesOn(page,last,first);
+    const pending = [page], seen = new Set(), history = [];
+    while (pending.length) {
+      const ancestor = pending.pop();
+      if (seen.has(ancestor.path)) continue;
+      seen.add(ancestor.path);
+      for (const record of recordsFor(ancestor)) {
+        history.push(record);
+        if (recursive) {
+          const parent = lookup(record.location,ancestor.path);
+          if (parent && parent.path !== target.path && !seen.has(parent.path)) pending.push(parent);
+        }
+      }
+    }
+    let cycle;
+    for (const sort of boundaryDays(history,first,last.sort)) {
+      try {
+        const matched = matchesOn(page,day(sort),first);
+        if (matched) return matched;
+      } catch (error) {
+        if (!(error instanceof HeaderDataError)) throw error;
+        cycle = error;
+      }
+    }
+    if (cycle) throw cycle;
+  }
+
+  const fields = new Set([...indexTableColumns(from,columns), ...(sortBy || [])]);
+  const filters = Object.entries(where);
+  const items = [], warnings = new Set(), sortKeys = new WeakMap();
+  function formattedParts(text, source) {
+    const parts = [];
+    let end = 0;
     for (const match of text.matchAll(/\[\[([^\[\]\n]+)\]\]/g)) {
-      if (match.index>end) parts.push(text.slice(end,match.index));
-      const [reference,...alias]=match[1].split('|'),page=lookup(reference,source);
-      const name=alias.length ? alias.join('|') : reference;
-      parts.push(page ? visible(page) ? {path:page.path,name} : 'Unknown' : name);
-      end=match.index+match[0].length;
+      if (match.index > end) parts.push(text.slice(end,match.index));
+      const [ref,...alias] = match[1].split('|'), page = lookup(ref,source);
+      parts.push(page ? {path:page.path,name:alias.join('|') || ref} : 'Unknown');
+      end = match.index + match[0].length;
     }
-    if (end<text.length) parts.push(text.slice(end));
+    if (end < text.length) parts.push(text.slice(end));
     return parts;
-  };
-  const items=[],warnings=new Set(),sortValues=new WeakMap();
-  for (const page of placeIndex ? candidates[type] : people) {
-    if (!visible(page) || page.path === target.path) continue;
-    const metadata=page.metadata;
-    if (options.placeType && !placeTypes[options.placeType].has(metadata.typeOf)) continue;
+  }
+  for (const page of byType.get(from)) {
+    const metadata = page.metadata;
+    if (!visible(page) || page.path === target.path || !filters.every(([key,value]) =>
+      Object.hasOwn(metadata,key) && (Array.isArray(value) ? value.includes(metadata[key]) : metadata[key] === value))) continue;
     try {
-      const life=dates.getPageDates(metadata,at);
-      const first=Number.isFinite(life.startDate?.sort) ? life.startDate.sort : -Infinity;
-      let matchDate=at;
-      if(scope) {
-        if(first>at.sort)continue;
-        const end=dates.normalizeDate(placeIndex ? metadata.destroyed : metadata.died,true);
-        if(Number.isFinite(end?.sort) && !end.isHiddenDate && end.sort<at.sort) {
-          if(scope==='current' || end.sort<first)continue;
-          matchDate=end;
-        }
-      } else {
-        if(!life.isCreated && !isMemberIndex)continue;
-        if(!life.isAlive && (type==='residents' || presence))continue;
+      const life = dates.getPageDates(metadata,at);
+      const first = known(life.startDate) ? life.startDate.sort : -Infinity;
+      const ended = known(life.endDate) && life.endDate.sort < at.sort;
+      if (first > at.sort || (ended && (scope === 'current' || life.endDate.sort < first))) continue;
+      const matched = matchDate(page,first,ended ? life.endDate : at);
+      if (!matched) continue;
+      const format = template => templates.formatDisplayString(template,{name:page.name,frontmatter:metadata},at);
+      const item = {path:page.path,name:format('<name:n>'),type:format('<maintype:n>'),
+        imageTarget:metadata.image, pronunciation:metadata.pronunciation};
+      const keys = {};
+      if (from === 'person') {
+        item.person = formattedParts(format('<name> (<pronouns> <pronunciation>)'),page.path);
+        item.info = formattedParts(format('<ancestry> <maintype>'),page.path);
       }
-      let roles=[];
-      if (isMemberIndex) {
-        roles=affiliations.getAffiliations(metadata,matchDate).filter(item=>
-          (scope==='ever' ? Math.max(first,item.startDate.sort)<=Math.min(matchDate.sort,item.endDate.sort) :
-            matchDate.sort<=item.endDate.sort) && inOrganization(item.org,page.path));
-        if (!roles.length) continue;
-      } else {
-        if(scope==='ever')matchDate=matchEver(page,first,matchDate);
-        else if(!inLocation(page,matchDate))continue;
-        if(!matchDate)continue;
+      if (fields.has('home')) item.home = formattedParts(format('<home:1>'),page.path);
+      if (fields.has('currentLocation')) {
+        const current = whereabouts(page,at).current;
+        item.currentLocation = !ended && hasLocation(current) && lookup(current.location,page.path) ?
+          formattedParts(format('<current:2>'),page.path) : [];
       }
-      if(firstOnly)return true;
-      const description=placeIndex ? plain(metadata.typeOfAlias || metadata.typeOf) :
-        [...new Set([metadata.ancestry,metadata.species,metadata.typeOfAlias || metadata.typeOf].map(plain).filter(Boolean))].join(' · ');
-      const details=type === 'settlements' && typeof metadata.population === 'number' && Number.isFinite(metadata.population) ? 'Population '+metadata.population.toLocaleString('en-US') :
-        isMemberIndex ? [...new Set(roles.map(role=>plain(role.title)).filter(Boolean))].join(' · ') : '';
-      const item={path:page.path,name:displayName(page),description,details,
-        pronunciation:plain(metadata.pronunciation),imageTarget:metadata.image};
-      const file={name:page.name,frontmatter:metadata};
-      const format=template=>templates.formatDisplayString(template,file,at);
-      const keys={};
-      const setDate=(field,value,isEnd)=>{
-        if(!fields.has(field))return;
-        const normalized=dates.normalizeDate(value,isEnd);
-        if(!knownDate(normalized) || normalized.sort>at.sort) {
-          item[field]='';
-          return;
-        }
-        item[field]=normalized.display;
-        keys[field]=normalized.sort;
-      };
-      if(placeIndex) {
-        item.name=format('<name:n>');
-        item[type==='settlements' ? 'settlementType' : 'placeType']=format('<maintype:n>');
-        if(fields.has('region') || type==='settlements') {
-          item.region=locationItem(whereaboutsFor(metadata,matchDate).home,page.path,type==='settlements' ? 'n' : 'nx');
-        }
-        if(fields.has('population')) {
-          item.population=metadata.population===0 ? '0' : format('<population>');
-          const number=plain(metadata.population).trim();
-          if(number && Number.isFinite(Number(number)))keys.population=Number(number);
-        }
-        setDate('created',metadata.created,false);
-        setDate('destroyed',metadata.destroyed,true);
-      } else {
-        item.person=formattedParts(format('<name> (<pronouns> <pronunciation>)'),page.path);
-        item.info=formattedParts(format('<ancestry> <maintype>'),page.path);
-        if(fields.has('currentLocation')) {
-          const current=life.isAlive ? currentLocation(whereaboutsFor(metadata)) : '';
-          const destination=lookup(current,page.path);
-          const hasCurrentLocation=current && (!destination || visible(destination));
-          item.currentLocation=hasCurrentLocation ? formattedParts(format(isMemberIndex ? '<current:2Fr>' : '<current:2>'),page.path) : [];
-        }
-        if(fields.has('home'))item.home=formattedParts(format('<home:1>'),page.path);
-        setDate('born',metadata.born,false);
-        setDate('died',metadata.died,true);
-        if(fields.has('joined') || fields.has('left')) {
-          const period=latestAffiliation(roles,matchDate);
-          setDate('joined',period.startDate);
-          if(fields.has('left')) {
-            const died=dates.normalizeDate(metadata.died,true),end=period.explicitEndDate;
-            setDate('left',!knownDate(died) || end?.sort<died.sort ? end : undefined);
-          }
-        }
+      if (fields.has('region')) {
+        const home = whereabouts(page,matched).home, region = lookup(home.location,page.path);
+        if (region) item.region = {path:region.path,name:names.getNameObject(region.path).name || region.name};
       }
-      if(ordering)sortValues.set(item,ordering.map(column=>column==='population' ? keys.population :
-        keys[column] ?? (sortText(indexColumnValue(item,column)) || undefined)));
+      if (fields.has('population') && metadata.population != null) {
+        item.population = metadata.population === 0 ? '0' : format('<population>');
+        const number = Number(metadata.population);
+        if (String(metadata.population).trim() && Number.isFinite(number)) keys.population = number;
+      }
+      for (const field of ['born','died','created','destroyed']) {
+        if (!fields.has(field)) continue;
+        const value = dates.normalizeDate(metadata[field],field === 'died' || field === 'destroyed');
+        if (known(value) && value.sort <= at.sort) { item[field] = value.display; keys[field] = value.sort; }
+      }
+      sortKeys.set(item,keys);
       items.push(item);
     } catch (error) {
       if (!(error instanceof HeaderDataError)) throw error;
       warnings.add('Some pages were omitted because their relationship metadata contains a cycle.');
     }
   }
-  if(firstOnly)return false;
-  items.sort((a,b)=>{
-    if(ordering) {
-      const left=sortValues.get(a),right=sortValues.get(b);
-      for(let i=0;i<ordering.length;i++) {
-        const result=compareColumn(left[i],right[i]);
-        if(result)return result;
-      }
-    } else {
-      const result=type==='settlements' ? compareNames(a.region?.name || 'Unknown',b.region?.name || 'Unknown') :
-        type==='rivers' || type==='places' ? compareNames(a.placeType || 'Unknown',b.placeType || 'Unknown') : 0;
-      if(result)return result;
+  function sortValue(item, key) {
+    const value = item[key];
+    if (key === 'population' || Object.hasOwn(sortKeys.get(item),key)) return sortKeys.get(item)[key];
+    if (Array.isArray(value)) return value.map(part => typeof part === 'string' ? part : part.name).join('') || undefined;
+    return value?.name || value || undefined;
+  }
+  items.sort((a,b) => {
+    for (const key of sortBy || (from === 'place' ? ['type'] : [])) {
+      const left = sortValue(a,key), right = sortValue(b,key);
+      const order = left == null || right == null ? Number(left == null)-Number(right == null) :
+        typeof left === 'number' && typeof right === 'number' ? left-right : compare(left,right);
+      if (order) return order;
     }
-    return compareNames(a.name,b.name) || comparePaths(a.path,b.path);
+    return compare(a.name,b.name) || a.path.localeCompare(b.path,'en');
   });
-  const label=(scope==='historical' ? 'Historical ' : scope==='ever' ? 'All-time ' : '')+indexLabels[type];
-  return {type,label,target:displayName(target),items,warnings:[...warnings],
-    ...(columns !== undefined ? {columns} : {})};
+  const label = {person:'People',place:'Places',object:'Objects',event:'Events',group:'Groups',power:'Powers',ancestry:'Ancestries',creature:'Creatures'}[from];
+  return {from,label:(scope === 'historical' ? 'Historical ' : scope === 'ever' ? 'All-time ' : '') + label,
+    target:names.getNameObject(target.path).name || target.name, items,warnings:[...warnings],columns};
 }

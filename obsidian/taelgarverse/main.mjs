@@ -22,13 +22,6 @@ class TaelgarverseSettings extends PluginSettingTab {
       this.plugin.settings[key]=value.trim();await this.plugin.saveData(this.plugin.settings);
     }));
     this.plugin.sessionReview?.renderSettings(this.containerEl);
-    new Setting(this.containerEl).setName('Show header index popups')
-      .setDesc('Show Members, Residents, and other index buttons below generated headers in Obsidian. Applies immediately; inline indexes and website popups are unchanged.')
-      .addToggle(toggle=>toggle.setValue(this.plugin.settings.headerIndexPopups).onChange(async value=>{
-        this.plugin.settings.headerIndexPopups=value;
-        await this.plugin.headers.setHeaderIndexPopups(value);
-        await this.plugin.saveData(this.plugin.settings);
-      }));
     new Setting(this.containerEl).setName('Automatic campaign interactions')
       .setDesc('Show campaign interactions at the bottom of notes with knownTo campaigns in Reading View and Live Preview. Explicit taelgar-interactions blocks always work.')
       .addToggle(toggle=>toggle.setValue(this.plugin.settings.automaticInteractions).onChange(async value=>{
@@ -48,7 +41,7 @@ class TaelgarverseSettings extends PluginSettingTab {
 
 export default class Taelgarverse extends Plugin {
   async onload(){
-    this.settings={imageViewer:false,automaticInteractions:true,headerIndexPopups:true,calendarEnabled:false,relationshipsEnabled:false,calendarCampaign:'modern',...await this.loadData()};
+    this.settings={imageViewer:false,automaticInteractions:true,calendarEnabled:false,relationshipsEnabled:false,calendarCampaign:'modern',...await this.loadData()};
     delete this.settings.legacyLeafletBlocks;
     delete this.settings.photoshopDropboxCredentials; // Removed account-path integration.
     delete this.settings.photoshopExporter; // Map creation always uses the bundled exporter.

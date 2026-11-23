@@ -1,15 +1,13 @@
 import {Component,MarkdownRenderChild,MarkdownRenderer,Notice} from 'obsidian';
 import {renderHeaderCallout} from '../../../src/header-core/index.mjs';
 import {escapeHtml} from '../../../src/common.mjs';
-import {headerIndexesForMetadata,parseIndex,indexLabels} from '../../../src/indexes.mjs';
-import {indexView,indexPopup,indexPopupShell,indexError} from '../../../src/index-view.mjs';
+import {parseIndex} from '../../../src/indexes.mjs';
+import {indexView,indexError} from '../../../src/index-view.mjs';
 import {indexImageTarget} from '../../../src/index-images.mjs';
-import {IMAGE_TYPES,parseNote} from '../../../src/content-store.mjs';
-import {firstDescriptionSentence} from '../../../src/index-description.mjs';
-import {mountIndexPopups} from '../../../src/browser/index-popups.mjs';
+import {IMAGE_TYPES} from '../../../src/content-store.mjs';
 import {headerSourceEligibility,rewriteHeader} from '../../../src/header-rewrite.mjs';
 import {installHeaderTool} from '../header-tool.mjs';
-import {obsidianIndex,obsidianIndexExists} from '../services/indexes.mjs';
+import {obsidianIndex} from '../services/indexes.mjs';
 import {obsidianInternalLink,mountObsidianInternalLinks} from '../services/internal-links.mjs';
 
 export function obsidianBio(snapshot,file,metadata,date) {
@@ -17,33 +15,15 @@ export function obsidianBio(snapshot,file,metadata,date) {
     metadata,date,mode:'obsidian'});
 }
 
-async function indexMarkup(feature,snapshot,options,sourcePath,date,{popup=false,heading=false}={}) {
+async function indexMarkup(feature,snapshot,options,sourcePath,date,heading) {
   const result=obsidianIndex(feature.app,snapshot,options,sourcePath,date);
-  if(options.type==='members' && (popup || options.mode!=='table'))await Promise.all(result.items.map(async item=>{
-    const file=feature.app.vault.getAbstractFileByPath(item.path);
-    if(file)item.firstSentence=firstDescriptionSentence(parseNote(await feature.app.vault.cachedRead(file)),{date,source:item.path});
-  }));
-  if(popup || options.mode!=='table')for(const item of result.items) {
+  if(options.mode!=='table')for(const item of result.items) {
     const target=indexImageTarget(item.imageTarget);
     const file=target && feature.app.metadataCache.getFirstLinkpathDest(target,item.path);
     if(file && IMAGE_TYPES.has('.'+file.path.split('.').at(-1).toLowerCase()))item.image=feature.app.vault.getResourcePath(file);
   }
   const link=item=>item.path ? obsidianInternalLink(item.path,item.name,'taelgar-index-link') : escapeHtml(item.name);
-  return popup ? indexPopup(result,link) : indexView(result,link,options.mode,{heading});
-}
-
-function mountIndexes(root,app,sourcePath,options={}) {
-  const disposePopup=mountIndexPopups(root,options),disposers=[];
-  // Delegation also covers links inserted by a lazy load after mounting.
-  for(const container of [root,...root.querySelectorAll('.taelgar-index-panel')])
-    disposers.push(mountObsidianInternalLinks(container,app,sourcePath,'.taelgar-index-link'));
-  return ()=>{disposePopup();for(const dispose of disposers)dispose();};
-}
-
-function headerIndexMarkup(feature,snapshot,metadata,sourcePath,date) {
-  try{return headerIndexesForMetadata(metadata).filter(type=>obsidianIndexExists(feature.app,snapshot,{type},sourcePath,date))
-    .map(type=>indexPopupShell({type,label:indexLabels[type],target:metadata.name || sourcePath.split('/').at(-1).replace(/\.md$/,'')})).join('');}
-  catch(error){return indexError(error);}
+  return indexView(result,link,options.mode,{heading});
 }
 
 class BioChild extends MarkdownRenderChild {
@@ -81,23 +61,6 @@ class BioChild extends MarkdownRenderChild {
       rendering=this.addChild(new Component());
       await MarkdownRenderer.render(app,markdown,output,this.context.sourcePath,rendering);
       if(this.disposed || sequence!==this.sequence){this.removeChild(rendering);return;}
-      let disposeIndexes;
-      const indexButtons=this.feature.headerIndexPopups ? headerIndexMarkup(this.feature,snapshot,metadata,this.context.sourcePath,date) : '';
-      if(indexButtons) {
-        const buttons=element.ownerDocument.createElement('div');buttons.className='taelgar-index-buttons';
-        buttons.innerHTML=indexButtons;
-        if(buttons.innerHTML) {
-          output.append(buttons);
-          disposeIndexes=mountIndexes(buttons,app,this.context.sourcePath,{load:async details=>{
-            const current=await this.feature.plugin.snapshots.getSnapshot();
-            const currentFile=app.vault.getAbstractFileByPath(this.context.sourcePath);
-            if(!currentFile)throw new Error('Index target unavailable');
-            const currentMetadata=app.metadataCache.getFileCache(currentFile)?.frontmatter || {};
-            return indexMarkup(this.feature,current,{type:details.dataset.indexType},this.context.sourcePath,this.feature.plugin.dates.getDate(currentMetadata,current.fallback));
-          }});
-        }
-      }
-      this.disposeIndexes?.();this.disposeIndexes=disposeIndexes;
       if(this.rendered)this.removeChild(this.rendered);
       this.rendered=rendering;element.replaceChildren(output);this.measure();
     } catch(error) {
@@ -125,10 +88,10 @@ class IndexChild extends BioChild {
       if(this.disposed || sequence!==this.sequence)return;
       const metadata=this.feature.app.metadataCache.getFileCache(this.feature.app.vault.getAbstractFileByPath(this.context.sourcePath))?.frontmatter || {};
       const date=this.feature.plugin.dates.getDate(metadata,snapshot.fallback);this.date=JSON.stringify(date);
-      const html=await indexMarkup(this.feature,snapshot,options,this.context.sourcePath,date,{heading:options.heading});
+      const html=await indexMarkup(this.feature,snapshot,options,this.context.sourcePath,date,options.heading);
       if(this.disposed || sequence!==this.sequence)return;
       this.disposeIndexes?.();element.hidden=false;element.innerHTML=html;
-      this.disposeIndexes=mountIndexes(element,this.feature.app,this.context.sourcePath);
+      this.disposeIndexes=mountObsidianInternalLinks(element,this.feature.app,this.context.sourcePath,'.taelgar-index-link');
     }catch(error){
       if(this.disposed || sequence!==this.sequence)return;
       this.date=null;this.disposeIndexes?.();this.disposeIndexes=null;element.hidden=false;element.innerHTML=indexError(error);
@@ -137,14 +100,7 @@ class IndexChild extends BioChild {
 }
 
 export class HeadersFeature extends Component {
-  constructor(plugin) {super();this.plugin=plugin;this.app=plugin.app;this.bios=new Set();this.disposed=false;this.headerIndexPopups=plugin.settings?.headerIndexPopups!==false;}
-  async setHeaderIndexPopups(value) {
-    this.headerIndexPopups=value!==false;
-    await Promise.all([...this.bios].filter(child=>!(child instanceof IndexChild)).map(child=>{
-      child.disposeIndexes?.();child.disposeIndexes=null;
-      return child.render();
-    }));
-  }
+  constructor(plugin) {super();this.plugin=plugin;this.app=plugin.app;this.bios=new Set();this.disposed=false;}
   async regeneratePageHeader(editor,file,{add=false,view}={}) {
     try {
       if(!file)throw new Error('Open a Markdown note first.');

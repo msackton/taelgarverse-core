@@ -7,7 +7,6 @@ function route(name, data, timing = name) {
 const routes = new Map([
   ['/', route('home', 'renderer')],
   ['/api/page', route('pageApi', 'renderer', 'article')],
-  ['/api/index', route('index', 'renderer')],
   ['/api/maps', route('maps', 'renderer')],
   ['/api/diagram-links', route('diagramLinks', 'renderer', 'diagram-links')],
   ['/api/navigation', route('navigation', 'navigation')],

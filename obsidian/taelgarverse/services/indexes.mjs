@@ -1,4 +1,4 @@
-import {queryIndex,indexHasResults} from '../../../src/indexes.mjs';
+import {queryIndex} from '../../../src/indexes.mjs';
 
 // Metadata changes replace the runtime snapshot, dropping its cached queries.
 // This author-only cache never serves website requests or crosses date/source views.
@@ -16,16 +16,11 @@ function indexState(snapshot) {
   }
   return state;
 }
-const indexKey=(options,sourcePath,date)=>JSON.stringify([sourcePath,options.type,options.target,options.recursive ?? options.type!=='members',
-  options.placeType,options.scope,options.columns,options.sortBy,date]);
+const indexKey=(options,sourcePath,date)=>JSON.stringify([sourcePath,date,options]);
 const indexContext=(app,state,sourcePath,date)=>({date,sourcePath,resolve:(target,source)=>{
   const file=app.metadataCache.getFirstLinkpathDest(target,source);
   return file ? state.pages.get(file.path) : state.resolveAlias(target);
 }});
-export function obsidianIndexExists(app,snapshot,options,sourcePath,date) {
-  const state=indexState(snapshot),cached=state.queries.get(indexKey(options,sourcePath,date));
-  return cached ? cached.items.length>0 : indexHasResults(snapshot.runtime,options,indexContext(app,state,sourcePath,date));
-}
 export function obsidianIndex(app,snapshot,options,sourcePath,date) {
   const state=indexState(snapshot),key=indexKey(options,sourcePath,date);
   let result=state.queries.get(key);

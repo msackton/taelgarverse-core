@@ -16,8 +16,6 @@ import {renderHeaderCallout} from './header-core/index.mjs';
 import {HeaderDataError} from './header-core/errors.mjs';
 import {compileInteractionIndex,campaignInteractions} from './campaign-interactions.mjs';
 import {interactionSummary,interactionView} from './interaction-view.mjs';
-import {addHeaderIndexes,renderHeaderIndex,HEADER_INDEX_SLOT} from './website-indexes.mjs';
-import {headerIndexesForMetadata} from './indexes.mjs';
 
 export class RenderEngine {
   constructor({settings,store,headers,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles,campaignSource}) {
@@ -56,15 +54,11 @@ export class RenderEngine {
     const note = loadedNote || entry.note;
     let body = note.body;
     const callouts=scanHeaderCallouts(body);
-    const hasHeaderIndexSlot=callouts.length>0 && (metadata.indexes!==undefined || headerIndexesForMetadata(metadata).length>0);
     if(callouts.length) {
       try {
-        let generated=renderHeaderCallout(this.headers,{name:entry.name,metadata,date,mode:'website'}).trimEnd();
-        let ordinal=callouts.length;
+        const generated=renderHeaderCallout(this.headers,{name:entry.name,metadata,date,mode:'website'}).trimEnd();
         for(const callout of [...callouts].reverse()) {
-          // A note has one controls row even if the author repeats its header.
-          const controls=hasHeaderIndexSlot && --ordinal===0 ? '\n\n'+HEADER_INDEX_SLOT : '';
-          body=body.slice(0,callout.start)+generated+controls+'\n\n'+body.slice(callout.end);
+          body=body.slice(0,callout.start)+generated+'\n\n'+body.slice(callout.end);
         }
       } catch (error) {
         if(error instanceof HeaderDataError)throw new RenderError(422,`Header generation failed: circular ${error.kind} chain.`);
@@ -81,21 +75,11 @@ export class RenderEngine {
       rendered.html=/<\/h1>/i.test(rendered.html) ? rendered.html.replace(/<\/h1>/i,match=>match+summary) : summary+rendered.html;
       rendered.html+=interactionView(interactions);
     }
-    if (hasHeaderIndexSlot) rendered.html = addHeaderIndexes(rendered.html,{store:this.store,entry,context,headers:this.headers,warnings:rendered.warnings});
     if (hide.includes('toc')) rendered.toc = '';
     return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,hide,
       ...(metadata.layout === 'wide' ? {layout:'wide'} : {}),
       ...rendered, interactions, backlinks:backlinkIndex
         ? linkedFrom(backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
-  }
-
-  renderIndex(page,type,date,contextId,dm,selectedCampaigns,noteLoading) {
-    const {entry,context}=this.resolvePage(page,date,contextId,dm,selectedCampaigns);
-    return renderHeaderIndex(type,{store:this.store,entry,context,headers:this.headers,warnings:[],noteLoading});
-  }
-
-  async renderIndexAsync(page,type,date,contextId,dm,selectedCampaigns,loadNote) {
-    return this.loadNotes(loading=>this.renderIndex(page,type,date,contextId,dm,selectedCampaigns,loading),loadNote);
   }
 
   async renderAsync(page,date,contextId,dm,selectedCampaigns,loadNote) {
@@ -188,6 +172,6 @@ export function document(result,contextOptions,navigation,releases) {
     '</div>' + siteDialogs() + releaseFooter(releases) + '<script src="/theme/release.js" defer></script><script src="/theme/navigation.js" defer></script><script src="/theme/site-ui.js" defer></script><script type="module" src="/theme/search-overlay.js"></script><script src="/theme/image-viewer.js" defer></script>' + diagrams +
     (maps ? '<script type="module" src="/theme/maps.js"></script>' : '') +
     (interactions ? '<script type="module" src="/theme/interactions.js"></script>' : '') +
-    (indexes ? '<script type="module" src="/theme/indexes.js"></script>' : '') + '</body></html>';
+    '</body></html>';
 
 }

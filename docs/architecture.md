@@ -112,7 +112,7 @@ flowchart LR
 | `src/header-callout.mjs`, `obsidian/taelgarverse/features/headers.mjs` | Top-level header-callout boundaries and one Obsidian postprocessor shared by Reading view and native Live Preview callouts (no competing header decoration). The host selects the date and resolves links; titles and pronunciation remain authored Markdown. See the [legacy review](header-callout-migration.md). |
 | `src/header-rewrite.mjs`, `src/header-tool.mjs`, `scripts/header-tool.mjs`, `obsidian/taelgarverse/header-tool.mjs` | Pure approved-format source rewriting with shared H1 naming/article rules, targeted editor commands, preview-first standalone/bulk tooling, and extraction of the embedded CLI into the installed plugin folder. Build/install keep the Node CLI self-contained without adding a BRAT runtime asset. See [saved header commands](deploy.md#saved-header-commands). |
 | `obsidian/taelgarverse/features/interactions.mjs`, `obsidian/taelgarverse/features/interaction-data.mjs` | Native vault metadata/link adapter, cached recap index, explicit interaction blocks, automatic Reading View footer and host-owned CodeMirror Live Preview widget. Known-to pages get a campaign picker; no note writes or website requests. |
-| `src/indexes.mjs`, `src/index-columns.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/index-description.mjs`, `src/website-indexes.mjs`, `src/browser/index-popups.mjs` | Shared Residents, People Present, Settlements, Members, Rivers and Places queries, table column choices, cards/table/popup markup, lead-image resolution, prose descriptions, website visibility adapter and popup lifecycle. The Obsidian index adapter supplies native resolution and cached queries; the headers feature owns inline/popup rendering and links. See [generated indexes](vault.md#generated-indexes). |
+| `src/indexes.mjs`, `src/index-columns.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/website-indexes.mjs` | Shared inline whereabouts traversal, metadata filtering, table and card presentation, image resolution, and website visibility. See [generated indexes](vault.md#generated-indexes). |
 | `src/campaign-calendar.mjs`, `src/campaign-calendar-context.mjs`, `src/lunar.mjs`, `src/browser/campaign-calendar.mjs`, `public/calendar.css`, `obsidian/taelgarverse/features/calendar.mjs` | Opt-in campaign-date calendar with DR date/month helpers, lunar phases, and normal Obsidian campaign/custom-date settings. Disabled by default; the component owns its active listeners and date API. A metadata-only adapter reuses website Contexts and exposes the date API for headers, indexes and CustomJS. The DOM view shows campaign dots and daily moon illumination; lunar crossings use the adopted full-moon anchor and exact three-hour ticks. The legacy CustomJS hook is an uncommitted experimental-vault change; no website route exists yet. See [campaign calendar](vault.md#campaign-calendar-prototype). |
 | `src/worker.mjs`, `src/worker-handler.mjs`, `src/runtime-snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
 | `tests/helpers/legacy-headers/` | Original VM and generated CustomJS references for historical, date-boundary, and index comparisons, plus manual fixture builders. |
@@ -244,17 +244,9 @@ snapshot. Dated relationships and website visibility remain query-local. For
 change along reachable containment chains. Each chain uses the same date
 throughout, and `whereabouts` normalization is reused across probes. The
 Obsidian adapter additionally retains up to 32 author-view queries per snapshot,
-keyed by date, source, target, type, containment, scope, table columns, and sort order. Renders receive independent
+keyed by date, source and all query options. Renders receive independent
 result copies, and metadata changes replace the snapshot and its cached queries.
-Header buttons run only a first-match existence probe. Popup bodies are built on
-activation; the shared popup controller coalesces loads, retries failures, and
-ignores completion after disposal. Website grids use the read-only `/api/index`
-route with the source page's visibility and hostname-locked reader context.
-Compiled Workers initialize rendering metadata for that route. Members grids
-then load only the visible members' note bodies through the existing shard
-loader, sharing a request-local cache with embeds. Tables and the other index
-types use metadata only; header buttons do not load candidate bodies. The local
-Node adapter already has note bodies and prepares lead-image derivatives on demand.
+Website and Obsidian inline blocks share the dated query engine. Candidate note bodies are unnecessary.
 
 The Obsidian snapshot service supplies the host's link resolver to the shared header
 runtime, then reads the destination's frozen snapshot metadata. This preserves
@@ -328,11 +320,6 @@ last. Date-only interaction refreshes reuse their data snapshot. Calendar keeps
 its metadata-only campaign-context builder and does not require header display
 metadata. Unloading a rendering feature releases its subscriptions, leaving
 shared services available to other consumers.
-
-Headers owns popup listeners/dialogs through its Markdown child lifecycle. The plugin-local
-`headerIndexPopups` setting defaults to true; disabling it suppresses header
-buttons and disposes open dialogs immediately without changing inline indexes,
-note metadata, or the website renderer.
 
 The Worker reads the R2 publication pointer on content requests. Successful
 article and homepage HTML can then be served from Cloudflare's Cache API before
