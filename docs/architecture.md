@@ -239,10 +239,13 @@ with saved output in both formats, including every captured vault `testcase`
 page. Fixture updates and known pre-existing defects are described in the
 [refactoring test baseline](shared-taelgar-blocks-plan.md#refactoring-test-baseline).
 
-Generated indexes cache only immutable candidate/path lookups on the metadata
-snapshot; dated relationships and website visibility remain query-local. The
+Generated indexes cache immutable candidate/path lookups on the metadata
+snapshot. Dated relationships and website visibility remain query-local. For
+`scope: ever`, location indexes check the dates when recorded whereabouts can
+change along reachable containment chains. Each chain uses the same date
+throughout, and `whereabouts` normalization is reused across probes. The
 Obsidian adapter additionally retains up to 32 author-view queries per snapshot,
-keyed by date, source, target, type, and containment. Renders receive independent
+keyed by date, source, target, type, containment, scope, and table columns. Renders receive independent
 result copies, and metadata changes replace the snapshot and its cached queries.
 Header buttons run only a first-match existence probe. Popup bodies are built on
 activation; the shared popup controller coalesces loads, retries failures, and

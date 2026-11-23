@@ -113,14 +113,15 @@ test('Obsidian place indexes follow aliases at intermediate locations and prefer
       h.metadata.set(path,featureIndexNotes[path]);
       h.files.push({path,basename:name});
     }
-    const places=async()=>{
-      const {element}=await h.block('type: places\nmode: table');
+    const places=async (options='')=>{
+      const {element}=await h.block('type: places\nmode: table'+options);
       return Array.from(element.querySelectorAll('tbody tr td:first-child a'),a=>a.textContent);
     };
     assert.equal(h.app.metadataCache.getFirstLinkpathDest('Old Town','Places/Quarter.md'),undefined);
     const viaAlias=await places();
     assert.ok(viaAlias.includes('Quarter'));
     assert.ok(viaAlias.includes('Shop'));
+    assert.ok((await places('\nscope: ever')).includes('Shop'));
     const path='Places/Old Town.md';
     h.metadata.set(path,{tags:['place'],whereabouts:'Other Realm'});
     h.files.push({path,basename:'Old Town'});
@@ -128,10 +129,11 @@ test('Obsidian place indexes follow aliases at intermediate locations and prefer
     const rows=await places();
     assert.ok(!rows.includes('Quarter'));
     assert.ok(!rows.includes('Shop'));
+    assert.ok(!(await places('\nscope: ever')).includes('Shop'));
   } finally {h.dispose();}
 });
 
-test('Obsidian caches membership modes and columns independently and renders People Present',async()=>{
+test('Obsidian caches index scopes and table columns independently',async()=>{
   const h=host();
   try {
     const path='People/Former.md';
@@ -139,25 +141,28 @@ test('Obsidian caches membership modes and columns independently and renders Peo
     h.files.push({path,basename:'Former'});
     const source='type: members\ntarget: Guild\nmode: table';
     const render=async options=>(await h.block(source+options)).element;
-    const current=await render('');
+    const current=await render('\nscope: current');
     assert.doesNotMatch(current.querySelector('tbody').textContent,/Dead|Former/);
-    const ignoreDeath=await render('\nignoreDeath: true');
-    assert.match(ignoreDeath.querySelector('tbody').textContent,/Dead.*Unknown/);
-    assert.doesNotMatch(ignoreDeath.querySelector('tbody').textContent,/Former/);
-    const history='\nmembership: historical';
-    const lifeDates=await render(history+'\ncolumns: life-dates');
-    assert.equal(lifeDates.querySelector('h2').textContent,'Historical Members');
+    const historical=await render('\nscope: historical');
+    assert.match(historical.querySelector('tbody').textContent,/Dead.*Unknown/);
+    assert.doesNotMatch(historical.querySelector('tbody').textContent,/Former/);
+    const ever='\nscope: ever';
+    const lifeDates=await render(ever+'\ncolumns: life-dates');
+    assert.equal(lifeDates.querySelector('h2').textContent,'All-time Members');
     assert.deepEqual(Array.from(lifeDates.querySelectorAll('th'),cell=>cell.textContent),['Person','Info','Born','Died']);
     assert.match(lifeDates.querySelector('tbody tr').textContent,/Former.*1690.*1715/);
-    const location=await render(history);
+    const location=await render(ever);
     assert.equal(location.querySelectorAll('th')[2].textContent,'Current Location');
     assert.match(location.querySelector('tbody').textContent,/Former.*Unknown/);
-    assert.equal((await render('')).innerHTML,current.innerHTML);
+    assert.equal((await render('\nscope: current')).innerHTML,current.innerHTML);
 
     const {element}=await h.block('type: people-in-place\nmode: table','Places/Town.md');
     assert.equal(element.querySelector('h2').textContent,'People Present');
     assert.match(element.querySelector('tbody').textContent,/Bob.*Visitor/);
     assert.doesNotMatch(element.querySelector('tbody').textContent,/Alice|Dead|Future/);
+    const scoped=await h.block('type: people-in-place\nmode: table\nscope: historical','Places/Town.md');
+    assert.match(scoped.element.querySelector('tbody').textContent,/Dead/);
+    assert.doesNotMatch(element.querySelector('tbody').textContent,/Dead/);
   } finally {h.dispose();}
 });
 

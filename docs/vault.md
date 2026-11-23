@@ -332,7 +332,7 @@ Inline indexes continue to calculate immediately and show empty-result messages.
 Without browser dialog support, the button expands the grid in place. Without
 JavaScript, website buttons include a link to the index content.
 
-| Index | Results at the selected in-world date |
+| Index | Results with `scope` omitted |
 | --- | --- |
 | `residents` | Living people whose active home is in the target place or a contained location, following `homeLocation(target, metadata, false, date)`. Traveling residents remain included; transients whose home is elsewhere are excluded, even when their current, secondary or last-known location is here. |
 | `people-in-place` | Living people whose current whereabouts are in the target place or a contained location. Includes visitors and residents who are present. Away residents, last-known sightings and secondary whereabouts alone do not qualify. |
@@ -395,29 +395,46 @@ show: both
 | `placeType` | Places only: `built` or `natural`. Omit to include all place types. Classification uses the note's `typeOf`, not its name or `typeOfAlias`. |
 | `heading` | Boolean, defaults to `true`. Set `false` to omit the inline index's H2 title. Table column headings, grid counts, and popup titles are unaffected. |
 | `recursive` | Boolean. Defaults to `true` for place indexes and `false` for Members. `false` matches only the immediate location or organization. Recursive Members also includes organizations connected through `partOf`. |
-| `membership` | Members only. `current` is the default. `historical` includes affiliations and leadership that started by the selected date, including ended relationships and deceased members. |
-| `ignoreDeath` | Members only. Defaults to `false`. Set to `true` to omit death as the implicit affiliation end date. Explicit end dates still apply to current membership. |
+| `scope` | Optional for any inline index. Choose `current`, `historical`, or `ever` to apply the date rules below. Omit to use the index's original selection rules. |
 | `columns` | Members tables only. Set to `life-dates` for Person, Info, Born, and Died. Sorts by birth date, with unknown birth dates last. Death dates appear once reached in the selected chronology. |
 
 Residents, People Present, Settlements, Rivers and Places require a place target.
 Members requires a group target. Rivers can also list waterways and lakes in a
 barony or other place; Places is not restricted to towns.
 
-Place this historical roster on a group note to show members' life dates:
+### Temporal scope
+
+| Scope | Dates considered |
+| --- | --- |
+| `current` | Match at the selected date while the person is alive or the place still exists. |
+| `historical` | Match at the selected date for living people and existing places. For subjects already deceased or destroyed, match at their recorded death or destruction date. |
+| `ever` | Match on at least one date through the selected date during the subject's lifetime or existence. |
+
+Membership and leadership use their inclusive affiliation dates. A person who
+left before dying can appear with `ever`. A person still affiliated at death can
+also appear with `historical`. Residents use home and People Present uses
+current whereabouts at each date considered. Geography uses current and
+secondary containment, including secondary watershed membership. With an
+explicit scope, a last-known sighting alone does not establish a match.
+The dates on a nested chain must overlap on the same day. Website queries follow
+visible locations throughout the chain. Settlement tables use the home region
+on the most recent matching date. People tables report Current Location as of
+the reader's selected date.
+
+Use this roster on a group note to show everyone who belonged by the selected date:
 
 ````markdown
 ```taelgar-index
 type: members
-membership: historical
+scope: ever
 mode: table
 columns: life-dates
 ```
 ````
 
-Use `type: members` with `ignoreDeath: true` for a current roster that can
-include deceased members whose affiliation has no explicit end date. Both
-options apply to inline blocks. The `indexes: [members]` header button still
-uses the default current membership rules.
+Replace older `membership: historical` blocks with `scope: ever`. The
+`ignoreDeath` option has been removed. Use `scope: historical` for affiliations
+that were active at death. Header buttons use the omitted-scope rules.
 
 Place this table on a place note to list who is there at the selected date:
 
@@ -462,7 +479,7 @@ mode: table
 Invalid definitions show a local error while leaving the article readable.
 Inline blocks in transcluded notes use that note as their default target.
 By default, every inline grid or table starts with an H2 heading matching the index label
-(Residents, People Present, Settlements, Members, Historical Members, Rivers or Places). Set `heading: false` when an
+(such as Members, Historical Members, or All-time Members). Set `heading: false` when an
 authored heading already supplies that context, for example:
 
 ````markdown

@@ -304,7 +304,7 @@ export class WhereaboutsManager {
         return []
     }
 
-    getWhereabouts(metadata, targetDate) {
+    getWhereabouts(metadata, targetDate, normalized = this.getWhereaboutsList(metadata)) {
         const {dates} = this;
 
         targetDate = dates.normalizeDate(targetDate)
@@ -315,7 +315,6 @@ export class WhereaboutsManager {
         let whereaboutResult = { current: unknownWhereabout, home: unknownWhereabout, origin: unknownWhereabout, lastKnown: unknownWhereabout, secondary: unknownWhereabout }
 
         let originDate = dates.normalizeDate(metadata.born, false) ?? dates.normalizeDate(metadata.created, false) ?? dates.normalizeDate("0001", false)
-        let normalized = this.getWhereaboutsList(metadata)
 
         // home is lexically last valid home //
         whereaboutResult.home = this.#filterWhereabouts(normalized, "home", targetDate, false, true).at(-1) ?? whereaboutResult.home

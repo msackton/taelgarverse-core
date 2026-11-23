@@ -275,10 +275,11 @@ locations using the existing `inLocation(..., true, true, date)` rules.
 Use `type: people-in-place` or `indexes: [people-in-place]` to show living people
 currently in the place, including visitors. Residents who are away are omitted.
 Set `recursive: false` inline to limit results to the immediate place.
-For an inline Members index, use `membership: historical` to include everyone
-who had joined by the selected date, including former and deceased members. Use
-`ignoreDeath: true` with current membership to omit death as the default end date
-while retaining explicit end dates. Set `mode: table` and `columns: life-dates`
+All inline indexes accept `scope: current` for matches at the selected date,
+`scope: historical` to also include matches at death or destruction, and
+`scope: ever` for any match through the selected date. Replace
+`membership: historical` with `scope: ever`. Use `scope: historical` for
+memberships active at death. Members tables accept `columns: life-dates`
 to show Born and Died alongside Person and Info.
 Rivers follows `typeOf: waterway` or `typeOf: lake` and includes secondary watershed membership.
 Places lists contained place notes, such as a town's quarters, buildings and shops.

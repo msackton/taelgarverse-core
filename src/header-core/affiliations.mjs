@@ -226,7 +226,7 @@ export class AffiliationManager {
         return affs.some(f => f.org == target && f.startDate.sort <= targetDate.sort && targetDate.sort <= f.endDate.sort)
     }
 
-    getAffiliations(metadata, targetDate, {ignoreDeath = false} = {}) {
+    getAffiliations(metadata, targetDate) {
 
         const {dates} = this;
         const {names} = this;
@@ -237,7 +237,7 @@ export class AffiliationManager {
         // this does some normalizing so I can test without changing all the pages
         let affList = []
 
-        let defaultEnd = ignoreDeath && metadata.died ? undefined : dates.getPageDates(metadata, targetDate).endDate
+        let defaultEnd = dates.getPageDates(metadata, targetDate).endDate
         let sourcePageType = names.getPageType(metadata)
 
         if (metadata.leaderOf) {
