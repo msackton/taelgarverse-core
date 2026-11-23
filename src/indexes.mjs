@@ -132,8 +132,13 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
   };
   const target = options.target ? lookup(options.target) : byPath.get(sourcePath);
   if (!target || !visible(target)) throw new Error('The index target is unavailable.');
-  if (getPageType(target.metadata) !== (isMemberIndex ? 'group' : 'place')) {
-    throw new Error(isMemberIndex ? 'Members requires an organization target.' : 'This index requires a place target.');
+  const targetType = getPageType(target.metadata);
+  if (isMemberIndex) {
+    if (targetType !== 'group') throw new Error('Members requires an organization target.');
+  } else if (presence) {
+    if (targetType !== 'place' && targetType !== 'object') throw new Error('People Present requires a place or object target.');
+  } else if (targetType !== 'place') {
+    throw new Error('This index requires a place target.');
   }
   const displayName = page => names.getNameObject(page.path).name || page.name;
   const inOrganization = (organization,source) => {

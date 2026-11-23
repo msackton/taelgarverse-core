@@ -86,6 +86,27 @@ test('people-in-place includes visitors and local residents using only their cur
   assert.ok(!paths(residentAway).includes('People/Visitor.md'));
 });
 
+test('people-in-place supports object targets and distinguishes direct from nested occupants',()=>{
+  const {runtime}=fixture({
+    'Things/Ship.md':{tags:['object'],typeOf:'skyship'},
+    'Things/Mirror.md':{tags:['object'],typeOf:'mirror',whereabouts:'Ship'},
+    'People/Crew.md':{tags:['person'],whereabouts:'Ship'},
+    'People/Captive.md':{tags:['person'],whereabouts:'Mirror'},
+  });
+  const context={date:'1720-01-01',sourcePath:'Things/Ship.md',visible};
+  const occupants={type:'people-in-place'};
+  assert.deepEqual(paths(queryIndex(runtime,{...occupants,recursive:false},context)),['People/Crew.md']);
+  assert.deepEqual(paths(queryIndex(runtime,occupants,context)),['People/Captive.md','People/Crew.md']);
+  assert.deepEqual(paths(queryIndex(runtime,{...occupants,target:'Mirror'},context)),['People/Captive.md']);
+  const hiddenMirror={...context,visible:page=>visible(page) && page.path!=='Things/Mirror.md'};
+  assert.deepEqual(paths(queryIndex(runtime,occupants,hiddenMirror)),['People/Crew.md']);
+  assert.throws(()=>queryIndex(runtime,{...occupants,target:'Mirror'},hiddenMirror),/target is unavailable/);
+  assert.throws(()=>queryIndex(runtime,{...occupants,target:'Crew'},context),/place or object target/);
+  for (const type of ['residents','settlements','rivers','places']) {
+    assert.throws(()=>queryIndex(runtime,{type},context),/requires a place target/);
+  }
+});
+
 test('settlements use the canonical settlement type and dated hierarchy, include ruins, and honor direct scope',()=>{
   const result=query('settlements','Realm');
   assert.deepEqual(paths(result),['Places/Ruin.md','Places/Town.md']);assert.equal(result.items[1].description,'town');

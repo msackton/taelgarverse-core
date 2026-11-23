@@ -273,8 +273,8 @@ Place, Region, Type Of, and Population, sorted by their dated home region.
 Settlements includes ruins and matches current, last-known and secondary
 locations using the existing `inLocation(..., true, true, date)` rules.
 Use `type: people-in-place` or `indexes: [people-in-place]` to show living people
-currently in the place, including visitors. Residents who are away are omitted.
-Set `recursive: false` inline to limit results to the immediate place.
+at a place or aboard or inside an object, including visitors.
+Set `recursive: false` inline to list people whose immediate location is the target.
 All inline indexes accept `scope: current` for matches at the selected date,
 `scope: historical` to also include matches at death or destruction, and
 `scope: ever` for any match through the selected date. Replace

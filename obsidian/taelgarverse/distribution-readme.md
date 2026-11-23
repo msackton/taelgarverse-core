@@ -79,9 +79,8 @@ the same type in an inline `taelgar-index` block. Their compact tables show
 River/Place and Type Of; recursive containment is enabled by default.
 
 Use `type: people-in-place` or `indexes: [people-in-place]` to show living
-people currently in the place, including visitors. Residents who are away and
-people whose whereabouts are unknown are omitted. Set `recursive: false`
-inline to limit results to the immediate place.
+people at a place or aboard or inside an object, including visitors. Set
+`recursive: false` inline to list people whose immediate location is the target.
 
 All inline indexes accept `scope: current` for matches at the selected date,
 `scope: historical` to also include matches at death or destruction, and
