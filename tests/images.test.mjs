@@ -61,14 +61,14 @@ test('responsive derivatives retain original bytes, cache safely, never upscale,
   assert.equal(JSON.parse($('img').first().attr('data-image-variants')).at(-1).width,1800);
 });
 
-test('authored callout, gallery and session captions stay attached to each image without replacing accessible alt text',async t=>{
+test('authored callout, gallery and figure captions stay attached to each image without replacing accessible alt text',async t=>{
   const {store} = await fixture(t), entry = store.bySlug.get('gallery');
   const source = [
     '> [!image|right standard] Hidden title\n> ![[portrait.jpg]]\n> *Delwath in Karawa as our campaign begins.*',
     '> [!image|figure large]\n> ![[portrait.jpg]]\n>\n> A **second** view with [context](https://example.test/).',
     '> [!image|hero]- Folded title\n> ![[portrait.jpg]]\n> *An establishing view.*',
     '> [!gallery]\n> - ![[portrait.jpg]]\n>   *The temple exterior.*\n> - ![[portrait.jpg]]\n>   *The central sanctuary.*',
-    '<figure class="taelgar-session-zoom__image"><img src="/assets/portrait.jpg" alt="Visual description"><figcaption>A session caption.</figcaption></figure>',
+    '<figure><img src="/assets/portrait.jpg" alt="Visual description"><figcaption>A portrait of Delwath.</figcaption></figure>',
     '![[portrait.jpg]]',
     '> [!image|right] Title is not a caption\n> ![[portrait.jpg]]',
     '<figure><img src="/assets/portrait.jpg" alt="Safe alt"><figcaption>&lt;img src=x onerror=alert(1)&gt; &amp; "quoted"</figcaption></figure>',
@@ -81,7 +81,7 @@ test('authored callout, gallery and session captions stay attached to each image
     'An establishing view.',
     'The temple exterior.',
     'The central sanctuary.',
-    'A session caption.',
+    'A portrait of Delwath.',
     '', '', '<img src=x onerror=alert(1)> & "quoted"',
   ]);
   assert.equal($('img').first().attr('alt'),'Portrait');

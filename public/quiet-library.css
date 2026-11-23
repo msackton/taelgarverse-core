@@ -178,7 +178,6 @@ html .md-typeset :is(blockquote,.admonition.quote,details.quote) > :last-child {
 .md-typeset table:not([class]) th { background: var(--surface); }
 .md-typeset hr { border-color: var(--line); }
 .md-typeset .map-image { width: 100%; }
-.md-typeset .taelgar-session-zoom { top: var(--header-height); }
 .campaign-picker > summary, .campaign-options, .campaign-all { border-color: var(--line); }
 .campaign-options { color: var(--text); background: var(--bg); }
 .campaign-picker summary:focus-visible { outline-color: var(--link); }

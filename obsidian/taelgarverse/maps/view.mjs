@@ -1,7 +1,6 @@
 import {ItemView} from 'obsidian';
-import {captureMapBlock} from '../../../src/map-block.mjs';
 import {loadObsidianBaseline} from './manifest.mjs';
-import {readMapNote} from './persistence.mjs';
+import {openMapSession} from './persistence.mjs';
 import {mountMapEditor} from './editor.mjs';
 export const MAP_EDITOR_VIEW='taelgar-map-editor';
 
@@ -25,7 +24,9 @@ export class MapEditorView extends ItemView {
       if(typeof this.state.source!=='string')throw new Error('Open a version 2 map from a note to choose its source.');
       const baseline=await loadObsidianBaseline(this.app,this.state.blockSource??JSON.stringify({version:2,source:this.state.source}),this.state.sourcePath);
       if(this.closed || sequence!==this.sequence || !this.feature.active)return;
-      const session=this.state.blockSource?{path:this.state.sourcePath,guard:captureMapBlock(await readMapNote(this.app,this.state.sourcePath),{source:this.state.blockSource,lineHint:this.state.blockLine})}:undefined;
+      const session=this.state.blockSource
+        ? await openMapSession(this.app,this.state.sourcePath,{source:this.state.blockSource,lineHint:this.state.blockLine})
+        : undefined;
       if(this.closed || sequence!==this.sequence || !this.feature.active)return;
       this.editor=mountMapEditor(this.contentEl,{...baseline,image:baseline.config.image,app:this.app,sourcePath:this.state.sourcePath,
         session,onDetailSaved:(result,previous)=>{this.state.blockSource=result.source;this.state.blockLine=result.session.guard.lineHint;this.feature.refreshMap(this.state.sourcePath,result.block.id,result.source,previous);},
@@ -44,7 +45,7 @@ export class MapEditorView extends ItemView {
 }
 
 export async function openMapEditor(feature,path,selection){
-  const guard=captureMapBlock(await readMapNote(feature.app,path),selection);
+  const {guard}=await openMapSession(feature.app,path,selection);
   const baseline=await loadObsidianBaseline(feature.app,guard.body,path);
   if(!feature.active)return;
   // Reuse an open source editor without resetting its in-progress town draft.
