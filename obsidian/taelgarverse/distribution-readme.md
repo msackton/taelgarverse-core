@@ -79,16 +79,20 @@ the same type in an inline `taelgar-index` block. Their compact tables show
 River/Place and Type Of; recursive containment is enabled by default.
 
 Use `type: people-in-place` or `indexes: [people-in-place]` to show living
-people currently in the place, including visitors. Residents who are away and
-people whose whereabouts are unknown are omitted. Set `recursive: false`
-inline to limit results to the immediate place.
+people currently in a place or object, including visitors aboard ships.
+Residents also accepts object targets and follows the active home. Set
+`recursive: false` inline to require a direct match to the target.
 
 All inline indexes accept `scope: current` for matches at the selected date,
 `scope: historical` to also include matches at death or destruction, and
 `scope: ever` for any match through the selected date. Replace
 `membership: historical` with `scope: ever`. Use `scope: historical` for
-memberships active at death. Set `mode: table` and `columns: life-dates`
-for Person, Info, Born, and Died in Members tables.
+memberships active at death. Inline tables accept ordered `columns` and `sortBy`
+lists. A Places table can use `columns: [name, region, type]` and
+`sortBy: [region, type, name]`. A Members table can use
+`columns: [name, roles, joined, left, died]`. Joined and Left use the same
+qualifying affiliation period. For a roster ordered by birth, use
+`columns: [name, info, born, died]` and `sortBy: [born, name]`.
 
 ## Generated headers
 

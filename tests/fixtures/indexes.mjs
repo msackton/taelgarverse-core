@@ -36,6 +36,16 @@ export const featureIndexNotes={
   'Groups/Town Guild.md':{tags:['group'],whereabouts:'Town'},
 };
 
+export const objectIndexNotes={
+  'Objects/Vessel.md':{tags:['object/vehicle'],typeOf:'skyship',aliases:['Sky Kite'],whereabouts:'Realm',indexes:['residents','people-in-place']},
+  'Objects/Mirror.md':{tags:['object'],typeOf:'mirror',whereabouts:'Sky Kite'},
+  'People/Crew.md':{tags:['person'],whereabouts:[{type:'home',location:'Sky Kite'},{type:'away',location:'Other Realm',start:1715,end:1725}]},
+  'People/Occupant.md':{tags:['person'],whereabouts:'Mirror'},
+  'People/Boarding Visitor.md':{tags:['person'],whereabouts:[{type:'home',location:'Realm'},{type:'away',location:'Sky Kite',start:1719,end:1721}]},
+  'People/Former Passenger.md':{tags:['person'],whereabouts:[{type:'away',location:'Sky Kite',start:1712,end:1714}]},
+  'People/Deceased Occupant.md':{tags:['person'],whereabouts:'Mirror',died:1715},
+};
+
 export function indexSources(extraNotes={}) {
   return Object.fromEntries(Object.entries({...indexNotes,...extraNotes}).map(([path,metadata])=>[path,'---\n'+
     Object.entries(metadata).map(([key,value])=>key+': '+JSON.stringify(value)).join('\n')+'\n---\n'+

@@ -11,7 +11,7 @@ import {codeMirrorHost} from './helpers/codemirror-host.mjs';
 import {ROOT} from '../src/config.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {imageDOM} from './helpers/image-dom.mjs';
-import {indexNotes,featureIndexNotes,indexSources} from './fixtures/indexes.mjs';
+import {indexNotes,featureIndexNotes,indexSources,objectIndexNotes} from './fixtures/indexes.mjs';
 import {mountIndexPopups} from '../src/browser/index-popups.mjs';
 import {indexPopup,indexPopupShell} from '../src/index-view.mjs';
 import {cintraSource,cintraSentence} from './fixtures/index-descriptions.mjs';
@@ -104,6 +104,20 @@ test('Obsidian inline indexes render current metadata, respect show, and open na
   assert.equal(h.intervals.size,0);assert.equal(h.cache.count,0);assert.equal(h.vault.count,0);
 });
 
+test('Obsidian people tables use object notes as local and explicit targets',async()=>{
+  const h=host();
+  try {
+    for(const [path,metadata] of Object.entries(objectIndexNotes)) {
+      h.metadata.set(path,{...metadata,pageTargetDate:'1720-01-01'});
+      h.files.push({path,basename:path.split('/').at(-1).slice(0,-3)});
+    }
+    const aboard=await h.block('type: people-in-place\nmode: table\nscope: current','Objects/Vessel.md');
+    assert.deepEqual(Array.from(aboard.element.querySelectorAll('tbody tr td:first-child a'),link=>link.textContent),['Boarding Visitor','Occupant']);
+    const mirror=await h.block('type: residents\ntarget: "[[Objects/Mirror.md]]"\nmode: table');
+    assert.deepEqual(Array.from(mirror.element.querySelectorAll('tbody tr td:first-child a'),link=>link.textContent),['Occupant']);
+  } finally {h.dispose();}
+});
+
 test('Obsidian place indexes follow aliases at intermediate locations and prefer a matching filename',async()=>{
   const h=host();
   try {
@@ -147,14 +161,21 @@ test('Obsidian caches index scopes and table columns independently',async()=>{
     assert.match(historical.querySelector('tbody').textContent,/Dead.*Unknown/);
     assert.doesNotMatch(historical.querySelector('tbody').textContent,/Former/);
     const ever='\nscope: ever';
-    const lifeDates=await render(ever+'\ncolumns: life-dates');
-    assert.equal(lifeDates.querySelector('h2').textContent,'All-time Members');
-    assert.deepEqual(Array.from(lifeDates.querySelectorAll('th'),cell=>cell.textContent),['Person','Info','Born','Died']);
-    assert.match(lifeDates.querySelector('tbody tr').textContent,/Former.*1690.*1715/);
+    const datedTable=await render(ever+'\ncolumns: [name, info, born, died]\nsortBy: [born, name]');
+    assert.equal(datedTable.querySelector('h2').textContent,'All-time Members');
+    assert.deepEqual(Array.from(datedTable.querySelectorAll('th'),cell=>cell.textContent),['Person','Info','Born','Died']);
+    assert.match(datedTable.querySelector('tbody tr').textContent,/Former.*1690.*1715/);
     const location=await render(ever);
     assert.equal(location.querySelectorAll('th')[2].textContent,'Current Location');
     assert.match(location.querySelector('tbody').textContent,/Former.*Unknown/);
     assert.equal((await render('\nscope: current')).innerHTML,current.innerHTML);
+    const custom=ever+'\ncolumns: [left, name, joined, roles]';
+    const byName=await render(custom+'\nsortBy: [name]');
+    const byLeft=await render(custom+'\nsortBy: [left]');
+    assert.deepEqual(Array.from(byLeft.querySelectorAll('th'),cell=>cell.textContent),['Left','Person','Joined','Roles']);
+    assert.match(byName.querySelector('tbody tr').textContent,/Alice/);
+    assert.match(byLeft.querySelector('tbody tr').textContent,/1710.*Former/);
+    assert.equal((await render(custom+'\nsortBy: [name]')).innerHTML,byName.innerHTML);
 
     const {element}=await h.block('type: people-in-place\nmode: table','Places/Town.md');
     assert.equal(element.querySelector('h2').textContent,'People Present');
