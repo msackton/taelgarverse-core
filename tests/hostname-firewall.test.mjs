@@ -1,3 +1,4 @@
+import {retentionObjects} from './helpers/compiled-publication.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {HOSTNAME_POLICY as policy} from '../scripts/hostname-firewall.mjs';
@@ -11,14 +12,16 @@ const pointer={revision,previous:{revision:previous}};
 const expression=hosts=>'not (lower(http.host) in {'+hosts.map(host=>JSON.stringify(host)).join(' ')+'})';
 const initial=['taelgar.org','www.taelgar.org','characters.taelgar.org','cleenseau.taelgar.org','old-service.taelgar.org'];
 
+const manifest=revision=>retentionObjects(revision,[]).get(`revisions/${revision}/runtime.json`);
+
 async function fixture(options={}){
   const calls=[],writes=[],messages=[];let reads=0,stored=null;
   const rule={id:ruleID,ref:policy.ref,action:'block',enabled:true,expression:expression(initial),...options.rule};
   const unrelated={id:'e'.repeat(32),ref:'unrelated',action:'block',enabled:true,expression:'http.host eq "bad.taelgar.org"'};
   const ruleset={id:rulesetID,kind:'zone',phase:'http_request_firewall_custom',rules:[unrelated,rule]};
   const manifests={
-    [`revisions/${revision}/runtime.json`]:{version:2,revision,sites:[['new-campaign',{}],['cleenseau',{}]]},
-    [`revisions/${previous}/runtime.json`]:{version:1,revision:previous,sites:[['rollback-campaign',{}]]},
+    [`revisions/${revision}/runtime.json`]:{...manifest(revision),sites:[['new-campaign',{}],['cleenseau',{}]]},
+    [`revisions/${previous}/runtime.json`]:{...manifest(previous),sites:[['rollback-campaign',{}]]},
     ...options.manifests,
   };
   const client=await createCloudflareClient({}, {intervalMs:0,wait:async()=>{},credentials:()=>({account:options.account || policy.account,token:'test-secret'}),fetcher:async(url,init)=>{
@@ -74,8 +77,8 @@ test('permission failures, invalid manifests/policies and unverified updates sto
     [{ignoreUpdate:true},/could not be verified/],
     [{rule:{expression:'true'}},/unexpected policy/],
     [{rule:{action:'skip'}},/unexpected policy/],
-    [{manifests:{[`revisions/${revision}/runtime.json`]:{version:2,revision,sites:[['bad.example',{}]]}}},/Invalid campaign hostname/],
-    [{manifests:{[`revisions/${revision}/runtime.json`]:{version:99,revision,sites:[]}}},/Invalid published/],
+    [{manifests:{[`revisions/${revision}/runtime.json`]:{...manifest(revision),sites:[['bad.example',{}]]}}},/Invalid campaign hostname/],
+    [{manifests:{[`revisions/${revision}/runtime.json`]:{version:99,revision,sites:[]}}},/runtime manifest is missing or invalid/],
   ]){
     const f=await fixture(options);
     await assert.rejects(f.storage.putPointer(pointer),error=>message.test(error.message) && !error.message.includes('sensitive upstream text') && !error.message.includes('test-secret'));
@@ -89,17 +92,14 @@ test('unprovisioned/disabled rules and alternate destinations do not change edge
     const f=await fixture(options);
     await f.storage.putPointer(pointer);
     assert.deepEqual(f.stored,pointer);assert.equal(f.writes.length,0);
-    assert.ok(!f.calls.some(call=>call.path.endsWith('/runtime.json')));
+    assert.equal(f.calls.filter(call=>call.path.endsWith('/runtime.json')).length,2);
     if(options.account || options.config)assert.ok(!f.calls.some(call=>call.path.includes('/zones/')));
   }
 });
 
-test('legacy snapshots derive campaign hosts from their index; malformed legacy data stops activation',async()=>{
-  const key=`revisions/${revision}/index.json`;
-  const f=await fixture({manifests:{[`revisions/${revision}/runtime.json`]:null,[key]:{schemaVersion:1,revision,campaignHomes:{'legacy-campaign':'---\ncampaigns: all\n---'}}}});
-  await f.storage.putPointer(pointer);assert.ok(f.rule.expression.includes('"legacy-campaign.taelgar.org"'));
-  const broken=await fixture({manifests:{[`revisions/${revision}/runtime.json`]:null,[key]:{schemaVersion:1,revision,campaignHomes:[]}}});
-  await assert.rejects(broken.storage.putPointer(pointer),/Invalid legacy/);assert.equal(broken.stored,null);
+test('missing compiled manifest stops activation even with hostname enforcement disabled',async()=>{
+  const f=await fixture({rule:{enabled:false},manifests:{['revisions/'+revision+'/runtime.json']:null}});
+  await assert.rejects(f.storage.putPointer(pointer),/runtime manifest is missing or invalid/);
 });
 
 test('unchanged publication repairs the host allowlist without rebuilding or activating content',async()=>{

@@ -37,7 +37,6 @@ export class RenderEngine {
     this.loadBacklinks = prepared?.loadBacklinks;
     if (backlinkIndex === undefined) this.store.warnings.push(...this.backlinkIndex.warnings);
     this.interactionIndex = interactionIndex || compileInteractionIndex(store,headers.registry,this.backlinkIndex,interactionBundles);
-    this.projectInteractionBacklinks = !interactionIndex && !!this.loadBacklinks;
     if (!interactionIndex) this.store.warnings.push(...this.interactionIndex.warnings);
   }
 
@@ -76,8 +75,7 @@ export class RenderEngine {
     }
     const hide = Array.isArray(metadata.hide) ? metadata.hide : typeof metadata.hide === 'string' ? metadata.hide.split(/[\s,]+/) : [];
     const rendered = this.renderBody(body,entry,context,embedLoading);
-    const interactionIndex = this.projectInteractionBacklinks ? compileInteractionIndex(this.store,this.headers.registry,backlinkIndex) : this.interactionIndex;
-    const interactions = campaignInteractions(interactionIndex,this.store,entry,context,this.headers.registry).filter(group=>group.known);
+    const interactions = campaignInteractions(this.interactionIndex,this.store,entry,context,this.headers.registry).filter(group=>group.known);
     if (interactions.length) {
       const summary=interactionSummary(interactions);
       rendered.html=/<\/h1>/i.test(rendered.html) ? rendered.html.replace(/<\/h1>/i,match=>match+summary) : summary+rendered.html;
@@ -87,7 +85,7 @@ export class RenderEngine {
     if (hide.includes('toc')) rendered.toc = '';
     return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,hide,
       ...(metadata.layout === 'wide' ? {layout:'wide'} : {}),
-      ...rendered, interactions, backlinks:backlinkIndex && (backlinkIndex.version>=2 || context.campaigns.length<=1)
+      ...rendered, interactions, backlinks:backlinkIndex
         ? linkedFrom(backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
   }
 

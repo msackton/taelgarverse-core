@@ -1,3 +1,5 @@
+import {openSnapshot} from '../src/runtime-snapshot.mjs';
+import {preparedPart} from './helpers/compiled-publication.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -13,7 +15,6 @@ import {interactionView,interactionSummary} from '../src/interaction-view.mjs';
 import {mountInteractions} from '../src/browser/interactions.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {buildFingerprint} from '../scripts/publish-content.mjs';
-import {loadSnapshot} from '../src/snapshot.mjs';
 import {Engine} from '../src/engine.mjs';
 import {ROOT} from '../src/config.mjs';
 import {testSettings} from './helpers/test-settings.mjs';
@@ -150,17 +151,17 @@ test('publication and Worker preserve mapped passages without publishing source 
     f.interactions.interactions[0].lines.push('Person: Added retained speech.');f.saveInteractions();
     assert.notEqual(buildFingerprint(settings,{}),before,'retained passages invalidate publication');
     const report=await prepareContent(settings,path.join(f.root,'package'),{commit:'fixture',dirty:false});
-    const raw=fs.readFileSync(report.indexFile,'utf8');
+    const raw=JSON.stringify(preparedPart(report,'render'));
     assert.doesNotMatch(raw,/PRIVATE FULL TRANSCRIPT|PRIVATE BEFORE|PRIVATE AFTER|PRIVATE REVIEW|omitted private|u0001/);
     const uploads=new Map(JSON.parse(fs.readFileSync(report.manifestFile,'utf8')).map(item=>[item.key,item.file]));
     const reads=[],bucket={async get(key){reads.push(key);const file=uploads.get(key);return file ? {json:async()=>JSON.parse(fs.readFileSync(file,'utf8'))} : null;}};
-    const snapshot=await loadSnapshot(bucket,report.revision),node=new Engine(settings);
+    const snapshot=await (await openSnapshot(bucket,report.revision)).renderer(),node=new Engine(settings);
     for(const dm of [false,true]) {
       reads.length=0;
       const expected=node.render('Power','1720-01-03','custom',dm,undefined,['trial']);
       const actual=await snapshot.engine.renderAsync('Power','1720-01-03','custom',dm,['trial'],entry=>snapshot.store.getNote(entry));
       assert.deepEqual(actual.interactions,expected.interactions);assert.equal(actual.html,expected.html);
-      assert.ok(reads.every(key=>key.endsWith('/'+snapshot.store.resolve('Power').note.shard+'.json')));
+      assert.ok(reads.every(key=>/\/runtime\/(notes|backlinks)\//.test(key)));
       assert.equal(actual.interactions[0].events[0].kind,'mention');
       if(!dm)assert.doesNotMatch(actual.html,/HIDDEN PASSAGE/);
     }

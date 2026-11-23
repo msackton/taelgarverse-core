@@ -1,3 +1,4 @@
+import {preparedPart} from './helpers/compiled-publication.mjs';
 import {writeCampaignIndex} from './helpers/write-campaign-index.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -36,7 +37,7 @@ test('noPublish notes and stubs are absent from local/export stores, publication
   const report=await prepareContent(settings,path.join(directory,'package'),{commit:'a'.repeat(40),dirty:false},{},undefined,undefined,{
     materialize:store=>{assert.deepEqual([...store.bySlug.keys()],['kept','public','string']);},
   });
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  const index=preparedPart(report,'render');
   assert.deepEqual(index.entries.filter(e=>e.note).map(e=>e.id),['Kept.md','Public.md','String.md']);
   const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
   for(const file of [report.searchFile,...uploads.map(u=>u.file)])

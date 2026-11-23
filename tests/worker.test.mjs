@@ -1,3 +1,4 @@
+import {preparedPart,compiledObjects} from './helpers/compiled-publication.mjs';
 import {testSettings} from './helpers/test-settings.mjs';
 import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
@@ -7,14 +8,10 @@ import {load} from 'cheerio';
 import sharp from 'sharp';
 import {ROOT,isInside} from '../src/config.mjs';
 import {Engine} from '../src/engine.mjs';
-import {prepareContent as preparePublication} from '../scripts/prepare-cloudflare.mjs';
+import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
-import {loadSnapshot} from '../src/snapshot.mjs';
+import {openSnapshot} from '../src/runtime-snapshot.mjs';
 import {handleRequest} from '../src/application.mjs';
-
-// Keep the legacy publication contract covered after adding compiled snapshots.
-// runtime-snapshot.test.mjs exercises the new format and cross-format parity.
-const prepareContent=(...args)=>{while(args.length<6)args.push(undefined);return preparePublication(...args,{runtime:false});};
 
 let directory,report,bucket,engine,worker,env;
 class LocalBucket {
@@ -75,11 +72,14 @@ before(async()=>{
 after(()=>{if(directory && isInside(path.join(ROOT,'.cache'),directory))fs.rmSync(directory,{recursive:true});});
 
 test('published campaign homes select per-host content and lock Worker APIs without shared state',async()=>{
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
-  index.campaignHomes={dunmar:'---\ncampaigns: [dufr]\ndate: 1730-01-01\n---\n# Dunmar home\n\nHello Dunmar.\n\n![[Nested Embed]]',addermarch:'---\ncampaigns: [adma]\n---\n# Addermarch home\n\nHello Addermarch.',combined:'---\ntitle: Three campaigns\ncampaigns: [dufr, feywild, mawar]\n---\n# Combined home\n\nWelcome.\n\n![[Nested Embed]]',historic:'---\ncampaigns: [dufr, feywild, mawar]\ndate: 1730-01-01\n---\n# Historic home\n\nWelcome.'};
-  const indexFile=path.join(directory,'campaign-index.json');fs.writeFileSync(indexFile,JSON.stringify(index));
-  const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
-  const storage=new LocalBucket([...uploads,{key:'revisions/'+report.revision+'/index.json',file:indexFile},{key:'published/current.json',file:report.pointerFile}]);
+  const campaignHomes={dunmar:'---\ncampaigns: [dufr]\ndate: 1730-01-01\n---\n# Dunmar home\n\nHello Dunmar.\n\n![[Nested Embed]]',addermarch:'---\ncampaigns: [adma]\n---\n# Addermarch home\n\nHello Addermarch.',combined:'---\ntitle: Three campaigns\ncampaigns: [dufr, feywild, mawar]\n---\n# Combined home\n\nWelcome.\n\n![[Nested Embed]]',historic:'---\ncampaigns: [dufr, feywild, mawar]\ndate: 1730-01-01\n---\n# Historic home\n\nWelcome.'};
+  const compiled=compiledObjects(report.revision,engine.store,{campaignHomes,settings:engine.settings,
+    registry:engine.headers.registry,coreMeta:engine.headers.coreMeta,homeSource:fs.readFileSync(engine.settings.home_source,'utf8')});
+  const storage={calls:new Map(),async get(key){
+    this.calls.set(key,(this.calls.get(key)||0)+1);
+    const value=key==='published/current.json'?{revision:report.revision}:compiled.get(key);
+    return value?{json:async()=>value}:null;
+  }};
   const app=createWorker(), environment={...env,CONTENT:storage};
   for(const [host,id,title] of [['dunmar','dufr','Dunmar home'],['combined','custom','Combined home'],['historic','custom','Historic home'],['addermarch','adma','Addermarch home'],['www','modern','Welcome to the fixture site'],['combined','custom','Combined home'],['dunmar','dufr','Dunmar home']]) {
     const home=await app.fetch(new Request('https://'+host+'.taelgar.org/'),environment);
@@ -97,11 +97,8 @@ test('published campaign homes select per-host content and lock Worker APIs with
       assert.equal(page.date,engine.contexts.resolve(id).date);
     }
   }
-  assert.equal(storage.calls.get('revisions/'+report.revision+'/index.json'),1);
-  for(const metadata of ['campaigns: [unknown]','context: dunmar-frontier']) {
-    index.campaignHomes={dunmar:'---\n'+metadata+'\n---\n# Invalid'};fs.writeFileSync(indexFile,JSON.stringify(index));
-    await assert.rejects(loadSnapshot(storage,report.revision),error=>error.status===503);
-  }
+  assert.equal(storage.calls.get('revisions/'+report.revision+'/runtime.json'),1);
+
 });
 
 test('Worker renders context-filtered maps and serves packaged tile assets without fetching the original image',async()=>{
@@ -114,7 +111,7 @@ test('Worker renders context-filtered maps and serves packaged tile assets witho
   const page = await (await request('/api/page?page=Tiled%20Map')).json();
   const config = JSON.parse(load(page.html)('.leaflet-map').attr('data-map'));
   assert.ok(config.tile);
-  const index = JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  const index = preparedPart(report,'render');
   const image = index.entries.find(entry=>entry.id==='world.png');
   const previousImageReads = bucket.calls.get(image.objectKey) || 0;
   const tile = await request(config.tile.baseUrl+'/0/8/0.webp');
@@ -164,13 +161,13 @@ test('footer follows each publication pointer and rollback without cached metada
       assert.doesNotMatch($('.site-footer').text(),/Oct 18/);
     }
   }
-  assert.equal(storage.calls.get('revisions/'+report.revision+'/index.json'),1);
+  assert.equal(storage.calls.get('revisions/'+report.revision+'/runtime.json'),1);
 });
 
 test('manual activation reads its content commit from the immutable snapshot',async()=>{
   const sourceVersion={commit:'d'.repeat(40),dirty:true};
   const prepared=await prepareContent(engine.settings,path.join(directory,'release-package'),sourceVersion);
-  assert.deepEqual(JSON.parse(fs.readFileSync(prepared.indexFile,'utf8')).sourceVersion,sourceVersion);
+  assert.deepEqual(JSON.parse(fs.readFileSync(prepared.runtimeFile,'utf8')).sourceVersion,sourceVersion);
   fs.writeFileSync(prepared.pointerFile,JSON.stringify({revision:prepared.revision,completedAt:'2026-10-19T16:00:00Z'}));
   const storage=new LocalBucket([...JSON.parse(fs.readFileSync(prepared.manifestFile,'utf8')),
     {key:'published/current.json',file:prepared.pointerFile}]);
@@ -197,9 +194,9 @@ test('Worker expands published note embeds like Node and loads only visible note
     assert.equal($.text().includes('Frontier voyage'),query.includes('campaigns='));
     assert.equal($.text().includes('Later voyage'),query.includes('1730'));
     assert.equal($.text().includes('Voyage popup'),query.includes('dm=1'));
-    const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+    const index=preparedPart(report,'render');
     const expected=['Embed Host.md','Embed Sources/Child.md','Nested Embed.md',...(query.includes('campaigns=') ? ['Embed Sources/Campaign.md'] : [])];
-    const keys=new Set(expected.map(id=>'revisions/'+report.revision+'/notes/'+index.entries.find(e=>e.id===id).note.shard+'.json'));
+    const keys=new Set(expected.map(id=>'revisions/'+report.revision+'/'+index.noteShards[index.entries.find(e=>e.id===id).note.prepared].file));
     assert.deepEqual(new Set([...storage.calls.keys()].filter(key=>key.includes('/notes/'))),keys);
     for (const key of keys) assert.equal(storage.calls.get(key),1,key);
     assert.doesNotMatch(result.toc,/Travels/);
@@ -207,11 +204,10 @@ test('Worker expands published note embeds like Node and loads only visible note
 });
 
 test('published homepage note embeds retain lazy loading',async()=>{
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
-  index.homeSource+='\n\n![[Nested Embed]]\n';
-  const file=path.join(directory,'embed-home-index.json'); fs.writeFileSync(file,JSON.stringify(index));
-  const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
-  storage.objects.set('revisions/'+report.revision+'/index.json',file);
+  const homeFile=path.join(directory,'embed-home.md');
+  fs.writeFileSync(homeFile,fs.readFileSync(engine.settings.home_source,'utf8')+'\n\n![[Nested Embed]]\n');
+  const packaged=await prepareContent({...engine.settings,home_source:homeFile},path.join(directory,'embed-home-package'));
+  const storage=new LocalBucket([...JSON.parse(fs.readFileSync(packaged.manifestFile,'utf8')),{key:'published/current.json',file:packaged.pointerFile}]);
   const app=createWorker();
   const response=await app.fetch(new Request('https://example.test/?date=1730-01-01&campaigns=all&dm=1'),{...env,CONTENT:storage});
   assert.equal(response.status,200);
@@ -220,7 +216,7 @@ test('published homepage note embeds retain lazy loading',async()=>{
 });
 
 test('packaged snapshot has no machine paths or raw note bodies in the metadata index',()=>{
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  const index=preparedPart(report,'render');
   assert.equal(index.entries.filter(e=>e.note).length,engine.store.bySlug.size);
   const ids=new Set(index.entries.map(e=>e.id));
   for (const id of ['CampaignHidden.md','Unborn.md','Unbuilt.md','Ignored/Invisible.md','Drawing.md','_Loose.md','assets/dm-map.png','assets/dm-reference/map.png','assets/_portrait.png']) {
@@ -266,9 +262,8 @@ test('Worker rejects unavailable pages before reading any note body and permits 
 test('published website Markdown renders like Node without exposing website files as articles',async()=>{
   const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
   const app=createWorker(), environment={...env,CONTENT:storage};
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
-  assert.equal(index.homeSource,fs.readFileSync(engine.settings.home_source,'utf8'));
-  assert.equal(index.navigationSource,fs.readFileSync(engine.settings.nav_source,'utf8'));
+  const index=preparedPart(report,'render');
+  assert.equal(index.home.source,fs.readFileSync(engine.settings.home_source,'utf8').replaceAll('\r\n','\n'));
   assert.equal(index.entries.some(entry=>entry.id.startsWith('_website/')),false);
   assert.doesNotMatch(JSON.stringify(index),/Unpublished website planning/);
   await Promise.all(['context=modern','context=adma','context=dufr&dm=1','context=custom&date=1750-01-01&campaigns=all'].map(async query=>{
@@ -277,7 +272,7 @@ test('published website Markdown renders like Node without exposing website file
     assert.equal(response.status,200);
     const html=await response.text();
     // Node preview and the published Worker have independent release metadata.
-    const nodeHtml=await (await handleRequest(new Request(url),engine,{releases:{content:index.sourceVersion}})).text();
+    const nodeHtml=await (await handleRequest(new Request(url),engine,{releases:{content:JSON.parse(fs.readFileSync(report.runtimeFile)).sourceVersion}})).text();
     assert.equal(html,nodeHtml);
     const $=load(html);
     assert.equal($('main h1').text(),'Welcome to the fixture site');
@@ -292,21 +287,6 @@ test('published website Markdown renders like Node without exposing website file
   assert.equal((await request('/page/_website/home')).status,404);
   assert.equal(await(await request('/theme/homepage.css')).text(),'/homepage.css');
   assert.equal(await(await request('/theme/home-map.webp')).text(),'/images/home-map.webp');
-});
-
-test('old publications retain the page finder; invalid homepage data is rejected',async()=>{
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
-  const file=path.join(directory,'legacy-home-index.json');
-  const storage=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),{key:'published/current.json',file:report.pointerFile}]);
-  storage.objects.set('revisions/'+report.revision+'/index.json',file);
-  delete index.homeSource;
-  fs.writeFileSync(file,JSON.stringify(index));
-  const response=await createWorker().fetch(new Request('https://example.test/'),{...env,CONTENT:storage});
-  assert.equal(response.status,200);
-  assert.equal(load(await response.text())('main h1').text(),'Browse pages');
-  index.homeSource={invalid:true};
-  fs.writeFileSync(file,JSON.stringify(index));
-  await assert.rejects(()=>loadSnapshot(storage,report.revision),{status:503});
 });
 
 test('republishing changes the homepage and navigation together without redeploying code',async()=>{
@@ -342,11 +322,11 @@ test('Worker renders the same article as the VM reference and isolates request p
   }));
   assert.doesNotMatch(results[0].html,/private ordinary comment|secret body/);
   assert.match(results[1].html,/private ordinary comment|secret body/);
-  const key='revisions/'+report.revision+'/index.json';assert.equal(bucket.calls.get(key),1);
+  const key='revisions/'+report.revision+'/runtime.json';assert.equal(bucket.calls.get(key),1);
   const entry=engine.store.resolve('Example');
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
-  const shard=index.entries.find(e=>e.id===entry.id).note.shard;
-  assert.equal(bucket.calls.get('revisions/'+report.revision+'/notes/'+shard+'.json'),1);
+  const index=preparedPart(report,'render');
+  const shard=index.entries.find(e=>e.id===entry.id).note.prepared;
+  assert.equal(bucket.calls.get('revisions/'+report.revision+'/'+index.noteShards[shard].file),1);
 });
 
 test('Worker filters article, generated header and DM links from metadata without loading target bodies',async()=>{
@@ -383,10 +363,10 @@ test('Worker filters article, generated header and DM links from metadata withou
     if (dm) assert.match($('.dm-note-popup').text(),/popup campaign.*popup birth/);
     assert.deepEqual(result.warnings,['Missing wikilink target: Hidden']);
   }
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
-  const shard=index.entries.find(entry=>entry.id==='Linked.md').note.shard;
+  const index=preparedPart(report,'render');
+  const shard=index.entries.find(entry=>entry.id==='Linked.md').note.prepared;
   assert.deepEqual([...isolated.calls.keys()].filter(key=>key.includes('/notes/')),
-    ['revisions/'+report.revision+'/notes/'+shard+'.json']);
+    ['revisions/'+report.revision+'/'+index.noteShards[shard].file]);
 });
 
 test('Worker serves HTML/navigation, assets with ranges/ETags, HEAD, and normal errors',async()=>{
@@ -409,7 +389,7 @@ test('Worker serves HTML/navigation, assets with ranges/ETags, HEAD, and normal 
 });
 
 test('published snapshots retain audio and exported drawings and Worker serves media byte ranges',async()=>{
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  const index=preparedPart(report,'render');
   const response=await request('/api/page?page=Media&date=1720-01-01');
   assert.equal(response.status,200);
   const result=await response.json(), $=load(result.html,{},false);
@@ -438,9 +418,9 @@ test('published snapshots retain audio and exported drawings and Worker serves m
 });
 
 test('snapshot load failures recover and publication can change without redeploying Worker',async()=>{
-  await assert.rejects(loadSnapshot(bucket,'bad'),{status:503});
+  await assert.rejects(openSnapshot(bucket,'bad'),{status:503});
   const failing=new LocalBucket([...JSON.parse(fs.readFileSync(report.manifestFile,'utf8')),
-    {key:'published/current.json',file:report.pointerFile}]), key='revisions/'+report.revision+'/index.json';
+    {key:'published/current.json',file:report.pointerFile}]), key='revisions/'+report.revision+'/runtime.json';
   failing.missing.add(key);
   const retry=createWorker(), retryEnv={...env,CONTENT:failing};
   assert.equal((await retry.fetch(new Request('https://example.test/health'),retryEnv)).status,503);
@@ -474,10 +454,8 @@ test('Worker keeps unlisted articles searchable and renders context-filtered Mer
 
 test('snapshots preserve the explicit no-template directory navigation mode',async()=>{
   const packaged=await prepareContent({...engine.settings,nav_source:null},path.join(directory,'directory-nav-package'));
-  const index=JSON.parse(fs.readFileSync(packaged.indexFile,'utf8'));
-  assert.equal(index.navigationSource,null);
   const storage=new LocalBucket(JSON.parse(fs.readFileSync(packaged.manifestFile,'utf8')));
-  const loaded=await loadSnapshot(storage,packaged.revision);
+  const loaded=await (await openSnapshot(storage,packaged.revision)).renderer();
   assert.equal(engine.navigation.paths.has('diagrams'),false);
   assert.equal(loaded.engine.navigation.paths.has('diagrams'),true);
   assert.equal(loaded.engine.navigation.roots.some(node=>node.label==='More pages'),false);
@@ -507,35 +485,12 @@ test('Worker reads backlinks from the publication index without fetching referri
     assert.equal(html('.article-main .page-backlinks').length,0);
     assert.equal(html('.page-toc > details').length,1); // Title-only article.
   }
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
-  assert.equal(index.backlinks.version,2);
-  assert.doesNotMatch(JSON.stringify(index.backlinks),/Paragraph|Article without|private ordinary/);
-  const shard=index.entries.find(entry=>entry.id==='Backlink Target.md').note.shard;
+  const index=preparedPart(report,'render');
+  assert.doesNotMatch(JSON.stringify(preparedPart(report,'backlinks')),/Paragraph|Article without|private ordinary/);
+  const shard=index.entries.find(entry=>entry.id==='Backlink Target.md').note.prepared;
   assert.deepEqual([...storage.calls.keys()].filter(key=>key.includes('/notes/')),
-    ['revisions/'+report.revision+'/notes/'+shard+'.json']);
+    ['revisions/'+report.revision+'/'+index.noteShards[shard].file]);
   assert.equal((await fetch('/api/page?page=Addermarch%20Backlink%20Session&context=modern')).status,200);
-});
-
-test('older publications still render without a backlink index; unsupported index versions fail explicitly',async()=>{
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
-  const storage=new LocalBucket(JSON.parse(fs.readFileSync(report.manifestFile,'utf8')));
-  const file=path.join(directory,'old-index.json');
-  delete index.backlinks;
-  fs.writeFileSync(file,JSON.stringify(index));
-  storage.objects.set('revisions/'+report.revision+'/index.json',file);
-  const loaded=await loadSnapshot(storage,report.revision);
-  const entry=loaded.store.resolve('Backlink Target'), note=await loaded.store.getNote(entry);
-  const result=loaded.engine.render('Backlink Target',undefined,undefined,false,note);
-  assert.match(result.html,/Backlink Target/);
-  assert.equal(result.backlinks,undefined);
-  index.backlinks={version:1,byTarget:{'backlink-target':[{source:'backlink-source',when:[{}]}]},warnings:[]};
-  fs.writeFileSync(file,JSON.stringify(index));
-  const legacy=await loadSnapshot(storage,report.revision);
-  assert.equal(legacy.engine.render('Backlink Target',undefined,undefined,false,note).backlinks.length,1);
-  assert.equal(legacy.engine.render('Backlink Target',undefined,'custom',false,note,'all').backlinks,undefined);
-  index.backlinks={version:999,byTarget:{}};
-  fs.writeFileSync(file,JSON.stringify(index));
-  await assert.rejects(()=>loadSnapshot(storage,report.revision),{status:503});
 });
 
 test('Worker isolates Custom all/subset selections and rejects invalid selections before reading bodies',async()=>{
@@ -570,24 +525,4 @@ test('republishing replaces removed backlinks and invalidates the active Worker 
     storage.objects.set('published/current.json',packaged.pointerFile);
     assert.equal((await read()).backlinks.some(link=>link.page==='backlink-source'),false);
   } finally { fs.writeFileSync(file,original); }
-});
-
-test('a published campaign keeps its locked date when opened with legacy POV settings',async()=>{
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
-  index.settings.respect_pov_dates=true;
-  index.campaignHomes={dunmar:'---\ncampaigns: [dufr]\nenforcePoV: 1\n---\n# Dunmar home'};
-  const file=path.join(directory,'legacy-pov-index.json');
-  fs.writeFileSync(file,JSON.stringify(index));
-  const uploads=JSON.parse(fs.readFileSync(report.manifestFile,'utf8'));
-  const storage=new LocalBucket([...uploads,{key:'revisions/'+report.revision+'/index.json',file},
-    {key:'published/current.json',file:report.pointerFile}]);
-
-  const bookmark=new Request('https://dunmar.taelgar.org/api/page?page=POV%20Year&date=9999-01-01&pov=1');
-  const response=await createWorker().fetch(bookmark,{...env,CONTENT:storage});
-  assert.equal(response.status,200);
-  const page=await response.json();
-  assert.equal(page.date,'1720-01-01');
-  assert.equal(page.context.locked,true);
-  assert.equal(page.context.pov,undefined);
-  assert.match(load(page.html).text(),/POV year text/);
 });

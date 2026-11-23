@@ -910,14 +910,11 @@ Relative destinations resolve from the diagram's source note, including inside
 embeds. Missing, ambiguous, excluded, and future destinations remain unlinked.
 Internal links preserve the selected campaign/date and Behind the Curtain setting.
 
-Click a linked node to preview its article in a popup, then use **Open page** to
-navigate. Uncheck **Preview linked pages** below the diagram for direct navigation;
-modified clicks retain normal browser behavior. Links also work in **See bigger**.
-Explicit `_blank` destinations open a new tab; HTTP(S) and mail links navigate
-normally. Closing a preview returns focus to the node. Mermaid stays in strict
-mode; authored JavaScript callbacks and nonstandard URL schemes are not enabled.
-The `/api/diagram-links` endpoint resolves a bounded batch against the current
-source/context metadata; previews use the existing context-filtered page API.
+Click a linked node to open its destination. The inline diagram and **See bigger**
+use standard links with normal keyboard and modified-click behavior. Explicit
+`_blank` destinations open a new tab. Mermaid uses strict rendering. The
+`/api/diagram-links` endpoint resolves a bounded batch against the source note
+and the selected context.
 
 ## Interactive maps
 

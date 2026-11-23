@@ -38,15 +38,14 @@ scope, rule IDs, verification limits, and rollback.
 
 Development change, not yet deployed: version 2 maps carry validated
 `mapManifest` metadata (version 2, relative PNG path, Photoshop source offset)
-on manifest asset entries and `mapImageInfo` (PNG format, decoded width/height) on their image entries. Both `index.json` and
-compiled render metadata retain these fields. Original `.map.json` files use
+on manifest asset entries and `mapImageInfo` (PNG format, decoded width/height) on their image entries. The compiled asset partitions and render metadata retain these fields. Original `.map.json` files use
 the existing hashed asset storage and JSON content type; tiles retain the
 existing derivative recipe and URLs. No new binding or storage migration is
 needed. Deploy code before publishing version 2 notes. See [map delivery](maps.md#delivery-and-maintenance).
 
 Local river/road storage update, not yet deployed: `mapPath.source` references
 resolve into validated `mapPathGeometry: {version: 1, points}` on note entries.
-Both snapshot formats retain that data; renderers include it only for available
+The compiled snapshot retains that data. Renderers include it only for available
 notes. Geometry files have no standalone asset route. No binding or storage
 migration is needed; deploy code and republish content to deliver referenced paths.
 
@@ -71,10 +70,8 @@ configuration is in [wrangler.json](../wrangler.json); the
 ## How updates reach the site
 
 The read-only `/api/maps` route exposes the public map catalogue and resolved
-viewer definitions. New content preparation adds the optional hash-verified
-`runtime/maps.json` source part; current compiled and legacy snapshots use
-their existing note shards as a compatibility fallback. Articles do not load
-this part. Catalogue responses are uncached JSON; room access and collaboration
+viewer definitions. The catalogue reads the hash-verified `runtime/maps.json` source part.
+Articles do not load this part. Catalogue responses are uncached JSON; room access and collaboration
 are outside this Worker. See [map API](maps.md#reusable-viewer-and-map-catalogue).
 
 **Website code:** merge a change into `main` in GitHub. **Test and deploy website**
@@ -152,9 +149,8 @@ contains the following files:
 | Location | What it contains |
 | --- | --- |
 | `published/current.json` | A small file saying which revision the website should use. It also records the Git version and publishing settings so unchanged content can be skipped next time. |
-| `revisions/<revision>/index.json`, `notes/` | Complete schema-1 snapshot, including session interaction projections and original Markdown shards, retained for legacy snapshot loading and publication verification. Transcript uploads and rollback are unsupported; retention ignores old transcript descriptors and removes obsolete transcript shards from all revisions, including active/previous ones. |
-| `revisions/<revision>/runtime.json` | Runtime manifest with precomputed counts, campaign contexts and host policies, plus references to separate route data. |
-| `revisions/<revision>/runtime/` | Compiled renderer lookups, session interaction projections, header indexes, backlink ownership/shard references, compact search metadata and navigation structure/views. `notes/` holds parsed bodies in roughly 64 KiB shards; `backlinks/` groups destination pages into roughly 32 KiB shards. An individual larger note or backlink list remains intact. `assets/` partitions media entries by the first two hex digits of the SHA-256 of their URL target. |
+| `revisions/<revision>/runtime.json` | Format-2 runtime manifest with precomputed counts, campaign contexts and host policies, plus references to separate route data. |
+| `revisions/<revision>/runtime/` | Compiled renderer lookups, session interaction projections, header indexes, backlink ownership/shard references, compact search metadata and navigation structure/views. `notes/` holds parsed bodies in roughly 64 KiB shards; `backlinks/` groups destination pages into roughly 32 KiB shards. An individual larger note or backlink list remains intact. `assets/` partitions media entries by the first two hex digits of the SHA-256 of their URL target. New snapshots list the physical media keys in `asset-keys.json` for retention. |
 | `assets/` | Images, audio, and other published attachments. Identical files share one stored copy, even across publications. |
 | `build-cache/derivatives-v1.json` | Disposable recipe-to-output catalog with dimensions, generated asset targets, content hashes, and sizes; no source paths or image bytes. |
 
@@ -200,9 +196,8 @@ edge settings, access requirements, and verification/rollback steps.
 1. The Worker reads the current publication pointer. For an article or homepage,
    it checks the response cache using the full URL and publication/build identity.
    A hit returns HTML or an ETag-based `304` without loading the snapshot.
-2. On a miss, it loads the runtime manifest, falling back to the complete index
-   for older publications. It finds the requested note and checks availability for the
-   selected campaign and date.
+2. On a miss, it reads the format-2 runtime manifest, finds the requested note,
+   and checks availability for the selected campaign and date.
 3. For articles it loads renderer data and the prepared note, creates the header
    for the selected date, and turns the Markdown into a web page. Successful
    article/homepage GET responses are stored using `waitUntil`.
@@ -242,14 +237,14 @@ Concurrent requests keep their selected references separate.
 Note records reference a shared table of shard filenames and hashes. Navigation
 stores visible/linkable flags as two bits per node and deduplicates identical
 preset views. Only requested views are materialized; arbitrary dates/campaigns
-retain dynamic filtering. The reader also supports format-1 compiled snapshots.
+retain dynamic filtering.
 
 Compiled artifact descriptors contain hashes. The loader validates each object
 before caching it, deduplicates concurrent loads, and retries failures without
 keeping rejected promises. Retention verifies that every referenced runtime
 object exists before cleanup or rollback. New revisions replace all in-memory
-caches. Complete indexes and raw shards remain alongside compiled data, adding
-publication storage in exchange for backward compatibility.
+caches. After verifying the active and rollback revisions, retention sweeps obsolete
+raw indexes and raw note and transcript shards, including those under retained revisions.
 
 The homepage uses the published `_website/home.md` text, with links and marked
 content adjusted for the reader's campaign and date. Submitting its search box

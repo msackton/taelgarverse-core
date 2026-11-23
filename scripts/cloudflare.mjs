@@ -47,7 +47,10 @@ async function uploadPrepared(report,config,{local=false,activate=false}={}) {
   if(config.r2_buckets?.find(b=>b.binding==='CONTENT')?.bucket_name!==report.bucket)throw new Error('Prepared content and retention bucket disagree');
   if(extra.some(arg=>/^--(?:config|env|local|remote|persist-to)(?:=|$)/.test(arg) || ['-c','-e'].includes(arg)))throw new Error('Publishing destination overrides must be configured before preparation');
   if(extra.length)throw new Error('Prepared upload/publication commands do not accept extra flags; configure the destination before preparation');
-  const manifest=report.search?readPreparedSearch(report):null;
+  const manifest=readPreparedSearch(report);
+  const rootKey='revisions/'+report.revision+'/runtime.json';
+  if(uploads.filter(item=>item.key===rootKey).length!==1 || !uploads.some(item=>item.key===rootKey && item.file===report.runtimeFile))
+    throw new Error('Prepared uploads must include the verified runtime manifest');
   const client=local?undefined:await createCloudflareClient(config,{log:console.log});
   const db=await createSearchDatabase(config,{local,client});let retention;
   try{
@@ -55,7 +58,7 @@ async function uploadPrepared(report,config,{local=false,activate=false}={}) {
     await index.withPublicationLock(async()=>{
       await uploadContent(report,retention,{log:console.log});
       if(!activate)return;
-      if(manifest)await index.stage(report.revision,manifest);
+      await index.stage(report.revision,manifest);
       const pointer=await withPublicationProgress('Activating the new content revision',async()=>{
         const next=activationPointer(await retention.getJSON(POINTER_KEY),{revision:report.revision,
           completedAt:new Date().toISOString(),...(report.search?{search:report.search}:{})});

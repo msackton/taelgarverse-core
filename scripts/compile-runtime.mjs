@@ -71,7 +71,7 @@ export function compileRuntime(index,sourceStore,{noteShardBytes=65536,backlinkS
   const backlinks=add('runtime/backlinks.json',{shards:backlinkShards,targets,
     campaigns:[...buildBacklinkCampaigns(store,index.registry)].map(([slug,campaigns])=>[pageIds.get(slug),campaigns])});
   const render=add('runtime/render.json',{entries,noteShards,lookups:store.compileLookups(),home:index.homeSource==null?null:parseNote(index.homeSource),sites:sites.compile(),
-    ...(index.interactions ? {interactions:index.interactions} : {}),
+    interactions:index.interactions,
     ...(index.campaignRecords ? {campaignRecords:index.campaignRecords} : {})});
   const partitions=new Map();
   for(const entry of index.entries.filter(entry=>!entry.note)){
@@ -79,8 +79,9 @@ export function compileRuntime(index,sourceStore,{noteShardBytes=65536,backlinkS
     items.push(entry);partitions.set(key,items);
   }
   const assets=Object.fromEntries([...partitions].sort(([a],[b])=>a.localeCompare(b)).map(([key,items])=>[key,add('runtime/assets/'+key+'.json',items)]));
+  const assetKeys=add('runtime/asset-keys.json',[...new Set(index.entries.filter(entry=>!entry.note).map(entry=>entry.objectKey))].sort());
   const manifest={version:RUNTIME_VERSION,settings:index.settings,sourceVersion:index.sourceVersion,search:index.search,
     pages:store.bySlug.size,warnings:index.warnings,contexts:contexts.compile(),sites:sites.compile().map(([host,{note,...site}])=>[host,site]),
-    parts:{search,navigation:nav,headers,backlinks,render,maps},assets};
+    parts:{search,navigation:nav,headers,backlinks,render,maps},assets,assetKeys};
   return {manifest,objects,digest:hash(JSON.stringify({manifest,objects:[...objects].map(([file,json])=>[file,hash(json)])}))};
 }

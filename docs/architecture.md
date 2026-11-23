@@ -79,8 +79,7 @@ flowchart LR
 | `src/search.mjs`, `src/search-types.mjs`, `src/local-search.mjs`, `src/search-view.mjs` | Read-only context/revision/type-filtered D1 queries, metadata-based exact-name ranking and type classification, identical local SQLite search, page-name fallback, and escaped result/excerpt rendering. See [search](search.md). |
 | `src/store.mjs`, `src/content-store.mjs` | Local filesystem scan, YAML parsing, page/asset lookup, shared availability rules. |
 | `src/folder-exclusions.mjs` | Discover original-vault `.nopublish` folder markers for local indexing, export packaging, and publication fingerprints. |
-| `src/snapshot.mjs` | Load the R2 index and fetch/cache Markdown shards on demand. |
-| `src/runtime-snapshot.mjs` | Select compiled or legacy snapshots; lazily load route data and verify/cache prepared notes and asset manifests. |
+| `src/runtime-snapshot.mjs` | Load the compiled format-2 manifest and verify and cache route data, prepared notes and asset partitions on demand. |
 | `src/runtime-io.mjs`, `src/snapshot-cache.mjs` | Bounded storage waits and stream cleanup, request phase timings, and hash-verified immutable snapshot caching in the Workers Cache API. See [runtime performance](cloudflare.md#runtime-deadlines-caching-and-timings). |
 | `src/page-cache.mjs` | Worker-only HTML response caching, keyed by publication/build identity and full URL; browser ETag revalidation. |
 | `src/crawler-policy.mjs`, `public/robots.txt`, `public/_headers` | Worker crawler rejection before content/cache access, static crawler exclusions, and no-index responses. Hosted behavior and limits belong in [Cloudflare](cloudflare.md#what-happens-when-someone-opens-a-page). |
@@ -100,7 +99,7 @@ flowchart LR
 | `src/map-layers.mjs`, `src/browser/map-regions.mjs`, `obsidian/taelgarverse/maps/regions.mjs`, `obsidian/taelgarverse/maps/region-persistence.mjs` | Shared region-file validation, image-aligned vector borders, viewer visibility controls and guarded Obsidian region authoring. The store and publication pipeline preserve validated layer metadata; see [region layers](map-layers.md). |
 | `obsidian/taelgarverse/maps/create-map.mjs`, `obsidian/taelgarverse/maps/create-map-files.mjs` | Standalone PNG-to-map command/dialog, bounded static-PNG decode validation, safe creation of new image/manifest/note files, and recovery reporting. Existing assets are never overwritten. See [create map](map-editor.md#create-a-map-from-an-image). |
 | `obsidian/taelgarverse/maps/create-photoshop-map.mjs`, `obsidian/taelgarverse/maps/photoshop-runner.mjs`, `obsidian/taelgarverse/maps/bundled-exporter.mjs`, `scripts/map-export/dropbox_link.py` | Desktop Photoshop creation dialog, configured Python child process, cancellation and temporary output ownership; Python handles layer inventory/compositing and source revision checks. The build embeds the maintained exporter sources, recipe, requirements and geometry in main.js; each job unpacks its own temporary copy. Dropbox module owns public shared-link downloads, redirect restrictions and HTTP-revalidated local caches. No API account-path or credential integration remains. PSDs and shared URLs stay outside published map data. See [setup and limits](map-editor.md#create-a-map-from-photoshop). |
-| `src/map-details.mjs`, `src/browser/map-details.mjs`, `obsidian/taelgarverse/maps/detail-editor.mjs` | Regional artwork footprint/dimension validation, lazy zoom-dependent raster overlays, editor template downloads and guarded per-map attachment saves. `src/store.mjs` discovers `.map-detail.json`; publication validates full PNGs and preserves metadata in both snapshot formats. See [regional artwork](map-editor.md#regional-artwork). |
+| `src/map-details.mjs`, `src/browser/map-details.mjs`, `obsidian/taelgarverse/maps/detail-editor.mjs` | Regional artwork footprint/dimension validation, lazy zoom-dependent raster overlays, editor template downloads and guarded per-map attachment saves. `src/store.mjs` discovers `.map-detail.json`; publication validates full PNGs and preserves metadata in the compiled snapshot. See [regional artwork](map-editor.md#regional-artwork). |
 | `obsidian/taelgarverse/maps/tracing-image.mjs` | Temporary local PNG tracing references in the editor: decode validation, Photoshop alignment, opacity, clipping and blob-URL cleanup. No vault writes or publication fields; see [tracing images](map-editor.md#trace-an-existing-photoshop-layer). |
 | `src/map-feature-path.mjs`, `src/browser/map-feature-paths.mjs`, `obsidian/taelgarverse/maps/paths.mjs`, `obsidian/taelgarverse/maps/path-persistence.mjs` | River/road note references, geometry validation, importance-based display, live editor drawing and guarded note/file persistence. `src/map-path-files.mjs` resolves local geometry inputs; working-copy/publication stages preserve validated geometry on note entries without public asset URLs. `src/maps.mjs` resolves published paths against note availability before serializing geometry; see [rivers and roads](map-editor.md#rivers-and-roads). |
 | `scripts/map-export/extract_symbols.py`, `public/images/map-symbols/`, `src/map-symbols.json`, `src/map-symbols.mjs` | Native Photoshop location-symbol extraction, source provenance, embedded PNG assets and supported symbol names. The plugin saves the selected `mapLocation.symbol` independently of importance; see [symbol provenance](../public/images/map-symbols/README.md). |
@@ -116,7 +115,7 @@ flowchart LR
 | `obsidian/taelgarverse/features/interactions.mjs`, `obsidian/taelgarverse/features/interaction-data.mjs` | Native vault metadata/link adapter, cached recap index, explicit interaction blocks, automatic Reading View footer and host-owned CodeMirror Live Preview widget. Known-to pages get a campaign picker; no note writes or website requests. |
 | `src/indexes.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/index-description.mjs`, `src/website-indexes.mjs`, `src/browser/index-popups.mjs` | Shared Residents, People Present, Settlements, Members, Rivers and Places queries, cards/table/popup markup, lead-image resolution, prose descriptions, website visibility adapter and popup lifecycle. The Obsidian index adapter supplies native resolution and cached queries; the headers feature owns inline/popup rendering and links. See [generated indexes](vault.md#generated-indexes). |
 | `src/campaign-calendar.mjs`, `src/campaign-calendar-context.mjs`, `src/lunar.mjs`, `src/browser/campaign-calendar.mjs`, `public/calendar.css`, `obsidian/taelgarverse/features/calendar.mjs` | Opt-in campaign-date calendar with DR date/month helpers, lunar phases, and normal Obsidian campaign/custom-date settings. Disabled by default; the component owns its active listeners and date API. A metadata-only adapter reuses website Contexts and exposes the date API for headers, indexes and CustomJS. The DOM view shows campaign dots and daily moon illumination; lunar crossings use the adopted full-moon anchor and exact three-hour ticks. The legacy CustomJS hook is an uncommitted experimental-vault change; no website route exists yet. See [campaign calendar](vault.md#campaign-calendar-prototype). |
-| `src/worker.mjs`, `src/worker-handler.mjs`, `src/snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
+| `src/worker.mjs`, `src/worker-handler.mjs`, `src/runtime-snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
 | `tests/helpers/legacy-headers/` | Original VM and generated CustomJS references for historical, date-boundary, and index comparisons. |
 | `tests/helpers/full-header-rendering.mjs` | Assembles complete historical headers around the maintained callout body and reproduces saved-header replacement for fixture comparisons. |
 | `scripts/build-runtime.mjs`, `scripts/build-worker-headers.mjs` | Regenerate the local and committed historical CustomJS header references. |
@@ -217,26 +216,15 @@ full-session links; sessions without a recap use explicit links
 in the official session note as separately labeled session references. Original
 `_sessions` files remain outside the article store; only session-header fallback
 metadata and resolved Cast membership enter the revision index. Beats, Short/Long
-text, and transcripts are ignored. The Worker requires no session-body reads. Older publications
-retain authored headers and non-session campaign references. See [campaign interactions](campaign-interactions.md).
-
-Compiled runtime render data carries the same session interaction projections as
-the legacy index. Transcript serving, shard writing and rollback compatibility
-are retired. Retention ignores old transcript descriptors and sweeps obsolete
-transcript shards even from active/previous revisions; missing transcript objects
-do not block cleanup or rollback of the remaining content.
-Older compiled publications without an
-interaction projection derive non-session references from the request's target
-backlink shard, keeping the shared engine immutable.
+text, and transcripts are ignored. The Worker reads the compiled session
+interaction projection without fetching session bodies.
+See [campaign interactions](campaign-interactions.md).
 
 `RenderEngine.renderHome()` applies the shared comment and Markdown renderer to
 the authored homepage, without generating an article header or indexing it as a
 note. The root route uses it unless a `q` parameter requests search. Homepage and
-menu sources live in the revision index, separate from article shards. The
-schema-1 `homeSource` field is optional so older publications retain the page
-finder; a supplied value must be a string or null. Deploy the updated core and
-publish content to enable the homepage, in either order. Both website source
-files are read explicitly; the normal underscore-folder exclusion stays in place.
+menu sources are compiled into renderer and navigation data. The publisher reads both
+website source files explicitly. The normal underscore-folder exclusion stays in place.
 
 Header calculations need metadata from the whole indexed vault for names,
 locations, and relationships. The adapters share frozen metadata but create fresh

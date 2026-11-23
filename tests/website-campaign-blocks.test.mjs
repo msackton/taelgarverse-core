@@ -1,3 +1,4 @@
+import {preparedPart} from './helpers/compiled-publication.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -132,23 +133,18 @@ test('website renders both blocks from unpublished sources and a Taelgar-2 index
   for(const id of ['dufr','elderwood']) {
     assert.equal(bucket.calls.filter(key=>key.endsWith('/runtime/campaigns/'+id+'.json')).length,1);
   }
-  const index=JSON.parse(await fs.readFile(report.indexFile,'utf8'));
+  const index=preparedPart(report,'render');
   assert.ok(!index.entries.some(entry=>entry.id==='Campaigns/Frontier/Session 01.md'));
   for(const note of ['Campaigns/_Index/Elderwood','People/PCs/Aster']) {
     assert.equal((await request('/api/page?page='+encodeURIComponent(note))).status,404);
   }
   assert.match(await (await request('/page/games')).text(),/\/theme\/campaign-blocks\.css/);
 
-  const legacyBucket=new Bucket([...objects.filter(([key])=>!key.endsWith('/runtime.json')),['published/current.json',pointer]]);
-  const legacy=await createWorker().fetch(new Request('https://example.test/api/page?page=Games&context=modern'),{CONTENT:legacyBucket});
-  assert.equal(legacy.status,200);
-  assert.deepEqual(blocks(load((await legacy.json()).html)),blocks($));
-
   for(const note of ['Campaigns/Frontier/Session 01.md','People/PCs/Aster.md']) {
     await fs.writeFile(path.join(vault,note),notes[note].replace('noPublish: true\n',''));
   }
   const publicReport=await prepareContent(settings,path.join(directory,'published-source'),{commit:'b'.repeat(40),dirty:false});
-  const publicIndex=JSON.parse(await fs.readFile(publicReport.indexFile,'utf8'));
+  const publicIndex=preparedPart(publicReport,'render');
   assert.deepEqual(publicIndex.campaignRecords,index.campaignRecords);
   const publicPreview=new Engine(settings);
   const publicPage=await publicPreview.renderAsync('Games',undefined,'modern',false,undefined,async entry=>entry.note);

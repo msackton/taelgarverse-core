@@ -45,8 +45,8 @@ they do not deploy code or publish vault content.
 The reusable viewer package has a local build command, `npm run maps:pack`.
 CI saves the resulting archive as **taelgar-maps**; this does not publish an npm
 package or release the Obsidian plugin. The map catalogue API deploys through
-the normal website workflow and supports existing snapshots without a content
-republication. See [map package and API](maps.md#reusable-viewer-and-map-catalogue).
+the normal website workflow and reads the compiled snapshot's map catalogue.
+See [map package and API](maps.md#reusable-viewer-and-map-catalogue).
 
 The map baseline has a separate local review harness:
 `node scripts/preview-map-baseline.mjs --export .cache/map-baseline/my-export`.
@@ -123,28 +123,20 @@ through GitHub before publishing new content.
 
 ### Roll out compiled runtime snapshots
 
-Deploy the updated website through the normal GitHub workflow **before**
-publishing with the runtime compiler. Then publish vault content normally. The
-publisher fingerprint includes the compiler and its lookup/navigation/search
-inputs, so the format change triggers a rebuild even with unchanged vault notes.
-There is no prerendering command; article HTML remains dynamic.
+The Worker, publisher and rollback tool require compiled runtime format 2 with a map
+catalogue and a compiled interaction index. Before deploying this code, verify the active revision and its recorded
+rollback revision with `node scripts/maintain-content.mjs prune --remote --dry-run`
+from this checkout. The dry run checks R2 and search readiness and reports what a
+cleanup would remove. If a retained revision is unsupported, use the preceding
+publisher and Worker to publish enough distinct format-2 revisions to rotate it
+out, then repeat the dry run.
 
-The new Worker reads runtime formats 1 and 2, legacy snapshots, and older search
-descriptors. New publications use runtime format 2: numeric backlink references
-in target-grouped shards, shared note-shard descriptors, and compact navigation
-visibility bitmaps. Deploy this reader **before publishing format 2**. A Worker
-that only supports runtime format 1 rejects format 2 even though the legacy
-index is retained; restore a format-1 content revision before rolling back to
-that Worker. Content rollback with the current Worker supports either format.
-
-New publications retain the schema-1 index/raw shards and add compiled runtime objects. Search
-staging upgrades D1 transactionally to schema 4, maintaining immutable, revision-bound
-page metadata without discarding existing ready generations. Activation still
-follows R2 upload and D1 verification. Previous-content rollback remains
-available. Deploy the updated Worker before publishing schema 4. Older website
-code rejects schema 4 or queries its removed visibility columns, so full-text search
-uses its page-name fallback after a code rollback. Keep the updated Worker when
-rolling back content; no database migration is needed for that path.
+Once the retained revisions verify, deploy the website through GitHub. The next
+normal content publication writes compiled objects and stages its search data in
+D1. Retention then removes obsolete raw indexes, note shards and transcript shards
+after verifying both retained revisions. Earlier format-2 revisions with a map
+catalogue can supply their media keys from their existing asset partitions.
+Rollback swaps the two verified publications under the publication lock.
 
 Local validation uses `npm test`, the R2/D1 integration tests, and
 `node scripts/cloudflare.mjs check`. These checks do not publish or deploy.
@@ -152,8 +144,8 @@ Production changes still use the separately authorized deployment/publication.
 
 ### Roll out page caching
 
-Deploy website code through the normal workflow. Page caching works with existing
-legacy and compiled publications; enabling it alone does not require republishing
+Deploy website code through the normal workflow. Page caching works with compiled
+publications. Enabling it alone does not require republishing
 the vault, changing Cloudflare cache rules, or adding bindings. The normal build
 already supplies the core commit and build timestamp used in cache identity.
 
@@ -419,11 +411,11 @@ The publisher handles images and other media separately from notes. Assets use
 content hashes as their keys. Before uploading, it lists the destination bucket
 and reuses matching asset keys with matching sizes, including assets saved by a
 failed earlier run. Missing assets and size mismatches are uploaded first, then
-the note shards and index. Only after those transfers and D1 verification does
+the compiled snapshot objects. Only after those transfers and D1 verification does
 the publisher activate the revision. No local upload receipt is trusted as proof
 that an asset still exists in the bucket.
 
-After the notes/index upload, progress reports show search text staging and reuse,
+After the compiled snapshot upload, progress reports show search text staging and reuse,
 visibility-rule staging, read-back verification, activation, and retention cleanup.
 Longer steps print a status message every ten seconds with elapsed time and the
 last completed batch count where available. `New content is live` confirms

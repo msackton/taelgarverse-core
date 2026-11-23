@@ -1,3 +1,4 @@
+import {preparedPart} from './helpers/compiled-publication.mjs';
 import {writeCampaignIndex} from './helpers/write-campaign-index.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -83,7 +84,7 @@ test('marker additions and removals invalidate publication fingerprints; explana
 test('publication omits flagged note bodies, metadata, search documents and media; Worker APIs cannot retrieve them',async t=>{
   const {directory,settings}=fixture(t);
   const report=await prepareContent(settings,path.join(directory,'package'),{commit:'a'.repeat(40),dirty:false});
-  const index=JSON.parse(fs.readFileSync(report.indexFile,'utf8'));
+  const index=preparedPart(report,'render');
   assert.equal(index.entries.some(entry=>entry.id.startsWith(chats+'/')),false);
   assert.doesNotMatch(JSON.stringify(index),/Hidden chat alias|CHAT_PUBLICATION_CANARY|NESTED_PUBLICATION_CANARY/);
   assert.doesNotMatch(fs.readFileSync(report.searchFile,'utf8'),/Hidden chat alias|CHAT_PUBLICATION_CANARY|NESTED_PUBLICATION_CANARY/);

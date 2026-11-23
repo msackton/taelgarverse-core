@@ -1,3 +1,4 @@
+import {compiledObjects} from './helpers/compiled-publication.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {load} from 'cheerio';
@@ -139,9 +140,11 @@ sqliteTest('Worker search API/HTML use the active revision, preserve context, fa
   const d=database(t),indexer=new SearchIndex(d.adapter),store=storeFor(sources),manifest=compileSearch(store);
   await indexer.stage(rev('a'),manifest);
   const registry={campaigns:{'dunmar-frontier':{code:'dufr',name:'Dunmar Frontier'},addermarch:{code:'adma',name:'Addermarch'}}};
-  const makeIndex=(revision,source,manifest)=>({schemaVersion:1,revision,search:searchDescriptor(manifest),settings:{default_date:'1740-01-01'},coreMeta:{},registry,navigationSource:null,homeSource:null,
-    entries:source.entries.map(e=>({...e,note:{metadata:e.note.metadata,shard:'00',sha256:rev('f')}}))});
-  const objects=new Map([['published/current.json',{revision:rev('a')}],[`revisions/${rev('a')}/index.json`,makeIndex(rev('a'),store,manifest)]]),reads=[];
+  const objects=new Map([['published/current.json',{revision:rev('a')}]]),reads=[];
+  const addSnapshot=(revision,source,manifest)=>{
+    for(const [key,value] of compiledObjects(revision,source,{registry,settings:{default_date:'1740-01-01'},search:searchDescriptor(manifest)}))objects.set(key,value);
+  };
+  addSnapshot(rev('a'),store,manifest);
   const env={SEARCH_DB:d.binding,CONTENT:{get:async key=>{reads.push(key);const value=objects.get(key);return value?{json:async()=>value}:null;}},ASSETS:{fetch:async request=>new Response(new URL(request.url).pathname)}};
   const worker=createWorker(),request=(url,overrides={})=>worker.fetch(new Request('https://example.test'+url),{...env,...overrides});
   const data=await (await request('/api/search?q=bronze&date=1740-01-01&campaigns=dufr,adma&dm=1')).json();
@@ -161,11 +164,11 @@ sqliteTest('Worker search API/HTML use the active revision, preserve context, fa
   const missing=await (await request('/api/search?q=Golden',{SEARCH_DB:undefined})).json();assert.equal(missing.fallback,true);assert.equal(missing.results[0].excerpt,'');
   const unavailable=await (await request('/?q=Golden',{SEARCH_DB:{withSession(){throw new Error('private provider error');}}})).text();assert.match(unavailable,/Showing matching page names/);assert.doesNotMatch(unavailable,/private provider error/);
   const nextStore=storeFor({...sources,'Golden Lantern.md':'newrevisionmarker'}),nextManifest=compileSearch(nextStore);
-  await indexer.stage(rev('b'),nextManifest);objects.set(`revisions/${rev('b')}/index.json`,makeIndex(rev('b'),nextStore,nextManifest));objects.set('published/current.json',{revision:rev('b')});
+  await indexer.stage(rev('b'),nextManifest);addSnapshot(rev('b'),nextStore,nextManifest);objects.set('published/current.json',{revision:rev('b')});
   assert.equal((await (await request('/api/search?q=bronze')).json()).results.length,0);
   assert.equal((await (await request('/api/search?q=newrevisionmarker')).json()).results.length,1);
   objects.set('published/current.json',{revision:rev('a')});assert.equal((await (await request('/api/search?q=bronze')).json()).results.length,1);
-  objects.get(`revisions/${rev('a')}/index.json`).search={...searchDescriptor(manifest),digest:rev('c')};
+  objects.get(`revisions/${rev('a')}/runtime.json`).search={...searchDescriptor(manifest),digest:rev('c')};
   // A fresh Worker must reject a descriptor that does not match D1 readiness.
   const stale=await createWorker().fetch(new Request('https://example.test/api/search?q=Golden'),env);assert.equal((await stale.json()).fallback,true);
   assert.equal(reads.some(key=>key.includes('/notes/')),false);

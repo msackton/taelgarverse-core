@@ -39,6 +39,6 @@ export async function uploadContent(report,storage,{assetsOnly=false,log=()=>{},
     await saveDerivativeManifest(storage,JSON.parse(await fs.readFile(report.derivativeManifestFile,'utf8')),present);
     log('Saved reusable image and map recipes to R2.');
   }
-  if(!assetsOnly)await upload(snapshots,'Notes and index');
+  if(!assetsOnly)await upload(snapshots,'Compiled snapshot');
   return {reusedAssets:reused,uploadedAssets:missing.length,uploadedSnapshots:assetsOnly?0:snapshots.length};
 }

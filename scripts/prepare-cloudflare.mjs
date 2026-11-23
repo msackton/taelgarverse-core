@@ -25,7 +25,6 @@ import {compileRuntime} from './compile-runtime.mjs';
 import {withPublicationProgress} from './publication-progress.mjs';
 import {readMapPathFile} from '../src/map-path-files.mjs';
 
-const sha = value=>createHash('sha256').update(value).digest('hex');
 const writeJSON = (file,value)=>{fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,JSON.stringify(value)+'\n');};
 export function loadCloudflareConfig() {
   const config=JSON.parse(fs.readFileSync(path.join(ROOT,'wrangler.json'),'utf8'));
@@ -40,12 +39,12 @@ async function hashFile(file) {
   return hash.digest('hex');
 }
 
-export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare'),sourceVersion=repositoryVersion(settings.vault_dir),imageOptions={},imageProgress,derivativeCache=new DerivativeCache(),{runtime=true,log=()=>{},materialize,writePreparedNotes=false}={}) {
+export async function prepareContent(settings=loadSettings(),output=path.join(ROOT,'.cache/cloudflare'),sourceVersion=repositoryVersion(settings.vault_dir),imageOptions={},imageProgress,derivativeCache=new DerivativeCache(),{log=()=>{},materialize,writePreparedNotes=false}={}) {
   output=path.resolve(output);
   if (!isInside(ROOT,output) || output===ROOT) throw new Error('Content staging directory must be inside this project');
   const started=performance.now(),timings={};
   const timed=(label,action)=>withPublicationProgress(label,action,log,timings);
-  const shards=new Map(),uploads=[];
+  const uploads=[];
   const {store,homeSource,registry,indexes,campaignHomes}=await timed('Reading vault content',()=>{
     const store=new Store(settings);
     for(const entry of store.entries)if(entry.mapPathError)
@@ -72,10 +71,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     for (const original of store.entries) {
       const {filename,note,remoteAsset,...entry}=original;
       if (note) {
-        const shard=(Number.parseInt(sha(entry.id).slice(0,2),16)%32).toString(16).padStart(2,'0');
-        const notes=shards.get(shard) || {};
-        notes[entry.id]=note.source;shards.set(shard,notes);
-        entry.note={metadata:note.metadata,shard,sha256:sha(note.source)};
+        entry.note={metadata:note.metadata};
       } else {
         const hash=remoteAsset ? remoteAsset.key.slice('assets/'.length) : await hashFile(filename);
         if((entry.mapImageInfo || entry.mapManifest || entry.mapLayers || entry.mapDetail) && original.sha256 && hash!==original.sha256)
@@ -100,39 +96,28 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const bundles=readInteractionBundles(settings,registry),{warnings:interactionWarnings,...interactions}=compileInteractionIndex(store,registry,backlinks,bundles.bundles);
   const campaigns=await timed('Compiling campaign records',()=>compileCampaignSnapshots(
     readVaultCampaignSource(settings.vault_dir,{indexes,registry})));
-  const base={schemaVersion:1,sourceVersion:{commit:sourceVersion.commit,dirty:sourceVersion.dirty},settings:{default_date:settings.default_date,campaigns:settings.campaigns},backlinks,
+  const base={sourceVersion:{commit:sourceVersion.commit,dirty:sourceVersion.dirty},settings:{default_date:settings.default_date,campaigns:settings.campaigns},backlinks,
     registry,interactions,campaignRecords:campaigns.descriptors,
     coreMeta,
     navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,
     homeSource,
     campaignHomes,
     search,warnings:[...store.warnings,...backlinks.warnings,...searchManifest.warnings],entries};
-  const compiled=runtime ? await timed('Compiling runtime data',()=>compileRuntime(base,store)) : null;
-  if(compiled)base.runtime={version:compiled.manifest.version,digest:compiled.digest};
-  const revision=sha(JSON.stringify(base)), prefix='revisions/'+revision;
+  const compiled=await timed('Compiling runtime data',()=>compileRuntime(base,store));
+  const revision=compiled.digest, prefix='revisions/'+revision;
   const directory=path.join(output,'revisions',revision);
-  for (const [shard,notes] of shards) {
-    const file=path.join(directory,'notes',shard+'.json');
-    writeJSON(file,notes);uploads.push({key:prefix+'/notes/'+shard+'.json',file});
-  }
-  const index={...base,revision};
-  const indexFile=path.join(directory,'index.json');writeJSON(indexFile,index);
-  for(const [relative,json] of campaigns.objects){
-    const artifact=path.join(directory,relative);fs.mkdirSync(path.dirname(artifact),{recursive:true});fs.writeFileSync(artifact,json);
+  const runtimeFile=path.join(directory,'runtime.json');
+  writeJSON(runtimeFile,{...compiled.manifest,revision});
+  uploads.push({key:prefix+'/runtime.json',file:runtimeFile});
+  for(const [relative,json] of [...compiled.objects,...campaigns.objects]){
+    const artifact=path.join(directory,relative);
+    fs.mkdirSync(path.dirname(artifact),{recursive:true});
+    fs.writeFileSync(artifact,json);
     uploads.push({key:prefix+'/'+relative,file:artifact});
-  }
-  if(compiled){
-    const file=path.join(directory,'runtime.json');writeJSON(file,{...compiled.manifest,revision});
-    uploads.push({key:prefix+'/runtime.json',file});
-    for(const [relative,json] of compiled.objects){
-      const artifact=path.join(directory,relative);fs.mkdirSync(path.dirname(artifact),{recursive:true});fs.writeFileSync(artifact,json);
-      uploads.push({key:prefix+'/'+relative,file:artifact});
-    }
   }
   // Search text can include DM material. Keep the compiler payload local; only
   // its descriptor enters the R2 metadata index. D1 gets it via explicit stage.
   const searchFile=path.join(directory,'search.json');writeJSON(searchFile,searchManifest);
-  uploads.push({key:prefix+'/index.json',file:indexFile});
   // A binary can occur at multiple vault paths. Upload its content only once.
   const unique=[...new Map(uploads.map(upload=>[upload.key,upload])).values()];
   const manifestFile=path.join(directory,'uploads.json');writeJSON(manifestFile,unique);
@@ -142,7 +127,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   config.assets.directory=path.join(ROOT,'public');
   const configFile=path.join(output,'wrangler.json');writeJSON(configFile,config);
   const pointerFile=path.join(output,'current.json');writeJSON(pointerFile,{revision});
-  const report={revision,indexFile,manifestFile,configFile,bucket:config.r2_buckets.find(b=>b.binding==='CONTENT').bucket_name,
+  const report={revision,runtimeFile,manifestFile,configFile,bucket:config.r2_buckets.find(b=>b.binding==='CONTENT').bucket_name,
     notes:entries.filter(e=>e.note).length,assets:entries.filter(e=>!e.note).length,objects:unique.length,
     assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision:headerCoreRevision(),search,searchFile,searchStats:searchManifest.stats,images,
     derivativeManifestFile,derivativeCacheHits:{...derivativeCache.hits},materialization,conversion,timings,totalMs:Math.round(performance.now()-started),

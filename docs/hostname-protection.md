@@ -101,8 +101,7 @@ lower-level prepared-content activation command, and rollback. An unchanged
 normal publication also checks/repairs host access without rebuilding content.
 
 The publisher reads the new revision and retained rollback revision from their
-uploaded runtime `sites` arrays, with a legacy `index.json` / `campaignHomes`
-fallback. It validates host labels, adds their full hostnames plus the apex,
+uploaded format-2 runtime `sites` arrays. It validates host labels, adds their full hostnames plus the apex,
 `www`, and `characters`, and preserves every existing allowlist entry. It reads
 the rule again before updating to preserve recent dashboard additions, patches
 only that rule's expression, and verifies the result through a fresh API read

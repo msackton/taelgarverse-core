@@ -11,7 +11,6 @@ import {buildBacklinkIndex} from '../src/backlinks.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
 import {headerFixture} from './helpers/header-fixture.mjs';
 import {Bucket} from './helpers/page-cache-fixture.mjs';
-import MarkdownIt from 'markdown-it';
 
 const fence=(data,type='taelgar-map')=>'```'+type+'\n'+(typeof data==='string'?data:JSON.stringify(data))+'\n```';
 const block=(id,extra={})=>({version:2,id,source:'[[assets/world.map.json]]',crop:{x:1010,y:2020,width:300,height:200},...extra});
@@ -20,12 +19,12 @@ function fixture({body=fence(block('world')),extraNotes={},home=null,campaignHom
   const settings={default_date:'1748-01-01',campaigns:[]},registry={campaigns:{frontier:{code:'dufr',name:'Frontier'}}};
   const notes={'Maps.md':body,'Session.md':'---\ntags: [session-note]\ncampaign: dufr\nDR: 1745-01-01\n---\nSession',...extraNotes};
   const entries=Object.entries(notes).map(([id,source])=>({id,name:id.slice(0,-3),title:id.slice(0,-3),extension:'.md',target:id.toLowerCase(),slug:id.slice(0,-3).toLowerCase(),note:parseNote(source)}));
-  entries.push({id:'assets/world.map.json',target:'assets/world.map.json',extension:'.json',mapManifest:{version:2,image:'world.png',sourceOffset:[1000,2000]}},
-    {id:'assets/world.png',target:'assets/world.png',extension:'.png',sha256:'b'.repeat(64),mapImageInfo:{format:'png',width:640,height:480},mapTiles:[{bounds:[[0,0],[480,640]],baseUrl:'/assets/tiles/world',width:640,height:480,tileSize:512,minNativeZoom:-2,maxNativeZoom:0}]});
+  entries.push({id:'assets/world.map.json',objectKey:'assets/'+'c'.repeat(64),target:'assets/world.map.json',extension:'.json',mapManifest:{version:2,image:'world.png',sourceOffset:[1000,2000]}},
+    {id:'assets/world.png',objectKey:'assets/'+'b'.repeat(64),target:'assets/world.png',extension:'.png',sha256:'b'.repeat(64),mapImageInfo:{format:'png',width:640,height:480},mapTiles:[{bounds:[[0,0],[480,640]],baseUrl:'/assets/tiles/world',width:640,height:480,tileSize:512,minNativeZoom:-2,maxNativeZoom:0}]});
   const store=new ContentStore(entries,[],settings),coreMeta=headerFixture().input.coreMeta;
   const headers=createHeaderSnapshot({pages:entries.filter(e=>e.note).map(e=>({path:e.id,metadata:e.note.metadata})),coreMeta,registry});
   const engine=new RenderEngine({settings,store,headers,homeSource:home,campaignHomes});
-  const index={entries,settings,registry,coreMeta,warnings:[],backlinks:buildBacklinkIndex(store),navigationSource:null,homeSource:home,campaignHomes};
+  const index={entries,settings,registry,coreMeta,warnings:[],backlinks:buildBacklinkIndex(store),interactions:engine.interactionIndex,navigationSource:null,homeSource:home,campaignHomes};
   return {engine,store,index};
 }
 const request=(engine,path='/api/maps',origin='https://taelgar.org')=>handleRequest(new Request(new URL(path,origin)),engine,{revision});
@@ -115,32 +114,16 @@ test('the catalogue excludes Leaflet fences from current and previously compiled
   assert.equal((await catalogue(engine,'/api/maps?page=Legacy')).total,0);
 });
 
-test('compiled Workers and existing format 2 snapshots return identical catalogues without vault republication',async()=>{
+test('compiled map catalogue loads its source part without reading note shards',async()=>{
   const {store,index}=fixture(),compiled=compileRuntime(index,store);
-  const makeBucket=old=>{
-    const objects=new Map([...compiled.objects].map(([file,json])=>['revisions/'+revision+'/'+file,json]));
-    const manifest=structuredClone(compiled.manifest);if(old){delete manifest.parts.maps;objects.delete('revisions/'+revision+'/runtime/maps.json');}
-    objects.set('revisions/'+revision+'/runtime.json',JSON.stringify({...manifest,revision}));
-    objects.set('published/current.json',JSON.stringify({revision}));return new Bucket(objects);
-  };
-  const list=async bucket=>{const worker=createWorker({}, {cache:null,snapshotCache:null,log:()=>{}}),response=await worker.fetch(new Request('https://taelgar.org/api/maps'),{CONTENT:bucket});assert.equal(response.status,200,await response.clone().text());return response.json();};
-  const current=makeBucket(false),old=makeBucket(true);
-  assert.deepEqual(await list(current),await list(old));assert.equal((await list(old)).total,1);
-  assert.ok(current.calls.some(k=>k.endsWith('/runtime/maps.json')));assert.ok(!current.calls.some(k=>k.includes('/runtime/notes/')),'new catalogue loads no note shards');
-  assert.ok(old.calls.some(k=>k.includes('/runtime/notes/')),'old publication uses its existing prepared notes');
-});
-
-test('format 1 and legacy raw-note publications expose the same existing maps',async()=>{
-  const fs=await import('node:fs/promises');
-  const fixture=JSON.parse(await fs.readFile(new URL('./fixtures/runtime-v1.json',import.meta.url),'utf8'));
-  // Frozen format 1 coverage also checks the original noncompiled fallback.
-  const {revision}=fixture.manifest,prefix='revisions/'+revision+'/';
-  const objects=new Map([['published/current.json',JSON.stringify({revision})],[prefix+'runtime.json',JSON.stringify(fixture.manifest)],
-    [prefix+'index.json',JSON.stringify(fixture.index)],[prefix+'notes/00.json',JSON.stringify(fixture.rawNotes)],
-    ...Object.entries(fixture.artifacts).map(([file,value])=>[prefix+file,JSON.stringify(value)])]);
-  const read=async source=>{const worker=createWorker({}, {cache:null,snapshotCache:null,log:()=>{}}),response=await worker.fetch(new Request('https://taelgar.org/api/maps'),{CONTENT:new Bucket(source)});assert.equal(response.status,200,await response.clone().text());return response.json();};
-  const compiled=await read(objects);objects.delete(prefix+'runtime.json');
-  assert.deepEqual(compiled,await read(objects));assert.equal(compiled.total,0);
+  const objects=new Map([...compiled.objects].map(([file,json])=>['revisions/'+revision+'/'+file,json]));
+  objects.set('revisions/'+revision+'/runtime.json',JSON.stringify({...compiled.manifest,revision}));
+  objects.set('published/current.json',JSON.stringify({revision}));
+  const bucket=new Bucket(objects),worker=createWorker();
+  const response=await worker.fetch(new Request('https://taelgar.org/api/maps'),{CONTENT:bucket});
+  assert.equal(response.status,200);assert.equal((await response.json()).total,1);
+  assert.ok(bucket.calls.some(k=>k.endsWith('/runtime/maps.json')));
+  assert.ok(!bucket.calls.some(k=>k.includes('/runtime/notes/')));
 });
 
 test('map search filters visible titles and block IDs before pagination',async()=>{
@@ -148,32 +131,4 @@ test('map search filters visible titles and block IDs before pagination',async()
   const result=await catalogue(engine,'/api/maps?q=BASEMENT&limit=1');assert.equal(result.total,1);assert.equal(result.maps[0].blockId,'dungeon');
   assert.equal((await catalogue(engine,'/api/maps?q=world')).total,1);
   assert.equal((await request(engine,'/api/maps?q='+'x'.repeat(201))).status,400);
-});
-
-test('older vault-sized publications scan each note shard once without parsing ordinary prose as Markdown',async()=>{
-  const prose='Ordinary catalogue fixture prose. '+('A plain narrative about places, people and their journeys. '.repeat(70));
-  const {store,index}=fixture({extraNotes:Object.fromEntries(Array.from({length:2800},(_,i)=>[`Notes/Entry ${i}.md`,prose]))});
-  // Store metadata and prepared-note order are independent. Interleave note
-  // preparation to exercise shards beyond the 16-part runtime LRU.
-  const sourceOrder=[];
-  for(let column=0;column<64;column++)for(let row=column;row<store.entries.length;row+=64)sourceOrder.push(store.entries[row]);
-  const compiled=compileRuntime(index,new ContentStore(sourceOrder,[],store.settings)),manifest=structuredClone(compiled.manifest),render=JSON.parse(compiled.objects.get(manifest.parts.render.file));
-  delete manifest.parts.maps;
-  const objects=new Map([...compiled.objects].map(([file,json])=>['revisions/'+revision+'/'+file,json]));
-  objects.set('revisions/'+revision+'/runtime.json',JSON.stringify({...manifest,revision}));
-  objects.set('published/current.json',JSON.stringify({revision}));const bucket=new Bucket(objects);
-  const parse=MarkdownIt.prototype.parse;let proseParses=0;
-  MarkdownIt.prototype.parse=function(source,...args){if(source.startsWith('Ordinary catalogue fixture prose.'))proseParses++;return parse.call(this,source,...args);};
-  try {
-    const worker=createWorker({}, {cache:null,snapshotCache:null,requestTimeoutMs:30000,log(){}}),env={CONTENT:bucket};
-    const response=await worker.fetch(new Request('https://taelgar.org/api/maps'),env);assert.equal(response.status,200,await response.clone().text());
-    const list=await response.json();assert.equal(list.total,1);
-    const reads=bucket.calls.filter(key=>key.includes('/runtime/notes/'));
-    assert.equal(reads.length,render.noteShards.length,'each shard is read once even with interleaved metadata');
-    assert.equal(new Set(reads).size,reads.length);assert.equal(proseParses,0,'map discovery does not parse unrelated prose');
-    bucket.calls.length=0;
-    const detail=await worker.fetch(new Request('https://taelgar.org/api/maps?id='+list.maps[0].id),env);assert.equal(detail.status,200);
-    assert.equal((await detail.json()).map.config.measurement.xScale,.6);
-    assert.deepEqual(bucket.calls,['published/current.json'],'subsequent map selections reuse discovered sources');
-  } finally { MarkdownIt.prototype.parse=parse; }
 });
