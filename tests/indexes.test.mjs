@@ -108,6 +108,18 @@ test('people indexes accept any object target and keep dated containment and vis
   for(const type of ['places','rivers','settlements'])assert.throws(()=>withTarget(type,'Vessel'),/requires a place target/);
 });
 
+test('People Present on an object lists direct occupants and respects nested object visibility',()=>{
+  const {runtime}=fixture(objectIndexNotes);
+  const context={date:'1720-01-01',sourcePath:'Objects/Vessel.md',visible};
+  const occupants={type:'people-in-place'};
+  assert.deepEqual(paths(queryIndex(runtime,{...occupants,recursive:false},context)),['People/Boarding Visitor.md']);
+  assert.deepEqual(paths(queryIndex(runtime,occupants,context)),['People/Boarding Visitor.md','People/Occupant.md']);
+  assert.deepEqual(paths(queryIndex(runtime,{...occupants,target:'Mirror'},context)),['People/Occupant.md']);
+  const hiddenMirror={...context,visible:page=>visible(page) && page.path!=='Objects/Mirror.md'};
+  assert.deepEqual(paths(queryIndex(runtime,occupants,hiddenMirror)),['People/Boarding Visitor.md']);
+  assert.throws(()=>queryIndex(runtime,{...occupants,target:'Crew'},context),/place or object target/);
+});
+
 test('settlements use the canonical settlement type and dated hierarchy, include ruins, and honor direct scope',()=>{
   const result=query('settlements','Realm');
   assert.deepEqual(paths(result),['Places/Ruin.md','Places/Town.md']);assert.equal(result.items[1].description,'town');

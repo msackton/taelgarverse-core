@@ -335,7 +335,7 @@ JavaScript, website buttons include a link to the index content.
 | Index | Results with `scope` omitted |
 | --- | --- |
 | `residents` | Living people whose active home is in the target place or a contained location, following `homeLocation(target, metadata, false, date)`. Traveling residents remain included; transients whose home is elsewhere are excluded, even when their current, secondary or last-known location is here. |
-| `people-in-place` | Living people whose current whereabouts are in the target place or a contained location. Includes visitors and residents who are present. Away residents, last-known sightings and secondary whereabouts alone do not qualify. |
+| `people-in-place` | Living people whose current whereabouts are in the target place, aboard or inside the target object, or in a nested location. Includes visitors and residents who are present. Away residents, last-known sightings and secondary whereabouts alone do not qualify. |
 | `settlements` | Places with `typeOf: settlement` within the target place, including nested regions and destroyed settlements, but excluding places not yet created. Matches the current location, or last-known location when current is unknown, and also secondary locations. |
 | `members` | People with an active affiliation or leadership relationship to the target organization, following `isAffiliated(target, file, date)`. Direct membership is the default; past memberships are excluded. |
 | `rivers` | Place notes with `typeOf: waterway` or `typeOf: lake` in the target place or watershed. Always includes lakes alongside rivers, streams, brooks and other waterway subtypes; marine features are excluded. Membership follows primary/current, last-known and secondary `whereabouts`, including secondary watershed membership and nested tributary locations. |
@@ -442,7 +442,7 @@ Replace older `membership: historical` blocks with `scope: ever`. The
 `ignoreDeath` option has been removed. Use `scope: historical` for affiliations
 that were active at death. Header buttons use the omitted-scope rules.
 
-Place this table on a place note to list who is there at the selected date:
+Use this table on a place or object note to list who is there at the selected date.
 
 ````markdown
 ```taelgar-index
