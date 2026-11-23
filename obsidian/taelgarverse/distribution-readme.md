@@ -27,7 +27,7 @@ are unaffected; no note metadata is changed.
 
 Inline grids and tables start with an H2 heading matching the index label.
 
-Residents, Settlements, Members, Rivers and Places grids use current vault
+Residents, People Present, Settlements, Members, Rivers and Places grids use current vault
 metadata and the selected in-world date. Enable header popup buttons with
 `indexes: [residents, settlements]` on a place. Organizations tagged `group`
 get Members automatically when `indexes` is omitted; `indexes: []` suppresses
@@ -77,6 +77,17 @@ unclassified types remain in unfiltered results only. Enable the default header
 buttons with `indexes: [rivers]` or `indexes: [places]`, or use
 the same type in an inline `taelgar-index` block. Their compact tables show
 River/Place and Type Of; recursive containment is enabled by default.
+
+Use `type: people-in-place` or `indexes: [people-in-place]` to show living
+people currently in the place, including visitors. Residents who are away and
+people whose whereabouts are unknown are omitted. Set `recursive: false`
+inline to limit results to the immediate place.
+
+An inline `type: members` index with `membership: historical` includes everyone
+who had joined by the selected date, including former and deceased members.
+Set `ignoreDeath: true` with current membership to omit death as the default
+affiliation end date while retaining explicit end dates. Set `mode: table` and
+`columns: life-dates` for Person, Info, Born, and Died.
 
 ## Generated headers
 
@@ -214,13 +225,13 @@ frame and retains its normal campaign-history section.
 
 ## Generated indexes
 
-Residents, Settlements, Members, Rivers and Places grids are calculated from vault metadata. Put
+Residents, People Present, Settlements, Members, Rivers and Places grids are calculated from vault metadata. Put
 `indexes: [residents, settlements]` in a place's frontmatter to add popup buttons at the bottom of
 its `taelgar-header` block, below and outside the information callout. Organizations tagged
 `group` get Members automatically when `indexes` is omitted; set `indexes: []` to suppress it or
 provide an explicit list to choose header indexes. Ordinary
 Markdown titles and saved headers do not receive buttons. Use a `taelgar-index` fence
-containing `type: residents`, `type: settlements`, `type: members`,
+containing `type: residents`, `type: people-in-place`, `type: settlements`, `type: members`,
 `type: rivers`, or `type: places` for an
 inline grid. Inline grids and tables start with an H2 heading matching the index
 label. Optional `target` selects another note, `show` selects `obsidian`,

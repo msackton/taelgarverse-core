@@ -62,7 +62,7 @@ export class AffiliationManager {
         return map;
     }
 
-    #normalizeAffiliation(affiliation, pageDates, pageTitle, defaultStart, sourcePageType) {
+    #normalizeAffiliation(affiliation, defaultEnd, pageTitle, defaultStart, sourcePageType) {
 
         const {dates} = this;
         const {names} = this;
@@ -76,7 +76,7 @@ export class AffiliationManager {
             result =
             {
                 startDate: defaultStart ?? minDate,
-                endDate: pageDates.endDate ?? maxDate,
+                endDate: defaultEnd ?? maxDate,
                 org: affiliation,
             }
         }
@@ -84,7 +84,7 @@ export class AffiliationManager {
             result =
             {
                 startDate: dates.normalizeDate(affiliation.start, false) ?? defaultStart ?? minDate,
-                endDate: dates.normalizeDate(affiliation.end, true) ?? pageDates.endDate ?? maxDate,
+                endDate: dates.normalizeDate(affiliation.end, true) ?? defaultEnd ?? maxDate,
                 org: affiliation.org,
                 type: affiliation.type,
                 title: affiliation.title,
@@ -226,7 +226,7 @@ export class AffiliationManager {
         return affs.some(f => f.org == target && f.startDate.sort <= targetDate.sort && targetDate.sort <= f.endDate.sort)
     }
 
-    getAffiliations(metadata, targetDate) {
+    getAffiliations(metadata, targetDate, {ignoreDeath = false} = {}) {
 
         const {dates} = this;
         const {names} = this;
@@ -237,12 +237,12 @@ export class AffiliationManager {
         // this does some normalizing so I can test without changing all the pages
         let affList = []
 
-        let pageDates = dates.getPageDates(metadata, targetDate)
+        let defaultEnd = ignoreDeath && metadata.died ? undefined : dates.getPageDates(metadata, targetDate).endDate
         let sourcePageType = names.getPageType(metadata)
 
         if (metadata.leaderOf) {
             for (let item of metadata.leaderOf) {
-                let aff = this.#normalizeAffiliation(item, pageDates, metadata.title, metadata.reignStart, sourcePageType)
+                let aff = this.#normalizeAffiliation(item, defaultEnd, metadata.title, metadata.reignStart, sourcePageType)
                 if (aff.startDate.sort <= targetDate.sort) {
                     affList.push(aff)
                 }
@@ -251,7 +251,7 @@ export class AffiliationManager {
 
         if (metadata.affiliations) {
             for (let item of metadata.affiliations) {
-                let aff = this.#normalizeAffiliation(item, pageDates, metadata.title, undefined, sourcePageType)
+                let aff = this.#normalizeAffiliation(item, defaultEnd, metadata.title, undefined, sourcePageType)
                 if (aff.startDate.sort <= targetDate.sort) {
                     affList.push(aff)
                 }
