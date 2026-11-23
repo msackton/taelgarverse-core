@@ -7,6 +7,7 @@ import {pathToFileURL} from 'node:url';
 import {ROOT,RenderError,isInside,loadSettings} from './config.mjs';
 import {Engine} from './engine.mjs';
 import {handleRequest} from './application.mjs';
+import {classifyRoute} from './routes.mjs';
 import {serveAsset,themeFiles,contentTypes} from './http-assets.mjs';
 import {prepareMaps} from '../scripts/build-maps.mjs';
 import {prepareImages} from '../scripts/build-images.mjs';
@@ -24,8 +25,10 @@ export function createServer(engine) {
   const server=http.createServer(async(req,res)=>{
     try {
       const request=new Request(new URL(req.url,'http://'+(req.headers.host || 'localhost')),{method:req.method,headers:req.headers});
-      if(['GET','HEAD'].includes(req.method) && new URL(request.url).pathname==='/api/maps')await ready();
+      const route=classifyRoute(request);
+      if(route.name==='maps')await ready();
       const response=await handleRequest(request,engine,{
+        route,
         async renderPage(page,date,context,dm,campaigns) {
           await ready();
           const render = ()=>engine.renderAsync(page,date,context,dm,campaigns,loadNote);

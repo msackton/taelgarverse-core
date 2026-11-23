@@ -1,4 +1,5 @@
 import {RenderError,escapeHtml,pageUrl,parseDM} from './common.mjs';
+import {classifyRoute} from './routes.mjs';
 import {document} from './render-engine.mjs';
 import {contextQuery} from './header.mjs';
 import {searchInput,searchPages} from './search.mjs';
@@ -65,10 +66,10 @@ function shell(title, content,header = '') {
   return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">' +
     '<title>' + escapeHtml(title) + '</title><link rel="stylesheet" href="/theme/preview.css"></head><body>' + header + '<main>' + content + '</main></body></html>';
 }
-async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)=>engine.render(page,date,context,dm,undefined,campaigns),renderHome=(context,siteHost)=>engine.renderHome(context,undefined,siteHost),renderIndex=(...args)=>engine.renderIndex(...args),search=engine.search?.bind(engine),assets,theme,runtime='node',revision,releases=engine.releases}={}) {
-      if (!['GET','HEAD'].includes(request.method)) { return new Response(JSON.stringify({detail:'Method not allowed'}),{status:405,headers:{Allow:'GET, HEAD','Content-Type':'application/json'}}); }
-      const url = new URL(request.url);
-      const pathname = decodeURIComponent(url.pathname);
+async function dispatch(request,engine,{route=classifyRoute(request),renderPage=(page,date,context,dm,campaigns)=>engine.render(page,date,context,dm,undefined,campaigns),renderHome=(context,siteHost)=>engine.renderHome(context,undefined,siteHost),renderIndex=(...args)=>engine.renderIndex(...args),search=engine.search?.bind(engine),assets,theme,runtime='node',revision,releases=engine.releases}={}) {
+      if (route.name === 'methodNotAllowed') { return new Response(JSON.stringify({detail:'Method not allowed'}),{status:405,headers:{Allow:'GET, HEAD','Content-Type':'application/json'}}); }
+      if (route.error) throw route.error;
+      const {url,pathname,tail} = route;
       let site;
       try { site = engine.campaignSites.forHost(url.hostname); }
       catch (error) {
@@ -84,10 +85,10 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
       const resolveContext = () => lock({...engine.contexts.resolve(contextId,date,selectedCampaigns),dm});
       const contextOptions = site ? site.contextId==='custom' ? [resolveContext()] : engine.contexts.list().filter(context=>context.id===site.contextId) : engine.contexts.list();
       const renderArticle = async (...args) => { const result=await renderPage(...args);return {...result,context:lock(result.context)}; };
-      if (pathname === '/health') return send(200,{status:'ok',pages:engine.store.bySlug.size,index_warnings:engine.store.warnings,context_warnings:engine.contexts.warnings,runtime,revision});
-      if (pathname === '/api/contexts') return send(200,{contexts:contextOptions,warnings:engine.contexts.warnings,...(site ? {locked:true,site:site.host} : {})});
-      if (pathname === '/openapi.json') return send(200,apiSpec);
-      if (pathname === '/api/maps') {
+      if (route.name === 'health') return send(200,{status:'ok',pages:engine.store.bySlug.size,index_warnings:engine.store.warnings,context_warnings:engine.contexts.warnings,runtime,revision});
+      if (route.name === 'contexts') return send(200,{contexts:contextOptions,warnings:engine.contexts.warnings,...(site ? {locked:true,site:site.host} : {})});
+      if (route.name === 'openapi') return send(200,apiSpec);
+      if (route.name === 'maps') {
         const currentRevision=revision??engine.store.revision??null;
         if(url.searchParams.has('revision') && url.searchParams.get('revision')!==currentRevision)
           throw new RenderError(409,'Content revision changed; reload the map catalogue');
@@ -104,7 +105,7 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
         return send(200,await mapCatalogue(engine,{context:resolveContext(),origin:url.origin,revision:currentRevision,siteHost:site?.host,
           id,page,q,limit:integer('limit',50,1,100),offset:integer('offset',0,0,10000)}));
       }
-      if (pathname === '/api/diagram-links') {
+      if (route.name === 'diagramLinks') {
         const source = url.searchParams.get('source'), targets = url.searchParams.getAll('target');
         if (!source || !targets.length || targets.length > 100 || targets.some(target => target.length > 2048)) {
           throw new RenderError(400,'source and 1–100 targets of at most 2048 characters are required');
@@ -112,29 +113,29 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
         const {entry,context} = engine.resolvePage(source,date,contextId,dm,selectedCampaigns);
         return send(200,{links:targets.map(target => resolveDiagramLink(target,{store:engine.store,entry,context,origin:url.origin}))});
       }
-      if (pathname === '/api/navigation') {
+      if (route.name === 'navigation') {
         const branch = url.searchParams.get('branch');
         if (!branch) throw new RenderError(400,'branch is required');
         const context = resolveContext();
         return send(200,engine.navigation.branch(context,branch,url.searchParams.get('page')));
       }
-      if (pathname === '/api/index') {
+      if (route.name === 'index') {
         const page=url.searchParams.get('page'),type=url.searchParams.get('type');
         if(!page || !type)throw new RenderError(400,'page and type are required');
         return send(200,await renderIndex(page,type,date,contextId,dm,selectedCampaigns),'text/html');
       }
-      if (pathname === '/api/page') {
+      if (route.name === 'pageApi') {
         const page = url.searchParams.get('page');
         if (!page) throw new RenderError(400,'page is required');
         return send(200,await renderArticle(page,date,contextId,dm,selectedCampaigns));
       }
-      if(pathname==='/api/search'){
+      if (route.name === 'searchApi'){
         const context=resolveContext();
         const input=searchInput(url.searchParams.get('q') || '',{limit:url.searchParams.get('limit') ?? 20,offset:url.searchParams.get('offset') ?? 0,type:url.searchParams.get('type') ?? ''});
         return send(200,await searchPages(engine,search,input,context));
       }
-      if (pathname.startsWith('/page/')) {
-        try { return send(200,document(await renderArticle(pathname.slice(6),date,contextId,dm,selectedCampaigns),contextOptions,engine.navigation,releases),'text/html'); }
+      if (route.name === 'article') {
+        try { return send(200,document(await renderArticle(tail,date,contextId,dm,selectedCampaigns),contextOptions,engine.navigation,releases),'text/html'); }
         catch (error) {
           if (error.status !== 404) throw error;
           const context = resolveContext();
@@ -143,26 +144,26 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
             toc:'',warnings:[],context},contextOptions,engine.navigation,releases),'text/html');
         }
       }
-      if (pathname === '/docs') {
+      if (route.name === 'docs') {
         return send(200,shell('TaelgarVerse API','<h1>TaelgarVerse rendering API</h1><p>GET <code>/api/page?page=Zahara&amp;date=1730-02-01</code></p>' +
           '<form action="/api/page"><label>Page <input name="page" value="Zahara" required></label><label> Date (DR) ' +
           '<input name="date" value="' + engine.settings.default_date + '"></label><button>Try request</button></form>' +
           '<p>Returns article <code>html</code>, <code>toc</code>, <code>backlinks</code>, page/title/date/campaign context, and rendering warnings.</p>' +
           '<p><a href="/openapi.json">OpenAPI schema</a> · <a href="/?q=">Search</a></p>'),'text/html');
       }
-      if (pathname.startsWith('/browse/')) {
+      if (route.name === 'browse') {
         const context = resolveContext();
-        const view = engine.navigation.view(context,undefined,pathname.slice(8));
-        const node = view.visible.get(pathname.slice(8));
+        const view = engine.navigation.view(context,undefined,tail);
+        const node = view.visible.get(tail);
         const items = node.children.map(child=>view.visible.get(child.id)).map(child=>'<li><a href="' + escapeHtml(engine.navigation.url(child,context)) + '">' + escapeHtml(child.label) + '</a></li>').join('');
         const overview = node.entry ? '<p><a href="' + escapeHtml(pageUrl(node.entry.slug,context.date,context)) + '">Read the overview</a></p>' : '';
         return send(200,document({title:node.label,html:'<h1>' + escapeHtml(node.label) + '</h1>' + overview +
           '<ul class="section-pages">' + items + '</ul>',toc:'',warnings:[],context,navigationId:node.id},contextOptions,engine.navigation,releases),'text/html');
       }
-      if (pathname === '/') {
+      if (route.name === 'home' || route.name === 'searchPage') {
         const query = url.searchParams.get('q') || '';
         const context = resolveContext();
-        if (!url.searchParams.has('q')) {
+        if (route.name === 'home') {
           const home = await renderHome(context,site?.host);
           if (home) return send(200,document({...homepage(home,context,engine.store),context},contextOptions,engine.navigation,releases),'text/html');
         }
@@ -173,18 +174,18 @@ async function route(request,engine,{renderPage=(page,date,context,dm,campaigns)
         const results=await searchPages(engine,search,input,context);
         return send(200,document({title:query?'Search: '+query:'Search Taelgar',html:searchView(results),toc:'',warnings:[],context,query,searchType:input.type,search:true},contextOptions,engine.navigation,releases),'text/html');
       }
-      if (pathname.startsWith('/assets/')) {
-        const entry=engine.store.assets.get(pathname.slice(8));
+      if (route.name === 'asset') {
+        const entry=engine.store.assets.get(tail);
         if (!entry) throw new RenderError(404,'Asset not found');
         return assets(entry,request);
       }
-      if (pathname.startsWith('/theme/')) return theme(pathname.slice(7),request);
+      if (route.name === 'theme') return theme(tail,request);
       throw new RenderError(404,'Page not found');
 }
 
 export async function handleRequest(request,engine,options) {
   let response;
-  try { response=await route(request,engine,options); }
+  try { response=await dispatch(request,engine,options); }
   catch (error) {
     const status=error instanceof URIError ? 400 : error.status || (error.code==='ENOENT' ? 404 : 500);
     if (status===500 || error.cause) console.error(error);

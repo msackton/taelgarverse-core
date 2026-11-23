@@ -347,8 +347,10 @@ The existing Worker log configuration receives structured JSON diagnostics:
 - `request-timing`: fixed route category, HTTP status, total milliseconds,
   `phases` for pointer, page cache, snapshot initialization, route initialization,
   application, rendering and D1 as applicable; `failures` and phases still
-  `pending` at a deadline. Search, navigation, articles and homepages log every
-  response; other routes log only failures or requests taking at least one second.
+  `pending` at a deadline. Search, navigation, articles, homepages, maps, header
+  indexes and diagram links log every response. Other routes log HTTP 5xx
+  responses and requests taking at least one second. The map catalogue, header
+  index and diagram-link API use the categories `maps`, `index` and `diagram-links`.
 - `snapshot-read`: part category, R2/edge source, edge hit/miss/error/timeout,
   cache-write outcome and milliseconds, with separate cache-read, R2 and cache-write times.
   In-memory hits do not emit object-read events.

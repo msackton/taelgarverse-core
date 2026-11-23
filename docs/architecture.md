@@ -83,7 +83,7 @@ flowchart LR
 | `src/runtime-io.mjs`, `src/snapshot-cache.mjs` | Bounded storage waits and stream cleanup, request phase timings, and hash-verified immutable snapshot caching in the Workers Cache API. See [runtime performance](cloudflare.md#runtime-deadlines-caching-and-timings). |
 | `src/page-cache.mjs` | Worker-only HTML response caching, keyed by publication/build identity and full URL; browser ETag revalidation. |
 | `src/crawler-policy.mjs`, `public/robots.txt`, `public/_headers` | Worker crawler rejection before content/cache access, static crawler exclusions, and no-index responses. Hosted behavior and limits belong in [Cloudflare](cloudflare.md#what-happens-when-someone-opens-a-page). |
-| `src/application.mjs` | Shared Fetch API router: homepage, articles, search HTML/JSON, contexts, navigation, assets, health. |
+| `src/routes.mjs`, `src/application.mjs` | The route table names each endpoint, its snapshot data and its timing category. Node and the Worker dispatch the match to the shared Fetch API handlers. |
 | `src/render-engine.mjs` | Resolve context/page, generate explicit header callouts, filter comments, render Markdown and page shell. |
 | `src/article-layout.mjs` | Shell-only prose grouping and semantic media breakouts, retaining float contexts and embedded-note boundaries. |
 | `src/homepage.mjs`, `public/homepage.css`, `public/images/home-map.webp` | Homepage composition, entry buttons, responsive layout, and decorative map asset. Introductory content remains in the vault's `_website/home.md`. |

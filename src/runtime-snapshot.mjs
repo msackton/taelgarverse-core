@@ -113,22 +113,17 @@ export class RuntimeSnapshot {
     });
   }
 
-  async forRequest(request) {
-    const url=new URL(request.url);
-    // Let the shared router return its normal method/URI error response without
-    // loading route data first.
-    let pathname='';
-    try{if(['GET','HEAD'].includes(request.method))pathname=decodeURIComponent(url.pathname);}catch{}
-    if(pathname==='/api/maps' || pathname==='/api/page' || pathname==='/api/index' || pathname==='/api/diagram-links' || pathname.startsWith('/page/') || pathname==='/' && !url.searchParams.has('q'))return this.renderer();
+  async forRoute({data,tail}) {
+    if(data==='renderer')return this.renderer();
     let store={bySlug:{size:this.index.pages},warnings:this.index.warnings,assets:new Map(),settings:this.index.settings};
     const engine={settings:this.index.settings,contexts:this.contexts,campaignSites:this.campaignSites};
-    if(pathname.startsWith('/assets/')){
-      const target=pathname.slice(8),descriptor=this.index.assets[assetPartition(target)];
+    if(data==='asset'){
+      const descriptor=this.index.assets[assetPartition(tail)];
       if(descriptor){const entries=await this.read(descriptor);store.assets=new Map(entries.map(entry=>[entry.target,entry]));}
     }
-    if(pathname==='/' || pathname.startsWith('/browse/') || pathname==='/api/navigation'){
+    if(data==='navigation'){
       [store,engine.navigation]=await Promise.all([this.searchStore(),this.navigation()]);
-    }else if(pathname==='/api/search')store=await this.searchStore();
+    }else if(data==='search')store=await this.searchStore();
     engine.store=store;
     return {engine,store,index:this.index};
   }

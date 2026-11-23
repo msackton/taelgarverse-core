@@ -64,12 +64,12 @@ export function timings(log=timingLog) {
         if(!finished)phases[name]=Math.round(((phases[name] || 0)+performance.now()-start)*10)/10;
       }
     },
-    finish(route,status){
+    finish({data,timing},status){
       finished=true;
       const ms=Math.round((performance.now()-started)*10)/10;
       // Fixed route categories only: never URLs, queries, excerpts or errors.
-      if(['article','home','search','navigation'].includes(route) || status>=500 || ms>=1000)
-        log({event:'request-timing',route,status,ms,phases,failures,pending:[...active].filter(([,count])=>count>0).map(([name])=>name)});
+      if(data==='renderer' || data==='search' || data==='navigation' || status>=500 || ms>=1000)
+        log({event:'request-timing',route:timing,status,ms,phases,failures,pending:[...active].filter(([,count])=>count>0).map(([name])=>name)});
     },
   };
 }
