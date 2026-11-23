@@ -18,17 +18,17 @@ export function indexGrid(result,link,options={}) {
 
 export function indexTable(result,link,options={}) {
   const columns=indexTableColumns(result.from,result.columns);
-  const headings=columns.map(column=>indexColumnHeading(result.from,column));
+  const headings=columns.map(column=>result.columnHeadings?.[column]?.trim() ?? indexColumnHeading(result.from,column));
   const cell=(item,column)=>{
     if(column==='name')return indexName(item,link);
     const value=item[column];
-    const missing=['region','currentLocation','home'].includes(column) ? 'Unknown' : '—';
+    const missing=['region','currentLocation','home','origin'].includes(column) ? 'Unknown' : '—';
     if(Array.isArray(value))return formattedParts(value,link) || missing;
     if(column==='region' && value)return link(value);
     return escapeHtml(value || missing);
   };
   const rows=result.items.map(item=>'<tr>'+columns.map(column=>'<td>'+cell(item,column)+'</td>').join('')+'</tr>').join('');
-  return indexSection(result,rows ? '<div class="taelgar-index-table-scroll"><table class="taelgar-index-table"><thead><tr>'+headings.map(heading=>'<th scope="col">'+heading+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div>' : '',false,options);
+  return indexSection(result,rows ? '<div class="taelgar-index-table-scroll"><table class="taelgar-index-table"><thead><tr>'+headings.map(heading=>'<th scope="col">'+escapeHtml(heading)+'</th>').join('')+'</tr></thead><tbody>'+rows+'</tbody></table></div>' : '',false,options);
 }
 
 export function indexView(result,link,mode='grid',options={}) {
@@ -38,8 +38,10 @@ export function indexView(result,link,mode='grid',options={}) {
 function indexSection(result,content,showCount=true,{heading=false}={}) {
   const noun = result.items.length === 1 ? result.from : result.label.toLowerCase();
   const empty = 'No '+result.label.toLowerCase()+' found for this date.';
-  return '<section class="taelgar-index" aria-label="'+escapeHtml(result.label+' — '+result.target)+'">'+
-    (heading ? '<h2>'+escapeHtml(result.label)+'</h2>' : '')+
+  const headingText = typeof heading === 'string' ? heading.trim() : result.label;
+  const label = result.target ? headingText+' — '+result.target : headingText;
+  return '<section class="taelgar-index" aria-label="'+escapeHtml(label)+'">'+
+    (heading ? '<h2>'+escapeHtml(headingText)+'</h2>' : '')+
     (showCount ? '<p class="taelgar-index-count">'+result.items.length+' '+noun+'</p>' : '')+
     (content || '<p>'+empty+'</p>')+
     result.warnings.map(message=>'<p class="taelgar-index-warning">'+escapeHtml(message)+'</p>').join('')+'</section>';

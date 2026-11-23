@@ -237,7 +237,7 @@ frame and retains its normal campaign-history section.
 
 ## Generated indexes
 
-Use an inline `taelgar-index` block with `type: whereabouts` for locations or `type: affiliation` for rosters. Both require a page classification in `from`. Whereabouts also requires `via`. Affiliation accepts an optional `affiliationType`. See the [YAML reference and example](../../docs/vault.md#generated-indexes).
+Use an inline `taelgar-index` block with `type: whereabouts` for locations, `type: affiliation` for rosters, or `type: catalog` for a list filtered by frontmatter. All three require a page classification in `from`. Whereabouts requires `via` and supports the geographic root `Taelgar`. Affiliation accepts an optional `affiliationType`. Catalogs require a nonempty `where` mapping. See the [YAML reference and example](../../docs/vault.md#generated-indexes).
 
 ## Install and update
 

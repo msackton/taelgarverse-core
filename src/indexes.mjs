@@ -1,10 +1,11 @@
 import {parse} from 'yaml';
 import {createHeaderContext, HeaderDataError} from './header-core/index.mjs';
 import {getPageType, pageTypes} from './header-core/metadata.mjs';
+import {TAELGAR_LOCATION} from './header-core/locations.mjs';
 import {matchAffiliation} from './index-affiliations.mjs';
 import {indexTableColumns, validateIndexTableOptions} from './index-columns.mjs';
 
-const keys = new Set(['type','from','via','affiliationType','target','recursive','scope','where','show','mode','heading','columns','sortBy']);
+const keys = new Set(['type','from','via','affiliationType','target','recursive','scope','where','show','mode','heading','columns','columnHeadings','sortBy']);
 const scalar = value => typeof value === 'string' || typeof value === 'boolean' || Number.isFinite(value);
 const mapping = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const compare = new Intl.Collator('en', {sensitivity:'base', numeric:true}).compare;
@@ -16,25 +17,29 @@ const hasLocation = record => reference(record?.location) && reference(record.lo
 function validate(options) {
   if (!mapping(options)) throw new Error('Use a YAML mapping for a taelgar-index.');
   for (const key of Object.keys(options)) if (!keys.has(key)) throw new Error('Unknown index option: ' + key);
-  if (options.type !== 'whereabouts' && options.type !== 'affiliation') throw new Error('type must be whereabouts or affiliation.');
+  if (!['whereabouts','affiliation','catalog'].includes(options.type)) throw new Error('type must be whereabouts, affiliation, or catalog.');
   if (!pageTypes.includes(options.from)) throw new Error('from must be one of: ' + pageTypes.join(', '));
   if (options.type === 'whereabouts') {
     if (!['home','current','lastKnown'].includes(options.via)) throw new Error('via must be home, current, or lastKnown.');
-    if (options.affiliationType !== undefined) throw new Error('affiliationType requires type: affiliation.');
-  } else {
-    if (options.via !== undefined) throw new Error('via requires type: whereabouts.');
-    if (options.affiliationType !== undefined) {
-      const kinds = [].concat(options.affiliationType);
-      if (!kinds.length || kinds.some(kind => typeof kind !== 'string' || !kind.trim())) {
-        throw new Error('affiliationType must be a nonempty string or a nonempty list of strings.');
-      }
+  } else if (options.via !== undefined) {
+    throw new Error('via requires type: whereabouts.');
+  }
+  if (options.affiliationType !== undefined) {
+    if (options.type !== 'affiliation') throw new Error('affiliationType requires type: affiliation.');
+    const kinds = [].concat(options.affiliationType);
+    if (!kinds.length || kinds.some(kind => typeof kind !== 'string' || !kind.trim())) {
+      throw new Error('affiliationType must be a nonempty string or a nonempty list of strings.');
     }
   }
   for (const [key, choices] of Object.entries({scope:['current','historical','ever'], show:['both','obsidian','website'], mode:['grid','table']})) {
     if (options[key] !== undefined && !choices.includes(options[key])) throw new Error(key + ' must be one of: ' + choices.join(', '));
   }
-  for (const key of ['recursive','heading']) {
-    if (options[key] !== undefined && typeof options[key] !== 'boolean') throw new Error(key + ' must be true or false.');
+  if (options.recursive !== undefined && typeof options.recursive !== 'boolean') {
+    throw new Error('recursive must be true or false.');
+  }
+  if (options.heading !== undefined && typeof options.heading !== 'boolean' &&
+    (typeof options.heading !== 'string' || !options.heading.trim())) {
+    throw new Error('heading must be true, false, or nonempty text.');
   }
   if (options.target !== undefined && (typeof options.target !== 'string' || !options.target.trim())) throw new Error('target must be a note name or path.');
   if (options.where !== undefined) {
@@ -43,6 +48,9 @@ function validate(options) {
       const values = Array.isArray(value) ? value : [value];
       if (!field || !values.length || !values.every(scalar)) throw new Error('where requires scalar values or nonempty lists of scalars.');
     }
+  }
+  if (options.type === 'catalog' && !Object.keys(options.where ?? {}).length) {
+    throw new Error('A catalog requires a nonempty where mapping.');
   }
   validateIndexTableOptions(options);
 }
@@ -80,7 +88,7 @@ function boundaryDays(records, first, last) {
 
 export function queryIndex(snapshot, options, {date, sourcePath, resolve, visible = () => true} = {}) {
   validate(options);
-  const {type, from, via, scope = 'current', recursive = type === 'whereabouts', where = {}, columns, sortBy} = options;
+  const {type, from, via, scope = 'current', recursive = type === 'whereabouts', where = {}, columns, columnHeadings, sortBy} = options;
   const affiliationTypes = options.affiliationType === undefined ? null : new Set([].concat(options.affiliationType));
   const {dates,names,locations,affiliations,templates} = createHeaderContext(snapshot,{date});
   const at = dates.normalizeDate(date);
@@ -97,8 +105,12 @@ export function queryIndex(snapshot, options, {date, sourcePath, resolve, visibl
     }
     return cache.get(ref);
   }
-  const target = options.target ? lookup(options.target,sourcePath) : byPath.get(sourcePath);
-  if (!target || !visible(target)) throw new Error('The index target is unavailable.');
+  const taelgarRoot = type === 'whereabouts' && reference(options.target) === TAELGAR_LOCATION;
+  let target;
+  if (type !== 'catalog' && !taelgarRoot) {
+    target = options.target ? lookup(options.target,sourcePath) : byPath.get(sourcePath);
+    if (!target || !visible(target)) throw new Error('The index target is unavailable.');
+  }
   function recordsFor(page) {
     if (!records.has(page.metadata)) records.set(page.metadata,locations.getWhereaboutsList(page.metadata));
     return records.get(page.metadata);
@@ -126,9 +138,10 @@ export function queryIndex(snapshot, options, {date, sourcePath, resolve, visibl
     let cycle;
     function visit(record, source, ancestors) {
       if (!hasLocation(record)) return false;
+      if (taelgarRoot && reference(record.location) === TAELGAR_LOCATION) return true;
       const parent = lookup(record.location,source);
       if (!parent) return false;
-      if (parent.path === target.path) return true;
+      if (parent.path === target?.path) return true;
       if (!recursive) return false;
       if (ancestors.has(parent.path)) { cycle = true; return false; }
       ancestors.add(parent.path);
@@ -154,7 +167,7 @@ export function queryIndex(snapshot, options, {date, sourcePath, resolve, visibl
         history.push(record);
         if (recursive) {
           const parent = lookup(record.location,ancestor.path);
-          if (parent && parent.path !== target.path && !seen.has(parent.path)) pending.push(parent);
+          if (parent && parent.path !== target?.path && !seen.has(parent.path)) pending.push(parent);
         }
       }
     }
@@ -188,7 +201,7 @@ export function queryIndex(snapshot, options, {date, sourcePath, resolve, visibl
   }
   for (const page of byType.get(from)) {
     const metadata = page.metadata;
-    if (!visible(page) || page.path === target.path || !filters.every(([key,value]) =>
+    if (!visible(page) || page.path === target?.path || !filters.every(([key,value]) =>
       Object.hasOwn(metadata,key) && (Array.isArray(value) ? value.includes(metadata[key]) : metadata[key] === value))) continue;
     try {
       const life = dates.getPageDates(metadata,at);
@@ -199,7 +212,9 @@ export function queryIndex(snapshot, options, {date, sourcePath, resolve, visibl
       const affiliation = type === 'affiliation' ? matchAffiliation(
         affiliations.getAffiliations(metadata,until), page.path, {target, lookup, recursive, scope, affiliationTypes, first, until}
       ) : undefined;
-      const matched = type === 'affiliation' ? affiliation?.date : matchDate(page,first,until);
+      let matched = until;
+      if (type === 'whereabouts') matched = matchDate(page,first,until);
+      if (type === 'affiliation') matched = affiliation?.date;
       if (!matched) continue;
       const format = template => templates.formatDisplayString(template,{name:page.name,frontmatter:metadata},at);
       const item = {path:page.path,name:format('<name:n>'),type:format('<maintype:n>'),
@@ -210,6 +225,9 @@ export function queryIndex(snapshot, options, {date, sourcePath, resolve, visibl
         item.info = formattedParts(format('<ancestry> <maintype>'),page.path);
       }
       if (fields.has('home')) item.home = formattedParts(format('<home:1>'),page.path);
+      if (fields.has('origin') && hasLocation(whereabouts(page,at).origin)) {
+        item.origin = formattedParts(format('<origin:1>'),page.path);
+      }
       if (fields.has('currentLocation')) {
         const current = whereabouts(page,at).current;
         item.currentLocation = !ended && hasLocation(current) && lookup(current.location,page.path) ?
@@ -262,5 +280,6 @@ export function queryIndex(snapshot, options, {date, sourcePath, resolve, visibl
   });
   const label = {person:'People',place:'Places',object:'Objects',event:'Events',group:'Groups',power:'Powers',ancestry:'Ancestries',creature:'Creatures'}[from];
   return {from,label:(scope === 'historical' ? 'Historical ' : scope === 'ever' ? 'All-time ' : '') + label,
-    target:names.getNameObject(target.path).name || target.name, items,warnings:[...warnings],columns};
+    target:taelgarRoot ? TAELGAR_LOCATION : target && (names.getNameObject(target.path).name || target.name),
+    items,warnings:[...warnings],columns,columnHeadings};
 }

@@ -1,4 +1,6 @@
 import {HeaderDataError} from './errors.mjs';
+
+export const TAELGAR_LOCATION = 'Taelgar';
 // Maintained shared header logic. The legacy generated module remains a reference.
 export class WhereaboutsManager {
     constructor({dates, names}) {
@@ -212,13 +214,13 @@ export class WhereaboutsManager {
             }]
         }
 
-        if (whereabout.location == "Taelgar") {
-            // Taelgar is handling specially
+        if (whereabout.location === TAELGAR_LOCATION) {
+            // The geographic root links to the Gazetteer in displayed locations.
             if (thisDepth > 1) return []
             if (filter.includes("r")) return []
 
             return [{
-                name: names.getNameObject("Taelgar", sourcePageType, { alias: whereabout.alias, linkText: whereabout.linkText, linkTarget: "Gazetteer" }),
+                name: names.getNameObject(TAELGAR_LOCATION, sourcePageType, { alias: whereabout.alias, linkText: whereabout.linkText, linkTarget: "Gazetteer" }),
                 format: whereabout.format
             }]
         }

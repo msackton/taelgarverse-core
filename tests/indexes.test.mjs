@@ -58,6 +58,80 @@ test('ever follows nested whereabouts on the same day and honors visibility and 
   assert.deepEqual(paths(result(false)).filter(id=>Object.hasOwn(extraNotes,id)),[]);
 });
 
+test('Taelgar is a direct or recursive geographic root without a target note',()=>{
+  const {runtime}=fixture({
+    'Places/Outer Region.md':{tags:['place'],typeOf:'region',whereabouts:'Taelgar'},
+    'Places/Nested Region.md':{tags:['place'],typeOf:'region',whereabouts:'Outer Region'},
+    'Places/Future Region.md':{tags:['place'],typeOf:'region',whereabouts:'Taelgar',created:1730},
+    'Places/Unrelated Region.md':{tags:['place'],typeOf:'region',whereabouts:'Unresolved'},
+  });
+  const options=parseIndex('type: whereabouts\nfrom: place\nvia: home\ntarget: "[[Taelgar]]"\nwhere: {typeOf: region}');
+  const context={date:'1720-01-01',resolve:(name)=>runtime.pages.find(page=>page.name===name)};
+  const result=queryIndex(runtime,{...options,recursive:false},context);
+  assert.equal(result.target,'Taelgar');
+  assert.deepEqual(paths(result),['Places/Outer Region.md']);
+  assert.deepEqual(paths(queryIndex(runtime,{...options,scope:'ever'},context)),['Places/Nested Region.md','Places/Outer Region.md']);
+  const hideContainer=page=>page.path!=='Places/Outer Region.md';
+  assert.deepEqual(paths(queryIndex(runtime,options,{...context,visible:hideContainer})),[]);
+});
+
+test('catalogs require filters, ignore the target, and render origin separately from current home',()=>{
+  const catalog='type: catalog\nfrom: place';
+  for (const suffix of ['', '\nwhere: {}']) {
+    assert.throws(()=>parseIndex(catalog+suffix),/nonempty where/);
+  }
+  assert.throws(()=>parseIndex(catalog+'\nwhere: {typeOf: plane}\nvia: home'),/via requires/);
+  const source=catalog+'\nwhere: {typeOf: plane}\ntarget: Missing Note\nmode: table\ncolumns: [name, origin, home]\nsortBy: [origin]';
+  const notes={
+    'Places/Former Group.md':{tags:['background']},
+    'Places/New Group.md':{tags:['background']},
+    'Places/Moved Plane.md':{tags:['place'],typeOf:'plane',created:1700,
+      whereabouts:[{type:'home',location:'Former Group',end:1710},{type:'home',location:'New Group',start:1711}]},
+    'Places/Ungrouped Plane.md':{tags:['place'],typeOf:'plane'},
+    'Places/Hidden Plane.md':{tags:['place'],typeOf:'plane'},
+    'Places/Future Plane.md':{tags:['place'],typeOf:'plane',created:1730},
+    'Places/Ended Plane.md':{tags:['place'],typeOf:'plane',destroyed:1715},
+  };
+  const {runtime}=fixture(notes);
+  const options=parseIndex(source);
+  const context={date:'1720-01-01',sourcePath:'Places/Moved Plane.md',visible:page=>page.path!=='Places/Hidden Plane.md'};
+  const result=queryIndex(runtime,options,context);
+  assert.equal(result.target,undefined);
+  assert.deepEqual(paths(result),['Places/Moved Plane.md','Places/Ungrouped Plane.md']);
+  assert.ok(paths(queryIndex(runtime,{...options,scope:'historical'},context)).includes('Places/Ended Plane.md'));
+  assert.ok(paths(queryIndex(runtime,{...options,target:undefined},context)).includes(context.sourcePath));
+
+  const engine=website({...indexSources(notes),
+    'Plane Catalog.md':'```taelgar-index\n'+source+'\n```',
+  });
+  const $=load(engine.render('Plane Catalog','1720-01-01','custom').html,{},false);
+  assert.equal($('.taelgar-index').attr('aria-label'),'Places');
+  assert.deepEqual($('th').map((_,cell)=>$(cell).text()).get(),['Place','Origin','Home']);
+  const moved=$('tbody tr').first();
+  assert.match(moved.find('td').eq(1).find('a').attr('href'),/former-group/);
+  assert.match(moved.find('td').eq(2).find('a').attr('href'),/new-group/);
+  assert.equal($('tbody tr').last().find('td').eq(1).text(),'Unknown');
+});
+
+test('indexes render custom headings as plain text and retain unrenamed column labels',()=>{
+  const query='type: catalog\nfrom: place\nwhere: {typeOf: plane}\nmode: table\ncolumns: [name, origin, home]';
+  const custom=query+'\nheading: "Planes & realms"\ncolumnHeadings: {name: Plane, origin: "<Planar group>"}';
+  const engine=website({
+    ...indexSources({'Plane.md':{tags:['place'],typeOf:'plane'}}),
+    'Custom headings.md':'```taelgar-index\n'+custom+'\n```',
+  });
+  const $=load(engine.render('Custom headings','1720-01-01','custom').html,{},false);
+  assert.equal($('.taelgar-index h2').text(),'Planes & realms');
+  assert.equal($('.taelgar-index').attr('aria-label'),'Planes & realms');
+  assert.deepEqual($('th').map((_,cell)=>$(cell).text()).get(),['Plane','<Planar group>','Home']);
+  assert.equal($('th').eq(1).children().length,0);
+  assert.throws(()=>parseIndex(query+'\nheading: " "'),/heading must/);
+  assert.throws(()=>parseIndex(query+'\ncolumnHeadings: {type: Kind}'),/undisplayed column/);
+  assert.throws(()=>parseIndex(query+'\ncolumnHeadings: {name: false}'),/nonempty text/);
+  assert.throws(()=>parseIndex(query+'\ncolumnHeadings: []'),/mapping/);
+  assert.throws(()=>parseIndex('type: catalog\nfrom: place\nwhere: {typeOf: plane}\ncolumnHeadings: {name: Plane}'),/mode: table/);
+});
+
 test('geography columns can be reordered and sorted by visible or hidden fields',()=>{
   const sources=indexSources({
     'Places/Alpha Region.md':{tags:['place'],typeOf:'region',whereabouts:'Realm'},
@@ -206,12 +280,12 @@ test('site renders inline queries and ignores header indexes on places and group
   assert.equal((await handleRequest(new Request('https://test.invalid/api/index?page=Town&type=places'),engine)).status,404);
 });
 
-test('only affiliation and whereabouts are valid index types, at both public entry points',()=>{
+test('retired and unknown index types are rejected at both public entry points',()=>{
   const {runtime}=fixture();
   const invalid=['residents','people-in-place','members','places','settlements','rivers','affiliations','toString',''];
   for (const type of invalid) {
-    assert.throws(()=>parseIndex('from: person\ntype: '+JSON.stringify(type)),/type must be whereabouts or affiliation/);
-    assert.throws(()=>queryIndex(runtime,{from:'person',type},{date:'1720-01-01'}),/type must be whereabouts or affiliation/);
+    assert.throws(()=>parseIndex('from: person\ntype: '+JSON.stringify(type)),/type must be whereabouts, affiliation, or catalog/);
+    assert.throws(()=>queryIndex(runtime,{from:'person',type},{date:'1720-01-01'}),/type must be whereabouts, affiliation, or catalog/);
   }
   assert.equal(parseIndex('type: affiliation\nfrom: person').recursive,false);
   assert.equal(parseIndex('type: whereabouts\nfrom: person\nvia: home').recursive,true);

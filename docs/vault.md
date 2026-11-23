@@ -319,24 +319,57 @@ heading: false
 
 | Key | Values and behavior |
 | --- | --- |
-| `type` | Required. Exactly `whereabouts` or `affiliation`. |
+| `type` | Required. Choose `whereabouts`, `affiliation`, or `catalog`. |
 | `from` | Required page classification. Choose `person`, `place`, `object`, `group`, `power`, `event`, `ancestry` or `creature`. |
 | `via` | Required for `whereabouts`. Choose `home`, `current` or `lastKnown`. |
 | `affiliationType` | Optional for `affiliation`. Match a normalized relationship type such as `leader` or any in a list such as `[member, primary]`. Omit to include every type. |
-| `target` | Any resolvable, visible note name, alias or path. Quote wikilinks. The default is the note containing the block, including in a transclusion. |
+| `target` | Any resolvable, visible note name, alias or path. Quote wikilinks. The default is the note containing the block, including in a transclusion. Whereabouts also accepts the geographic root `Taelgar`. Catalogs ignore this option. |
 | `recursive` | Boolean. Defaults to `true` for whereabouts and `false` for affiliation. Use `false` for direct matches. |
 | `scope` | `current` (default), `historical` or `ever`. |
-| `where` | Optional mapping of top-level result frontmatter fields. Fields combine with AND. A nonempty list of alternatives within a field means OR. Exact scalar matches preserve case and YAML types (string, number or boolean). Missing or list-valued fields do not match. An empty mapping accepts every candidate. |
+| `where` | Optional mapping of top-level result frontmatter fields. Fields combine with AND. A nonempty list of alternatives within a field means OR. Exact scalar matches preserve case and YAML types (string, number or boolean). Missing or list-valued fields do not match. An empty mapping accepts every candidate for whereabouts and affiliation queries. Catalogs require at least one field. |
 | `show` | `both` (default), `website` or `obsidian`. |
 | `mode` | `grid` (default) or `table`. Grids show linked cards and available lead images. |
-| `heading` | Boolean, default `true`. Set `false` beneath an authored heading to suppress the generated H2. |
+| `heading` | Use `true` (default) for the generated H2, a nonempty text label for a custom H2, or `false` to suppress it. |
 | `columns`, `sortBy` | Table-only, ordered nonempty lists of distinct column names. Sort keys may be hidden. Sorting is ascending, with missing values last and name/path breaking ties. |
+| `columnHeadings` | Table-only mapping from displayed column keys to nonempty text labels. Any column omitted from the mapping keeps its default label. Use the original keys in `columns` and `sortBy`. |
 
 The first hop for `home` is exclusively the subject's recorded home. For `current`, either the dated current or active secondary location may match. For `lastKnown`, use the current geography when known. When only an earlier primary sighting is known, evaluate its secondary and the entire containing chain on the day of that sighting. A secondary alone can place a subject while active. Subsequent hops use each container's current and active secondary on the same day. Targets and candidates follow host visibility rules, as do intermediate locations. Cycles are reported and an independent matching path can still qualify.
 
 `current` scope evaluates living or existing subjects on the selected date. `historical` evaluates a subject that has since died or been destroyed at its end date. `ever` finds a matching day within its lifetime through the selected date. The current-location column always refers to the reader's date.
 
-All kinds support `name`, `type`, `home` and `currentLocation`. People also support `info`, `born` and `died`. Other kinds support `created` and `destroyed`, and places additionally support `region` and `population`. People default to `[name, info, currentLocation, home]`, other kinds to `[name, type]`. Places sort by displayed type then name by default. Other kinds sort by name.
+All kinds support `name`, `type`, `home`, `currentLocation`, and `origin`. Origin shows the recorded home at birth or creation, using the earliest in-world date if neither is recorded. People also support `info`, `born` and `died`. Other kinds support `created` and `destroyed`, and places additionally support `region` and `population`. People default to `[name, info, currentLocation, home]`, other kinds to `[name, type]`. Places sort by displayed type then name by default. Other kinds sort by name.
+
+For top-level regions, query the geographic root directly. The name `Taelgar` matches that location reference without a note of that name. Set `recursive: true` to follow visible intermediate locations to that root.
+
+````markdown
+```taelgar-index
+type: whereabouts
+from: place
+via: home
+target: Taelgar
+recursive: false
+where: {typeOf: region}
+mode: table
+columns: [name]
+```
+````
+
+### Catalogs
+
+A catalog lists visible pages of the selected classification that match a nonempty `where` mapping. It can include pages without locations or affiliations. The default scope lists pages in existence at the selected date. Both `historical` and `ever` also include subjects whose existence ended by that date.
+
+````markdown
+```taelgar-index
+type: catalog
+from: place
+where: {typeOf: plane}
+mode: table
+columns: [name, origin]
+columnHeadings: {name: Plane, origin: Planar Group}
+heading: Planes of the Multiverse
+sortBy: [origin, name]
+```
+````
 
 ### Affiliation rosters
 
