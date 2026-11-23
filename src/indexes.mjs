@@ -19,12 +19,9 @@ function validatePlaceType(type,placeType) {
   if (placeType !== 'built' && placeType !== 'natural') throw new Error('placeType must be built or natural.');
 }
 
-function validateMembershipOptions({type,membership,ignoreDeath,columns,mode}) {
-  if (type !== 'members' && [membership,ignoreDeath,columns].some(value=>value !== undefined)) {
-    throw new Error('membership, ignoreDeath, and columns are only supported for members indexes.');
-  }
-  if (membership !== undefined && !['current','historical'].includes(membership)) throw new Error('membership must be current or historical.');
-  if (ignoreDeath !== undefined && typeof ignoreDeath !== 'boolean') throw new Error('ignoreDeath must be true or false.');
+function validateScopeAndColumns({type,scope,columns,mode}) {
+  if (scope !== undefined && !['current','historical','ever'].includes(scope)) throw new Error('scope must be current, historical, or ever.');
+  if (type !== 'members' && columns !== undefined) throw new Error('columns is only supported for members indexes.');
   if (columns !== undefined && (columns !== 'life-dates' || mode !== 'table')) {
     throw new Error('columns must be life-dates and requires mode: table.');
   }
@@ -48,7 +45,7 @@ export function headerIndexesForMetadata(metadata = {}) {
 export function parseIndex(source) {
   const value = parse(source,{maxAliasCount:20});
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Use YAML with a supported index type: '+indexTypes+'.');
-  for (const key of Object.keys(value)) if (!['type','target','show','recursive','mode','placeType','heading','membership','ignoreDeath','columns'].includes(key)) throw new Error('Unknown index option: '+key);
+  for (const key of Object.keys(value)) if (!['type','target','show','recursive','mode','placeType','heading','scope','columns'].includes(key)) throw new Error('Unknown index option: '+key);
   if (typeof value.type !== 'string' || !Object.hasOwn(indexLabels,value.type)) throw new Error('type must be one of: '+indexTypes+'.');
   if (value.target !== undefined && (typeof value.target !== 'string' || !value.target.trim())) throw new Error('target must be a note name or path.');
   if (value.show !== undefined && !['obsidian','website','both'].includes(value.show)) throw new Error('show must be obsidian, website, or both.');
@@ -56,11 +53,10 @@ export function parseIndex(source) {
   if (value.mode !== undefined && !['grid','table'].includes(value.mode)) throw new Error('mode must be grid or table.');
   if (value.heading !== undefined && typeof value.heading !== 'boolean') throw new Error('heading must be true or false.');
   validatePlaceType(value.type,value.placeType);
-  validateMembershipOptions(value);
+  validateScopeAndColumns(value);
   return {type:value.type,target:value.target?.trim(),show:value.show ?? 'both',recursive:value.recursive ?? value.type !== 'members',mode:value.mode ?? 'grid',heading:value.heading ?? true,
     ...(value.placeType !== undefined ? {placeType:value.placeType} : {}),
-    ...(value.membership !== undefined ? {membership:value.membership} : {}),
-    ...(value.ignoreDeath !== undefined ? {ignoreDeath:value.ignoreDeath} : {}),
+    ...(value.scope !== undefined ? {scope:value.scope} : {}),
     ...(value.columns !== undefined ? {columns:value.columns} : {})};
 }
 
@@ -73,6 +69,7 @@ const currentLocation = whereabouts => {
 const compareNames=new Intl.Collator('en',{sensitivity:'base',numeric:true}).compare;
 const comparePaths=new Intl.Collator('en').compare;
 const candidateIndexes=new WeakMap();
+const dateAtDay=day=>({sort:day,days:day,isNormalizedDate:true});
 
 function indexCandidates(snapshot) {
   let index=candidateIndexes.get(snapshot);
@@ -101,20 +98,26 @@ export function queryIndex(snapshot,options,context) {return runIndexQuery(snaps
 export function indexHasResults(snapshot,options,context) {return runIndexQuery(snapshot,options,context,true);}
 
 function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>true}={},firstOnly=false) {
-  const {type,recursive=type !== 'members'} = options;
+  const {type,scope,recursive=type !== 'members'} = options;
   if (!Object.hasOwn(indexLabels,type)) throw new Error('Unknown index type.');
   validatePlaceType(type,options.placeType);
-  validateMembershipOptions(options);
+  validateScopeAndColumns(options);
   const isMemberIndex=type==='members',presence=type==='people-in-place';
-  const historical=options.membership==='historical',lifeDates=options.columns==='life-dates';
+  const lifeDates=options.columns==='life-dates';
   const {dates,names,locations,affiliations,templates} = createHeaderContext(snapshot,{date});
   const at = dates.normalizeDate(date);
   const candidates=indexCandidates(snapshot),{byPath,people}=candidates;
   const placeIndex=type==='settlements' || type==='rivers' || type==='places';
-  const resolved=new Map(),whereaboutsCache=new WeakMap();
-  const whereaboutsFor=metadata=>{
-    if(!whereaboutsCache.has(metadata))whereaboutsCache.set(metadata,locations.getWhereabouts(metadata,at));
-    return whereaboutsCache.get(metadata);
+  const resolved=new Map(),whereaboutsRecords=new WeakMap(),whereaboutsCache=new WeakMap();
+  const recordsFor=metadata=>{
+    if(!whereaboutsRecords.has(metadata))whereaboutsRecords.set(metadata,locations.getWhereaboutsList(metadata));
+    return whereaboutsRecords.get(metadata);
+  };
+  const whereaboutsFor=(metadata,when=at)=>{
+    let byDay=whereaboutsCache.get(metadata);
+    if(!byDay){byDay=new Map();whereaboutsCache.set(metadata,byDay);}
+    if(!byDay.has(when.sort))byDay.set(when.sort,locations.getWhereabouts(metadata,when,recordsFor(metadata)));
+    return byDay.get(when.sort);
   };
   const lookup = (target,source=sourcePath) => {
     target=linkTarget(target);
@@ -148,27 +151,67 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
     }
     return false;
   };
-  // Presence starts at a current location, while Residents start at home.
-  // Place indexes also accept last-known and secondary locations as starting points.
-  const inLocation = (whereabouts,source) => {
+  const visibleLocation=page=>page && (!(presence || scope) || visible(page));
+  // Geography also matches secondary locations. Existing blocks can additionally
+  // start from a last-known place when the selected date has no current location.
+  const inLocation = (candidate,when) => {
+    const whereabouts=whereaboutsFor(candidate.metadata,when),source=candidate.path;
     let cycle;
     const visit = (location,source,visited=[]) => {
       const page=lookup(location,source);
-      if (!page || (presence && !visible(page))) return false;
+      if (!visibleLocation(page)) return false;
       if (page.path === target.path) return true;
       if (!recursive) return false;
       if (visited.includes(page.path)) {cycle ??= [...visited,page.path];return false;}
       const nextVisited=[...visited,page.path];
-      const next=whereaboutsFor(page.metadata);
+      const next=whereaboutsFor(page.metadata,when);
       return visit(next.current.location,page.path,nextVisited) || visit(next.secondary.location,page.path,nextVisited);
     };
     let matched;
     if (type === 'residents') matched=visit(whereabouts.home.location,source);
     else if (presence) matched=visit(currentLocation(whereabouts),source);
-    else matched=visit((whereabouts.current.location ? whereabouts.current : whereabouts.lastKnown).location,source) ||
+    else matched=visit(scope ? currentLocation(whereabouts) : (whereabouts.current.location ? whereabouts.current : whereabouts.lastKnown).location,source) ||
       visit(whereabouts.secondary.location,source);
     if (!matched && cycle) throw new HeaderDataError('location',cycle);
     return matched;
+  };
+  // On either side of a whereabouts boundary, every link in the containment
+  // chain must be evaluated on the same day. Probe the last day of each period.
+  const historicalLocationDays=(candidate,first,last)=>{
+    const days=new Set(),pending=[candidate],seen=new Set();
+    let canReachTarget=false;
+    while(pending.length) {
+      const page=pending.pop();
+      if(seen.has(page.path))continue;
+      seen.add(page.path);
+      for(const record of recordsFor(page.metadata)) {
+        for(const day of [record.logicalStart.sort-1,record.logicalEnd.sort,record.awayEnd.sort]) {
+          if(first<=day && day<last)days.add(day);
+        }
+        const next=lookup(record.location,page.path);
+        if(!visibleLocation(next))continue;
+        if(next.path===target.path)canReachTarget=true;
+        else if(recursive)pending.push(next);
+      }
+    }
+    return canReachTarget ? [...days].sort((a,b)=>b-a) : [];
+  };
+  const matchEver=(candidate,first,last)=>{
+    let cycle;
+    const matches=when=>{
+      try{return inLocation(candidate,when);}
+      catch(error){
+        if(!(error instanceof HeaderDataError))throw error;
+        cycle=error;
+        return false;
+      }
+    };
+    if(matches(last))return last;
+    for(const day of historicalLocationDays(candidate,first,last.sort)) {
+      const when=dateAtDay(day);
+      if(matches(when))return when;
+    }
+    if(cycle)throw cycle;
   };
   const locationItem = (whereabout,source) => {
     const page=whereabout.location ? lookup(whereabout.location,source) : undefined;
@@ -200,16 +243,29 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
     if (options.placeType && !placeTypes[options.placeType].has(metadata.typeOf)) continue;
     try {
       const life=dates.getPageDates(metadata,at);
-      if (!life.isCreated && (!isMemberIndex || historical || lifeDates || options.ignoreDeath)) continue;
-      if (!life.isAlive && (type === 'residents' || presence)) continue;
+      const first=Number.isFinite(life.startDate?.sort) ? life.startDate.sort : -Infinity;
+      let matchDate=at;
+      if(scope) {
+        if(first>at.sort)continue;
+        const end=dates.normalizeDate(placeIndex ? metadata.destroyed : metadata.died,true);
+        if(Number.isFinite(end?.sort) && !end.isHiddenDate && end.sort<at.sort) {
+          if(scope==='current' || end.sort<first)continue;
+          matchDate=end;
+        }
+      } else {
+        if(!life.isCreated && (!isMemberIndex || lifeDates))continue;
+        if(!life.isAlive && (type==='residents' || presence))continue;
+      }
       let roles=[];
       if (isMemberIndex) {
-        roles=affiliations.getAffiliations(metadata,at,{ignoreDeath:options.ignoreDeath}).filter(item=>
-          (historical || at.sort<=item.endDate.sort) && inOrganization(item.org,page.path));
+        roles=affiliations.getAffiliations(metadata,matchDate).filter(item=>
+          (scope==='ever' ? Math.max(first,item.startDate.sort)<=Math.min(matchDate.sort,item.endDate.sort) :
+            matchDate.sort<=item.endDate.sort) && inOrganization(item.org,page.path));
         if (!roles.length) continue;
       } else {
-        const whereabouts=whereaboutsFor(metadata);
-        if (!inLocation(whereabouts,page.path)) continue;
+        if(scope==='ever')matchDate=matchEver(page,first,matchDate);
+        else if(!inLocation(page,matchDate))continue;
+        if(!matchDate)continue;
       }
       if(firstOnly)return true;
       const description=placeIndex ? plain(metadata.typeOfAlias || metadata.typeOf) :
@@ -218,7 +274,7 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
         isMemberIndex ? [...new Set(roles.map(role=>plain(role.title)).filter(Boolean))].join(' · ') : '';
       const settlement=type === 'settlements' ? {
         name:templates.formatDisplayString('<name:n>',{name:page.name,frontmatter:metadata},at),
-        region:locationItem(whereaboutsFor(metadata).home,page.path),
+        region:locationItem(whereaboutsFor(metadata,matchDate).home,page.path),
         settlementType:templates.formatDisplayString('<maintype:n>',{name:page.name,frontmatter:metadata},at),
         population:templates.formatDisplayString('<population>',{name:page.name,frontmatter:metadata},at),
       } : {};
@@ -258,6 +314,7 @@ function runIndexQuery(snapshot,options,{date,sourcePath,resolve,visible=()=>tru
   items.sort((a,b)=>(lifeDates ? a.birthOrder-b.birthOrder : type === 'settlements' ? compareNames(a.region?.name || 'Unknown',b.region?.name || 'Unknown') :
     type==='rivers' || type==='places' ? compareNames(a.placeType || 'Unknown',b.placeType || 'Unknown') : 0) ||
     compareNames(a.name,b.name) || comparePaths(a.path,b.path));
-  return {type,label:historical ? 'Historical Members' : indexLabels[type],target:displayName(target),items,warnings:[...warnings],
+  const label=(scope==='historical' ? 'Historical ' : scope==='ever' ? 'All-time ' : '')+indexLabels[type];
+  return {type,label,target:displayName(target),items,warnings:[...warnings],
     ...(lifeDates ? {columns:'life-dates'} : {})};
 }

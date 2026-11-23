@@ -17,7 +17,7 @@ function indexState(snapshot) {
   return state;
 }
 const indexKey=(options,sourcePath,date)=>JSON.stringify([sourcePath,options.type,options.target,options.recursive ?? options.type!=='members',
-  options.placeType,options.membership ?? 'current',options.ignoreDeath ?? false,options.columns,date]);
+  options.placeType,options.scope,options.columns,date]);
 const indexContext=(app,state,sourcePath,date)=>({date,sourcePath,resolve:(target,source)=>{
   const file=app.metadataCache.getFirstLinkpathDest(target,source);
   return file ? state.pages.get(file.path) : state.resolveAlias(target);

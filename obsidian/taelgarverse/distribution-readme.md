@@ -83,11 +83,12 @@ people currently in the place, including visitors. Residents who are away and
 people whose whereabouts are unknown are omitted. Set `recursive: false`
 inline to limit results to the immediate place.
 
-An inline `type: members` index with `membership: historical` includes everyone
-who had joined by the selected date, including former and deceased members.
-Set `ignoreDeath: true` with current membership to omit death as the default
-affiliation end date while retaining explicit end dates. Set `mode: table` and
-`columns: life-dates` for Person, Info, Born, and Died.
+All inline indexes accept `scope: current` for matches at the selected date,
+`scope: historical` to also include matches at death or destruction, and
+`scope: ever` for any match through the selected date. Replace
+`membership: historical` with `scope: ever`. Use `scope: historical` for
+memberships active at death. Set `mode: table` and `columns: life-dates`
+for Person, Info, Born, and Died in Members tables.
 
 ## Generated headers
 
