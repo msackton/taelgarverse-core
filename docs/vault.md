@@ -311,6 +311,7 @@ indexes: [residents, settlements]
 ```
 
 For a watershed use `indexes: [rivers]`; for a town use `indexes: [places]`.
+Use `indexes: [people-in-place]` to show a People Present button on a place.
 For an organization (`tags: [group]`), Members is enabled automatically when
 `indexes` is omitted. Set `indexes: []` to suppress it, or provide another
 valid array to choose the header indexes explicitly. Types can be combined in
@@ -334,6 +335,7 @@ JavaScript, website buttons include a link to the index content.
 | Index | Results at the selected in-world date |
 | --- | --- |
 | `residents` | Living people whose active home is in the target place or a contained location, following `homeLocation(target, metadata, false, date)`. Traveling residents remain included; transients whose home is elsewhere are excluded, even when their current, secondary or last-known location is here. |
+| `people-in-place` | Living people whose current whereabouts are in the target place or a contained location. Includes visitors and residents who are present. Away residents, last-known sightings and secondary whereabouts alone do not qualify. |
 | `settlements` | Places with `typeOf: settlement` within the target place, including nested regions and destroyed settlements, but excluding places not yet created. Matches the current location, or last-known location when current is unknown, and also secondary locations. |
 | `members` | People with an active affiliation or leadership relationship to the target organization, following `isAffiliated(target, file, date)`. Direct membership is the default; past memberships are excluded. |
 | `rivers` | Place notes with `typeOf: waterway` or `typeOf: lake` in the target place or watershed. Always includes lakes alongside rivers, streams, brooks and other waterway subtypes; marine features are excluded. Membership follows primary/current, last-known and secondary `whereabouts`, including secondary watershed membership and nested tributary locations. |
@@ -352,7 +354,7 @@ Members use the affiliation's inclusive start/end dates directly. An omitted
 end date defaults to the person's death date when known; explicit affiliation
 dates retain the helper's behavior, without an additional living-person filter.
 People cards show Person and Info using the same templates as tables. Residents
-cards also show Current Location and Home. Member cards show the member note's
+and People Present cards also show Current Location and Home. Member cards show the member note's
 first authored sentence and roles instead of location fields.
 Descriptions come from the first ordinary prose paragraph after filtering
 comments for the selected date, campaigns and DM mode. Headings, callouts and
@@ -383,17 +385,48 @@ show: both
 
 | Block option | Values and default |
 | --- | --- |
-| `type` | Required: `residents`, `settlements`, `members`, `rivers`, or `places`. |
+| `type` | Required. Choose `residents`, `people-in-place`, `settlements`, `members`, `rivers`, or `places`. |
 | `target` | Note name, alias, or path; defaults to the note containing the block. Quote wikilinks, for example `target: "[[Cleenseau]]"`. Explicit `./` and `../` paths are relative to the containing note. |
 | `show` | `obsidian`, `website`, or `both` (default). The other renderer omits the entire block. Source mode still shows the editable definition. |
 | `mode` | `grid` (default) or `table`. Header popups always use the grid. |
 | `placeType` | Places only: `built` or `natural`. Omit to include all place types. Classification uses the note's `typeOf`, not its name or `typeOfAlias`. |
 | `heading` | Boolean, defaults to `true`. Set `false` to omit the inline index's H2 title. Table column headings, grid counts, and popup titles are unaffected. |
-| `recursive` | Boolean. Defaults to `true` for Residents, Settlements, Rivers and Places, and `false` for Members. `false` matches only the immediate location or organization; recursive Members also includes organizations connected through `partOf`. |
+| `recursive` | Boolean. Defaults to `true` for place indexes and `false` for Members. `false` matches only the immediate location or organization. Recursive Members also includes organizations connected through `partOf`. |
+| `membership` | Members only. `current` is the default. `historical` includes affiliations and leadership that started by the selected date, including ended relationships and deceased members. |
+| `ignoreDeath` | Members only. Defaults to `false`. Set to `true` to omit death as the implicit affiliation end date. Explicit end dates still apply to current membership. |
+| `columns` | Members tables only. Set to `life-dates` for Person, Info, Born, and Died. Sorts by birth date, with unknown birth dates last. Death dates appear once reached in the selected chronology. |
 
-Residents, Settlements, Rivers and Places require a place target; Members
-requires a group target. Rivers can also list waterways and lakes in a barony or other
-place; Places is not restricted to towns.
+Residents, People Present, Settlements, Rivers and Places require a place target.
+Members requires a group target. Rivers can also list waterways and lakes in a
+barony or other place; Places is not restricted to towns.
+
+Place this historical roster on a group note to show members' life dates:
+
+````markdown
+```taelgar-index
+type: members
+membership: historical
+mode: table
+columns: life-dates
+```
+````
+
+Use `type: members` with `ignoreDeath: true` for a current roster that can
+include deceased members whose affiliation has no explicit end date. Both
+options apply to inline blocks. The `indexes: [members]` header button still
+uses the default current membership rules.
+
+Place this table on a place note to list who is there at the selected date:
+
+````markdown
+```taelgar-index
+type: people-in-place
+mode: table
+```
+````
+
+Set `recursive: false` to require a direct match to the target. The table has
+the same Person, Info, Current Location, and Home columns as Residents.
 
 Places filters follow the vault's broad Place Categories:
 
@@ -426,7 +459,7 @@ mode: table
 Invalid definitions show a local error while leaving the article readable.
 Inline blocks in transcluded notes use that note as their default target.
 By default, every inline grid or table starts with an H2 heading matching the index label
-(Residents, Settlements, Members, Rivers or Places). Set `heading: false` when an
+(Residents, People Present, Settlements, Members, Historical Members, Rivers or Places). Set `heading: false` when an
 authored heading already supplies that context, for example:
 
 ````markdown
