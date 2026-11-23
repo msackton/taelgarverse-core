@@ -56,7 +56,7 @@ function host(settings={}) {
   const images=[{path:'portraits/alice.png',basename:'alice'}];
   const cache=events(),vault=events(),bodies=new Map();
   const app={metadataCache:{...cache,getFileCache:file=>file && {frontmatter:file.metadata ?? metadata.get(file.path)},
-    getFirstLinkpathDest:(target,source)=>[...files,...images].find(file=>file.path===target || file.path===target+'.md' || file.basename===target || metadata.get(file.path)?.aliases?.includes(target))},
+    getFirstLinkpathDest:(target,source)=>[...files,...images].find(file=>file.path===target || file.path===target+'.md' || file.basename===target)},
     vault:{...vault,configDir:'.obsidian',getRoot:()=>({path:''}),getMarkdownFiles:()=>files,getAbstractFileByPath:path=>files.find(file=>file.path===path) || indexed.files.get(path),
       adapter:{read:async path=>JSON.stringify(path.endsWith('metadata.json')?input.coreMeta:indexed.index)},
       cachedRead:async file=>bodies.get(file.path) ?? indexSources(Object.fromEntries(metadata))[file.path].replace('Authored prose.',file.path==='People/Alice.md' ? "Alice's first authored sentence. A second sentence." : 'Authored prose.'),
@@ -102,6 +102,33 @@ test('Obsidian inline indexes render current metadata, respect show, and open na
     const invalid=await h.block('type: residents\nshow: invalid');assert.match(invalid.element.textContent,/show must/);
   } finally {h.dispose();}
   assert.equal(h.intervals.size,0);assert.equal(h.cache.count,0);assert.equal(h.vault.count,0);
+});
+
+test('Obsidian place indexes follow aliases at intermediate locations and prefer a matching filename',async()=>{
+  const h=host();
+  try {
+    // Quarter is in Old Town (an alias for Town), and Shop is in Quarter.
+    for(const name of ['Quarter','Shop']) {
+      const path='Places/'+name+'.md';
+      h.metadata.set(path,featureIndexNotes[path]);
+      h.files.push({path,basename:name});
+    }
+    const places=async()=>{
+      const {element}=await h.block('type: places\nmode: table');
+      return Array.from(element.querySelectorAll('tbody tr td:first-child a'),a=>a.textContent);
+    };
+    assert.equal(h.app.metadataCache.getFirstLinkpathDest('Old Town','Places/Quarter.md'),undefined);
+    const viaAlias=await places();
+    assert.ok(viaAlias.includes('Quarter'));
+    assert.ok(viaAlias.includes('Shop'));
+    const path='Places/Old Town.md';
+    h.metadata.set(path,{tags:['place'],whereabouts:'Other Realm'});
+    h.files.push({path,basename:'Old Town'});
+    h.plugin.snapshots.invalidate();
+    const rows=await places();
+    assert.ok(!rows.includes('Quarter'));
+    assert.ok(!rows.includes('Shop'));
+  } finally {h.dispose();}
 });
 
 test('Obsidian caches membership modes and columns independently and renders People Present',async()=>{

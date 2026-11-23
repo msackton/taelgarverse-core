@@ -342,7 +342,10 @@ JavaScript, website buttons include a link to the index content.
 | `places` | All place notes within the target place, typically a town's buildings, landmarks and quarters. Optional `placeType: built` or `placeType: natural` filters the results. Includes places nested within quarters or other contained locations, and excludes the target itself, people and organizations. |
 
 Location containment follows the dated `whereabouts` chain, including the legacy
-place `partOf` fallback. Members compare resolved organization identities, so
+place `partOf` fallback. Each step can name a place by its frontmatter alias.
+Obsidian first resolves the reference from the note that contains it, then
+checks aliases case-insensitively if the native lookup finds no file.
+Members compare resolved organization identities, so
 aliases and full paths work. Place containment follows both current and
 secondary locations on each ancestor. Settlements matches `inLocation(target,
 metadata, true, true, date)`. Settlement results sort by their immediate dated home region,

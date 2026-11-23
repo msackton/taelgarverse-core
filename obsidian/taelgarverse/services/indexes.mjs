@@ -7,7 +7,11 @@ const MAX_INDEX_QUERIES=32;
 function indexState(snapshot) {
   let state=indexSnapshots.get(snapshot.runtime);
   if(!state) {
-    state={pages:new Map(snapshot.runtime.pages.map(page=>[page.path,page])),queries:new Map()};
+    state={
+      pages:new Map(snapshot.runtime.pages.map(page=>[page.path,page])),
+      resolveAlias:snapshot.runtime.resolveAlias,
+      queries:new Map(),
+    };
     indexSnapshots.set(snapshot.runtime,state);
   }
   return state;
@@ -16,7 +20,7 @@ const indexKey=(options,sourcePath,date)=>JSON.stringify([sourcePath,options.typ
   options.placeType,options.membership ?? 'current',options.ignoreDeath ?? false,options.columns,date]);
 const indexContext=(app,state,sourcePath,date)=>({date,sourcePath,resolve:(target,source)=>{
   const file=app.metadataCache.getFirstLinkpathDest(target,source);
-  return file && state.pages.get(file.path);
+  return file ? state.pages.get(file.path) : state.resolveAlias(target);
 }});
 export function obsidianIndexExists(app,snapshot,options,sourcePath,date) {
   const state=indexState(snapshot),cached=state.queries.get(indexKey(options,sourcePath,date));
