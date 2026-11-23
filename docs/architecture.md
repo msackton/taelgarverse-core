@@ -61,7 +61,7 @@ flowchart LR
 | `obsidian/taelgarverse/features/session-review.mjs`, `obsidian/taelgarverse/features/session-review-index.mjs`, `obsidian/taelgarverse/features/session-review-python.mjs`, `obsidian/taelgarverse/features/session-review-process.mjs`, `src/browser/session-review.mjs`, `src/browser/entity-review.mjs` | Focused entity-map table and human-review queue, explicit confirmation of changed transcript/session fingerprints, native session discovery, Python executable resolution, and bounded asynchronous process transport with normalized Windows launch paths. Vault-note content hashes do not guard processing. The vault entity review helpers own durable feedback JSON, recoverable map/history writes, and exclusive empty staging-note creation with campaign-folder and name-collision checks; guarded regeneration preserves human decisions. Their shared source reader opt-in permits actual transcript SHA inspection without weakening other workflows' default checks. Transcript corrections and finalization use the vault skills. See [session review](session-review.md). |
 | `obsidian/taelgarverse/python-runtime.mjs` | Shared Python executable discovery and Windows launch-path normalization for session review and Photoshop layer loading/export. Skips non-executable Windows aliases; callers retain their own transport, progress and cancellation behavior. |
 | `scripts/publish-content.mjs` | Git checkpoint, working vault copy, Node Dataview, Markdown cleanup, image optimization, upload, and activation. |
-| `scripts/materialize-website-dataview.mjs`, `src/dataview-node/`, `scripts/website-working-vault.mjs` | Copy source inputs and original file timestamps, prune underscore/`.nopublish` subtrees before copying, index the remaining working vault, and evaluate DQL in Node using a pinned Dataview bundle. No desktop process. |
+| `scripts/materialize-website-dataview.mjs`, `src/dataview-node/`, `scripts/website-working-vault.mjs` | Copy source inputs and original file timestamps, prune excluded files and folders before copying, index the article store's files, and evaluate DQL in Node using a pinned Dataview bundle. No desktop process. |
 | `src/dataview-node/bundle.mjs`, `scripts/cache-dataview.mjs` | Exact GitHub release pin, checksum verification, atomic local dependency-cache downloads, offline reuse and explicit bundle validation. The Node default never reads the vault's Dataview installation/settings. |
 | `scripts/publication-progress.mjs` | Phase status, elapsed time, optional local timing records, and ten-second progress reminders around publishing operations; timers stop on success or failure. |
 | `scripts/upload-content.mjs`, `scripts/cloudflare-client.mjs` | Separate incremental asset and snapshot transfers, bounded retries, request pacing, and shared refreshable Cloudflare credentials. Used by full and manual publication. |
@@ -77,7 +77,7 @@ flowchart LR
 | `scripts/hostname-firewall.mjs` | Adds validated publication/rollback hosts to the enabled, separately provisioned Taelgar WAF allowlist before remote pointer activation. Preserves existing entries and leaves other destinations/local previews untouched. See [hostname protection](hostname-protection.md#automatic-additions-during-publication). |
 | `src/search.mjs`, `src/search-types.mjs`, `src/local-search.mjs`, `src/search-view.mjs` | Read-only context/revision/type-filtered D1 queries, metadata-based exact-name ranking and type classification, identical local SQLite search, page-name fallback, and escaped result/excerpt rendering. See [search](search.md). |
 | `src/store.mjs`, `src/content-store.mjs` | Local filesystem scan, YAML parsing, page/asset lookup, shared availability rules. |
-| `src/folder-exclusions.mjs` | Discover original-vault `.nopublish` folder markers for local indexing, export packaging, and publication fingerprints. |
+| `src/folder-exclusions.mjs` | Share path eligibility between the working copy and article store, and discover original-vault `.nopublish` markers for local indexing, packaging, and publication fingerprints. |
 | `src/runtime-snapshot.mjs` | Load the compiled format-2 manifest and verify and cache route data, prepared notes and asset partitions on demand. |
 | `src/runtime-io.mjs`, `src/snapshot-cache.mjs` | Bounded storage waits and stream cleanup, request phase timings, and hash-verified immutable snapshot caching in the Workers Cache API. See [runtime performance](cloudflare.md#runtime-deadlines-caching-and-timings). |
 | `src/page-cache.mjs` | Worker-only HTML response caching, keyed by publication/build identity and full URL; browser ETag revalidation. |
@@ -287,8 +287,11 @@ without reading the vault's Dataview installation. `--dataview-directory` is an
 explicit bundle/settings override that bypasses downloading. Neither cache
 availability nor its machine path changes the default fingerprint; the release
 pin and settings policy do. Obsidian need not be installed or running.
-The default pin and explicitly selected bundle files participate in the
-fingerprint.
+The publisher uses esbuild's dependency graph to fingerprint local imports from
+`scripts/publish-content.mjs`. It hashes repository-relative filenames and
+line-ending-normalized contents in sorted order, plus the dependency lockfile.
+The pre-activation check discovers the graph again so it can detect edits made
+during preparation.
 Direct `prepareContent` calls use the same ordering and can supply a materialization
 callback; without one, DQL remains unavailable at render time.
 

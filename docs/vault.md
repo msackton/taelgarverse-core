@@ -100,10 +100,9 @@ documents, and contained media are not packaged for publication. A child folder
 cannot override an excluded parent. Removing the marker opts the folder back in
 on the next preview refresh or content publication.
 
-The website working copy also skips underscore folders and `.nopublish` folders
-at every depth, including their media and descendants. They are not copied or
-indexed by Node Dataview. Explicit homepage, menu, and session inputs still read
-their configured files in the original vault. Explicit `mapPath.source` references
+The website working copy applies the same file and folder exclusions as the
+article store. Dataview uses the store's accepted pages for all publication queries.
+Homepage, menu, and session inputs come from their configured files in the original vault. Explicit `mapPath.source` references
 are also copied as geometry inputs, including files under `_maps`; unrelated
 files in underscore folders stay excluded. `.nopublish` still applies.
 
@@ -1025,11 +1024,10 @@ materializes supported plain Dataview queries in Node. It fetches a pinned
 GitHub Dataview release into core's local cache and uses built-in settings.
 `--dataview-directory` explicitly selects a verified bundle
 and its optional saved settings. See [dependency caching](publishing-pipelines.md#taelgarorg).
-Those query results are static until republication; changing the website's
-campaign or date does not rerun DQL. Notes omitted by `noPublish`, stub tags or
-folder markers are removed before query planning. Node indexes the remaining working copy,
-excluding underscore folders and any subtree marked `.nopublish`. Current-page
-chronology scans appear as unsupported queries in the materialization report.
+Dataview results are static until republication. Node indexes the article store's
+pages for queries and uses its eligible files for link resolution. This excludes
+unpublished notes and Markdown the store could not parse. Current-page chronology
+scans appear as unsupported queries in the materialization report.
 
 Website preparation omits closed DataviewJS blocks and headings emptied by their
 removal. The cleanup report lists each block by file and line. Use `taelgar-index`

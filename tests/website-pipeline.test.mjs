@@ -47,16 +47,23 @@ test('Node stages run DQL on a copied raw vault before JavaScript cleanup and ne
     '```dataview\nLIST FROM #person\n```\n\n```dataviewjs\nawait dv.view("_scripts/view/get_CampaignInteractions");\n```\n\n'+
     '```taelgar-index\ntype: members\n```\n';
   await fs.writeFile(path.join(vault,'Guild.md'),source);await fs.mkdir(path.join(vault,'_private'));await fs.writeFile(path.join(vault,'_private','Indexed.md'),'# Private source note');
+  const person='---\ntags: [person]\n---\n';
+  await fs.writeFile(path.join(vault,'Result.md'),person);
+  await fs.mkdir(path.join(vault,'Worldbuilding'));
+  await fs.writeFile(path.join(vault,'Worldbuilding','Excluded.md'),person);
   const stub='---\ntags: [person, status/stub]\nmapPath: {source: _maps/missing.json}\n---\n```dataview\nINVALID STUB QUERY\n```';
   await fs.writeFile(path.join(vault,'Stub.md'),stub);
   const unpublished='---\nnoPublish: true\nmapPath: {source: _maps/missing.json}\n---\n```dataview\nINVALID UNPUBLISHED QUERY\n```';
   await fs.writeFile(path.join(vault,'Unpublished.md'),unpublished);
   const copy=await copyWorkingVault(vault,working);
+  // A prepared directory can contain files the article store rejects.
+  await fs.writeFile(path.join(working,'Invalid.md'),'---\nbroken: [\n---\n');
   assert.equal(await fs.readFile(path.join(working,'Guild.md'),'utf8'),source);
   assert.equal(copy.stats.get('Guild.md').ctime,(await fs.stat(path.join(vault,'Guild.md'))).birthtimeMs);
   const settings={vault_dir:vault,source_dir:working},store=new Store(settings);
   const report=await materializeWebsiteDataview(store,{directory:dir,vaultPath:vault,stats:copy.stats},{createRuntime:async(directory,options)=>{
     assert.equal(options.dataviewDirectory,undefined,'default must not point to a vault installation');
+    assert.deepEqual(options.files,['Guild.md','Result.md']);
     assert.equal(directory,working);assert.match(store.entries[0].note.body,/Saved header/);assert.match(store.entries[0].note.body,/dataviewjs/);
     await assert.rejects(fs.access(path.join(directory,'_private')),{code:'ENOENT'});
     await assert.rejects(fs.access(path.join(directory,'Stub.md')),{code:'ENOENT'});
@@ -64,13 +71,18 @@ test('Node stages run DQL on a copied raw vault before JavaScript cleanup and ne
     await assert.rejects(fs.access(path.join(directory,'Unpublished.md')),{code:'ENOENT'});
     assert.equal(options.stats.has('Unpublished.md'),false);
     assert.equal(options.stats.has('_private/Indexed.md'),false);
-    return {api:{tryQueryMarkdown:async()=>'- [[Result]]'},errors:[],identity:{version:'fixture'},index:{pages:new Map()},links:{ambiguities:new Map()}};
+    const rows=[];
+    for(const file of options.files){
+      const note=parseNote(await fs.readFile(path.join(directory,file),'utf8'));
+      if(note.metadata.tags?.includes('person'))rows.push('- [['+path.basename(file,'.md')+']]');
+    }
+    return {api:{tryQueryMarkdown:async()=>rows.join('\n')},errors:[],identity:{version:'fixture'},index:{pages:new Map()},links:{ambiguities:new Map()}};
   }});
   assert.equal(report.backend,'node');assert.equal(report.counts.materialized,1);
   const cleanup=cleanupPublicationStore(store);await saveWorkingNotes(store);
   const output=await fs.readFile(path.join(working,'Guild.md'),'utf8');
   assert.match(output,/\[\[Result\]\]/);assert.match(output,/taelgar-index/);assert.match(output,/Saved header/);
-  assert.doesNotMatch(output,/dataviewjs|taelgar-interactions|LIST FROM/);
+  assert.doesNotMatch(output,/Excluded|dataviewjs|taelgar-interactions|LIST FROM/);
   assert.deepEqual(cleanup,{schemaVersion:2,omitted:[{file:'Guild.md',line:6}],sectionsRemoved:0});
   assert.equal(await fs.readFile(path.join(vault,'Guild.md'),'utf8'),source);
   assert.equal(await fs.readFile(path.join(vault,'Stub.md'),'utf8'),stub);
@@ -78,7 +90,7 @@ test('Node stages run DQL on a copied raw vault before JavaScript cleanup and ne
   await assert.rejects(saveWorkingNotes(new Store({...settings,source_dir:vault})),/separate working vault/);
 });
 
-test('working vault copy prunes underscore and marked folders at every depth, including all their media',async t=>{
+test('working copy and article store agree on publication paths for notes and media',async t=>{
   await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
   const dir=await fs.mkdtemp(path.join(ROOT,'.cache','website-copy-exclusions-'));
   t.after(async()=>{assert.ok(isInside(path.join(ROOT,'.cache'),dir));await fs.rm(dir,{recursive:true});});
@@ -99,16 +111,30 @@ test('working vault copy prunes underscore and marked folders at every depth, in
     'assets/Hidden/.nopublish':'',
     'assets/Hidden/private.png':'Marked asset folder',
     'assets/public.png':'Public media',
+    'Worldbuilding/Secret.md':'Worldbuilding note',
+    'Nested/WORLDBUILDING/portrait.png':'Nested worldbuilding media',
+    'Asset/DM/Secret.md':'DM-only note',
+    'assets/dM/portrait.png':'DM-only media',
+    'Nested/AGENTS.md':'Local instructions',
+    'AGENTS.md':'Vault instructions',
+    'assets/dm-reference/public.png':'Public sibling',
+    'Worldbuilding-extra/Visible.md':'Public similarly named folder',
     '.hidden/Secret.md':'Dot folder',
   };
   for(const [relative,source] of Object.entries(sources)){
     const file=path.join(vault,relative);await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file,source);
   }
   const copied=await copyWorkingVault(vault,working);
-  assert.deepEqual([...copied.stats.keys()].sort(),['Nested/Hidden-extra/Public.md','Nested/_keep.md','Public.md']);
-  for(const relative of ['_private','Nested/_private','Hidden','Nested/Hidden','assets/_internal','assets/Hidden','.hidden'])
+  const notes=['Nested/Hidden-extra/Public.md','Nested/_keep.md','Public.md','Worldbuilding-extra/Visible.md'];
+  assert.deepEqual([...copied.stats.keys()].sort(),notes);
+  for(const source_dir of [vault,working]) {
+    const store=new Store({vault_dir:vault,source_dir});
+    assert.deepEqual(store.entries.filter(entry=>entry.note).map(entry=>entry.id).sort(),notes);
+  }
+  for(const relative of ['_private','Nested/_private','Hidden','Nested/Hidden','assets/_internal','assets/Hidden','.hidden',
+    'Worldbuilding','Nested/WORLDBUILDING','Asset/DM','assets/dM','AGENTS.md','Nested/AGENTS.md'])
     await assert.rejects(fs.access(path.join(working,relative)),{code:'ENOENT'});
-  for(const relative of ['Public.md','Nested/Hidden-extra/Public.md','Nested/_keep.md','assets/public.png'])
+  for(const relative of [...notes,'assets/public.png','assets/dm-reference/public.png'])
     assert.equal(await fs.readFile(path.join(working,relative),'utf8'),sources[relative]);
   for(const [relative,source] of Object.entries(sources))assert.equal(await fs.readFile(path.join(vault,relative),'utf8'),source);
   await fs.writeFile(path.join(vault,'.nopublish'),'Root exclusion');

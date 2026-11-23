@@ -21,13 +21,16 @@ Run the publisher from core:
 npm run publish -- --no-strict
 ```
 
-The Dataview release pin or explicitly selected bundle and settings participate
-in the publication fingerprint. Publication runs these stages:
+The publication fingerprint covers the publisher's transitive local imports,
+`package-lock.json`, publication settings, and the pinned or explicitly selected
+Dataview bundle. Changes to a nested compiler module trigger a rebuild on the
+next publication. Publication runs these stages:
 
 1. **Copy.** Create a request-owned working vault in core's `.cache/publish`.
    Copy ordinary source files and retain original Markdown creation/modification
-   timestamps for Dataview. Skip dot directories, symlinks, folders beginning
-   with `_`, and any folder containing `.nopublish`, including all descendants.
+   timestamps for Dataview. Apply the [article and media selection rules](vault.md#files-the-website-uses),
+   including exclusions for `Worldbuilding`, root `asset/dm` and `assets/dm`,
+   `AGENTS.md`, underscore folders, dot entries, symlinks, and `.nopublish` subtrees.
    Prune excluded folders before creating their destination or visiting children.
    A marker at the vault root produces an empty working copy. Explicit homepage,
    menu and session inputs still come from the original vault.
@@ -36,8 +39,8 @@ in the publication fingerprint. Publication runs these stages:
    those folders are copied. References cannot bypass `.nopublish` or symlinks.
    Geometry is validated and compiled into note data, not exposed as an asset;
    content hashes participate in the publication fingerprint.
-2. **Dataview.** Build an index from the remaining copied Markdown in Node.
-   Evaluate plain DQL selected from the included website notes.
+2. **Dataview.** Use the article store's file list for link resolution and its
+   Markdown pages for query input. Evaluate plain DQL against those pages.
    The retired `excludePublish` field has no effect. Do not execute DataviewJS. Strict
    errors apply no partial replacements; `--no-strict` reports failures and
    keeps the failed query blocks.
@@ -49,7 +52,7 @@ in the publication fingerprint. Publication runs these stages:
    activates content. Build-only performs no R2/D1 reads or writes.
 
 The standalone comparison harness uses a full-vault diagnostic index.
-Publication queries use only the copied Markdown.
+Publication queries use only the Markdown accepted by the article store.
 
 The publisher runs DQL with the reviewed Dataview 0.5.68 bundle, pinned by
 version and SHA-256. Its plugin lifecycle,

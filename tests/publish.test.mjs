@@ -161,6 +161,28 @@ test('build fingerprints tolerate Windows line endings and machine paths, but no
   assert.notEqual(value,buildFingerprint(settings,options));
 });
 
+test('publish checkpoints follow transitive compiler imports and the dependency lock',async t=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'taelgar-compiler-'));
+  t.after(()=>fs.rm(root,{recursive:true,force:true}));
+  const scripts=path.join(root,'scripts');
+  await fs.mkdir(scripts);
+  await fs.writeFile(path.join(scripts,'publish-content.mjs'),"import './compile.mjs';\n");
+  await fs.writeFile(path.join(scripts,'compile.mjs'),"export {value} from './nested.mjs';\n");
+  const nested=path.join(scripts,'nested.mjs'),lock=path.join(root,'package-lock.json');
+  await fs.writeFile(nested,'export const value = 1;\n');
+  await fs.writeFile(lock,'{}\n');
+  const fingerprint=()=>buildFingerprint({default_date:'1750-01-01'},parseOptions([]),{},root);
+  const initial=fingerprint();
+  await fs.writeFile(nested,'export const value = 1;\r\n');
+  await fs.writeFile(path.join(scripts,'unrelated.mjs'),'export const value = 3;\n');
+  assert.equal(fingerprint(),initial);
+  await fs.writeFile(nested,'export const value = 2;\n');
+  const changed=fingerprint();
+  assert.notEqual(changed,initial);
+  await fs.writeFile(lock,'{"lockfileVersion":3}\n');
+  assert.notEqual(fingerprint(),changed);
+});
+
 test('publisher fingerprint ignores vault Dataview files unless selected as an explicit bundle',async t=>{
   const directory=await fs.mkdtemp(path.join(os.tmpdir(),'taelgar-dataview-fingerprint-'));
   t.after(async()=>{assert.equal(path.dirname(path.resolve(directory)),path.resolve(os.tmpdir()));assert.ok(path.basename(directory).startsWith('taelgar-dataview-fingerprint-'));await fs.rm(directory,{recursive:true,force:true});});

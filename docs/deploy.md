@@ -99,8 +99,8 @@ supported DQL in Node, then omits closed DataviewJS blocks and headings emptied
 by their removal. Images, backlinks, search, and runtime compilation follow.
 Preparation uses copies of the original files and can run while Obsidian is closed. The original vault supplies header
 metadata and session inputs. See [publishing pipelines](publishing-pipelines.md).
-The copy skips underscore folders and folders containing `.nopublish`, including
-their entire subtrees, before reading or copying their contents.
+The copy prunes excluded paths before reading their contents. Dataview indexes
+the pages accepted by the article store.
 Explicit river/road `mapPath.source` geometry is the exception for underscore
 folders: only referenced `.map-path.json` inputs are copied, including files in
 `_maps/paths`. `.nopublish` and symlink exclusions still apply. The publisher
@@ -243,8 +243,10 @@ If this is your first time publishing from this computer, follow
 The command prepares copies of your notes, generates small image variants, and
 uploads the results and stages the matching D1 search index. It switches the site
 to new content after both are verified. Your original notes and images stay
-unchanged. If the same saved version/settings are online, it checks search
-readiness and skips rebuilding while retrying any pending retention cleanup.
+unchanged. When the vault commit and publication fingerprint match the active
+checkpoint, the publisher checks search readiness and retries pending retention
+cleanup. A change to a local module imported by the publisher or its compiler,
+or to the dependency lockfile, triggers a rebuild on the next publication.
 The updated core connects the search UI to that published D1 index.
 
 `--no-strict` means “continue if a Dataview query cannot be converted.” Read the
@@ -255,11 +257,9 @@ The website generates headers from native `taelgar-header` callouts in the
 vault. Use the [saved header commands](#saved-header-commands) to update a
 note's header before publication.
 
-Node selects queries only from included notes; `noPublish`, stub tags and folder
-markers remove notes before query planning. The retired `excludePublish` field
-has no effect.
-It indexes the copied Markdown for query inputs; underscore folders and folders
-marked `.nopublish` are absent from that copy and index. It executes DQL only. Query errors appear in
+Node selects queries and their input pages from the article store. Its file
+selection also governs which links Dataview can resolve. The retired
+`excludePublish` field has no effect. Query errors appear in
 `.cache/publish/materialization-report.json`. After a successful build,
 `.cache/publish/conversion-report.json` lists the file and line of each omitted
 DataviewJS block in the prepared note body. Failed runs retain the working vault
@@ -546,10 +546,9 @@ folder, then into taelgar.” Use forward slashes in Windows JSON paths, as abov
 Leave `source_dir` out for normal use. For an already exported copy, set it to
 the export folder and keep `vault_dir` pointing at the original vault for scripts
 and metadata, including the homepage and menu. Setting `source_dir` to `null` also
-means “use the vault.” The full
-publisher always prepares publication copies in memory from `vault_dir`, with
-query request/results staged temporarily in core. It does not copy the vault or
-media into a second export folder.
+means “use the vault.” The full publisher copies eligible source files from
+`vault_dir` into a temporary working directory under core's `.cache/publish`.
+It evaluates DQL on that copy.
 
 Leave `nav_source` and `home_source` out for normal use. Both files must exist in
 the vault's `_website` folder. If you had a local `nav_source` pointing to the old

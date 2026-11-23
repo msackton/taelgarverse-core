@@ -19,7 +19,8 @@ export async function materializeWebsiteDataview(store,{directory,dataviewDirect
   }
   const changes=new Map();let runtime;
   if(queries.length) {
-    runtime=await createRuntime(store.settings.source_dir,{dataviewDirectory,stats,log});
+    const files=store.entries.map(entry=>entry.id).sort();
+    runtime=await createRuntime(store.settings.source_dir,{files,dataviewDirectory,stats,log});
     issues.push(...runtime.errors.map(error=>({...error,line:1,kind:'error',message:'Indexing failed: '+error.message})));
     for(const {entry,block} of queries) {
       try {

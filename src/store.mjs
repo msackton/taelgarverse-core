@@ -4,7 +4,7 @@ import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {isInside,targetPath,titleCase} from './config.mjs';
 import {ContentStore,parseNote,ASSET_TYPES,omitFromPublication} from './content-store.mjs';
-import {NO_PUBLISH_MARKER,readFolderExclusions} from './folder-exclusions.mjs';
+import {isPublicationEntry,NO_PUBLISH_MARKER,readFolderExclusions} from './folder-exclusions.mjs';
 import {validateManifest} from './map-core.mjs';
 import {validateMapLayers} from './map-layers.mjs';
 import {validateMapPath} from './map-feature-path.mjs';
@@ -19,13 +19,12 @@ export class Store extends ContentStore {
       const folder = path.relative(settings.source_dir,directory).split(path.sep).join('/');
       if (excludedFolders.has(folder) || fs.existsSync(path.join(directory,NO_PUBLISH_MARKER))) return;
       for (const file of fs.readdirSync(directory, {withFileTypes: true}).sort((a,b) => a.name < b.name ? -1 : a.name > b.name ? 1 : 0)) {
-        if (file.name.startsWith('.') || file.name === 'AGENTS.md') continue;
+        const relative = folder ? folder+'/'+file.name : file.name;
+        if (!isPublicationEntry(file,relative)) continue;
         const filename = path.join(directory, file.name);
-        if (file.isSymbolicLink() || !isInside(settings.source_dir, fs.realpathSync(filename))) continue;
-        const relative = path.relative(settings.source_dir, filename).split(path.sep).join('/');
-        if (/^assets?\/dm(?:\/|$)/i.test(relative)) continue;
+        if (!isInside(settings.source_dir, fs.realpathSync(filename))) continue;
         if (file.isDirectory()) {
-          if (!file.name.startsWith('_') && file.name.toLowerCase() !== 'worldbuilding') walk(filename);
+          walk(filename);
           continue;
         }
         const extension = path.extname(file.name).toLowerCase();
