@@ -3,6 +3,7 @@ import path from 'node:path';
 import {parse} from 'yaml';
 import {createHash} from 'node:crypto';
 import {campaignRegistry, registryPath} from '../../../src/campaign-registry.mjs';
+import {sessionBundleManifest} from '../../../src/session-bundles.mjs';
 import {readVaultSessionBundles} from '../../../src/vault-session-bundles.mjs';
 import {parseNote} from '../../../src/content-store.mjs';
 
@@ -49,7 +50,7 @@ export async function discoverSessionReviews(vault){
       if(!manifests.length)return;
       const file=path.join(folder,manifests[0]);
       row.sessionYaml=relative(file);
-      if(manifests.length>1)throw new Error('Multiple session manifests: '+manifests.join(', '));
+      sessionBundleManifest(manifests);
       const data=parse(await plain(file));
       if(!data||typeof data!=='object'||Array.isArray(data))throw new Error('Expected a session YAML object');
       const entity=path.join(folder,path.basename(file).replace(/-session\.yaml$/,'-entity-map.json'));

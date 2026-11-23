@@ -1,5 +1,4 @@
 import {validCampaignHost} from '../src/campaign-sites.mjs';
-import {supportedRuntimeVersion} from '../src/runtime-format.mjs';
 
 // Match the inventoried production destination, never a preview/alternate account.
 // The WAF rule is provisioned separately; publishing does not enable protection.
@@ -9,7 +8,6 @@ export const HOSTNAME_POLICY=Object.freeze({
   domain:'taelgar.org',worker:'taelgarverse',bucket:'taelgarverse-content',
   ref:'block_unconfigured_taelgar_hosts',
 });
-const revisionPattern=/^[a-f0-9]{64}$/;
 const hostnamePattern=/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*taelgar\.org$/;
 const expressionFor=hosts=>'not (lower(http.host) in {'+[...hosts].sort().map(host=>JSON.stringify(host)).join(' ')+'})';
 
@@ -23,25 +21,14 @@ function ruleHosts(rule){
   return new Set(hosts);
 }
 
-async function campaignHosts(storage,revision){
-  if(!revisionPattern.test(revision || ''))throw new Error('Invalid hostname publication revision');
-  const runtime=await storage.getJSON(`revisions/${revision}/runtime.json`);
-  let labels;
-  if(runtime!==null){
-    if(runtime.revision!==revision || !supportedRuntimeVersion(runtime.version) || !Array.isArray(runtime.sites) ||
-      runtime.sites.some(site=>!Array.isArray(site) || site.length!==2 || !site[1] || typeof site[1]!=='object'))throw new Error('Invalid published campaign host manifest');
-    labels=runtime.sites.map(site=>site[0]);
-  }else{
-    const index=await storage.getJSON(`revisions/${revision}/index.json`);
-    if(index?.revision!==revision || index.schemaVersion!==1 || (index.campaignHomes!==undefined &&
-      (!index.campaignHomes || typeof index.campaignHomes!=='object' || Array.isArray(index.campaignHomes))))throw new Error('Invalid legacy campaign host manifest');
-    labels=Object.keys(index.campaignHomes || {});
-  }
+function campaignHosts(runtime){
+  if(runtime.sites.some(site=>!Array.isArray(site) || site.length!==2 || !site[1] || typeof site[1]!=='object'))throw new Error('Invalid published campaign host manifest');
+  const labels=runtime.sites.map(site=>site[0]);
   if(labels.some(label=>typeof label!=='string' || !validCampaignHost(label)))throw new Error('Invalid campaign hostname in publication');
   return labels.map(label=>label+'.'+HOSTNAME_POLICY.domain);
 }
 
-export async function syncPublicationHosts(config,client,storage,pointer,{log=()=>{}}={}){
+export async function syncPublicationHosts(config,client,manifests,{log=()=>{}}={}){
   const policy=HOSTNAME_POLICY;
   if(config.name!==policy.worker || client.account!==policy.account ||
     config.r2_buckets?.find(binding=>binding.binding==='CONTENT')?.bucket_name!==policy.bucket)return {skipped:'different destination'};
@@ -66,10 +53,8 @@ export async function syncPublicationHosts(config,client,storage,pointer,{log=()
   }
   ruleHosts(state.rule);
   const required=new Set(['taelgar.org','www.taelgar.org','characters.taelgar.org']);
-  for(const revision of new Set([pointer.revision,pointer.previous?.revision].filter(Boolean))){
-    for(const host of await campaignHosts(storage,revision))required.add(host);
-  }
-  // Refresh after R2 reads so a concurrent dashboard addition is preserved.
+  for(const manifest of manifests)for(const host of campaignHosts(manifest))required.add(host);
+  // Refresh before writing so a concurrent dashboard addition is preserved.
   const fresh=await read();
   if(!fresh || fresh.rule.enabled!==true || fresh.rule.id!==state.rule.id || fresh.ruleset.id!==state.ruleset.id)throw new Error('Hostname firewall changed during publication; rerun before activating content');
   state=fresh;

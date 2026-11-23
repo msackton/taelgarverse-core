@@ -20,11 +20,12 @@ import {addHeaderIndexes,renderHeaderIndex,HEADER_INDEX_SLOT} from './website-in
 import {headerIndexesForMetadata} from './indexes.mjs';
 
 export class RenderEngine {
-  constructor({settings,store,headers,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles}) {
+  constructor({settings,store,headers,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles,campaignSource}) {
     this.settings = settings;
     this.store = store;
     this.store.settings = settings;
     this.headers = headers;
+    this.campaignSource = campaignSource;
     this.contexts = prepared?.contexts || Contexts.forWebsite(this.store,this.headers.registry,settings);
     this.campaignSites = prepared?.campaignSites || new CampaignSites(campaignHomes,this.contexts);
     this.markdown = createMarkdown();
@@ -36,7 +37,6 @@ export class RenderEngine {
     this.loadBacklinks = prepared?.loadBacklinks;
     if (backlinkIndex === undefined) this.store.warnings.push(...this.backlinkIndex.warnings);
     this.interactionIndex = interactionIndex || compileInteractionIndex(store,headers.registry,this.backlinkIndex,interactionBundles);
-    this.projectInteractionBacklinks = !interactionIndex && !!this.loadBacklinks;
     if (!interactionIndex) this.store.warnings.push(...this.interactionIndex.warnings);
   }
 
@@ -75,8 +75,7 @@ export class RenderEngine {
     }
     const hide = Array.isArray(metadata.hide) ? metadata.hide : typeof metadata.hide === 'string' ? metadata.hide.split(/[\s,]+/) : [];
     const rendered = this.renderBody(body,entry,context,embedLoading);
-    const interactionIndex = this.projectInteractionBacklinks ? compileInteractionIndex(this.store,this.headers.registry,backlinkIndex) : this.interactionIndex;
-    const interactions = campaignInteractions(interactionIndex,this.store,entry,context,this.headers.registry).filter(group=>group.known);
+    const interactions = campaignInteractions(this.interactionIndex,this.store,entry,context,this.headers.registry).filter(group=>group.known);
     if (interactions.length) {
       const summary=interactionSummary(interactions);
       rendered.html=/<\/h1>/i.test(rendered.html) ? rendered.html.replace(/<\/h1>/i,match=>match+summary) : summary+rendered.html;
@@ -86,7 +85,7 @@ export class RenderEngine {
     if (hide.includes('toc')) rendered.toc = '';
     return {page: entry.slug, title: entry.title, date, dm, campaigns: [...context.campaigns],context,hide,
       ...(metadata.layout === 'wide' ? {layout:'wide'} : {}),
-      ...rendered, interactions, backlinks:backlinkIndex && (backlinkIndex.version>=2 || context.campaigns.length<=1)
+      ...rendered, interactions, backlinks:backlinkIndex
         ? linkedFrom(backlinkIndex,this.store,entry.slug,context,this.backlinkCampaigns) : undefined};
   }
 
@@ -105,15 +104,25 @@ export class RenderEngine {
     return this.loadNotes(loading=>this.render(page,date,contextId,dm,note,selectedCampaigns,loading,backlinks),loadNote,new Map([[entry.id,note]]));
   }
 
-  // Embeds and Members descriptions discover visible note dependencies during
-  // rendering. Keep loaded bodies request-local and share pending shard reads.
+  // Discover dependencies while rendering visible content. The request keeps
+  // its own results while the snapshot shares pending reads across requests.
   async loadNotes(render,loadNote,notes=new Map()) {
-    const loading = {notes,pending:new Map()};
+    const loading = {notes,pending:new Map(),campaigns:new Map(),pendingCampaigns:new Set()};
     for (;;) {
       loading.pending.clear();
+      loading.pendingCampaigns.clear();
       const result = render(loading);
-      if (!loading.pending.size) return result;
-      await Promise.all([...loading.pending.values()].map(async entry=>loading.notes.set(entry.id,await loadNote(entry))));
+      if (!loading.pending.size && !loading.pendingCampaigns.size) return result;
+      await Promise.all([
+        ...[...loading.pending.values()].map(async entry=>loading.notes.set(entry.id,await loadNote(entry))),
+        ...[...loading.pendingCampaigns].map(async campaign=>{
+          try { loading.campaigns.set(campaign,{record:await this.campaignSource.load(campaign)}); }
+          catch(error) {
+            if(error instanceof RenderError) throw error;
+            loading.campaigns.set(campaign,{error:error.message});
+          }
+        }),
+      ]);
     }
   }
 
@@ -137,7 +146,8 @@ export class RenderEngine {
       throw error;
     }
     const warnings = [];
-    const noteEmbeds = [], env = {store:this.store,entry,date,context,headers:this.headers,warnings,dmNotes,notesMarkdown:this.notesMarkdown,noteEmbeds,noteLoading:embedLoading};
+    const noteEmbeds = [], env = {store:this.store,entry,date,context,headers:this.headers,warnings,dmNotes,
+      notesMarkdown:this.notesMarkdown,noteEmbeds,noteLoading:embedLoading,campaignSource:this.campaignSource};
     const rendered = renderMarkdown(this.markdown,body,env);
     if (noteEmbeds.length) rendered.html = expandNoteEmbeds(rendered.html,noteEmbeds,{...env,markdown:this.markdown},embedLoading);
     rendered.html = responsiveImages(rendered.html,this.store,{wide:entry.note?.metadata.layout === 'wide'});
@@ -162,12 +172,14 @@ export function document(result,contextOptions,navigation,releases) {
   const maps = result.html.includes('class="leaflet-map"');
   const interactions = result.interactions?.length;
   const indexes = result.html.includes('class="taelgar-index');
+  const campaignBlocks = result.html.includes('class="taelgar-campaign-view"');
   return '<!doctype html><html lang="en" dir="ltr" data-appearance="system"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light dark"><script src="/theme/appearance.js"></script>' +
     '<title>' + escapeHtml(result.title) + ' — TaelgarVerse</title><link rel="stylesheet" href="/theme/material.css">' +
     '<link rel="stylesheet" href="/theme/taelgarverse.css"><link rel="stylesheet" href="/theme/preview.css"><link rel="stylesheet" href="/theme/image-viewer.css"><link rel="stylesheet" href="/theme/quiet-library.css">' +
     (maps ? '<link rel="stylesheet" href="/theme/leaflet.css"><link rel="stylesheet" href="/theme/maps.css">' : '') +
     (interactions ? '<link rel="stylesheet" href="/theme/interactions.css">' : '') +
     (indexes ? '<link rel="stylesheet" href="/theme/indexes.css">' : '') +
+    (campaignBlocks ? '<link rel="stylesheet" href="/theme/campaign-blocks.css">' : '') +
     (result.search ? '<link rel="stylesheet" href="/theme/search.css">' : '') +
     (result.homepage ? '<link rel="stylesheet" href="/theme/homepage.css">' : '') + '</head>' +
     '<body>' + siteHeader(result.context,contextOptions,{query:result.query,searchType:result.searchType,sections:showNavigation ? navigation.sections(view) : '',navigation:!!showNavigation}) +

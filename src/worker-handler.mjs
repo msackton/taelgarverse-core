@@ -1,4 +1,5 @@
 import {handleRequest} from './application.mjs';
+import {classifyRoute} from './routes.mjs';
 import {openSnapshot} from './runtime-snapshot.mjs';
 import {serveAsset,themeFiles} from './http-assets.mjs';
 import {RenderError} from './common.mjs';
@@ -21,20 +22,13 @@ function failureResponse(error){
       ...(status===503?{'Retry-After':'1'}:{})},
   });
 }
-function routeCategory(request){
-  const url=new URL(request.url),path=url.pathname;
-  if(path==='/api/search' || path==='/' && url.searchParams.has('q'))return 'search';
-  if(path==='/api/navigation' || path.startsWith('/browse/'))return 'navigation';
-  if(path==='/api/page' || path.startsWith('/page/'))return 'article';
-  if(path==='/')return 'home';
-  return 'other';
-}
 
 export function createWorker(coreRelease = {},{cache,snapshotCache,timeoutMs,cacheMs,queryTimeoutMs,requestTimeoutMs=10000,log=timingLog}={}) {
   let state;
-  async function fetchResponse(request,env,context,measure,signal) {
+  async function fetchResponse(request,route,env,context,measure,signal) {
     try {
-      const url=new URL(request.url);
+      const {url}=route;
+      // Static assets use the raw allowlisted filename even before the first publication.
       if (url.pathname.startsWith('/theme/')) {
         const file=themeFiles[url.pathname.slice(7)];
         if (!file) return new Response('Theme file not found',{status:404});
@@ -47,7 +41,7 @@ export function createWorker(coreRelease = {},{cache,snapshotCache,timeoutMs,cac
       }
       const published=JSON.parse(publication), {revision}=published;
       if (!/^[a-f0-9]{64}$/.test(revision || '')) throw new RenderError(503,'Published content pointer is invalid');
-      const cached=pageCache(request,published,coreRelease,cache,{cacheMs});
+      const cached=pageCache(request,published,coreRelease,cache,{cacheMs,route});
       if(cached){const response=await measure('page-cache',()=>cached.match());if(response)return cached.respond(response,true);}
       signal.throwIfAborted();
       if (!state || state.revision!==revision || state.bucket!==env.CONTENT) {
@@ -60,10 +54,10 @@ export function createWorker(coreRelease = {},{cache,snapshotCache,timeoutMs,cac
         signal.throwIfAborted();
         return current.snapshot??=loaded;
       });
-      const {engine,store,index}=await measure('route-init',()=>snapshot.forRequest(request));
+      const {engine,store,index}=await measure('route-init',()=>snapshot.forRoute(route));
       let renderedPage=false;
       const response=await measure('application',()=>handleRequest(request,engine,{
-        runtime:'cloudflare-worker',revision,
+        route,runtime:'cloudflare-worker',revision,
         search:createD1Search(env.SEARCH_DB,{revision,descriptor:index.search,store,measure,queryTimeoutMs}),
         releases:{core:coreRelease,content:{...(index.sourceVersion || {}),
           ...(published.commit ? {commit:published.commit,dirty:published.dirty} : {}),publishedAt:published.completedAt}},
@@ -102,15 +96,15 @@ export function createWorker(coreRelease = {},{cache,snapshotCache,timeoutMs,cac
     const enabled=env.BLOCK_CRAWLERS==='true';
     const rejected=enabled?crawlerResponse(request):null;
     if(rejected)return withCrawlerHeaders(rejected,enabled);
-    const timing=timings(log);
+    const timing=timings(log),route=classifyRoute(request);
     const response=await withSnapshotLoads(()=>withTimeout(async signal=>{
-      const value=await fetchResponse(request,env,context,(name,operation)=>{
+      const value=await fetchResponse(request,route,env,context,(name,operation)=>{
         signal.throwIfAborted();return timing.measure(name,operation);
       },signal);
       if(signal.aborted){discardBody(value);throw signal.reason;}
       return value;
     },requestTimeoutMs)).catch(failureResponse);
-    timing.finish(routeCategory(request),response.status);
+    timing.finish(route,response.status);
     return withCrawlerHeaders(response,enabled);
   }};
 }

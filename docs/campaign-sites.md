@@ -159,9 +159,8 @@ References: [Cloudflare wildcard DNS](https://developers.cloudflare.com/dns/mana
 
 ## Compatibility and rollback
 
-Snapshots store an optional `campaignHomes` object mapping host labels to Markdown
-alongside `homeSource`. Older snapshots without it retain the shared homepage;
-campaign subdomains return 404 until a supporting publication is active. Invalid
+The compiled manifest lists campaign hosts and their settings. The renderer part
+contains the shared homepage and the Markdown for each campaign homepage. Invalid
 campaign names or configuration fail preparation before any publication writes.
 Snapshots containing the removed `context` frontmatter must be regenerated with
 `campaigns` before this renderer can load them; discovery reports the migration

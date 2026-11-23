@@ -1,14 +1,18 @@
+import {retentionObjects} from './helpers/compiled-publication.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {activationPointer,validatePublicationUploads,prunePublication,rollbackPublication,createRetentionStorage,POINTER_KEY} from '../scripts/content-retention.mjs';
 import {publishContent} from '../scripts/publish-content.mjs';
 
-const rev=letter=>letter.repeat(64),asset=letter=>'assets/'+rev(letter),key=letter=>`revisions/${rev(letter)}/index.json`;
+const rev=letter=>letter.repeat(64),asset=letter=>'assets/'+rev(letter),key=letter=>`revisions/${rev(letter)}/runtime.json`;
 test('every publication path restricts uploads to immutable keys from its own revision',()=>{
-  assert.doesNotThrow(()=>validatePublicationUploads(rev('a'),[{key:key('a')},{key:asset('b')} ]));
+  assert.doesNotThrow(()=>validatePublicationUploads(rev('a'),[
+    {key:key('a')},{key:asset('b')},{key:`revisions/${rev('a')}/runtime/campaigns/elderwood.json`},
+  ]));
   for(const uploads of [[],null,[null],[{key:POINTER_KEY}],[{key:key('b')}],[{key:'revisions/'+rev('a')+'/../index.json'}]])assert.throws(()=>validatePublicationUploads(rev('a'),uploads),/unexpected object keys/);
   assert.throws(()=>validatePublicationUploads('.*',[{key:key('a')}]),/unexpected object keys/);
   for(const suffix of ['01.json','../01.json','zz.json','01/extra.json'])assert.throws(()=>validatePublicationUploads(rev('a'),[{key:`revisions/${rev('a')}/transcripts/${suffix}`}]),/unexpected object keys/);
+  assert.throws(()=>validatePublicationUploads(rev('a'),[{key:`revisions/${rev('a')}/runtime/campaigns/../render.json`}]),/unexpected object keys/);
 });
 test('only successful distinct activations rotate the one rollback snapshot; same revision and rollback preserve it',()=>{
   const a={revision:rev('a')},b=activationPointer(a,{revision:rev('b')});
@@ -21,9 +25,7 @@ test('only successful distinct activations rotate the one rollback snapshot; sam
 function fixture(){
   const pointer=activationPointer({revision:rev('b')},{revision:rev('c')});
   const objects=new Map([[POINTER_KEY,pointer],[key('a'),{}],['revisions/'+rev('a')+'/notes/01.json',{}],
-    [key('b'),{schemaVersion:1,revision:rev('b'),entries:[{objectKey:asset('a')},{objectKey:asset('b')},{note:{shard:'01'}}]}],
-    [`revisions/${rev('b')}/notes/01.json`,{}],
-    [key('c'),{schemaVersion:1,revision:rev('c'),entries:[{objectKey:asset('a')},{objectKey:asset('c')}]}],
+    ...retentionObjects(rev('b'),[asset('a'),asset('b')]),...retentionObjects(rev('c'),[asset('a'),asset('c')]),
     [asset('a'),{}],[asset('b'),{}],[asset('c'),{}],[asset('d'),{}],['assets/unmanaged',{}],['revisions/manual.json',{}]]);
   const deleted=[],pruned=[];
   return {pointer,objects,deleted,pruned,index:{prune:async keep=>pruned.push(keep),verify:async()=>{}},storage:{
@@ -39,18 +41,27 @@ test('R2 sweep deletes old snapshots and orphaned assets, preserving shared asse
   assert.equal(result.deletedBytes,30);assert.ok(f.objects.has(asset('b')));
   assert.equal((await prunePublication(f.storage,f.index,f.pointer)).deletedObjects,0);
 });
-test('retired transcripts are swept from every revision without reading their descriptors',async()=>{
-  const f=fixture(),transcripts=['a','b','c'].map(letter=>`revisions/${rev(letter)}/transcripts/01.json`);
-  for(const key of transcripts)f.objects.set(key,{});
-  f.objects.get(key('b')).interactions={transcripts:{beat:{shard:'missing-or-invalid'}}};
-  f.objects.get(key('c')).interactions={transcripts:{beat:{shard:'01'}}};
-  const unmanaged=`revisions/${rev('c')}/transcripts/manual.json`;f.objects.set(unmanaged,{});
+test('old raw sidecars are excluded from uploads and collected for retained revisions',async()=>{
+  const f=fixture(),prefix='revisions/'+rev('b')+'/';
+  for(const file of ['index.json','notes/01.json','transcripts/01.json']){
+    f.objects.set(prefix+file,{});
+    assert.throws(()=>validatePublicationUploads(rev('b'),[{key:prefix+file}]),/unexpected object/);
+  }
+  f.objects.set(prefix+'notes/manual.json',{});
   const plan=await prunePublication(f.storage,f.index,f.pointer,{dryRun:true});
   assert.equal(plan.deletedObjects,6);assert.equal(f.deleted.length,0);
   await prunePublication(f.storage,f.index,f.pointer);
-  for(const key of transcripts)assert.ok(f.deleted.includes(key));
-  assert.ok(f.objects.has(unmanaged));
-  assert.ok(f.objects.has(key('b')));assert.ok(f.objects.has(key('c')));
+  for(const file of ['index.json','notes/01.json','transcripts/01.json'])assert.ok(f.deleted.includes(prefix+file));
+  assert.ok(f.objects.has(prefix+'notes/manual.json'));
+});
+test('existing format 2 partitions protect rollback assets when there is no compact inventory',async()=>{
+  const f=fixture(),manifest=f.objects.get(key('b'));
+  delete manifest.assetKeys;
+  await prunePublication(f.storage,f.index,f.pointer);
+  assert.ok(f.objects.has(asset('b')));
+  const part=Object.values(manifest.assets)[0];
+  f.objects.set('revisions/'+rev('b')+'/'+part.file,[]);
+  await assert.rejects(prunePublication(f.storage,f.index,f.pointer),/missing or invalid/);
 });
 
 test('dry-run does not delete anything; rollback verifies before swapping the two good snapshots',async()=>{
@@ -61,11 +72,14 @@ test('dry-run does not delete anything; rollback verifies before swapping the tw
   await assert.rejects(rollbackPublication(f.storage,f.index),/missing/);assert.deepEqual(f.objects.get(POINTER_KEY),before);
 });
 test('missing retained content, D1 readiness failures and changed pointers stop deletion; legacy history is never guessed',async()=>{
-  for(const mode of ['missing-index','missing-asset','missing-shard','search','changed','legacy']){
+  for(const mode of ['missing-index','obsolete-format','missing-asset','missing-shard','missing-partition','corrupt-inventory','search','changed','legacy']){
     const f=fixture();
     if(mode==='missing-index')f.objects.delete(key('b'));
+    if(mode==='obsolete-format')f.objects.get(key('b')).version=1;
+    if(mode==='missing-partition')f.objects.get(key('b')).assets={};
+    if(mode==='corrupt-inventory')f.objects.set('revisions/'+rev('b')+'/runtime/asset-keys.json',[]);
     if(mode==='missing-asset')f.objects.delete(asset('b'));
-    if(mode==='missing-shard')f.objects.delete(`revisions/${rev('b')}/notes/01.json`);
+    if(mode==='missing-shard')f.objects.delete(`revisions/${rev('b')}/runtime/notes/0000.json`);
     if(mode==='search'){f.objects.get(key('b')).search={};f.index.verify=async()=>{throw new Error('not ready');};}
     if(mode==='changed')f.storage.getJSON=async k=>k===POINTER_KEY?{revision:rev('d')}:f.objects.get(k);
     if(mode==='legacy')delete f.pointer.retentionVersion;

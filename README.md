@@ -4,8 +4,8 @@ A pure Node.js API that renders Taelgarverse pages from original vault Markdown
 for a requested in-world DR date. The API, YAML parser, filters, header adapter,
 Markdown renderer, tests, and benchmark all run in Node. Rendering needs no Python,
 MkDocs build, or running Obsidian application. The content publisher also runs
-without Obsidian. It copies a working vault, evaluates DQL in Node, and converts
-recognized legacy patterns before packaging content.
+without Obsidian. It copies a working vault, evaluates DQL in Node, and omits closed
+DataviewJS blocks before packaging content.
 
 The live [Cloudflare site](https://taelgarverse.msackton.workers.dev/) runs the same
 application in a Worker with R2-backed content. Merges to this repository's `main`
@@ -36,7 +36,7 @@ The core documentation is:
 
 - [Deploy](docs/deploy.md): publish vault content, configure authorization, and recover from failures.
 - [Architecture](docs/architecture.md): components, release boundaries, and documentation maintenance rules.
-- [Publishing pipelines](docs/publishing-pipelines.md) covers Node Dataview, website preparation, and compatibility conversion.
+- [Publishing pipelines](docs/publishing-pipelines.md) covers Node Dataview and website preparation.
 - [Vault usage](docs/vault.md): input files, metadata, contexts, and rendering behavior.
 - [Cloudflare](docs/cloudflare.md): hosted resources, bindings, and snapshot storage.
 - [Maps](docs/maps.md#reusable-viewer-and-map-catalogue): reusable viewer package and published map catalogue API.
@@ -93,9 +93,8 @@ for navigation, dates, alternative files, and Cloudflare settings.
 Runtime scripts are trusted server code; Markdown body queries are not executed.
 
 Use `npm run dev -- --full` for a prepared local snapshot. Its separate Node
-stages materialize DQL, convert supported DataviewJS patterns into native blocks,
-then process images and compile search. Generated headers use the vault's
-authored `taelgar-header` callouts. Original vault content stays intact.
+stages materialize DQL, omit closed DataviewJS blocks, process images, and compile search.
+Generated headers use the vault's authored `taelgar-header` callouts. Original vault content stays intact.
 Internal tools can still select an existing prepared directory with `source_dir`
 while keeping `vault_dir` pointed at the original metadata/session inputs.
 
@@ -303,9 +302,8 @@ keeps the source accessible and does not prevent other diagrams from rendering.
 The [Mermaid library](https://mermaid.js.org/config/usage) is pinned and bundled
 locally with strict rendering and authored callbacks disabled. Family-tree nodes
 marked `internal-link` and explicit Mermaid URL destinations become ordinary,
-context-aware links. Internal links open an article preview with **Open page**;
-uncheck **Preview linked pages** for direct navigation. Links work in the enlarged
-diagram too. Missing, ambiguous, or unavailable pages stay unlinked. See
+context-aware links that open the destination directly, including in the enlarged
+diagram. Missing, ambiguous, or unavailable pages stay unlinked. See
 [diagram link behavior](docs/vault.md#links-navigation-and-media).
 The library is loaded only on pages containing visible diagrams. The API returns
 the escaped source and diagram containers; the article shell loads the browser renderer.

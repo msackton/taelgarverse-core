@@ -29,7 +29,7 @@ for tagged notes, historical kingdoms and synthetic examples in both layouts.
 It also checks the [frozen legacy sources](fixtures/legacy-vault/README.md)
 against the captures and reproduces their documented defects. The VM and
 generated comparison implementations live in [test support](helpers/legacy-headers/).
-The ordinary run exercises current callouts, publication conversion and
+The ordinary run exercises current callouts, publication cleanup and
 Obsidian editing. It also uses the generated reference for date-boundary and
 index comparisons.
 
@@ -58,6 +58,19 @@ Select one optional mode per run. Deployment CI runs the default and local
 emulator suites.
 
 ## Common map tools
+
+The shared CI workflow tests the map package on Windows and Ubuntu. To reproduce
+the package check locally, run `node --test tests/map-package.test.mjs` with
+`tar` on the path. The test extracts the archive and bundles its viewer as a consumer.
+
+Pull requests, main builds and Obsidian release builds also run both synthetic
+Photoshop exporter suites. To reproduce them in a Python 3.11 environment, run
+
+```sh
+python -m pip install -r scripts/map-export/requirements.txt
+python tests/map-export.test.py
+python tests/map-export-links.test.py
+```
 
 `npm run test:ui:maps` runs real Chromium against test-owned map figures. It checks
 local drawing, point outlines, selection/deletion, measurements, independent maps,

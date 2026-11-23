@@ -30,7 +30,7 @@ After `npm ci`, use one of these commands from core:
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Reads the live vault without Obsidian. Restarts on vault/source changes; refresh the browser. Some Dataview content can be incomplete. |
-| `npm run dev -- --full` | Copies a working vault, materializes plain Dataview queries in Node, converts recognized legacy blocks, processes images/maps/search, loads local R2/D1, and starts the local Worker. No live publication. Rerun after editing notes. |
+| `npm run dev -- --full` | Copies a working vault, materializes plain Dataview queries in Node, omits closed DataviewJS blocks, processes images/maps/search, loads local R2/D1, and starts the local Worker. No live publication. Rerun after editing notes. |
 | `npm run dev -- --plugin` | Builds and installs Taelgarverse in the configured vault. Tries to reload it in running Obsidian; otherwise asks for a restart. |
 | `npm test` | Runs the automated suite using frozen core fixtures; no vault or Obsidian required. |
 | `npm test -- --live-vault` | Explicitly checks configured live notes and the installed Dataview bundle against test references. Read-only; separate from CI. |
@@ -42,11 +42,12 @@ the same local `--plugin --vault PATH` path, then enable Session review in the
 plugin settings. Transcript decisions and entity review are local vault writes;
 they do not deploy code or publish vault content.
 
-The reusable viewer package has a local build command, `npm run maps:pack`.
-CI saves the resulting archive as **taelgar-maps**; this does not publish an npm
-package or release the Obsidian plugin. The map catalogue API deploys through
-the normal website workflow and supports existing snapshots without a content
-republication. See [map package and API](maps.md#reusable-viewer-and-map-catalogue).
+Run `npm run maps:pack` to build the reusable viewer archive locally. CI tests
+the archive on Windows and Ubuntu, saves it as **taelgar-maps**, and runs the two
+Python exporter suites before website deployments and Obsidian releases.
+The map catalogue API deploys through
+the normal website workflow and reads the compiled snapshot's map catalogue.
+See [map package and API](maps.md#reusable-viewer-and-map-catalogue).
 
 The map baseline has a separate local review harness:
 `node scripts/preview-map-baseline.mjs --export .cache/map-baseline/my-export`.
@@ -94,15 +95,12 @@ publication/maintenance path; a website code deployment alone does not delete R2
 objects.
 
 Content preparation copies the vault to a temporary working directory, evaluates
-supported DQL in Node, then runs a separate compatibility conversion. Supported
-complete DataviewJS index patterns become `taelgar-index`. Unmatched closed
-JavaScript blocks retain the existing omission policy and appear in a conversion
-report. Images, backlinks, search and
-runtime compilation follow those two stages. Original notes and media stay
-unchanged, and Obsidian can be closed. The original vault supplies header
+supported DQL in Node, then omits closed DataviewJS blocks and headings emptied
+by their removal. Images, backlinks, search, and runtime compilation follow.
+Preparation uses copies of the original files and can run while Obsidian is closed. The original vault supplies header
 metadata and session inputs. See [publishing pipelines](publishing-pipelines.md).
-The copy skips underscore folders and folders containing `.nopublish`, including
-their entire subtrees, before reading or copying their contents.
+The copy prunes excluded paths before reading their contents. Dataview indexes
+the pages accepted by the article store.
 Explicit river/road `mapPath.source` geometry is the exception for underscore
 folders: only referenced `.map-path.json` inputs are copied, including files in
 `_maps/paths`. `.nopublish` and symlink exclusions still apply. The publisher
@@ -123,28 +121,20 @@ through GitHub before publishing new content.
 
 ### Roll out compiled runtime snapshots
 
-Deploy the updated website through the normal GitHub workflow **before**
-publishing with the runtime compiler. Then publish vault content normally. The
-publisher fingerprint includes the compiler and its lookup/navigation/search
-inputs, so the format change triggers a rebuild even with unchanged vault notes.
-There is no prerendering command; article HTML remains dynamic.
+The Worker, publisher and rollback tool require compiled runtime format 2 with a map
+catalogue and a compiled interaction index. Before deploying this code, verify the active revision and its recorded
+rollback revision with `node scripts/maintain-content.mjs prune --remote --dry-run`
+from this checkout. The dry run checks R2 and search readiness and reports what a
+cleanup would remove. If a retained revision is unsupported, use the preceding
+publisher and Worker to publish enough distinct format-2 revisions to rotate it
+out, then repeat the dry run.
 
-The new Worker reads runtime formats 1 and 2, legacy snapshots, and older search
-descriptors. New publications use runtime format 2: numeric backlink references
-in target-grouped shards, shared note-shard descriptors, and compact navigation
-visibility bitmaps. Deploy this reader **before publishing format 2**. A Worker
-that only supports runtime format 1 rejects format 2 even though the legacy
-index is retained; restore a format-1 content revision before rolling back to
-that Worker. Content rollback with the current Worker supports either format.
-
-New publications retain the schema-1 index/raw shards and add compiled runtime objects. Search
-staging upgrades D1 transactionally to schema 4, maintaining immutable, revision-bound
-page metadata without discarding existing ready generations. Activation still
-follows R2 upload and D1 verification. Previous-content rollback remains
-available. Deploy the updated Worker before publishing schema 4. Older website
-code rejects schema 4 or queries its removed visibility columns, so full-text search
-uses its page-name fallback after a code rollback. Keep the updated Worker when
-rolling back content; no database migration is needed for that path.
+Once the retained revisions verify, deploy the website through GitHub. The next
+normal content publication writes compiled objects and stages its search data in
+D1. Retention then removes obsolete raw indexes, note shards and transcript shards
+after verifying both retained revisions. Earlier format-2 revisions with a map
+catalogue can supply their media keys from their existing asset partitions.
+Rollback swaps the two verified publications under the publication lock.
 
 Local validation uses `npm test`, the R2/D1 integration tests, and
 `node scripts/cloudflare.mjs check`. These checks do not publish or deploy.
@@ -152,8 +142,8 @@ Production changes still use the separately authorized deployment/publication.
 
 ### Roll out page caching
 
-Deploy website code through the normal workflow. Page caching works with existing
-legacy and compiled publications; enabling it alone does not require republishing
+Deploy website code through the normal workflow. Page caching works with compiled
+publications. Enabling it alone does not require republishing
 the vault, changing Cloudflare cache rules, or adding bindings. The normal build
 already supplies the core commit and build timestamp used in cache identity.
 
@@ -253,8 +243,10 @@ If this is your first time publishing from this computer, follow
 The command prepares copies of your notes, generates small image variants, and
 uploads the results and stages the matching D1 search index. It switches the site
 to new content after both are verified. Your original notes and images stay
-unchanged. If the same saved version/settings are online, it checks search
-readiness and skips rebuilding while retrying any pending retention cleanup.
+unchanged. When the vault commit and publication fingerprint match the active
+checkpoint, the publisher checks search readiness and retries pending retention
+cleanup. A change to a local module imported by the publisher or its compiler,
+or to the dependency lockfile, triggers a rebuild on the next publication.
 The updated core connects the search UI to that published D1 index.
 
 `--no-strict` means “continue if a Dataview query cannot be converted.” Read the
@@ -265,15 +257,13 @@ The website generates headers from native `taelgar-header` callouts in the
 vault. Use the [saved header commands](#saved-header-commands) to update a
 note's header before publication.
 
-Node selects queries only from included notes; `noPublish`, stub tags and folder
-markers remove notes before query planning. The retired `excludePublish` field
-has no effect.
-It indexes the copied Markdown for query inputs; underscore folders and folders
-marked `.nopublish` are absent from that copy and index. It executes DQL only. Query errors appear in
-`.cache/publish/materialization-report.json`; recognized conversions and
-unmatched JavaScript appear in `.cache/publish/conversion-report.json` after a
-successful run. Failed runs retain the working vault and diagnostics in the
-printed temporary directory. A corrupt cache, failed first download, or invalid
+Node selects queries and their input pages from the article store. Its file
+selection also governs which links Dataview can resolve. The retired
+`excludePublish` field has no effect. Query errors appear in
+`.cache/publish/materialization-report.json`. After a successful build,
+`.cache/publish/conversion-report.json` lists the file and line of each omitted
+DataviewJS block in the prepared note body. Failed runs retain the working vault
+and diagnostics in the printed temporary directory. A corrupt cache, failed first download, or invalid
 explicit bundle stops Node preparation when query evaluation is needed, even
 with `--no-strict`. The materialization report lists unsupported current-page
 chronology queries.
@@ -419,11 +409,11 @@ The publisher handles images and other media separately from notes. Assets use
 content hashes as their keys. Before uploading, it lists the destination bucket
 and reuses matching asset keys with matching sizes, including assets saved by a
 failed earlier run. Missing assets and size mismatches are uploaded first, then
-the note shards and index. Only after those transfers and D1 verification does
+the compiled snapshot objects. Only after those transfers and D1 verification does
 the publisher activate the revision. No local upload receipt is trusted as proof
 that an asset still exists in the bucket.
 
-After the notes/index upload, progress reports show search text staging and reuse,
+After the compiled snapshot upload, progress reports show search text staging and reuse,
 visibility-rule staging, read-back verification, activation, and retention cleanup.
 Longer steps print a status message every ten seconds with elapsed time and the
 last completed batch count where available. `New content is live` confirms
@@ -431,7 +421,7 @@ activation; cleanup may still be deleting obsolete R2 objects or compacting D1.
 The final completion message follows cleanup and removal of temporary export
 files. These are phase counts, not an estimated overall completion percentage.
 
-Earlier phases also report elapsed seconds: working-copy creation, Node DQL evaluation, compatibility conversion, R2 recipe loading,
+Earlier phases also report elapsed seconds: working-copy creation, Node DQL evaluation, DataviewJS omission, R2 recipe loading,
 vault scanning, image-size discovery, responsive images, map tiles, packaging,
 backlinks, and search/runtime compilation. Completion logs include each phase's
 duration and the overall publish duration. Successful runs save milliseconds in
@@ -556,10 +546,9 @@ folder, then into taelgar.” Use forward slashes in Windows JSON paths, as abov
 Leave `source_dir` out for normal use. For an already exported copy, set it to
 the export folder and keep `vault_dir` pointing at the original vault for scripts
 and metadata, including the homepage and menu. Setting `source_dir` to `null` also
-means “use the vault.” The full
-publisher always prepares publication copies in memory from `vault_dir`, with
-query request/results staged temporarily in core. It does not copy the vault or
-media into a second export folder.
+means “use the vault.” The full publisher copies eligible source files from
+`vault_dir` into a temporary working directory under core's `.cache/publish`.
+It evaluates DQL on that copy.
 
 Leave `nav_source` and `home_source` out for normal use. Both files must exist in
 the vault's `_website` folder. If you had a local `nav_source` pointing to the old

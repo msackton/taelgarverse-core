@@ -245,13 +245,13 @@ buttons in Obsidian only. The setting defaults to on and applies immediately,
 closing any open header popup. Inline `taelgar-index` blocks and website popups
 are unaffected; no note metadata is changed.
 
-Residents, Settlements, Members, Rivers and Places grids are calculated from vault metadata. Put
+Residents, People Present, Settlements, Members, Rivers and Places grids are calculated from vault metadata. Put
 `indexes: [residents, settlements]` in a place's frontmatter to add popup buttons at the bottom of
 its `taelgar-header` block, below and outside the information callout. Organizations tagged
 `group` get Members automatically when `indexes` is omitted; set `indexes: []` to suppress it or
 provide an explicit list to choose header indexes. Ordinary
 Markdown titles and saved headers do not receive buttons. Use a `taelgar-index` fence
-containing `type: residents`, `type: settlements`, `type: members`,
+containing `type: residents`, `type: people-in-place`, `type: settlements`, `type: members`,
 `type: rivers`, or `type: places` for an
 inline grid. Inline grids and tables start with an H2 heading matching the index
 label by default; set `heading: false` to omit that title in Obsidian and the
@@ -272,6 +272,15 @@ Member tables use the header templates and affiliation-date rules. Settlement ta
 Place, Region, Type Of, and Population, sorted by their dated home region.
 Settlements includes ruins and matches current, last-known and secondary
 locations using the existing `inLocation(..., true, true, date)` rules.
+Use `type: people-in-place` or `indexes: [people-in-place]` to show living people
+currently in the place, including visitors. Residents who are away are omitted.
+Set `recursive: false` inline to limit results to the immediate place.
+All inline indexes accept `scope: current` for matches at the selected date,
+`scope: historical` to also include matches at death or destruction, and
+`scope: ever` for any match through the selected date. Replace
+`membership: historical` with `scope: ever`. Use `scope: historical` for
+memberships active at death. Members tables accept `columns: life-dates`
+to show Born and Died alongside Person and Info.
 Rivers follows `typeOf: waterway` or `typeOf: lake` and includes secondary watershed membership.
 Places lists contained place notes, such as a town's quarters, buildings and shops.
 Inline Places blocks accept `placeType: built` or `placeType: natural`; omit the
@@ -493,3 +502,10 @@ See [Photoshop setup](../../docs/map-editor.md#create-a-map-from-photoshop).
 Layer loading and export share the session review hub's Python executable
 discovery and Windows launch-path normalization. Configure the Python environment
 containing the exporter dependencies; executable names and absolute paths are accepted.
+
+## Campaign roster and play history
+
+Use `taelgar-roster` and `taelgar-session` on campaign indexes or reference the
+same campaign from another note. The session fence can show a summary as well as
+a history table. See [campaign roster and sessions](../../docs/vault.md#campaign-roster-and-sessions)
+for fields and examples.

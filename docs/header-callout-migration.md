@@ -34,10 +34,9 @@ production deployment.
 - Website renderer: removed generation triggered by `headerVersion`/`tags`, HTML
   markers or old header fences. It replaces only explicit callouts and does not
   rewrite surrounding headings or pronunciation.
-- Website preparation: removed both the old normalization in
-  `src/website-compatibility.mjs` and the dedicated publication pass that later
-  migrated eligible legacy headers. DQL materialization and DataviewJS conversion
-  and cleanup operate independently.
+- Website preparation retired saved-header normalization and the dedicated pass
+  that migrated eligible legacy headers. DQL materialization and DataviewJS
+  omission operate independently of headers.
 - Obsidian: removed the `taelgar-header` code-block processor, saved-title
   detection and code-block/automatic-pronunciation styling. Header indexes mount
   through the callout handler only.

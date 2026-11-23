@@ -10,7 +10,7 @@ independent release paths.
 | Document | Owns |
 | --- | --- |
 | [Deploy](deploy.md) | Human instructions for publishing content, credentials, local previews, and recovery. |
-| [Publishing pipelines](publishing-pipelines.md) | Node Dataview, bundle acquisition, and compatibility rewrite rules. |
+| [Publishing pipelines](publishing-pipelines.md) | Node Dataview, bundle acquisition, and publication cleanup. |
 | [Architecture](architecture.md) | Component boundaries, code map, and maintenance rules for agents. |
 | [Vault usage](vault.md) | Which vault files and fields are consumed, rendering semantics, and limitations. |
 | [Cloudflare](cloudflare.md) | Current hosted topology, bindings, storage layout, and operational behavior. |
@@ -30,7 +30,7 @@ implementation scope. Syntax and behavior belong in [vault usage](vault.md#gener
 flowchart LR
     V[taelgar vault] --> F[Copy working vault]
     F --> Q[Plain Dataview in Node]
-    Q --> X[Convert recognized legacy blocks]
+    Q --> X[Omit closed DataviewJS blocks]
     X --> P[Node content preparation]
     V --> S[Homepage and menu Markdown]
     S --> P
@@ -60,15 +60,14 @@ flowchart LR
 | --- | --- |
 | `obsidian/taelgarverse/features/session-review.mjs`, `obsidian/taelgarverse/features/session-review-index.mjs`, `obsidian/taelgarverse/features/session-review-python.mjs`, `obsidian/taelgarverse/features/session-review-process.mjs`, `src/browser/session-review.mjs`, `src/browser/entity-review.mjs` | Focused entity-map table and human-review queue, explicit confirmation of changed transcript/session fingerprints, native session discovery, Python executable resolution, and bounded asynchronous process transport with normalized Windows launch paths. Vault-note content hashes do not guard processing. The vault entity review helpers own durable feedback JSON, recoverable map/history writes, and exclusive empty staging-note creation with campaign-folder and name-collision checks; guarded regeneration preserves human decisions. Their shared source reader opt-in permits actual transcript SHA inspection without weakening other workflows' default checks. Transcript corrections and finalization use the vault skills. See [session review](session-review.md). |
 | `obsidian/taelgarverse/python-runtime.mjs` | Shared Python executable discovery and Windows launch-path normalization for session review and Photoshop layer loading/export. Skips non-executable Windows aliases; callers retain their own transport, progress and cancellation behavior. |
-| `scripts/publish-content.mjs` | Git checkpoint, working vault copy, Node Dataview, compatibility conversion, image optimization, upload, and activation. |
-| `scripts/materialize-website-dataview.mjs`, `src/dataview-node/`, `scripts/website-working-vault.mjs` | Copy source inputs and original file timestamps, prune underscore/`.nopublish` subtrees before copying, index the remaining working vault, and evaluate DQL in Node using a pinned Dataview bundle. No desktop process. |
+| `scripts/publish-content.mjs` | Git checkpoint, working vault copy, Node Dataview, Markdown cleanup, image optimization, upload, and activation. |
+| `scripts/materialize-website-dataview.mjs`, `src/dataview-node/`, `scripts/website-working-vault.mjs` | Copy source inputs and original file timestamps, prune excluded files and folders before copying, index the article store's files, and evaluate DQL in Node using a pinned Dataview bundle. No desktop process. |
 | `src/dataview-node/bundle.mjs`, `scripts/cache-dataview.mjs` | Exact GitHub release pin, checksum verification, atomic local dependency-cache downloads, offline reuse and explicit bundle validation. The Node default never reads the vault's Dataview installation/settings. |
-| `scripts/convert-website.mjs`, `src/website-compatibility.mjs` | Separate conversion stage: parse complete recognized DataviewJS table patterns into native blocks; report unmatched code before applying existing cleanup policy. |
 | `scripts/publication-progress.mjs` | Phase status, elapsed time, optional local timing records, and ten-second progress reminders around publishing operations; timers stop on success or failure. |
 | `scripts/upload-content.mjs`, `scripts/cloudflare-client.mjs` | Separate incremental asset and snapshot transfers, bounded retries, request pacing, and shared refreshable Cloudflare credentials. Used by full and manual publication. |
 | `scripts/dev.mjs`, `scripts/test.mjs`, `.github/workflows/tests.yml` | Public development/test entry points, live-vault watching, full local publication preview, plugin installation, and GitHub test/package gates. |
 | `.github/workflows/website.yml` | Reuse CI tests, then deploy Worker/static assets on `main`. Serialize production pipelines; deployment credentials are available only in the deployment step. See the one-time cutover in [Deploy](deploy.md#one-time-github-website-deployment-setup). |
-| `scripts/prepare-cloudflare.mjs`, `src/publication-markdown.mjs`, `src/markdown-fences.mjs`, `src/markdown-blocks.cjs` | Orchestrate DQL, compatibility conversion and remaining JavaScript cleanup, then package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. Runtime header generation uses the native callouts authored in vault notes. |
+| `scripts/prepare-cloudflare.mjs`, `src/publication-markdown.mjs`, `src/markdown-fences.mjs`, `src/markdown-blocks.cjs` | Materialize DQL and omit closed DataviewJS blocks, then package metadata, Markdown shards, homepage/menu Markdown, and hashed assets into a revision. Runtime header generation uses the native callouts authored in vault notes. |
 | `scripts/compile-runtime.mjs`, `src/runtime-format.mjs` | Compile versioned lookups, availability, campaign contexts, navigation views, parsed notes and separate route manifests during publication. No HTML prerendering. |
 | `scripts/derivative-cache.mjs` | R2 recipe catalog for responsive images/map pyramids, output inventory validation, and publication of reusable records after successful asset uploads. Local/offline consumers retain filesystem generation. |
 | `scripts/build-images.mjs` | Responsive-image recipes, bounded parallel generation, cache-reuse counts, and deterministic asset registration. See [image delivery](images.md#publication-and-caching). |
@@ -78,18 +77,18 @@ flowchart LR
 | `scripts/hostname-firewall.mjs` | Adds validated publication/rollback hosts to the enabled, separately provisioned Taelgar WAF allowlist before remote pointer activation. Preserves existing entries and leaves other destinations/local previews untouched. See [hostname protection](hostname-protection.md#automatic-additions-during-publication). |
 | `src/search.mjs`, `src/search-types.mjs`, `src/local-search.mjs`, `src/search-view.mjs` | Read-only context/revision/type-filtered D1 queries, metadata-based exact-name ranking and type classification, identical local SQLite search, page-name fallback, and escaped result/excerpt rendering. See [search](search.md). |
 | `src/store.mjs`, `src/content-store.mjs` | Local filesystem scan, YAML parsing, page/asset lookup, shared availability rules. |
-| `src/folder-exclusions.mjs` | Discover original-vault `.nopublish` folder markers for local indexing, export packaging, and publication fingerprints. |
-| `src/snapshot.mjs` | Load the R2 index and fetch/cache Markdown shards on demand. |
-| `src/runtime-snapshot.mjs` | Select compiled or legacy snapshots; lazily load route data and verify/cache prepared notes and asset manifests. |
+| `src/folder-exclusions.mjs` | Share path eligibility between the working copy and article store, and discover original-vault `.nopublish` markers for local indexing, packaging, and publication fingerprints. |
+| `src/runtime-snapshot.mjs` | Load the compiled format-2 manifest and verify and cache route data, prepared notes and asset partitions on demand. |
 | `src/runtime-io.mjs`, `src/snapshot-cache.mjs` | Bounded storage waits and stream cleanup, request phase timings, and hash-verified immutable snapshot caching in the Workers Cache API. See [runtime performance](cloudflare.md#runtime-deadlines-caching-and-timings). |
 | `src/page-cache.mjs` | Worker-only HTML response caching, keyed by publication/build identity and full URL; browser ETag revalidation. |
 | `src/crawler-policy.mjs`, `public/robots.txt`, `public/_headers` | Worker crawler rejection before content/cache access, static crawler exclusions, and no-index responses. Hosted behavior and limits belong in [Cloudflare](cloudflare.md#what-happens-when-someone-opens-a-page). |
-| `src/application.mjs` | Shared Fetch API router: homepage, articles, search HTML/JSON, contexts, navigation, assets, health. |
+| `src/routes.mjs`, `src/application.mjs` | The route table names each endpoint, its snapshot data and its timing category. Node and the Worker dispatch the match to the shared Fetch API handlers. |
 | `src/render-engine.mjs` | Resolve context/page, generate explicit header callouts, filter comments, render Markdown and page shell. |
 | `src/article-layout.mjs` | Shell-only prose grouping and semantic media breakouts, retaining float contexts and embedded-note boundaries. |
 | `src/homepage.mjs`, `public/homepage.css`, `public/images/home-map.webp` | Homepage composition, entry buttons, responsive layout, and decorative map asset. Introductory content remains in the vault's `_website/home.md`. |
 | `src/contexts.mjs`, `src/navigation.mjs` | Session-derived dates and context-filtered navigation. |
 | `src/backlinks.mjs` | Index authored incoming links and filter them by source availability and visible comment states. |
+| `src/campaign-blocks.mjs`, `src/campaign-source.mjs`, `src/campaign-records.mjs`, `src/campaign-roster.mjs`, `src/campaign-dates.mjs`, `src/campaign-view.mjs`, `src/vault-campaign-records.mjs`, `src/vault-campaign-sessions.mjs`, `src/snapshot-campaigns.mjs`, `obsidian/taelgarverse/features/campaign-blocks.mjs` | Shared loader, records, and views for campaign rosters and sessions. Obsidian supplies local sources and native links. Website publication compiles from the source vault independently of article visibility. The Worker loads revision-scoped campaign records as the fences render. See [campaign roster and sessions](vault.md#campaign-roster-and-sessions). |
 | `src/mapped-sessions.mjs`, `src/recap-parser.mjs`, `src/session-interactions.mjs`, `src/campaign-interactions.mjs`, `src/campaign-ownership.mjs`, `src/interaction-view.mjs`, `src/browser/interactions.mjs`, `src/browser/interaction-groups.mjs` | Node-only map validation and artifact discovery, shared recap fallback parser, campaign ownership, session model, and dot/passage controls. The website ingests maps; the Obsidian adapter retains recap discovery. See [campaign interactions](campaign-interactions.md). |
 | `src/embeds.mjs` | Expand visible note/heading/block embeds, bound recursion, preserve source-relative rendering, and isolate anchors/popups. |
 | `src/maps.mjs`, `src/map-distance.mjs`, `src/map-path.mjs`, `src/browser/map-view.mjs`, `src/browser/map-measurement.mjs`, `src/browser/map-tools.mjs`, `src/map-sketch.mjs` | Map rendering, calibration, flat measurement routes, common website/Obsidian/room controls and gestures, optional shared-host ping pulses, and DOM-free selection/erasing/conditional history patches. Hosts own ping authentication and transport. See [maps](maps.md). |
@@ -99,7 +98,7 @@ flowchart LR
 | `src/map-layers.mjs`, `src/browser/map-regions.mjs`, `obsidian/taelgarverse/maps/regions.mjs`, `obsidian/taelgarverse/maps/region-persistence.mjs` | Shared region-file validation, image-aligned vector borders, viewer visibility controls and guarded Obsidian region authoring. The store and publication pipeline preserve validated layer metadata; see [region layers](map-layers.md). |
 | `obsidian/taelgarverse/maps/create-map.mjs`, `obsidian/taelgarverse/maps/create-map-files.mjs` | Standalone PNG-to-map command/dialog, bounded static-PNG decode validation, safe creation of new image/manifest/note files, and recovery reporting. Existing assets are never overwritten. See [create map](map-editor.md#create-a-map-from-an-image). |
 | `obsidian/taelgarverse/maps/create-photoshop-map.mjs`, `obsidian/taelgarverse/maps/photoshop-runner.mjs`, `obsidian/taelgarverse/maps/bundled-exporter.mjs`, `scripts/map-export/dropbox_link.py` | Desktop Photoshop creation dialog, configured Python child process, cancellation and temporary output ownership; Python handles layer inventory/compositing and source revision checks. The build embeds the maintained exporter sources, recipe, requirements and geometry in main.js; each job unpacks its own temporary copy. Dropbox module owns public shared-link downloads, redirect restrictions and HTTP-revalidated local caches. No API account-path or credential integration remains. PSDs and shared URLs stay outside published map data. See [setup and limits](map-editor.md#create-a-map-from-photoshop). |
-| `src/map-details.mjs`, `src/browser/map-details.mjs`, `obsidian/taelgarverse/maps/detail-editor.mjs` | Regional artwork footprint/dimension validation, lazy zoom-dependent raster overlays, editor template downloads and guarded per-map attachment saves. `src/store.mjs` discovers `.map-detail.json`; publication validates full PNGs and preserves metadata in both snapshot formats. See [regional artwork](map-editor.md#regional-artwork). |
+| `src/map-details.mjs`, `src/browser/map-details.mjs`, `obsidian/taelgarverse/maps/detail-editor.mjs` | Regional artwork footprint/dimension validation, lazy zoom-dependent raster overlays, editor template downloads and guarded per-map attachment saves. `src/store.mjs` discovers `.map-detail.json`; publication validates full PNGs and preserves metadata in the compiled snapshot. See [regional artwork](map-editor.md#regional-artwork). |
 | `obsidian/taelgarverse/maps/tracing-image.mjs` | Temporary local PNG tracing references in the editor: decode validation, Photoshop alignment, opacity, clipping and blob-URL cleanup. No vault writes or publication fields; see [tracing images](map-editor.md#trace-an-existing-photoshop-layer). |
 | `src/map-feature-path.mjs`, `src/browser/map-feature-paths.mjs`, `obsidian/taelgarverse/maps/paths.mjs`, `obsidian/taelgarverse/maps/path-persistence.mjs` | River/road note references, geometry validation, importance-based display, live editor drawing and guarded note/file persistence. `src/map-path-files.mjs` resolves local geometry inputs; working-copy/publication stages preserve validated geometry on note entries without public asset URLs. `src/maps.mjs` resolves published paths against note availability before serializing geometry; see [rivers and roads](map-editor.md#rivers-and-roads). |
 | `scripts/map-export/extract_symbols.py`, `public/images/map-symbols/`, `src/map-symbols.json`, `src/map-symbols.mjs` | Native Photoshop location-symbol extraction, source provenance, embedded PNG assets and supported symbol names. The plugin saves the selected `mapLocation.symbol` independently of importance; see [symbol provenance](../public/images/map-symbols/README.md). |
@@ -113,9 +112,9 @@ flowchart LR
 | `src/header-callout.mjs`, `obsidian/taelgarverse/features/headers.mjs` | Top-level header-callout boundaries and one Obsidian postprocessor shared by Reading view and native Live Preview callouts (no competing header decoration). The host selects the date and resolves links; titles and pronunciation remain authored Markdown. See the [legacy review](header-callout-migration.md). |
 | `src/header-rewrite.mjs`, `src/header-tool.mjs`, `scripts/header-tool.mjs`, `obsidian/taelgarverse/header-tool.mjs` | Pure approved-format source rewriting with shared H1 naming/article rules, targeted editor commands, preview-first standalone/bulk tooling, and extraction of the embedded CLI into the installed plugin folder. Build/install keep the Node CLI self-contained without adding a BRAT runtime asset. See [saved header commands](deploy.md#saved-header-commands). |
 | `obsidian/taelgarverse/features/interactions.mjs`, `obsidian/taelgarverse/features/interaction-data.mjs` | Native vault metadata/link adapter, cached recap index, explicit interaction blocks, automatic Reading View footer and host-owned CodeMirror Live Preview widget. Known-to pages get a campaign picker; no note writes or website requests. |
-| `src/indexes.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/index-description.mjs`, `src/website-indexes.mjs`, `src/browser/index-popups.mjs` | Shared Residents, Settlements, Members, Rivers and Places queries, cards/table/popup markup, lead-image resolution, prose descriptions, website visibility adapter and popup lifecycle. The Obsidian index adapter supplies native resolution and cached queries; the headers feature owns inline/popup rendering and links. See [generated indexes](vault.md#generated-indexes). |
+| `src/indexes.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/index-description.mjs`, `src/website-indexes.mjs`, `src/browser/index-popups.mjs` | Shared Residents, People Present, Settlements, Members, Rivers and Places queries, cards/table/popup markup, lead-image resolution, prose descriptions, website visibility adapter and popup lifecycle. The Obsidian index adapter supplies native resolution and cached queries; the headers feature owns inline/popup rendering and links. See [generated indexes](vault.md#generated-indexes). |
 | `src/campaign-calendar.mjs`, `src/campaign-calendar-context.mjs`, `src/lunar.mjs`, `src/browser/campaign-calendar.mjs`, `public/calendar.css`, `obsidian/taelgarverse/features/calendar.mjs` | Opt-in campaign-date calendar with DR date/month helpers, lunar phases, and normal Obsidian campaign/custom-date settings. Disabled by default; the component owns its active listeners and date API. A metadata-only adapter reuses website Contexts and exposes the date API for headers, indexes and CustomJS. The DOM view shows campaign dots and daily moon illumination; lunar crossings use the adopted full-moon anchor and exact three-hour ticks. The legacy CustomJS hook is an uncommitted experimental-vault change; no website route exists yet. See [campaign calendar](vault.md#campaign-calendar-prototype). |
-| `src/worker.mjs`, `src/worker-handler.mjs`, `src/snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
+| `src/worker.mjs`, `src/worker-handler.mjs`, `src/runtime-snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
 | `tests/helpers/legacy-headers/` | Original VM and generated CustomJS references for historical, date-boundary, and index comparisons, plus manual fixture builders. |
 | `tests/helpers/full-header-rendering.mjs` | Assembles complete historical headers around the maintained callout body and reproduces saved-header replacement for fixture comparisons. |
 | `scripts/build-icons.mjs`, `public/icons/`, `src/icons.mjs` | Build the checked-in icon table used by website Markdown. The content publisher fingerprints the generated table. |
@@ -215,26 +214,15 @@ full-session links; sessions without a recap use explicit links
 in the official session note as separately labeled session references. Original
 `_sessions` files remain outside the article store; only session-header fallback
 metadata and resolved Cast membership enter the revision index. Beats, Short/Long
-text, and transcripts are ignored. The Worker requires no session-body reads. Older publications
-retain authored headers and non-session campaign references. See [campaign interactions](campaign-interactions.md).
-
-Compiled runtime render data carries the same session interaction projections as
-the legacy index. Transcript serving, shard writing and rollback compatibility
-are retired. Retention ignores old transcript descriptors and sweeps obsolete
-transcript shards even from active/previous revisions; missing transcript objects
-do not block cleanup or rollback of the remaining content.
-Older compiled publications without an
-interaction projection derive non-session references from the request's target
-backlink shard, keeping the shared engine immutable.
+text, and transcripts are ignored. The Worker reads the compiled session
+interaction projection without fetching session bodies.
+See [campaign interactions](campaign-interactions.md).
 
 `RenderEngine.renderHome()` applies the shared comment and Markdown renderer to
 the authored homepage, without generating an article header or indexing it as a
 note. The root route uses it unless a `q` parameter requests search. Homepage and
-menu sources live in the revision index, separate from article shards. The
-schema-1 `homeSource` field is optional so older publications retain the page
-finder; a supplied value must be a string or null. Deploy the updated core and
-publish content to enable the homepage, in either order. Both website source
-files are read explicitly; the normal underscore-folder exclusion stays in place.
+menu sources are compiled into renderer and navigation data. The publisher reads both
+website source files explicitly. The normal underscore-folder exclusion stays in place.
 
 Header calculations need metadata from the whole indexed vault for names,
 locations, and relationships. The adapters share frozen metadata but create fresh
@@ -250,10 +238,13 @@ with saved output in both formats, including every captured vault `testcase`
 page. Fixture updates and known pre-existing defects are described in the
 [refactoring test baseline](shared-taelgar-blocks-plan.md#refactoring-test-baseline).
 
-Generated indexes cache only immutable candidate/path lookups on the metadata
-snapshot; dated relationships and website visibility remain query-local. The
+Generated indexes cache immutable candidate/path lookups on the metadata
+snapshot. Dated relationships and website visibility remain query-local. For
+`scope: ever`, location indexes check the dates when recorded whereabouts can
+change along reachable containment chains. Each chain uses the same date
+throughout, and `whereabouts` normalization is reused across probes. The
 Obsidian adapter additionally retains up to 32 author-view queries per snapshot,
-keyed by date, source, target, type, and containment. Renders receive independent
+keyed by date, source, target, type, containment, scope, and table columns. Renders receive independent
 result copies, and metadata changes replace the snapshot and its cached queries.
 Header buttons run only a first-match existence probe. Popup bodies are built on
 activation; the shared popup controller coalesces loads, retries failures, and
@@ -277,7 +268,7 @@ including when a type filter would otherwise prevent the depth limit advancing.
 
 `src/markdown-blocks.cjs` uses Markdown-it block rules to identify fences and
 indented code with original source offsets. Comment protection, website query
-selection/conversion and map editing share these
+selection, publication cleanup, and map editing share these
 boundaries. Source rewrites retain list markers on the first line and quote/list
 continuation prefixes afterward. Inline-code protection remains in `comments.mjs`.
 
@@ -285,20 +276,21 @@ Body Dataview/JavaScript is not executed by either renderer. Supported
 Dataview queries are materialized during publication and do not rerun when a
 visitor changes context.
 
-The new website publisher copies source files into a request-owned working vault,
-materializes supported plain DQL in Node, then runs compatibility conversion
-before any image discovery, backlinks, search or runtime compilation. The
-conversion recognizes complete supported JavaScript syntax without executing it; it does not rewrite headers.
-Native blocks remain dynamic at render time. Unrecognized DataviewJS follows the
-existing omission policy and is reported. Original notes are never rewritten.
+The publisher copies source files into a working vault, materializes plain DQL in Node,
+and omits closed DataviewJS blocks before image discovery, backlinks, search, and
+runtime compilation. The cleanup report lists each omitted block. Authored native
+indexes remain dynamic at render time.
 The publisher downloads an exact pinned GitHub Dataview release on first DQL
 use and verifies/reuses its core-local cache offline. It uses built-in settings
 without reading the vault's Dataview installation. `--dataview-directory` is an
 explicit bundle/settings override that bypasses downloading. Neither cache
 availability nor its machine path changes the default fingerprint; the release
 pin and settings policy do. Obsidian need not be installed or running.
-The default pin and explicitly selected bundle files participate in the
-fingerprint.
+The publisher uses esbuild's dependency graph to fingerprint local imports from
+`scripts/publish-content.mjs`. It hashes repository-relative filenames and
+line-ending-normalized contents in sorted order, plus the dependency lockfile.
+The pre-activation check discovers the graph again so it can detect edits made
+during preparation.
 Direct `prepareContent` calls use the same ordering and can supply a materialization
 callback; without one, DQL remains unavailable at render time.
 

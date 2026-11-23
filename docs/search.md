@@ -46,7 +46,7 @@ the Curtain controls preserve the selection; changing a query or type starts
 at the first page.
 
 `src/search.mjs` builds two read-only queries in one D1 batch: a readiness check
-against the active R2 index's search descriptor, and the ranked query restricted
+against the active runtime manifest's search descriptor, and the ranked query restricted
 to that revision's matching date/campaign/DM rules **before** ordering/limiting.
 The request-local `first-primary` D1 session starts with current readiness data;
 results are not cached between contexts or publications. The Worker uses the
@@ -74,8 +74,8 @@ fallback still works. There are no Cloudflare credentials or remote calls in thi
 path. A full vault can take several seconds to initialize the first search.
 
 Deploy the updated core to add the route and UI, then publish content to stage
-the matching production index. Either order is supported because older snapshots
-fall back to page names. Local checks do not index the vault remotely.
+the matching production index. The Worker uses page-name search when a
+supported snapshot has no ready full-text index.
 
 ## Compiler and visibility
 
@@ -107,11 +107,10 @@ Sparse notes retain searchable headings, titles, and aliases.
 Preparation compiles from the same source snapshot as R2. The local revision
 directory contains `search.json`: compiler version, content-hashed documents,
 rules, page metadata, digest, statistics, and warnings. It may contain DM prose and stays under
-the ignored cache, excluded from the R2 upload manifest. R2 `index.json` contains
-only a search descriptor with `version`, `digest`, `documents`, `rules`, and,
+the ignored cache, excluded from the R2 upload manifest. R2 `runtime.json` records the search descriptor with `version`, `digest`, `documents`, `rules`, and,
 for compiled metadata, `metadataVersion: 1` and a `metadata` row count. It participates
 in the content revision hash. Build reports add `searchFile` and `searchStats`.
-Staging validates the manifest's association with that R2 index before any writes.
+Staging validates the manifest's association with that runtime manifest before any writes.
 
 The production database is `taelgarverse-search`, binding `SEARCH_DB`, with its
 explicit ID in `wrangler.json`. Local overrides support `d1_databases`. Remote
@@ -197,7 +196,7 @@ revision keeps the existing rollback choice. The first publication with this
 policy preserves the previously active publication and removes older history;
 legacy upload timestamps are never used to guess which snapshot was good.
 
-After activation, cleanup verifies both retained R2 indexes, their referenced
+After activation, cleanup verifies both retained runtime manifests, their referenced
 objects and any D1 search descriptors. It removes older note shards/indexes,
 unreferenced content-addressed assets, older D1 memberships, and orphaned search
 text, including FTS postings. Assets/text shared by the retained revisions stay

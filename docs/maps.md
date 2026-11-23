@@ -356,7 +356,7 @@ See [regional artwork](map-editor.md#regional-artwork) for the complete format,
 editor guide/template export, Photoshop export command and limits. The website
 fully decodes each referenced static PNG during preparation, validates its exact
 canvas dimensions and aspect ratio, preserves the original PNG/alpha, and carries
-`mapDetail` and `mapImageInfo` through compiled and legacy snapshots. The PNG's
+`mapDetail` and `mapImageInfo` in compiled snapshots. The PNG's
 public asset URL is resolved at render time. Referenced invalid or excluded
 artwork prevents publication; a runtime image-load failure leaves the world
 visible. Regional PNGs currently use lazy image overlays, not tile pyramids.
@@ -431,28 +431,18 @@ historical snapshot or asset-retention service. Renaming a source note changes
 its map identities. Existing retention of active plus previous content remains
 unchanged.
 
-New publications add an optional, hash-verified `runtime/maps.json` containing
-only source bodies with map blocks. Filtering and resolution still happen per
-request. Existing compiled format 1/2 and legacy snapshots remain readable:
-the first catalogue request scans their existing note shards with bounded
-concurrency and reuses the discovered source bodies. Existing article requests
-do not perform this scan. No vault republication is required to test the API;
-the next ordinary content publication adds the optimized catalogue source part.
+The hash-verified `runtime/maps.json` contains source bodies with map blocks.
+The Worker loads it on the first catalogue request and reuses it within that
+snapshot. Filtering and resolution happen per request. Article rendering reads
+its own prepared note shard independently.
 
 For a manual regression pass after the website release, open existing tiled and
 legacy maps and check pan/zoom/Fit map, crops, hex coordinates, region toggles,
 regional detail imagery, distance/area measurement, Sketch/Undo/Clear, and mobile
 navigation. Compare the same map in Obsidian; installed plugin artifacts are
 updated only by the separate plugin release workflow. Automated checks include
-Node and compiled/legacy Worker catalogue parity, context isolation, package
+Node and Worker catalogue parity, context isolation, package
 packing and the existing website/Obsidian map suites.
-
-For existing compiled snapshots without `runtime/maps.json`, first access scans
-each prepared note shard once, with at most eight shard reads in flight. A cheap
-language check skips full Markdown parsing for ordinary prose. Discovered map
-sources are retained per snapshot for later searches and selections. Future
-content publications include the dedicated map-source part and skip note reads
-entirely; no content republication is required for the fallback fix.
 
 The common toolbar exposes Ping only to shared hosts that supply `onPing`. The
 host broadcasts source-local coordinates and calls `showPing` on recipients;

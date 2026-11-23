@@ -97,7 +97,7 @@ test('packaging from R2 yields the same snapshot and uploads only metadata; lost
   const second=await prepareContent(settings,path.join(directory,'package-second'),version,{concurrency:3},undefined,remote);
   assert.ok(remote.hits.images>0);assert.equal(remote.hits.maps,1);
   assert.equal(second.revision,first.revision);
-  assert.deepEqual(JSON.parse(await fs.readFile(second.indexFile)),JSON.parse(await fs.readFile(first.indexFile)));
+  assert.deepEqual(JSON.parse(await fs.readFile(second.runtimeFile)),JSON.parse(await fs.readFile(first.runtimeFile)));
   const uploads=JSON.parse(await fs.readFile(second.manifestFile));
   const references=uploads.filter(item=>item.remoteOnly);assert.ok(references.length>10);
   for(const item of references){assert.equal(item.file,undefined);await assert.rejects(fs.access(path.join(directory,'package-second','objects',item.key.slice(7))),/ENOENT/);}

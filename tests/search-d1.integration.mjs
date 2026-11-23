@@ -1,3 +1,4 @@
+import {retentionObjects} from './helpers/compiled-publication.mjs';
 // Explicit real D1/R2 emulator checks. No Cloudflare auth or remote writes.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -29,13 +30,15 @@ test('real D1 staging, FTS, persisted restart and R2 activation gate preserve pr
   const fixture=text=>compileSearch(new ContentStore([{id:'One.md',name:'One',title:'One',slug:'one',target:targetPath('One.md'),note:parseNote(text)}]));
   const first=fixture('oldmarker\n%% privatepopup %%'),second=fixture('newmarker\n%% privatepopup %%'),third=fixture('currentmarker');
   const revision='a'.repeat(64),next='b'.repeat(64),fingerprint='c'.repeat(64),commit='d'.repeat(40);
-  const file=path.join(directory,'index.json'),manifestFile=path.join(directory,'uploads.json');
+  const manifestFile=path.join(directory,'uploads.json');
   const build=async(revision,search)=>{
     const assets=revision==='a'.repeat(64)?['a']:revision==='b'.repeat(64)?['b','c']:['b','d'];
-    const entries=[{note:{shard:'00'}},...assets.map(a=>({objectKey:'assets/'+a.repeat(64)}))];
-    await fs.writeFile(file,JSON.stringify({schemaVersion:1,revision,search,entries}));
-    const uploads=[{key:'revisions/'+revision+'/index.json',file}],notes=path.join(directory,'notes.json');
-    await fs.writeFile(notes,JSON.stringify({'One.md':'raw source'}));uploads.push({key:'revisions/'+revision+'/notes/00.json',file:notes});
+    const uploads=[];
+    for(const [key,value] of retentionObjects(revision,assets.map(letter=>'assets/'+letter.repeat(64)),search)){
+      const file=path.join(directory,key);
+      await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file,JSON.stringify(value));
+      uploads.push({key,file});
+    }
     for(const a of assets){const assetFile=path.join(directory,a+'.bin');await fs.writeFile(assetFile,a);uploads.push({key:'assets/'+a.repeat(64),file:assetFile});}
     await fs.writeFile(manifestFile,JSON.stringify(uploads));
     return {revision,search,manifestFile};

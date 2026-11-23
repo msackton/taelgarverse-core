@@ -100,10 +100,9 @@ documents, and contained media are not packaged for publication. A child folder
 cannot override an excluded parent. Removing the marker opts the folder back in
 on the next preview refresh or content publication.
 
-The website working copy also skips underscore folders and `.nopublish` folders
-at every depth, including their media and descendants. They are not copied or
-indexed by Node Dataview. Explicit homepage, menu, and session inputs still read
-their configured files in the original vault. Explicit `mapPath.source` references
+The website working copy applies the same file and folder exclusions as the
+article store. Dataview uses the store's accepted pages for all publication queries.
+Homepage, menu, and session inputs come from their configured files in the original vault. Explicit `mapPath.source` references
 are also copied as geometry inputs, including files under `_maps`; unrelated
 files in underscore folders stay excluded. `.nopublish` still applies.
 
@@ -311,6 +310,7 @@ indexes: [residents, settlements]
 ```
 
 For a watershed use `indexes: [rivers]`; for a town use `indexes: [places]`.
+Use `indexes: [people-in-place]` to show a People Present button on a place.
 For an organization (`tags: [group]`), Members is enabled automatically when
 `indexes` is omitted. Set `indexes: []` to suppress it, or provide another
 valid array to choose the header indexes explicitly. Types can be combined in
@@ -331,16 +331,20 @@ Inline indexes continue to calculate immediately and show empty-result messages.
 Without browser dialog support, the button expands the grid in place. Without
 JavaScript, website buttons include a link to the index content.
 
-| Index | Results at the selected in-world date |
+| Index | Results with `scope` omitted |
 | --- | --- |
 | `residents` | Living people whose active home is in the target place or a contained location, following `homeLocation(target, metadata, false, date)`. Traveling residents remain included; transients whose home is elsewhere are excluded, even when their current, secondary or last-known location is here. |
+| `people-in-place` | Living people whose current whereabouts are in the target place or a contained location. Includes visitors and residents who are present. Away residents, last-known sightings and secondary whereabouts alone do not qualify. |
 | `settlements` | Places with `typeOf: settlement` within the target place, including nested regions and destroyed settlements, but excluding places not yet created. Matches the current location, or last-known location when current is unknown, and also secondary locations. |
 | `members` | People with an active affiliation or leadership relationship to the target organization, following `isAffiliated(target, file, date)`. Direct membership is the default; past memberships are excluded. |
 | `rivers` | Place notes with `typeOf: waterway` or `typeOf: lake` in the target place or watershed. Always includes lakes alongside rivers, streams, brooks and other waterway subtypes; marine features are excluded. Membership follows primary/current, last-known and secondary `whereabouts`, including secondary watershed membership and nested tributary locations. |
 | `places` | All place notes within the target place, typically a town's buildings, landmarks and quarters. Optional `placeType: built` or `placeType: natural` filters the results. Includes places nested within quarters or other contained locations, and excludes the target itself, people and organizations. |
 
 Location containment follows the dated `whereabouts` chain, including the legacy
-place `partOf` fallback. Members compare resolved organization identities, so
+place `partOf` fallback. Each step can name a place by its frontmatter alias.
+Obsidian first resolves the reference from the note that contains it, then
+checks aliases case-insensitively if the native lookup finds no file.
+Members compare resolved organization identities, so
 aliases and full paths work. Place containment follows both current and
 secondary locations on each ancestor. Settlements matches `inLocation(target,
 metadata, true, true, date)`. Settlement results sort by their immediate dated home region,
@@ -352,7 +356,7 @@ Members use the affiliation's inclusive start/end dates directly. An omitted
 end date defaults to the person's death date when known; explicit affiliation
 dates retain the helper's behavior, without an additional living-person filter.
 People cards show Person and Info using the same templates as tables. Residents
-cards also show Current Location and Home. Member cards show the member note's
+and People Present cards also show Current Location and Home. Member cards show the member note's
 first authored sentence and roles instead of location fields.
 Descriptions come from the first ordinary prose paragraph after filtering
 comments for the selected date, campaigns and DM mode. Headings, callouts and
@@ -383,17 +387,65 @@ show: both
 
 | Block option | Values and default |
 | --- | --- |
-| `type` | Required: `residents`, `settlements`, `members`, `rivers`, or `places`. |
+| `type` | Required. Choose `residents`, `people-in-place`, `settlements`, `members`, `rivers`, or `places`. |
 | `target` | Note name, alias, or path; defaults to the note containing the block. Quote wikilinks, for example `target: "[[Cleenseau]]"`. Explicit `./` and `../` paths are relative to the containing note. |
 | `show` | `obsidian`, `website`, or `both` (default). The other renderer omits the entire block. Source mode still shows the editable definition. |
 | `mode` | `grid` (default) or `table`. Header popups always use the grid. |
 | `placeType` | Places only: `built` or `natural`. Omit to include all place types. Classification uses the note's `typeOf`, not its name or `typeOfAlias`. |
 | `heading` | Boolean, defaults to `true`. Set `false` to omit the inline index's H2 title. Table column headings, grid counts, and popup titles are unaffected. |
-| `recursive` | Boolean. Defaults to `true` for Residents, Settlements, Rivers and Places, and `false` for Members. `false` matches only the immediate location or organization; recursive Members also includes organizations connected through `partOf`. |
+| `recursive` | Boolean. Defaults to `true` for place indexes and `false` for Members. `false` matches only the immediate location or organization. Recursive Members also includes organizations connected through `partOf`. |
+| `scope` | Optional for any inline index. Choose `current`, `historical`, or `ever` to apply the date rules below. Omit to use the index's original selection rules. |
+| `columns` | Members tables only. Set to `life-dates` for Person, Info, Born, and Died. Sorts by birth date, with unknown birth dates last. Death dates appear once reached in the selected chronology. |
 
-Residents, Settlements, Rivers and Places require a place target; Members
-requires a group target. Rivers can also list waterways and lakes in a barony or other
-place; Places is not restricted to towns.
+Residents, People Present, Settlements, Rivers and Places require a place target.
+Members requires a group target. Rivers can also list waterways and lakes in a
+barony or other place; Places is not restricted to towns.
+
+### Temporal scope
+
+| Scope | Dates considered |
+| --- | --- |
+| `current` | Match at the selected date while the person is alive or the place still exists. |
+| `historical` | Match at the selected date for living people and existing places. For subjects already deceased or destroyed, match at their recorded death or destruction date. |
+| `ever` | Match on at least one date through the selected date during the subject's lifetime or existence. |
+
+Membership and leadership use their inclusive affiliation dates. A person who
+left before dying can appear with `ever`. A person still affiliated at death can
+also appear with `historical`. Residents use home and People Present uses
+current whereabouts at each date considered. Geography uses current and
+secondary containment, including secondary watershed membership. With an
+explicit scope, a last-known sighting alone does not establish a match.
+The dates on a nested chain must overlap on the same day. Website queries follow
+visible locations throughout the chain. Settlement tables use the home region
+on the most recent matching date. People tables report Current Location as of
+the reader's selected date.
+
+Use this roster on a group note to show everyone who belonged by the selected date:
+
+````markdown
+```taelgar-index
+type: members
+scope: ever
+mode: table
+columns: life-dates
+```
+````
+
+Replace older `membership: historical` blocks with `scope: ever`. The
+`ignoreDeath` option has been removed. Use `scope: historical` for affiliations
+that were active at death. Header buttons use the omitted-scope rules.
+
+Place this table on a place note to list who is there at the selected date:
+
+````markdown
+```taelgar-index
+type: people-in-place
+mode: table
+```
+````
+
+Set `recursive: false` to require a direct match to the target. The table has
+the same Person, Info, Current Location, and Home columns as Residents.
 
 Places filters follow the vault's broad Place Categories:
 
@@ -426,7 +478,7 @@ mode: table
 Invalid definitions show a local error while leaving the article readable.
 Inline blocks in transcluded notes use that note as their default target.
 By default, every inline grid or table starts with an H2 heading matching the index label
-(Residents, Settlements, Members, Rivers or Places). Set `heading: false` when an
+(such as Members, Historical Members, or All-time Members). Set `heading: false` when an
 authored heading already supplies that context, for example:
 
 ````markdown
@@ -877,14 +929,11 @@ Relative destinations resolve from the diagram's source note, including inside
 embeds. Missing, ambiguous, excluded, and future destinations remain unlinked.
 Internal links preserve the selected campaign/date and Behind the Curtain setting.
 
-Click a linked node to preview its article in a popup, then use **Open page** to
-navigate. Uncheck **Preview linked pages** below the diagram for direct navigation;
-modified clicks retain normal browser behavior. Links also work in **See bigger**.
-Explicit `_blank` destinations open a new tab; HTTP(S) and mail links navigate
-normally. Closing a preview returns focus to the node. Mermaid stays in strict
-mode; authored JavaScript callbacks and nonstandard URL schemes are not enabled.
-The `/api/diagram-links` endpoint resolves a bounded batch against the current
-source/context metadata; previews use the existing context-filtered page API.
+Click a linked node to open its destination. The inline diagram and **See bigger**
+use standard links with normal keyboard and modified-click behavior. Explicit
+`_blank` destinations open a new tab. Mermaid uses strict rendering. The
+`/api/diagram-links` endpoint resolves a bounded batch against the source note
+and the selected context.
 
 ## Interactive maps
 
@@ -975,22 +1024,145 @@ materializes supported plain Dataview queries in Node. It fetches a pinned
 GitHub Dataview release into core's local cache and uses built-in settings.
 `--dataview-directory` explicitly selects a verified bundle
 and its optional saved settings. See [dependency caching](publishing-pipelines.md#taelgarorg).
-Those query results are static until republication; changing the website's
-campaign or date does not rerun DQL. Notes omitted by `noPublish`, stub tags or
-folder markers are removed before query planning. Node indexes the remaining working copy,
-excluding underscore folders and any subtree marked `.nopublish`. Current-page
-chronology scans appear as unsupported queries in the materialization report.
+Dataview results are static until republication. Node indexes the article store's
+pages for queries and uses its eligible files for link resolution. This excludes
+unpublished notes and Markdown the store could not parse. Current-page chronology
+scans appear as unsupported queries in the materialization report.
 
-The conversion pass recognizes complete supported DataviewJS index patterns,
-rewriting them to `taelgar-index`. A recognized campaign-interactions view becomes
-`taelgar-interactions`. No JavaScript is executed. Native indexes use the reader's
-current context. The original vault notes remain unchanged.
-
-Unrecognized closed DataviewJS blocks and headings made empty by their removal
-retain the existing omission policy. Every unmatched block is listed in the
-conversion report. Remaining unsupported DQL and inline expressions show
+Website preparation omits closed DataviewJS blocks and headings emptied by their
+removal. The cleanup report lists each block by file and line. Use `taelgar-index`
+for tables that follow the reader's current context.
+Remaining unsupported DQL and inline expressions show
 warnings or unavailable-content messages. The website does not execute scripts.
 HTML in the normal article body remains supported.
+
+### Campaign roster and sessions
+
+Taelgarverse renders `taelgar-roster` and `taelgar-session` in Obsidian and on the website. Each
+registered campaign index can define one fence of each type. An empty fence
+derives its data from the vault. To reuse the data elsewhere, supply the lowercase
+registry ID and any display options.
+
+Website publication builds campaign records from the source vault, including
+registered index notes, session notes, and bundles without public pages. A
+published article can reference any registered campaign, including other
+continuities. Links without a public destination appear as text. Publishing
+a new content snapshot refreshes the website records.
+
+Only the registered campaign index supplies `overrides` and `estimate`.
+Fences on other notes use that index's values and their own display options.
+
+~~~markdown
+```taelgar-roster
+campaign: dufr
+playerRole: core
+characterKind: member
+columns: [character]
+```
+
+```taelgar-session
+campaign: dufr
+kinds: [adventure, solo]
+columns: [session, played, account]
+summary: [count, played, dr]
+```
+~~~
+
+Roster columns are `player`, `role`, `character`, `attendance`, and `note`.
+The default roster groups players by role when roles differ, shows documented
+session links next to the character each player played, and gives companions
+their own disclosure. Work as another character, including a one-session role
+or a substitution, appears under Other appearances. Explicit columns select
+a table layout. Set `characterPresence: true` to include play and character
+presence in one session list per character. Each session appears once, with
+a label where the play record and cast differ. A character-only view uses an inline name for one character
+and a list for several. A member character defaults their player to
+`core`. Guest-only players default to `other`. Companion and associated
+affiliations can leave a player’s role unspecified. Past affiliations count.
+Define exceptions in the index fence's `overrides` list. Use `player` for a
+player-only override, or `character` with a quoted wikilink for a PC note.
+Unlinked names can supply `description`. Override `role` or character `kind`
+independently. A player entry can also carry `note` and `draft: true`.
+
+Session columns are `session`, `title`, `played`, `dr`, `account`,
+`characters`, `participants`, `people`, `evidence`, and `note`. The default list shows the
+session number, Session Notes, played date, and in-world dates. The notes link
+uses the descriptive session title where available. Numbered notes, arc
+headings, and bundle recaps can supply the target. On narrow panes the list
+stacks each row. Optional fields appear in an expandable panel below each session.
+Choose `characters` for the in-world cast, `participants` for attendees
+including the DM, or `people` to combine them. The combined view pairs
+participants with their recorded roles, keeps cast-only characters, and
+flags played roles that are missing from a known cast. Selecting both
+`characters` and `participants` also produces the combined view. Omit all
+three fields to hide participation details.
+
+Session kinds are `adventure`, `solo`,
+`inter-session`, and `meeting`. Quote point-session numbers.
+
+The Session summary shows the number of adventures and solos played, the
+real-world span, and the in-world span across the campaign. `summary: false`
+shows the list alone. `summary: only` shows the summary alone. A list of
+summary fields selects the specific entries. Summary ranges with exact
+endpoints show elapsed time using the appropriate calendar. Published article
+availability does not affect the local campaign record.
+
+~~~markdown
+```taelgar-session
+overrides:
+  - number: "35"
+    played: "2021-12-05"
+    note: Local play date.
+  - number: "29.1"
+    kind: solo
+    attendance:
+      - player: David Kong
+  - id: organizing-meeting
+    kind: meeting
+    title: Organizing meeting
+    date: "2022-11-22"
+```
+~~~
+
+A date can be a quoted date, a mapping with `on` and `qualifier`, a window
+with `from` and `through`, or an approximate `label`. An unresolved date can
+hold `alternatives`. A list under `played` records distinct sittings for one
+session. `dr` and `drEnd` override the in-world endpoints. By default, the
+registered final session note supplies its `DR` and `DR_end`, with a single
+date when `DR_end` is omitted. Other numbered notes and the bundle manifest
+and recap supply dates where there is no dated final note. The `evidence`
+field shows other recorded dates when the sources disagree. Date entries and overrides
+can cite `evidence`. `account` can link to a particular note, heading, or block.
+An index fence can also include an `estimate` mapping with a campaign-wide
+`count`, optional `first` and `latest` numbers, and approximate `played` or
+`dr` spans. An estimate supplies summary information without individual rows.
+
+The session history tracks characters present in the story separately from
+player attendance. Character presence comes from the preferred numbered
+session note's nonempty `players` field. When there is no preferred note with
+a cast, the reader combines named characters from the other numbered notes.
+The bundle recap's `PCs` header is the fallback. Companions come from the
+session notes' `companions` lists and cast entries classified as companions.
+An explicit `characters` or `companions` list
+on a session override replaces the corresponding source list. Use an empty
+`characters: []` for known empty presence and `characters: null` for unknown
+presence. An empty legacy `players` field can be a placeholder.
+
+Recorded attendance uses named speakers and their game roles from speaker
+statistics, with the matched manifest participant as fallback for the name
+or role. The default is at least 30 seconds of attributed player speech across
+speaker labels in that session. Speaker labels and attendance entries do not
+add characters to the in-world cast. For sessions without a transcript or
+speaker statistics, the original note or recap cast and usual player pairings
+can supply inferred attendance. A `characters` override affects the in-world
+cast and preserves that original attendance evidence.
+
+An index `attendance` override supplies the complete attendance for its
+session, taking precedence over speaker statistics and legacy inference.
+Set `player` and, where known, `character` for the role played in that
+session. Use `attendance: []` for known empty attendance and `attendance: null`
+for unknown attendance. A missing name in a derived list means there is no
+recorded appearance in that view.
 
 ## Search
 

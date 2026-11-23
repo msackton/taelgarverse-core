@@ -56,7 +56,7 @@ function host(settings={}) {
   const images=[{path:'portraits/alice.png',basename:'alice'}];
   const cache=events(),vault=events(),bodies=new Map();
   const app={metadataCache:{...cache,getFileCache:file=>file && {frontmatter:file.metadata ?? metadata.get(file.path)},
-    getFirstLinkpathDest:(target,source)=>[...files,...images].find(file=>file.path===target || file.path===target+'.md' || file.basename===target || metadata.get(file.path)?.aliases?.includes(target))},
+    getFirstLinkpathDest:(target,source)=>[...files,...images].find(file=>file.path===target || file.path===target+'.md' || file.basename===target)},
     vault:{...vault,configDir:'.obsidian',getRoot:()=>({path:''}),getMarkdownFiles:()=>files,getAbstractFileByPath:path=>files.find(file=>file.path===path) || indexed.files.get(path),
       adapter:{read:async path=>JSON.stringify(path.endsWith('metadata.json')?input.coreMeta:indexed.index)},
       cachedRead:async file=>bodies.get(file.path) ?? indexSources(Object.fromEntries(metadata))[file.path].replace('Authored prose.',file.path==='People/Alice.md' ? "Alice's first authored sentence. A second sentence." : 'Authored prose.'),
@@ -102,6 +102,68 @@ test('Obsidian inline indexes render current metadata, respect show, and open na
     const invalid=await h.block('type: residents\nshow: invalid');assert.match(invalid.element.textContent,/show must/);
   } finally {h.dispose();}
   assert.equal(h.intervals.size,0);assert.equal(h.cache.count,0);assert.equal(h.vault.count,0);
+});
+
+test('Obsidian place indexes follow aliases at intermediate locations and prefer a matching filename',async()=>{
+  const h=host();
+  try {
+    // Quarter is in Old Town (an alias for Town), and Shop is in Quarter.
+    for(const name of ['Quarter','Shop']) {
+      const path='Places/'+name+'.md';
+      h.metadata.set(path,featureIndexNotes[path]);
+      h.files.push({path,basename:name});
+    }
+    const places=async (options='')=>{
+      const {element}=await h.block('type: places\nmode: table'+options);
+      return Array.from(element.querySelectorAll('tbody tr td:first-child a'),a=>a.textContent);
+    };
+    assert.equal(h.app.metadataCache.getFirstLinkpathDest('Old Town','Places/Quarter.md'),undefined);
+    const viaAlias=await places();
+    assert.ok(viaAlias.includes('Quarter'));
+    assert.ok(viaAlias.includes('Shop'));
+    assert.ok((await places('\nscope: ever')).includes('Shop'));
+    const path='Places/Old Town.md';
+    h.metadata.set(path,{tags:['place'],whereabouts:'Other Realm'});
+    h.files.push({path,basename:'Old Town'});
+    h.plugin.snapshots.invalidate();
+    const rows=await places();
+    assert.ok(!rows.includes('Quarter'));
+    assert.ok(!rows.includes('Shop'));
+    assert.ok(!(await places('\nscope: ever')).includes('Shop'));
+  } finally {h.dispose();}
+});
+
+test('Obsidian caches index scopes and table columns independently',async()=>{
+  const h=host();
+  try {
+    const path='People/Former.md';
+    h.metadata.set(path,{tags:['person'],born:1690,died:1715,affiliations:[{org:'Guild',end:1710}]});
+    h.files.push({path,basename:'Former'});
+    const source='type: members\ntarget: Guild\nmode: table';
+    const render=async options=>(await h.block(source+options)).element;
+    const current=await render('\nscope: current');
+    assert.doesNotMatch(current.querySelector('tbody').textContent,/Dead|Former/);
+    const historical=await render('\nscope: historical');
+    assert.match(historical.querySelector('tbody').textContent,/Dead.*Unknown/);
+    assert.doesNotMatch(historical.querySelector('tbody').textContent,/Former/);
+    const ever='\nscope: ever';
+    const lifeDates=await render(ever+'\ncolumns: life-dates');
+    assert.equal(lifeDates.querySelector('h2').textContent,'All-time Members');
+    assert.deepEqual(Array.from(lifeDates.querySelectorAll('th'),cell=>cell.textContent),['Person','Info','Born','Died']);
+    assert.match(lifeDates.querySelector('tbody tr').textContent,/Former.*1690.*1715/);
+    const location=await render(ever);
+    assert.equal(location.querySelectorAll('th')[2].textContent,'Current Location');
+    assert.match(location.querySelector('tbody').textContent,/Former.*Unknown/);
+    assert.equal((await render('\nscope: current')).innerHTML,current.innerHTML);
+
+    const {element}=await h.block('type: people-in-place\nmode: table','Places/Town.md');
+    assert.equal(element.querySelector('h2').textContent,'People Present');
+    assert.match(element.querySelector('tbody').textContent,/Bob.*Visitor/);
+    assert.doesNotMatch(element.querySelector('tbody').textContent,/Alice|Dead|Future/);
+    const scoped=await h.block('type: people-in-place\nmode: table\nscope: historical','Places/Town.md');
+    assert.match(scoped.element.querySelector('tbody').textContent,/Dead/);
+    assert.doesNotMatch(element.querySelector('tbody').textContent,/Dead/);
+  } finally {h.dispose();}
 });
 
 test('Obsidian inline grids and tables have H2 labels, including empty results',async()=>{

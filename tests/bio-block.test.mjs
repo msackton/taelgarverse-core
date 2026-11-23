@@ -3,12 +3,12 @@ import test,{before,after} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import {createHash} from 'node:crypto';
 import {load} from 'cheerio';
 import {Engine} from '../src/engine.mjs';
 import {ROOT} from '../src/config.mjs';
 import {parseNote,authoredBody} from '../src/content-store.mjs';
-import {loadSnapshot} from '../src/snapshot.mjs';
+import {openSnapshot} from '../src/runtime-snapshot.mjs';
+import {compiledObjects} from './helpers/compiled-publication.mjs';
 import {scanHeaderCallouts} from '../src/header-callout.mjs';
 import {renderHeaderCallout} from '../src/header-core/index.mjs';
 
@@ -29,12 +29,10 @@ before(async()=>{
     const file=path.join(directory,name);fs.mkdirSync(path.dirname(file),{recursive:true});fs.writeFileSync(file,source);
   }
   engine=new Engine({...testSettings(),source_dir:directory,nav_source:null,home_source:null});
-  const revision='a'.repeat(64),shard={},entries=engine.store.entries.map(({filename,note,...entry})=>{
-    if(!note)return entry;shard[entry.id]=note.source;
-    return {...entry,note:{metadata:note.metadata,shard:'00',sha256:createHash('sha256').update(note.source).digest('hex')}};
-  });
-  const index={schemaVersion:1,revision,settings:engine.settings,registry:engine.headers.registry,coreMeta:engine.headers.coreMeta,entries,warnings:[]};
-  worker=await loadSnapshot({get:async key=>({json:async()=>key.endsWith('/index.json')?index:shard})},revision);
+  const revision='a'.repeat(64),objects=compiledObjects(revision,engine.store,{
+    settings:engine.settings,coreMeta:engine.headers.coreMeta,registry:engine.headers.registry});
+  const snapshot=await openSnapshot({get:async key=>({json:async()=>objects.get(key)})},revision);
+  worker=await snapshot.renderer();
 });
 after(()=>{if(directory)fs.rmSync(directory,{recursive:true});});
 

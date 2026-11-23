@@ -1,5 +1,6 @@
 import {createHash} from 'node:crypto';
 import {withTimeout,cacheTimeoutMs} from './runtime-io.mjs';
+import {classifyRoute} from './routes.mjs';
 
 const browserPolicy='public, max-age=0, must-revalidate';
 const edgePolicy='public, max-age=86400';
@@ -8,14 +9,11 @@ const discard=response=>{response.body?.cancel().catch(()=>{});};
 
 // Only the Worker caches rendered HTML. The publication pointer must have been
 // read successfully before calling this, including on conditional requests.
-export function pageCache(request,published,core,cache=globalThis.caches?.default,{cacheMs=cacheTimeoutMs}={}) {
-  if(!cache || !['GET','HEAD'].includes(request.method) || request.headers.has('Authorization') || request.headers.has('Range') ||
+export function pageCache(request,published,core,cache=globalThis.caches?.default,{cacheMs=cacheTimeoutMs,route=classifyRoute(request)}={}) {
+  if(!cache || (route.name!=='article' && route.name!=='home') || request.headers.has('Authorization') || request.headers.has('Range') ||
     /(?:^|,)\s*no-store\s*(?:,|$)/i.test(request.headers.get('Cache-Control') || '') ||
     !/^[a-f0-9]{40,64}$/.test(core.commit || '') || !Number.isFinite(Date.parse(core.publishedAt)))return null;
   const url=new URL(request.url);
-  let pathname;
-  try{pathname=decodeURIComponent(url.pathname);}catch{return null;}
-  if(!pathname.startsWith('/page/') && !(pathname==='/' && !url.searchParams.has('q')))return null;
   url.hash='';
   // Preserve parameter presence, order and repeated values. The router uses
   // first values for some options and all values for campaign selections.

@@ -136,8 +136,9 @@ exporter is now part of the unified plugin.
    dispatch **Release Taelgarverse for Obsidian** at the reviewed source ref with
    `publish` enabled. Use only one trigger. Manual dispatch with `publish` disabled
    creates an intentional draft and does not distribute through BRAT.
-4. Follow the workflow for that exact commit/tag. CI runs shared tests, local
-   R2/D1 integration checks, and Worker packaging before releasing. The uploader
+4. Follow the workflow for that exact commit/tag. CI runs shared tests, Windows
+   map packaging, both Python exporter suites, local R2/D1 integration checks,
+   and Worker packaging before releasing. The uploader
    checks clean source, compatibility files, note heading, and tag/version
    agreement, then creates a draft, uploads every asset, and publishes it.
    Release builds and uploads happen in GitHub, not on the agent's machine.

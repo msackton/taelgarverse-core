@@ -73,7 +73,7 @@ See [the schema](../schemas/map-layers.schema.json).
 The store discovers only `.map.json` and `.map-layers.json` as map JSON assets;
 ordinary JSON is still excluded. Normal publication folder exclusions apply.
 Missing or malformed referenced files fail preparation. Validated layer metadata
-travels through both regular and compiled snapshots; Worker requests do no file
+is stored in the compiled snapshot. Worker requests do no file
 reads. Packaging checks that layer bytes have not changed after validation.
 Borders are rendered as vector artwork over either tiled or original imagery.
 

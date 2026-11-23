@@ -10,6 +10,7 @@ import {mountIndexPopups} from '../../../src/browser/index-popups.mjs';
 import {headerSourceEligibility,rewriteHeader} from '../../../src/header-rewrite.mjs';
 import {installHeaderTool} from '../header-tool.mjs';
 import {obsidianIndex,obsidianIndexExists} from '../services/indexes.mjs';
+import {obsidianInternalLink,mountObsidianInternalLinks} from '../services/internal-links.mjs';
 
 export function obsidianBio(snapshot,file,metadata,date) {
   return renderHeaderCallout(snapshot.runtime,{name:file.basename,
@@ -27,22 +28,15 @@ async function indexMarkup(feature,snapshot,options,sourcePath,date,{popup=false
     const file=target && feature.app.metadataCache.getFirstLinkpathDest(target,item.path);
     if(file && IMAGE_TYPES.has('.'+file.path.split('.').at(-1).toLowerCase()))item.image=feature.app.vault.getResourcePath(file);
   }
-  const link=item=>item.path ? '<a class="internal-link taelgar-index-link" data-href="'+escapeHtml(item.path)+'" href="'+escapeHtml(item.path)+'">'+escapeHtml(item.name)+'</a>' : escapeHtml(item.name);
+  const link=item=>item.path ? obsidianInternalLink(item.path,item.name,'taelgar-index-link') : escapeHtml(item.name);
   return popup ? indexPopup(result,link) : indexView(result,link,options.mode,{heading});
 }
 
 function mountIndexes(root,app,sourcePath,options={}) {
   const disposePopup=mountIndexPopups(root,options),disposers=[];
   // Delegation also covers links inserted by a lazy load after mounting.
-  for(const container of [root,...root.querySelectorAll('.taelgar-index-panel')]) {
-    const open=event=>{
-      const link=event.target.closest?.('.taelgar-index-link');
-      if(event.button!==0 || !link || !container.contains(link))return;
-      event.preventDefault();event.stopPropagation();
-      app.workspace.openLinkText(link.dataset.href,sourcePath,!!(event.ctrlKey || event.metaKey || event.shiftKey));
-    };
-    container.addEventListener('click',open);disposers.push(()=>container.removeEventListener('click',open));
-  }
+  for(const container of [root,...root.querySelectorAll('.taelgar-index-panel')])
+    disposers.push(mountObsidianInternalLinks(container,app,sourcePath,'.taelgar-index-link'));
   return ()=>{disposePopup();for(const dispose of disposers)dispose();};
 }
 

@@ -4,26 +4,21 @@ import {Navigation} from './navigation.mjs';
 import {RenderEngine} from './render-engine.mjs';
 import {hydrateHeaderSnapshot} from './header-core/snapshot.mjs';
 import {RenderError} from './common.mjs';
-import {loadSnapshot,SnapshotStore} from './snapshot.mjs';
-import {supportedRuntimeVersion,assetPartition,validRuntimeDescriptor} from './runtime-format.mjs';
+import {ContentStore} from './content-store.mjs';
+import {validInteractionIndex,validRuntimeManifest,assetPartition,validRuntimeDescriptor} from './runtime-format.mjs';
 import {bucketText} from './runtime-io.mjs';
 import {readSnapshotPart} from './snapshot-cache.mjs';
 import {loadSnapshotValue} from './snapshot-loads.mjs';
-import {compileMapSources} from './map-catalogue.mjs';
+import {snapshotCampaignSource} from './snapshot-campaigns.mjs';
 
 const failure=()=>new RenderError(503,'Compiled content snapshot is missing or invalid');
 
 export async function openSnapshot(bucket,revision,options={}) {
+  if(!/^[a-f0-9]{64}$/.test(revision))throw failure();
   const text=await bucketText(bucket,'revisions/'+revision+'/runtime.json',options.timeoutMs);
-  if(text===null){
-    const legacy=await loadSnapshot(bucket,revision,options);
-    return {forRequest:async()=>legacy};
-  }
-  const manifest=JSON.parse(text);
-  if(!supportedRuntimeVersion(manifest.version) || manifest.revision!==revision || !manifest.parts || !manifest.assets ||
-    !Number.isSafeInteger(manifest.pages) || !manifest.contexts || !Array.isArray(manifest.sites) ||
-    ['search','navigation','headers','backlinks','render'].some(name=>!validRuntimeDescriptor(manifest.parts[name])) ||
-    Object.values(manifest.assets).some(value=>!validRuntimeDescriptor(value)))throw failure();
+  let manifest;
+  try { manifest=JSON.parse(text); } catch { throw failure(); }
+  if(!validRuntimeManifest(manifest,revision))throw failure();
   return new RuntimeSnapshot(bucket,manifest,options);
 }
 
@@ -46,7 +41,7 @@ export class RuntimeSnapshot {
   }
 
   async getNote(entry,noteShards) {
-    const descriptor=this.index.version===1 ? entry.note.prepared : noteShards?.[entry.note.prepared];
+    const descriptor=noteShards[entry.note.prepared];
     const shard=await this.read(descriptor),note=Object.hasOwn(shard,entry.id)?shard[entry.id]:null;
     if(!note || typeof note.body!=='string')throw failure();
     return {...note,metadata:entry.note.metadata};
@@ -97,69 +92,38 @@ export class RuntimeSnapshot {
     return this.once('renderer',async()=>{
       const [data,compiledHeaders,backlinks,compiledNavigation]=await Promise.all([
         this.read(this.index.parts.render),this.read(this.index.parts.headers),this.read(this.index.parts.backlinks),this.read(this.index.parts.navigation)]);
-      if(this.index.version===2 && (!Array.isArray(data.noteShards) || data.noteShards.some(value=>!validRuntimeDescriptor(value)) ||
-        data.entries.some(entry=>entry.note && (!Number.isSafeInteger(entry.note.prepared) || entry.note.prepared<0 || !data.noteShards[entry.note.prepared]))))throw failure();
-      if(data.interactions && (data.interactions.version!==2 || !data.interactions.byTarget || typeof data.interactions.byTarget!=='object' || Array.isArray(data.interactions.byTarget)))throw failure();
-      const store=new SnapshotStore({entries:data.entries,warnings:this.index.warnings,settings:this.index.settings,revision:this.revision},this.bucket,data.lookups,this.options);
+      if(!Array.isArray(data.noteShards) || data.noteShards.some(value=>!validRuntimeDescriptor(value)) ||
+        data.entries.some(entry=>entry.note && (!Number.isSafeInteger(entry.note.prepared) || entry.note.prepared<0 || !data.noteShards[entry.note.prepared])))throw failure();
+      if(!validInteractionIndex(data.interactions))throw failure();
+      const store=new ContentStore(data.entries,this.index.warnings,this.index.settings,data.lookups);
       store.getNote=entry=>this.getNote(entry,data.noteShards);
       const navigation=await this.navigation(store,compiledNavigation);
-      const compactBacklinks=this.index.version===2 ? this.backlinkLoader(backlinks,store) : null;
+      const compactBacklinks=this.backlinkLoader(backlinks,store);
       const headers=hydrateHeaderSnapshot(compiledHeaders,store.entries.filter(entry=>entry.note).map(entry=>({path:entry.id,metadata:entry.note.metadata})));
-      const engine=new RenderEngine({settings:this.index.settings,store,headers,backlinkIndex:compactBacklinks ? null : backlinks.index,
-        interactionIndex:data.interactions,
+      const engine=new RenderEngine({settings:this.index.settings,store,headers,backlinkIndex:null,
+        interactionIndex:data.interactions,campaignSource:snapshotCampaignSource(data.campaignRecords,descriptor=>this.read(descriptor)),
         prepared:{contexts:this.contexts,campaignSites:CampaignSites.hydrate(data.sites),navigation,home:data.home,
-          backlinkCampaigns:compactBacklinks?.campaigns || new Map(backlinks.campaigns),loadBacklinks:compactBacklinks?.load}});
+          backlinkCampaigns:compactBacklinks.campaigns,loadBacklinks:compactBacklinks.load}});
       engine.loadMapSources=()=>this.once('mapSources',async()=>{
-        if(this.index.parts.maps){
-          const sources=await this.read(this.index.parts.maps);
-          if(!Array.isArray(sources) || sources.some(source=>typeof source.id!=='string' || typeof source.body!=='string'))throw failure();
-          return sources;
-        }
-        // Existing format 1/2 publications remain usable without republishing.
-        // Read each shard once, even when entry order differs from shard order.
-        // Batching notes would repeatedly evict/reload large shards from the LRU.
-        const groups=new Map(),sources=[];
-        for(const entry of store.entries){
-          if(!entry.note)continue;
-          const descriptor=this.index.version===1 ? entry.note.prepared : data.noteShards[entry.note.prepared];
-          if(!validRuntimeDescriptor(descriptor))throw failure();
-          if(!groups.has(descriptor.file))groups.set(descriptor.file,{descriptor,entries:[]});
-          groups.get(descriptor.file).entries.push(entry);
-        }
-        const shards=[...groups.values()];
-        for(let start=0;start<shards.length;start+=8){
-          const batches=await Promise.all(shards.slice(start,start+8).map(async({descriptor,entries})=>{
-            const shard=await this.read(descriptor),loaded=entries.map(entry=>{
-              const note=Object.hasOwn(shard,entry.id)?shard[entry.id]:null;
-              if(!note || typeof note.body!=='string')throw failure();
-              return {...entry,note};
-            });
-            return compileMapSources({entries:loaded});
-          }));
-          for(const batch of batches)sources.push(...batch);
-        }
+        const sources=await this.read(this.index.parts.maps);
+        if(!Array.isArray(sources) || sources.some(source=>typeof source.id!=='string' || typeof source.body!=='string'))throw failure();
         return sources;
       });
       return {engine,store,index:this.index};
     });
   }
 
-  async forRequest(request) {
-    const url=new URL(request.url);
-    // Let the shared router return its normal method/URI error response without
-    // loading route data first.
-    let pathname='';
-    try{if(['GET','HEAD'].includes(request.method))pathname=decodeURIComponent(url.pathname);}catch{}
-    if(pathname==='/api/maps' || pathname==='/api/page' || pathname==='/api/index' || pathname==='/api/diagram-links' || pathname.startsWith('/page/') || pathname==='/' && !url.searchParams.has('q'))return this.renderer();
+  async forRoute({data,tail}) {
+    if(data==='renderer')return this.renderer();
     let store={bySlug:{size:this.index.pages},warnings:this.index.warnings,assets:new Map(),settings:this.index.settings};
     const engine={settings:this.index.settings,contexts:this.contexts,campaignSites:this.campaignSites};
-    if(pathname.startsWith('/assets/')){
-      const target=pathname.slice(8),descriptor=this.index.assets[assetPartition(target)];
+    if(data==='asset'){
+      const descriptor=this.index.assets[assetPartition(tail)];
       if(descriptor){const entries=await this.read(descriptor);store.assets=new Map(entries.map(entry=>[entry.target,entry]));}
     }
-    if(pathname==='/' || pathname.startsWith('/browse/') || pathname==='/api/navigation'){
+    if(data==='navigation'){
       [store,engine.navigation]=await Promise.all([this.searchStore(),this.navigation()]);
-    }else if(pathname==='/api/search')store=await this.searchStore();
+    }else if(data==='search')store=await this.searchStore();
     engine.store=store;
     return {engine,store,index:this.index};
   }

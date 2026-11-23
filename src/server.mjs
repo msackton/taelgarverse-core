@@ -7,6 +7,7 @@ import {pathToFileURL} from 'node:url';
 import {ROOT,RenderError,isInside,loadSettings} from './config.mjs';
 import {Engine} from './engine.mjs';
 import {handleRequest} from './application.mjs';
+import {classifyRoute} from './routes.mjs';
 import {serveAsset,themeFiles,contentTypes} from './http-assets.mjs';
 import {prepareMaps} from '../scripts/build-maps.mjs';
 import {prepareImages} from '../scripts/build-images.mjs';
@@ -20,15 +21,18 @@ export function createServer(engine) {
   let mapsReady;
   const ready = () => mapsReady ??= prepareMaps(engine.store,mapCache,undefined,{strict:false,homeSource:engine.home,
     campaignHomes:Object.fromEntries([...engine.campaignSites.byHost].map(([host,site])=>[host,site.note]))}).catch(error=>{mapsReady=undefined;throw error;});
+  const loadNote=async entry=>entry.note;
   const server=http.createServer(async(req,res)=>{
     try {
       const request=new Request(new URL(req.url,'http://'+(req.headers.host || 'localhost')),{method:req.method,headers:req.headers});
-      if(['GET','HEAD'].includes(req.method) && new URL(request.url).pathname==='/api/maps')await ready();
+      const route=classifyRoute(request);
+      if(route.name==='maps')await ready();
       const response=await handleRequest(request,engine,{
+        route,
         async renderPage(page,date,context,dm,campaigns) {
           await ready();
-          const render = ()=>engine.render(page,date,context,dm,undefined,campaigns);
-          const result = render(), entries = imageEntries(engine.store,result.html);
+          const render = ()=>engine.renderAsync(page,date,context,dm,campaigns,loadNote);
+          const result = await render(), entries = imageEntries(engine.store,result.html);
           if (!entries.length) return result;
           await prepareImages(engine.store,imageCache,{usages:imageUsages},entries);
           return render();
@@ -42,10 +46,10 @@ export function createServer(engine) {
         },
         async renderHome(context,siteHost) {
           await ready();
-          const result = engine.renderHome(context,undefined,siteHost), entries = imageEntries(engine.store,result?.html || '');
+          const result = await engine.renderHomeAsync(context,loadNote,siteHost), entries = imageEntries(engine.store,result?.html || '');
           if (!entries.length) return result;
           await prepareImages(engine.store,imageCache,{usages:imageUsages},entries);
-          return engine.renderHome(context,undefined,siteHost);
+          return engine.renderHomeAsync(context,loadNote,siteHost);
         },
         assets(entry,request) {
           const directory = entry.generatedMapTile ? mapCache : entry.generatedImageVariant ? imageCache : engine.settings.source_dir;

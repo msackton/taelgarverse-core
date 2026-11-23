@@ -1,3 +1,4 @@
+import {preparedPart} from './helpers/compiled-publication.mjs';
 import {testSettings} from './helpers/test-settings.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -60,14 +61,14 @@ test('responsive derivatives retain original bytes, cache safely, never upscale,
   assert.equal(JSON.parse($('img').first().attr('data-image-variants')).at(-1).width,1800);
 });
 
-test('authored callout, gallery and session captions stay attached to each image without replacing accessible alt text',async t=>{
+test('authored callout, gallery and figure captions stay attached to each image without replacing accessible alt text',async t=>{
   const {store} = await fixture(t), entry = store.bySlug.get('gallery');
   const source = [
     '> [!image|right standard] Hidden title\n> ![[portrait.jpg]]\n> *Delwath in Karawa as our campaign begins.*',
     '> [!image|figure large]\n> ![[portrait.jpg]]\n>\n> A **second** view with [context](https://example.test/).',
     '> [!image|hero]- Folded title\n> ![[portrait.jpg]]\n> *An establishing view.*',
     '> [!gallery]\n> - ![[portrait.jpg]]\n>   *The temple exterior.*\n> - ![[portrait.jpg]]\n>   *The central sanctuary.*',
-    '<figure class="taelgar-session-zoom__image"><img src="/assets/portrait.jpg" alt="Visual description"><figcaption>A session caption.</figcaption></figure>',
+    '<figure><img src="/assets/portrait.jpg" alt="Visual description"><figcaption>A portrait of Delwath.</figcaption></figure>',
     '![[portrait.jpg]]',
     '> [!image|right] Title is not a caption\n> ![[portrait.jpg]]',
     '<figure><img src="/assets/portrait.jpg" alt="Safe alt"><figcaption>&lt;img src=x onerror=alert(1)&gt; &amp; "quoted"</figcaption></figure>',
@@ -80,7 +81,7 @@ test('authored callout, gallery and session captions stay attached to each image
     'An establishing view.',
     'The temple exterior.',
     'The central sanctuary.',
-    'A session caption.',
+    'A portrait of Delwath.',
     '', '', '<img src=x onerror=alert(1)> & "quoted"',
   ]);
   assert.equal($('img').first().attr('alt'),'Portrait');
@@ -195,7 +196,7 @@ test('Node and Worker serve small image variants with original downloads, ranges
   assert.ok((await small.arrayBuffer()).byteLength<original.length/4);
   assert.deepEqual(Buffer.from(await (await fetch(base+'/assets/portrait.jpg')).arrayBuffer()),original);
   const report = await prepareContent(settings,path.join(directory,'package'));
-  const uploads = JSON.parse(await fs.readFile(report.manifestFile,'utf8')), index = JSON.parse(await fs.readFile(report.indexFile,'utf8'));
+  const uploads = JSON.parse(await fs.readFile(report.manifestFile,'utf8')), index = preparedPart(report,'render');
   const objects = new Map(uploads.map(item=>[item.key,item.file])), reads = [];
   const bucket = {async get(key,options={}) {
     reads.push(key);
@@ -223,6 +224,7 @@ test('Node and Worker serve small image variants with original downloads, ranges
   const range = await request(smallURL,{Range:'bytes=0-15'});assert.equal(range.status,206);
   assert.deepEqual(Buffer.from(await range.arrayBuffer()),data.subarray(0,16));
   assert.deepEqual(Buffer.from(await (await request('/assets/portrait.jpg')).arrayBuffer()),original);
-  assert.ok(index.entries.some(item=>item.generatedImageVariant && item.objectKey));
+  const manifest=JSON.parse(await fs.readFile(report.runtimeFile,'utf8'));
+  assert.ok(Object.keys(manifest.assets).flatMap(key=>preparedPart(report,key)).some(item=>item.generatedImageVariant && item.objectKey));
   assert.ok(!JSON.stringify(index).includes(directory));
 });

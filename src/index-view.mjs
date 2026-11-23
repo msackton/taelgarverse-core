@@ -19,11 +19,14 @@ export function indexGrid(result,link,options={}) {
 
 export function indexTable(result,link,options={}) {
   const settlements=result.type==='settlements',features=result.type==='rivers' || result.type==='places';
-  const headings=settlements ? ['Place','Region','Type Of','Population'] : features ? [result.type==='rivers' ? 'River' : 'Place','Type Of'] : ['Person','Info','Current Location','Home'];
+  const lifeDates=result.columns==='life-dates';
+  const headings=settlements ? ['Place','Region','Type Of','Population'] : features ? [result.type==='rivers' ? 'River' : 'Place','Type Of'] :
+    lifeDates ? ['Person','Info','Born','Died'] : ['Person','Info','Current Location','Home'];
   const formatted=parts=>formattedParts(parts,link);
   const rows=result.items.map(item=>{
     const name=indexName(item,link);
     const cells=settlements ? [name,item.region ? link(item.region) : 'Unknown',escapeHtml(item.settlementType || '—'),escapeHtml(item.population || '—')] : features ? [name,escapeHtml(item.placeType || '—')] :
+      lifeDates ? [name,formatted(item.info) || '—',escapeHtml(item.born || '—'),escapeHtml(item.died || '—')] :
       [name,formatted(item.info) || '—',formatted(item.currentLocation) || 'Unknown',formatted(item.home) || 'Unknown'];
     return '<tr>'+cells.map(cell=>'<td>'+cell+'</td>').join('')+'</tr>';
   }).join('');
@@ -35,11 +38,13 @@ export function indexView(result,link,mode='grid',options={}) {
 }
 
 function indexSection(result,content,showCount=true,{heading=false}={}) {
-  const noun=result.items.length===1 ? result.label.toLowerCase().slice(0,-1) : result.label.toLowerCase();
+  const present=result.type==='people-in-place',singular=result.items.length===1;
+  const noun=present ? (singular?'person':'people') : (singular?result.label.toLowerCase().slice(0,-1):result.label.toLowerCase());
+  const empty=present ? 'No people present on this date.' : 'No '+result.label.toLowerCase()+' found for this date.';
   return '<section class="taelgar-index" aria-label="'+escapeHtml(result.label+' — '+result.target)+'">'+
     (heading ? '<h2>'+escapeHtml(result.label)+'</h2>' : '')+
     (showCount && result.type!=='members' ? '<p class="taelgar-index-count">'+result.items.length+' '+noun+'</p>' : '')+
-    (content || '<p>No '+result.label.toLowerCase()+' found for this date.</p>')+
+    (content || '<p>'+empty+'</p>')+
     result.warnings.map(message=>'<p class="taelgar-index-warning">'+escapeHtml(message)+'</p>').join('')+'</section>';
 }
 

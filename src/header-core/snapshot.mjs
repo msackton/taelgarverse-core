@@ -81,6 +81,7 @@ export function hydrateHeaderSnapshot(input,rawPages,{resolveLink}={}) {
       const candidates=byTarget.get(target.toLowerCase());
       return candidates?.length===1?pages[candidates[0]]:undefined;
     },
+    resolveAlias:target=>byAlias.get(target.toLowerCase())?.[0],
     aliasCandidates:target=>canIndexAliases?(byAlias.get(target.toLowerCase())??empty):pages,
     affiliationCandidates:target=>canIndexAffiliations?(byAffiliation.get(String(target))??empty):pages,
   });

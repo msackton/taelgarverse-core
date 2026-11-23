@@ -6,11 +6,9 @@ import path from 'node:path';
 import {ROOT,isInside} from '../src/config.mjs';
 import {testSettings} from './helpers/test-settings.mjs';
 import {prepareContent} from '../scripts/prepare-cloudflare.mjs';
-import {loadSnapshot} from '../src/snapshot.mjs';
 import {openSnapshot} from '../src/runtime-snapshot.mjs';
 import {createWorker} from '../src/worker-handler.mjs';
 import {Engine} from '../src/engine.mjs';
-import {convertWebsiteNote} from '../src/website-compatibility.mjs';
 import {parseNote} from '../src/content-store.mjs';
 import {copyWorkingVault} from '../scripts/website-working-vault.mjs';
 
@@ -22,11 +20,6 @@ const forms={
  marker:'<!-- taelgar:header -->\n',
  saved:'# Old title\n>[!info] Saved details\n> Saved human\n',
 };
-for(const [name,header] of Object.entries(forms))test('website conversion preserves '+name+' without header compatibility rewrites',()=>{
- const source=yaml+header+'\nAuthored prose.\n';
- const result=convertWebsiteNote(parseNote(source));assert.equal(result.note.source,source);assert.deepEqual(result.changes,[]);
-});
-
 test('publication preserves header source and Node, R2 and the compiled Worker render only native headers',async t=>{
  await fs.mkdir(path.join(ROOT,'.cache'),{recursive:true});
  const directory=await fs.mkdtemp(path.join(ROOT,'.cache/header-callout-'));
@@ -42,21 +35,18 @@ test('publication preserves header source and Node, R2 and the compiled Worker r
  await assert.rejects(fs.access(path.join(directory,'package','header-conversion-report.json')),{code:'ENOENT'});
  const manifest=JSON.parse(await fs.readFile(report.manifestFile,'utf8')),objects=new Map(manifest.map(item=>[item.key,item.file]));
  const bucket={get:async key=>objects.has(key)?{json:async()=>JSON.parse(await fs.readFile(objects.get(key),'utf8'))}:null};
- const remote=await loadSnapshot(bucket,report.revision);
  const compiled=await openSnapshot(bucket,report.revision),worker=createWorker();
  objects.set('published/current.json',report.pointerFile);
  for(const [name,header] of Object.entries(forms)) {
+   const remote=await compiled.renderer();
    const entry=remote.store.resolve(name),packed=await remote.store.getNote(entry);
    const original=yaml+header+'\nAuthored prose.\n';
-   assert.equal(packed.source,original);
+   assert.equal(packed.body,parseNote(original).body);
    assert.equal(packed.metadata.headerVersion,'2023.11.25');
    assert.equal(await fs.readFile(path.join(vault,name+'.md'),'utf8'),original);
-   assert.equal(await fs.readFile(path.join(working,name+'.md'),'utf8'),packed.source);
+   assert.equal(await fs.readFile(path.join(working,name+'.md'),'utf8'),original);
    const actual=await remote.engine.renderAsync(name,'1720-01-01',undefined,false,undefined,e=>remote.store.getNote(e));
    assert.equal(actual.html,local.render(name,'1720-01-01').html);
-   const runtime=await compiled.forRequest(new Request('https://taelgar.org/api/page?page='+name));
-   const optimized=await runtime.engine.renderAsync(name,'1720-01-01',undefined,false,undefined,e=>runtime.store.getNote(e));
-   assert.equal(optimized.html,actual.html);
    const response=await worker.fetch(new Request('https://taelgar.org/api/page?page='+name+'&date=1720-01-01'),{CONTENT:bucket});
    assert.equal(response.status,200);assert.equal((await response.json()).html,actual.html);
    if(name==='callout'){for(const value of ['Authored title','Authored pronunciation','20 years old'])assert.ok(actual.html.includes(value));assert.doesNotMatch(actual.html,/Stale fallback/);}

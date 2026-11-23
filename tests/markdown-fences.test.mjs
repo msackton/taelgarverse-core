@@ -8,7 +8,7 @@ import {ROOT,isInside} from '../src/config.mjs';
 import {scanFencedCodeBlocks,scanCodeBlocks} from '../src/markdown-fences.mjs';
 import {filterComments} from '../src/comments.mjs';
 import {parseNote} from '../src/content-store.mjs';
-import {preparePublicationNote,cleanupPublicationNote} from '../src/publication-markdown.mjs';
+import {cleanupPublicationNote} from '../src/publication-markdown.mjs';
 import {materializeWebsiteDataview} from '../scripts/materialize-website-dataview.mjs';
 
 const markdown=new MarkdownIt();
@@ -65,13 +65,13 @@ test('Node DQL materialization preserves quote and list nesting and leaves code 
   assert.equal($('pre code').length,1);
 });
 
-test('JavaScript conversion and omission preserve list markers, sibling prose and source examples',()=>{
+test('Omitting JavaScript preserves list markers, sibling prose and source examples',()=>{
   const source='> - ~~~dataviewjs\n>   await dv.view("_scripts/view/get_CampaignInteractions");\n>   ~~~\n\n- ~~~dataviewjs\n  unknown();\n  ~~~\n\n- Keep this sibling.\n';
-  const result=preparePublicationNote(parseNote(source));
-  assert.match(result.note.body,/> - ```taelgar-interactions\n>   ```/);
+  const result=cleanupPublicationNote(parseNote(source));
+  assert.ok(result.note.body.startsWith('> - '));
   assert.match(result.note.body,/- Keep this sibling\./);
-  assert.doesNotMatch(result.note.body,/unknown/);
-  assert.equal(result.dataviewJsBlocksRemoved,1);
+  assert.doesNotMatch(result.note.body,/unknown|dataviewjs|dv\.view|taelgar-interactions/);
+  assert.deepEqual(result.removedLines,[1,5]);
   const example='    ```dataviewjs\n    unknown();\n    ```\n';
   assert.equal(cleanupPublicationNote(parseNote(example)).note.body,example);
 });

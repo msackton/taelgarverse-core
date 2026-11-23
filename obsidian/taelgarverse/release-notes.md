@@ -1,7 +1,8 @@
-Taelgarverse 2.0.1
+Taelgarverse 2.1.0
 
-- The campaign calendar now starts with full campaigns in the main continuity that have a usable latest-session date, keeping miniseries, one-shots, and unavailable dates out of the default view.
-- Use **Show all campaigns** to restore every registered campaign. Switching views preserves the active campaign and query date.
-- Campaign indexes now support `campaignType: full`, `miniseries`, or `oneshot`. Add `campaignType: full` to an existing main-continuity campaign index to include it in the default view. The Taelgar vault's campaign indexes have been classified alongside this release.
+- Add `taelgar-roster` and `taelgar-session` blocks for registered campaigns. Use them on the campaign index or set `campaign` to the registry ID in another note.
+- Roster links now group recorded play by player and character. Set `characterPresence: true` to include in-world presence and show where it differs from recorded play.
+- Session blocks show campaign totals, date spans, and links to named session notes. Choose `characters`, `participants`, or `people` for cast, attendance, or a combined view.
+- Set `summary: only` to show the campaign summary alone or `summary: false` to show the session list alone. Session details open below each row.
 
 Requires Obsidian Desktop 1.8.0 or later.

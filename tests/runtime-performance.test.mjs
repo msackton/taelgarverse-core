@@ -6,6 +6,7 @@ import {bucketText} from '../src/runtime-io.mjs';
 import {readSnapshotPart} from '../src/snapshot-cache.mjs';
 import {withSnapshotLoads} from '../src/snapshot-loads.mjs';
 import {runtimeHash} from '../src/runtime-format.mjs';
+import {classifyRoute} from '../src/routes.mjs';
 import {coreRelease,publication,Bucket,PageCache} from './helpers/page-cache-fixture.mjs';
 
 const never=()=>new Promise(()=>{}),quiet=()=>{};
@@ -13,6 +14,42 @@ const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve
 const request=(worker,bucket,path='/api/page?page=Person',env={})=>worker.fetch(new Request(new URL(path,'https://taelgar.org')),{CONTENT:bucket,...env});
 const manifestOf=bucket=>JSON.parse(bucket.objects.get('revisions/'+'a'.repeat(64)+'/runtime.json'));
 const options={cache:null,snapshotCache:null,log:quiet};
+
+test('every documented endpoint has a route and maps, indexes and diagram links get distinct timings',async()=>{
+  const objects=publication().objects;
+  const spec=await (await request(createWorker(coreRelease,options),new Bucket(objects),'/openapi.json')).json();
+  for(const path of Object.keys(spec.paths)){
+    const route=classifyRoute(new Request('https://taelgar.org'+path));
+    assert.notEqual(route.name,'notFound',path);
+  }
+  for(const [path,category,status] of [
+    ['/api/maps','maps',200],
+    ['/%61pi/index','index',400],
+    ['/api/diagram-links?source=Person&target=Other','diagram-links',200],
+  ]){
+    const bucket=new Bucket(objects),logs=[];
+    const response=await request(createWorker(coreRelease,{...options,log:record=>logs.push(record)}),bucket,path);
+    assert.equal(response.status,status,path);
+    assert.equal(logs.find(record=>record.event==='request-timing')?.route,category);
+    assert.ok(bucket.calls.some(key=>key.endsWith('/runtime/render.json')),path);
+    assert.ok(!bucket.calls.some(key=>key.endsWith('/search-metadata.json') || key.includes('/runtime/notes/')),path);
+  }
+});
+
+test('unknown, malformed and unsupported requests only read the publication manifest',async()=>{
+  const {objects}=publication();
+  for(const [method,path,status] of [
+    ['GET','/api/maps/extra',404],
+    ['HEAD','/page/%ZZ',400],
+    ['POST','/page/%ZZ',405],
+  ]){
+    const bucket=new Bucket(objects),worker=createWorker(coreRelease,options);
+    const response=await worker.fetch(new Request('https://taelgar.org'+path,{method}),{CONTENT:bucket});
+    assert.equal(response.status,status);
+    if(method==='HEAD')assert.equal(await response.text(),'');
+    assert.deepEqual(bucket.calls,['published/current.json','revisions/'+manifestOf(bucket).revision+'/runtime.json']);
+  }
+});
 
 test('fresh Workers reuse verified snapshot bytes while contexts, publication and the pointer stay fresh',async()=>{
   const bucket=new Bucket(publication().objects),cache=new PageCache();

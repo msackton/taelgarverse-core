@@ -3,6 +3,7 @@ import {existsSync, readFileSync} from 'node:fs';
 import path from 'node:path';
 import {spawn} from 'node:child_process';
 import {createHash} from 'node:crypto';
+import {buildSync} from 'esbuild';
 import {pathToFileURL} from 'node:url';
 import {ROOT, loadSettings, isInside} from '../src/config.mjs';
 import {prepareContent, loadCloudflareConfig} from './prepare-cloudflare.mjs';
@@ -184,7 +185,7 @@ export async function publishContent(options, deps) {
   return result;
 }
 
-export function buildFingerprint(settings, options, config={}) {
+export function buildFingerprint(settings, options, config={}, root=ROOT) {
   const hash = createHash('sha256');
   // Referenced geometry can live in a Git-ignored authoring folder. Its bytes
   // must still invalidate publication's unchanged-content checkpoint.
@@ -203,37 +204,21 @@ export function buildFingerprint(settings, options, config={}) {
   else for(const file of ['manifest.json','main.js','data.json']) {
     const filename=path.join(dataviewDirectory,file);hash.update(existsSync(filename)?readFileSync(filename):'<missing Dataview '+file+'>');
   }
-  for (const filename of [settings.nav_source, settings.home_source,
-    new URL('./publish-content.mjs', import.meta.url), new URL('./optimize-images.mjs', import.meta.url),
-    new URL('./build-images.mjs', import.meta.url), new URL('./derivative-cache.mjs', import.meta.url), new URL('../src/images.mjs', import.meta.url),
-    new URL('./image-usage.mjs', import.meta.url),
-    new URL('../src/website-sources.mjs', import.meta.url), new URL('../src/campaign-sites.mjs', import.meta.url),
-    new URL('../src/campaign-registry.mjs', import.meta.url),
-    new URL('../src/folder-exclusions.mjs', import.meta.url),
-    new URL('./materialize-website-dataview.mjs',import.meta.url),new URL('./website-working-vault.mjs',import.meta.url),new URL('./convert-website.mjs',import.meta.url),
-    new URL('../src/header-core/metadata.mjs',import.meta.url),
-    new URL('../src/website-compatibility.mjs',import.meta.url),new URL('../src/dataview-node/engine.mjs',import.meta.url),
-    new URL('../src/dataview-node/bundle.mjs',import.meta.url),
-    new URL('../src/dataview-node/index.mjs',import.meta.url),new URL('../src/dataview-node/filesystem.mjs',import.meta.url),
-    new URL('../src/publication-markdown.mjs', import.meta.url), new URL('../src/markdown-fences.mjs', import.meta.url), new URL('../src/markdown-blocks.cjs', import.meta.url),
-    new URL('./build-maps.mjs', import.meta.url), new URL('../src/maps.mjs', import.meta.url),
-    new URL('../src/map-catalogue.mjs', import.meta.url),
-    new URL('../src/map-distance.mjs', import.meta.url), new URL('../src/map-feature-path.mjs', import.meta.url), new URL('../src/map-path-files.mjs', import.meta.url),
-    new URL('./prepare-cloudflare.mjs', import.meta.url), new URL('../src/store.mjs', import.meta.url),
-    new URL('../src/content-store.mjs', import.meta.url), new URL('../src/header-callout.mjs', import.meta.url), new URL('../src/backlinks.mjs', import.meta.url),
-    new URL('../src/campaign-interactions.mjs', import.meta.url), new URL('../src/session-interactions.mjs', import.meta.url),
-    new URL('../src/session-bundles.mjs', import.meta.url),
-    new URL('../src/vault-session-bundles.mjs', import.meta.url),
-    new URL('../src/recap-parser.mjs', import.meta.url),
-    new URL('../src/mapped-sessions.mjs', import.meta.url),
-    new URL('../src/campaign-ownership.mjs', import.meta.url),
-    new URL('../src/markdown.mjs', import.meta.url), new URL('../src/icons.mjs', import.meta.url),
-    new URL('../src/comments.mjs', import.meta.url), new URL('../src/common.mjs', import.meta.url)]) {
-    // A Windows checkout may use CRLF while macOS uses LF. That alone must not
-    // invalidate the shared R2 checkpoint for an otherwise identical build.
-    hash.update(filename ? readFileSync(filename, 'utf8').replace(/\r\n/g, '\n') : '<no-website-source>');
+  for (const filename of [settings.nav_source,settings.home_source]) {
+    hash.update(JSON.stringify(filename ? readFileSync(filename,'utf8').replace(/\r\n/g,'\n') : null));
   }
-  for(const filename of ['./compile-search.mjs','./compile-runtime.mjs','./search-index.mjs','./search-database.mjs','./content-retention.mjs','./hostname-firewall.mjs','./cloudflare-client.mjs','./upload-content.mjs','./publication-progress.mjs','../src/search-text.mjs','../src/search-metadata.mjs','../src/search-types.mjs','../src/runtime-format.mjs','../src/navigation.mjs','../src/contexts.mjs','../src/header-core/snapshot.mjs','../src/header-core/campaigns.mjs','../src/dm.mjs','../package-lock.json'])hash.update(readFileSync(new URL(filename,import.meta.url),'utf8').replace(/\r\n/g,'\n'));
+
+  // Discover imports again at pre-activation verification so edits made during
+  // a build (including a newly imported file) invalidate the checkpoint.
+  const {metafile}=buildSync({
+    absWorkingDir:root,entryPoints:['scripts/publish-content.mjs'],platform:'node',format:'esm',
+    bundle:true,packages:'external',metafile:true,write:false,logLevel:'silent',
+  });
+  const inputs=new Set([...Object.keys(metafile.inputs),'package-lock.json']);
+  for (const relative of [...inputs].sort()) {
+    const source=readFileSync(path.join(root,relative),'utf8').replace(/\r\n/g,'\n');
+    hash.update(JSON.stringify([relative,source]));
+  }
   return hash.digest('hex');
 }
 
@@ -314,7 +299,8 @@ export async function main(options) {
             await fs.copyFile(report.reportFile,path.join(CACHE,'materialization-report.json'));
             return {...report,reportFile:path.join(CACHE,'materialization-report.json')};
           }});
-        await json(path.join(CACHE,'conversion-report.json'),prepared.conversion);
+        // The vault publication workflow collects this artifact by its historical filename.
+        await json(path.join(CACHE,'conversion-report.json'),prepared.cleanup);
         Object.assign(timings,prepared.timings);
         const images = prepared.images;
         console.log(`R2 recipes reused: ${derivativeCache.hits.images} image(s), ${derivativeCache.hits.maps} map pyramid(s); no derivative downloads or encoding for these.`);
@@ -353,7 +339,7 @@ export async function main(options) {
 }
 
 const help = `Usage: npm run publish -- [options]
-Checks the Taelgar commit in R2, copies a working vault, materializes DQL, converts known legacy blocks, uploads, and verifies D1 search before activation.
+Checks the Taelgar commit in R2, copies a working vault, materializes DQL, omits closed DataviewJS blocks, uploads, and verifies D1 search before activation.
 Evaluates DQL in Node with a pinned GitHub Dataview download that can be reused offline.
 Settings: config.json, plus config.local.json automatically when present.
 

@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import {ROOT,isInside} from '../src/config.mjs';
-import {NO_PUBLISH_MARKER} from '../src/folder-exclusions.mjs';
+import {isPublicationEntry,NO_PUBLISH_MARKER} from '../src/folder-exclusions.mjs';
 import {parseNote,omitFromPublication} from '../src/content-store.mjs';
 import {validateMapPath} from '../src/map-feature-path.mjs';
 import {readMapPathFile} from '../src/map-path-files.mjs';
@@ -19,9 +19,10 @@ export async function copyWorkingVault(vault,output,{log=()=>{}}={}) {
     if(entries.some(entry=>entry.name===NO_PUBLISH_MARKER))return;
     if(folder)await fs.mkdir(path.join(output,folder));
     for(const entry of entries) {
-      if(entry.name.startsWith('.') || entry.isSymbolicLink())continue;
-      const relative=folder?folder+'/'+entry.name:entry.name,source=path.join(vault,relative),target=path.join(output,relative);
-      if(entry.isDirectory()){if(!entry.name.startsWith('_'))await walk(relative);}
+      const relative=folder?folder+'/'+entry.name:entry.name;
+      if(!isPublicationEntry(entry,relative))continue;
+      const source=path.join(vault,relative),target=path.join(output,relative);
+      if(entry.isDirectory())await walk(relative);
       else if(entry.isFile()) {
         let metadata;
         if(/\.md$/i.test(relative)){
@@ -50,4 +51,10 @@ export async function copyWorkingVault(vault,output,{log=()=>{}}={}) {
   }
   log('Working vault: '+copied+' files copied; source notes unchanged.');
   return {directory:output,stats};
+}
+
+export async function saveWorkingNotes(store) {
+  const original=await fs.realpath(store.settings.vault_dir),working=await fs.realpath(store.settings.source_dir);
+  if(!isInside(ROOT,working) || working===path.resolve(ROOT) || isInside(original,working) || isInside(working,original))throw new Error('Prepared notes must be written to a separate working vault inside core.');
+  for(const entry of store.entries)if(entry.note)await fs.writeFile(entry.filename,entry.note.source);
 }

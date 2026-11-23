@@ -34,6 +34,18 @@ test('index authoring validates arrays and YAML, supplies defaults, and deduplic
   assert.deepEqual(parseIndex('type: residents'),{type:'residents',target:undefined,show:'both',recursive:true,mode:'grid',heading:true});
   assert.equal(parseIndex('type: members\nmode: table').mode,'table');
   assert.equal(parseIndex('type: members').recursive,false);
+  assert.equal(parseIndex('type: people-in-place').recursive,true);
+  assert.deepEqual(headerIndexes(['people-in-place']),['people-in-place']);
+  const historical=parseIndex('type: members\nscope: historical\nmode: table\ncolumns: life-dates');
+  assert.equal(historical.scope,'historical');
+  assert.equal(historical.columns,'life-dates');
+  for(const type of ['members','residents','people-in-place','settlements','rivers','places'])for(const scope of ['current','historical','ever']) {
+    assert.equal(parseIndex('type: '+type+'\nscope: '+scope).scope,scope);
+  }
+  for(const source of ['type: members\nmembership: historical','type: members\nignoreDeath: true',
+    'type: places\nscope: all','type: residents\nscope: null','type: members\ncolumns: life-dates']) {
+    assert.throws(()=>parseIndex(source),/membership|ignoreDeath|scope|columns/);
+  }
   assert.equal(parseIndex('type: places\nplaceType: built').placeType,'built');
   assert.equal(parseIndex('type: places\nplaceType: natural').placeType,'natural');
   for(const value of ['all','[]','null','true','""'])assert.throws(()=>parseIndex('type: places\nplaceType: '+value),/placeType/);
@@ -52,6 +64,26 @@ test('residents follow dated homes, retaining traveling residents and excluding 
   const later=queryIndex(runtime,{type:'residents',target:'Realm'},{date:'1750-01-01',visible});
   assert.deepEqual(paths(later),[],'a town changing regions changes its residents’ containment');
   assert.deepEqual(paths(query('residents','Other Realm')),['People/Visitor.md']);
+});
+
+test('people-in-place includes visitors and local residents using only their current whereabouts',()=>{
+  const extraNotes={
+    'People/Nested Visitor.md':{tags:['person'],whereabouts:[{type:'home',location:'Other Realm'},{type:'away',location:'Inn',start:1719,end:1721}]},
+    'People/Expired Visitor.md':{tags:['person'],whereabouts:[{type:'away',location:'Town',start:1719}]},
+    'People/Secondary Visitor.md':{tags:['person'],whereabouts:[{type:'home',location:'Other Realm'},{type:'secondary',location:'Town'}]},
+    'People/Missing Resident.md':{tags:['person'],whereabouts:[{type:'home',location:'Town'},{type:'away',start:1719,location:'unknown'}]},
+    'Places/Hidden Inn.md':{tags:['place'],typeOf:'inn',whereabouts:'Town'},
+    'People/Hidden Location.md':{tags:['person'],whereabouts:'Hidden Inn'},
+  };
+  const {runtime}=fixture(extraNotes);
+  const select=(date,recursive=true)=>queryIndex(runtime,{type:'people-in-place',target:'Town',recursive},
+    {date,visible:page=>visible(page)&&page.path!=='Places/Hidden Inn.md'});
+  assert.deepEqual(paths(select('1720-01-01')),['People/Bob.md','People/Nested Visitor.md','People/Visitor.md']);
+  assert.deepEqual(paths(select('1720-01-01',false)),['People/Bob.md','People/Visitor.md']);
+  assert.deepEqual(paths(select('1741-01-01')),['People/Alice.md','People/Bob.md']);
+  const residentAway=query('residents','Town',{},extraNotes);
+  assert.ok(paths(residentAway).includes('People/Alice.md'));
+  assert.ok(!paths(residentAway).includes('People/Visitor.md'));
 });
 
 test('settlements use the canonical settlement type and dated hierarchy, include ruins, and honor direct scope',()=>{
@@ -184,6 +216,85 @@ test('members match legacy isAffiliated dates, including explicit overrides to t
   }
 });
 
+test('membership scopes distinguish active affiliations, affiliations at death, and former affiliations',()=>{
+  const extraNotes={
+    'People/Former.md':{tags:['person'],born:1690,affiliations:[{org:'Guild',start:1700,end:1719}]},
+    'People/Expired Leader.md':{tags:['person'],died:1710,leaderOf:[{place:'Guild',start:1700,end:1717}]},
+    'People/Deceased Leader.md':{tags:['person'],died:1710,leaderOf:[{place:'Guild',start:1700}]},
+    'People/Died in Office.md':{tags:['person'],died:'1715-01-01',leaderOf:[{place:'Guild',start:1700,end:'1715-01-01'}]},
+    'People/Retired Before Death.md':{tags:['person'],died:1715,affiliations:[{org:'Guild',start:1700,end:1710}]},
+    'People/Prebirth Role.md':{tags:['person'],born:1710,affiliations:[{org:'Guild',start:1700,end:1709}]},
+    'People/Posthumous Role.md':{tags:['person'],died:1710,affiliations:[{org:'Guild',start:1712,end:1725}]},
+    'People/Future Member.md':{tags:['person'],affiliations:[{org:'Guild',start:1730}]},
+  };
+  const {runtime}=fixture(extraNotes);
+  const read=(scope,date='1720-01-01')=>queryIndex(runtime,{type:'members',target:'Guild',scope},{date,visible});
+  assert.deepEqual(paths(read('current')),['People/Alice.md','People/Bob.md']);
+  const historical=read('historical');
+  assert.equal(historical.label,'Historical Members');
+  assert.deepEqual(paths(historical),['People/Alice.md','People/Bob.md','People/Dead.md','People/Deceased Leader.md','People/Died in Office.md','People/Expired Leader.md']);
+  assert.deepEqual(paths(read('ever')),[...paths(historical),'People/Former.md','People/Retired Before Death.md']);
+  assert.ok(paths(read('current','1715-01-01')).includes('People/Died in Office.md'),'end dates are inclusive');
+  assert.ok(paths(read('ever','1730-01-01')).includes('People/Future Member.md'));
+  assert.deepEqual(historical.items.find(item=>item.path==='People/Dead.md').currentLocation,[]);
+  assert.ok(paths(read(undefined)).includes('People/Posthumous Role.md'),'omitting scope preserves the original Members selection');
+});
+
+test('resident and presence scopes distinguish homes, visits, and the relationship at death',()=>{
+  const extraNotes={
+    'People/Died Away.md':{tags:['person'],died:1715,whereabouts:[{type:'home',location:'Town'},{type:'away',location:'Other Realm',start:1712,end:1716}]},
+    'People/Died Visiting.md':{tags:['person'],died:1715,whereabouts:[{type:'home',location:'Other Realm'},{type:'away',location:'Town',start:1712,end:1716}]},
+    'People/Left Before Death.md':{tags:['person'],died:1715,whereabouts:[{type:'home',location:'Town',end:1710},{type:'home',location:'Other Realm',start:1711}]},
+    'People/Expired Visit.md':{tags:['person'],whereabouts:[{type:'away',location:'Town',start:1710}]},
+    'People/Trip Before Birth.md':{tags:['person'],born:1715,whereabouts:[{type:'away',location:'Town',start:1710}]},
+    'People/Future Visit.md':{tags:['person'],whereabouts:[{type:'away',location:'Town',start:1730}]},
+  };
+  const samplePaths=(type,scope)=>paths(query(type,'Town',{scope},extraNotes)).filter(id=>Object.hasOwn(extraNotes,id));
+  assert.deepEqual(samplePaths('residents','current'),[]);
+  assert.deepEqual(samplePaths('residents','historical'),['People/Died Away.md']);
+  assert.deepEqual(samplePaths('residents','ever'),['People/Died Away.md','People/Left Before Death.md']);
+  assert.deepEqual(samplePaths('people-in-place','current'),[]);
+  assert.deepEqual(samplePaths('people-in-place','historical'),['People/Died Visiting.md']);
+  assert.deepEqual(samplePaths('people-in-place','ever'),['People/Died Away.md','People/Died Visiting.md','People/Expired Visit.md','People/Left Before Death.md']);
+});
+
+test('ever follows nested whereabouts on the same day and honors visibility and direct scope',()=>{
+  const extraNotes={
+    'Places/Moving Inn.md':{tags:['place'],whereabouts:[{type:'home',location:'Town',end:1710},{type:'home',location:'Other Realm',start:1711}]},
+    'Places/Hidden Inn.md':{tags:['place'],whereabouts:'Town'},
+    'People/Early Visitor.md':{tags:['person'],whereabouts:[{type:'away',location:'Moving Inn',start:1710,end:1712}]},
+    'People/Late Visitor.md':{tags:['person'],whereabouts:[{type:'away',location:'Moving Inn',start:1711,end:1712}]},
+    'People/Hidden Visitor.md':{tags:['person'],whereabouts:[{type:'away',location:'Hidden Inn',start:1710,end:1712}]},
+  };
+  const result=recursive=>queryIndex(fixture(extraNotes).runtime,{type:'people-in-place',target:'Town',scope:'ever',recursive},
+    {date:'1720-01-01',visible:page=>visible(page)&&page.path!=='Places/Hidden Inn.md'});
+  assert.deepEqual(paths(result(true)).filter(id=>Object.hasOwn(extraNotes,id)),['People/Early Visitor.md']);
+  assert.deepEqual(paths(result(false)).filter(id=>Object.hasOwn(extraNotes,id)),[]);
+});
+
+test('all geography indexes distinguish existing, destroyed in place, and formerly contained places',()=>{
+  for(const [type,typeOf] of [['settlements','settlement'],['places','building'],['rivers','waterway']]) {
+    const candidate=(whereabouts,extra={})=>({tags:['place'],typeOf,whereabouts,...extra});
+    const moved=[{type:'home',location:'Realm',end:1710},{type:'home',location:'Other Realm',start:1711}];
+    const extras={
+      'Places/Scope Current.md':candidate('Realm'),
+      'Places/Scope Destroyed.md':candidate('Realm',{destroyed:1715}),
+      'Places/Scope Moved.md':candidate(moved),
+      'Places/Scope Moved Before Destruction.md':candidate(moved,{destroyed:1715}),
+      'Places/Scope Past Sighting.md':candidate([{type:'away',location:'Realm',start:1710}],{destroyed:1715}),
+      'Places/Scope Future.md':candidate('Realm',{created:1740}),
+      'Places/Scope Secondary.md':candidate([{type:'home',location:'Other Realm'},{type:'secondary',location:'Realm'}]),
+    };
+    const result=scope=>query(type,'Realm',{scope},extras);
+    const names=scope=>paths(result(scope)).filter(id=>Object.hasOwn(extras,id)).map(id=>id.slice(13,-3)).sort();
+    assert.deepEqual(names('current'),['Current','Secondary'],type);
+    assert.deepEqual(names('historical'),['Current','Destroyed','Secondary'],type);
+    assert.deepEqual(names('ever'),['Current','Destroyed','Moved','Moved Before Destruction','Past Sighting','Secondary'],type);
+    assert.ok(names(undefined).includes('Past Sighting'),type);
+    if(type==='settlements')assert.equal(result('ever').items.find(item=>item.path==='Places/Scope Moved.md').region.name,'Realm');
+  }
+});
+
 test('member columns preserve aliases and pronouns and use the selected date for current locations',()=>{
   const extraNotes={
     'Ancestries/Townfolk.md':{tags:['ancestry'],aliases:['Townlander']},
@@ -271,6 +382,30 @@ test('inline blocks select host, support other targets and embeds, and never ent
   const compiled=compileSearch(engine.store);
   assert.ok(compiled.documents.filter(doc=>doc.page==='guide').every(doc=>!doc.text.includes('Alice')));
   assert.ok(!engine.render('People/Alice.md','1720-01-01','custom').backlinks?.some(link=>link.title==='Guide'));
+});
+
+test('website all-time tables show dated life columns and People Present has a header popup',()=>{
+  const sources=indexSources({
+    'People/Former.md':{tags:['person'],born:1690,died:1721,affiliations:[{org:'Guild',end:1710}]},
+    'Places/Town.md':{...indexNotes['Places/Town.md'],indexes:['people-in-place']},
+  });
+  sources['Roster.md']='```taelgar-index\ntype: members\ntarget: Guild\nscope: ever\nmode: table\ncolumns: life-dates\n```';
+  const engine=website(sources);
+  const at=date=>load(engine.render('Roster',date,'custom').html,{},false);
+  const $=at('1720-01-01');
+  assert.equal($('.taelgar-index > h2').text(),'All-time Members');
+  assert.deepEqual($('th').map((_,cell)=>$(cell).text()).get(),['Person','Info','Born','Died']);
+  assert.deepEqual($('tbody tr td:first-child a').map((_,cell)=>$(cell).text()).get(),['Former','Alice Example','Bob','Dead']);
+  assert.match($('tbody tr').first().find('td').eq(2).text(),/1690/);
+  assert.equal($('tbody tr').first().find('td').last().text(),'—');
+  assert.match(at('1722-01-01')('tbody tr').first().find('td').last().text(),/1721/);
+
+  const town=load(engine.render('Places/Town.md','1720-01-01','custom').html,{},false);
+  assert.equal(town('.taelgar-index-popup summary').text(),'People Present');
+  const popup=load(engine.renderIndex('Places/Town.md','people-in-place','1720-01-01','custom'),{},false);
+  assert.equal(popup('.taelgar-index-count').text(),'2 people');
+  assert.deepEqual(popup('.taelgar-index-link').map((_,link)=>popup(link).text()).get().filter(name=>name==='Bob'||name==='Visitor'),['Bob','Visitor']);
+  assert.doesNotMatch(popup('.taelgar-index').text(),/Alice|Dead|Future/);
 });
 
 test('all inline index types have one H2 label in grids and tables, including empty indexes',()=>{
