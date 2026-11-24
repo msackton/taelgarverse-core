@@ -117,7 +117,7 @@ test('Taelgarverse keeps Images opt-in within the existing plugin and preserves 
     assert.equal(plugin.images.enabled,enabled===true);assert.equal(Object.hasOwn(plugin.settings,'legacyLeafletBlocks'),false);
     assert.equal(plugin.settings.calendarEnabled,false);assert.equal(plugin.calendar.enabled,false);
     assert.equal(plugin.settings.sessionReviewEnabled,true);assert.equal(Object.hasOwn(plugin.settings,'photoshopExporter'),false);
-    assert.deepEqual([...plugin.processors.keys()],['taelgar-map','taelgar-index','taelgar-interactions','taelgar-relationship','taelgar-roster','taelgar-session']);plugin.unload();
+    assert.deepEqual([...plugin.processors.keys()],['taelgar-map','taelgar-index','taelgar-events','taelgar-interactions','taelgar-relationship','taelgar-roster','taelgar-session']);plugin.unload();
   }
 });
 

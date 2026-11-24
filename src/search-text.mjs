@@ -6,7 +6,6 @@ import {load} from 'cheerio';
 export function proseSections(html) {
   const $=load(html,{},false);
   $('script,style,template,svg,button,.dm-note-ref,.dm-note-header,.dm-block-label,.mermaid-diagram,.taelgar-index,.taelgar-index-error').remove();
-  $('.admonition.warning').filter((_,el)=>$(el).find('.admonition-title').text()==='Dynamic content unavailable').remove();
   $('[hidden],[aria-hidden="true"]').remove();
   const sections=[];let heading='',text='';
   const flush=()=>{const value=text.replace(/[\t \r]+/g,' ').replace(/ *\n */g,'\n').replace(/\n{3,}/g,'\n\n').trim();

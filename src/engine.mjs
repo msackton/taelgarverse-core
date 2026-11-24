@@ -3,6 +3,7 @@ import {readVaultCampaignSource} from './vault-campaign-records.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import {Store} from './store.mjs';
+import {cleanupPublicationStore} from './publication-markdown.mjs';
 import {createHeaderSnapshot} from './header-core/index.mjs';
 import {RenderEngine} from './render-engine.mjs';
 import {ROOT} from './config.mjs';
@@ -16,6 +17,7 @@ export {document} from './render-engine.mjs';
 export class Engine extends RenderEngine {
   constructor(settings) {
     const store = new Store(settings);
+    cleanupPublicationStore(store);
     const {indexes,registry}=readVaultCampaignRegistry(settings.vault_dir);
     const interactions=readInteractionBundles(settings,registry);
     store.warnings.push(...interactions.warnings);

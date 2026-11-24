@@ -30,7 +30,7 @@ After `npm ci`, use one of these commands from core:
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Reads the live vault without Obsidian. Restarts on vault/source changes; refresh the browser. Some Dataview content can be incomplete. |
-| `npm run dev -- --full` | Copies a working vault, materializes plain Dataview queries in Node, omits closed DataviewJS blocks, processes images/maps/search, loads local R2/D1, and starts the local Worker. No live publication. Rerun after editing notes. |
+| `npm run dev -- --full` | Copies a working vault, materializes plain Dataview queries in Node, removes unsupported fences and empty headings, processes images/maps/search, loads local R2/D1, and starts the local Worker. No live publication. Rerun after editing notes. |
 | `npm run dev -- --plugin` | Builds and installs Taelgarverse in the configured vault. Tries to reload it in running Obsidian; otherwise asks for a restart. |
 | `npm test` | Runs the automated suite using frozen core fixtures; no vault or Obsidian required. |
 | `npm test -- --live-vault` | Explicitly checks configured live notes and the installed Dataview bundle against test references. Read-only; separate from CI. |
@@ -95,8 +95,7 @@ publication/maintenance path; a website code deployment alone does not delete R2
 objects.
 
 Content preparation copies the vault to a temporary working directory, evaluates
-supported DQL in Node, then omits closed DataviewJS blocks and headings emptied
-by their removal. Images, backlinks, search, and runtime compilation follow.
+supported DQL in Node, then removes unsupported fences and sections with no body content. Images, backlinks, search, and runtime compilation follow.
 Preparation uses copies of the original files and can run while Obsidian is closed. The original vault supplies header
 metadata and session inputs. See [publishing pipelines](publishing-pipelines.md).
 The copy prunes excluded paths before reading their contents. Dataview indexes

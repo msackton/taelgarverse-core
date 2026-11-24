@@ -10,6 +10,8 @@ import {IMAGE_TYPES, AUDIO_TYPES, availableInContext} from './content-store.mjs'
 import {decorateDMNotes} from './dm.mjs';
 import {renderMap} from './maps.mjs';
 import {renderIndexBlock} from './website-indexes.mjs';
+import {renderEventBlock} from './website-events.mjs';
+import {isWebsiteFence} from './website-fences.mjs';
 import {campaignFences,parseCampaignBlock} from './campaign-blocks.mjs';
 import {campaignForBlock} from './campaign-source.mjs';
 import {renderCampaignView} from './campaign-view.mjs';
@@ -25,7 +27,7 @@ function exactTarget(store,path) {
   return matches?.size===1 ? {status:'found',entry:[...matches][0]} : {status:matches ? 'ambiguous' : 'missing'};
 }
 
-function wikiTarget(env, target, strictPath=false) {
+export function wikiTarget(env, target, strictPath=false) {
   if (!target) return {status:'heading',entry:env.entry};
   // Explicit relative paths belong to the authoring note, including inside embeds.
   if (/^\.\.?\//.test(target)) {
@@ -135,6 +137,11 @@ function inlineExtensions(md) {
     const label = parts[1] || target || fragment;
     if (silent) return true;
     const env = state.env;
+    if(env.eventInline && embed) {
+      state.push('text','',0).content=label;
+      state.pos=end+2;
+      return true;
+    }
     const resolution = /^(?:https?:\/\/|mailto:)/.test(target) ? {status:'external'} : wikiTarget(env,target);
     if (embed && resolution.entry?.note) {
       const entry = resolution.entry, href = pageUrl(entry.slug,env.date,env.context) + (fragment ? '#' + fragmentId(fragment) : '');
@@ -209,6 +216,7 @@ export function createMarkdown(options = {}) {
     // The website already renders its campaign history after the article. An
     // empty Obsidian placement block must not add a visible code frame there.
     if (type==='taelgar-interactions' && !tokens[index].content.trim()) return '';
+    if (/^taelgar-events(?:\s|$)/i.test(type)) return renderEventBlock(tokens[index].content,env);
     if (/^taelgar-index(?:\s|$)/i.test(type)) return renderIndexBlock(tokens[index].content,env);
     if(type===campaignFences.roster) return renderCampaignFence('roster',tokens[index].content,env);
     if(type===campaignFences.sessions) return renderCampaignFence('sessions',tokens[index].content,env);
@@ -220,10 +228,7 @@ export function createMarkdown(options = {}) {
         escapeHtml(tokens[index].content) + '</code></pre></details></figure>\n';
     }
     if (/^taelgar-map(?:\s|$)/i.test(type)) return renderMap(tokens[index].content,env);
-    if (['dataview','dataviewjs'].includes(type)) {
-      env.warnings.push(type + ' block requires a materialized body or a future query adapter');
-      return '<div class="admonition warning"><p class="admonition-title">Dynamic content unavailable</p><p>This block has not been rendered.</p></div>\n';
-    }
+    if (!isWebsiteFence(type.split(/\s+/,1)[0].toLowerCase())) return '';
     return originalFence(tokens,index,options,env,renderer);
   };
   const originalCode = md.renderer.rules.code_inline;
@@ -282,21 +287,16 @@ export function pageLinkEntry(store, href) {
   return entry?.note ? entry : undefined;
 }
 
-export function renderMarkdown(md, source, env) {
-  const $ = load(md.render(source, env), {decodeEntities: false}, false);
-  $('.note-block-anchor').each((_,element)=>{
-    const anchor = $(element), parent = anchor.parent();
-    let block = parent.closest('li,p,blockquote,table');
-    if (parent.is('p') && !parent.text().trim() && parent.contents().length === 1 && parent.prev().length) block = parent.prev();
-    if (!block.length || block.attr('id')) return;
-    block.attr('id',anchor.attr('id'));
-    anchor.remove();
-    if (parent.is('p') && !parent.contents().length && parent[0] !== block[0]) parent.remove();
-  });
+function normalizeMarkdownLinks($,env) {
   $('a[href], img[src], audio[src], source[src]').each((_, element) => {
     const el = $(element), attribute = element.tagName === 'a' ? 'href' : 'src';
     const raw = el.attr(attribute);
-    if (!raw || /^(?:[a-z][a-z0-9+.-]*:|\/\/|#|\/page\/|\/assets\/)/i.test(raw)) return;
+    if(!raw)return;
+    if(env.eventInline && raw.startsWith('#') && env.entry.note) {
+      el.attr(attribute,pageUrl(env.entry.slug,env.date,env.context)+raw);
+      return;
+    }
+    if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|#|\/page\/|\/assets\/)/i.test(raw)) return;
     const hash = raw.indexOf('#'), withoutHash = hash < 0 ? raw : raw.slice(0, hash);
     const fragment = hash < 0 ? '' : raw.slice(hash);
     let decoded;
@@ -305,6 +305,7 @@ export function renderMarkdown(md, source, env) {
     const exported = path.posix.normalize(path.posix.join(path.posix.dirname(env.entry.target), decoded));
     const resolution = env.store.lookup(relative);
     const entry = resolution.entry || env.store.lookup(exported).entry || env.store.lookup(decoded.replace(/^\/(?:taelgarverse\/)?/, '')).entry;
+    if(!entry && env.eventInline){el.replaceWith(el.contents());return;}
     if (entry) el.attr(attribute, entry.note ? pageUrl(entry.slug, env.date,env.context) + fragment : '/assets/' + entry.target.split('/').map(encodeURIComponent).join('/') + fragment);
   });
   // All resolved page links now share the website URL format, including links
@@ -319,6 +320,30 @@ export function renderMarkdown(md, source, env) {
       else el.attr('href',pageUrl(entry.slug,env.date,env.context) + (el.attr('href').includes('#') ? '#' + el.attr('href').split('#').slice(1).join('#') : ''));
     }
   });
+}
+
+const eventMarkdown=new MarkdownIt({html:false});
+inlineExtensions(eventMarkdown);
+eventMarkdown.renderer.rules.image=(tokens,index,options,env,renderer)=>escapeHtml(renderer.renderInlineAsText(tokens[index].children,options,env));
+export function renderEventInline(source,env) {
+  env={...env,eventInline:true};
+  const $=load(eventMarkdown.renderInline(source,env),{},false);
+  normalizeMarkdownLinks($,env);
+  return $.html();
+}
+
+export function renderMarkdown(md, source, env) {
+  const $ = load(md.render(source, env), {decodeEntities: false}, false);
+  $('.note-block-anchor').each((_,element)=>{
+    const anchor = $(element), parent = anchor.parent();
+    let block = parent.closest('li,p,blockquote,table');
+    if (parent.is('p') && !parent.text().trim() && parent.contents().length === 1 && parent.prev().length) block = parent.prev();
+    if (!block.length || block.attr('id')) return;
+    block.attr('id',anchor.attr('id'));
+    anchor.remove();
+    if (parent.is('p') && !parent.contents().length && parent[0] !== block[0]) parent.remove();
+  });
+  normalizeMarkdownLinks($,env);
   const used = new Set(), headings = [];
   $('h1,h2,h3,h4,h5,h6').each((_, element) => {
     const el = $(element), text = el.text();

@@ -18,11 +18,11 @@ test('Node preserves headers and cleans JavaScript-only headings while preservin
     '````markdown','```dataviewjs','This example remains.','```','````','',
     '> [!info] Query','> ```dataview','> LIST FROM #person','> ```',''].join('\n');
   const note=parseNote(source),result=cleanupPublicationNote(note);
-  assert.equal(result.removedLines.length,3);assert.equal(result.sectionsRemoved,3);
+  assert.equal(result.removedLines.length,4);assert.equal(result.sectionsRemoved,3);
   assert.match(result.note.body,/^# Old title\n>\[!info\] Old info/);
   assert.doesNotMatch(result.note.body,/Remove parent|Remove child|Setext section|Never execute/);
   assert.match(result.note.body,/Retain prose\nKeep this prose/);assert.match(result.note.body,/Existing empty heading/);
-  assert.match(result.note.body,/This example remains/);assert.match(result.note.body,/> LIST FROM #person/);
+  assert.match(result.note.body,/This example remains/);assert.doesNotMatch(result.note.body,/> LIST FROM #person/);assert.match(result.note.body,/> \[!info\] Query/);
   assert.doesNotThrow(()=>filterComments(result.note.body,{date:'1750-01-01',campaigns:['dufr']}));
   assert.equal(note.source,source);assert.equal(cleanupPublicationNote(result.note).note.source,result.note.source);
   assert.equal(cleanupPublicationNote(parseNote(source.replaceAll('\n','\r\n'))).note.source,result.note.source);

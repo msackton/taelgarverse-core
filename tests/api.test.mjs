@@ -174,7 +174,7 @@ for (const page of ['Hidden','Secret','Hidden World','Hidden Nested','../README'
 
 test('publication omits noPublish notes and retains formerly ignored paths and tags',() => {
   assert.throws(()=>engine.store.resolve('Hidden'),{status:404});
-  for (const page of ['CampaignHidden','Invisible','Drawing','_Loose']) assert.ok(render(page).html,page);
+  for (const page of ['CampaignHidden','Invisible','Drawing','_Loose']) assert.ok(render(page).page,page);
   assert.ok(engine.render('CampaignHidden',undefined,'dufr').html);
   assert.ok(engine.render('CampaignHidden',undefined,'adma').html);
 });
@@ -210,11 +210,10 @@ test('malformed comments fail closed without affecting other pages',() => {
   assert.throws(() => render('Broken'),error => error.status === 422 && !error.message.includes('secret'));
   assert.ok(render('First Town').html);
 });
-test('query code becomes a warning, never executes',() => {
-  const result = render('Queries');
-  assert.equal(result.warnings.length,2);
-  assert.doesNotMatch(result.html,/never execute me/);
-  assert.match(result.html,/Dynamic content unavailable/);
+test('the website omits unsupported query fences',() => {
+  const result=render('Queries');
+  assert.deepEqual(result.warnings,['Inline Dataview expressions are not supported yet']);
+  assert.doesNotMatch(result.html,/never execute me|Dynamic content unavailable/);
 });
 test('indexed assets and traversal restrictions',async () => {
   const $ = load(render('Image').html,{},false);

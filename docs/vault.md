@@ -447,6 +447,72 @@ Start and end dates are inclusive. Current rosters require an active relationshi
 
 Index blocks render inline. The former preset type names and automatic header index buttons are retired. To migrate an old `members` table, use `type: affiliation` and `from: person`. Former `membership: historical` rosters use `scope: ever`; former `columns: life-dates` tables can use `columns: [name, info, born, died]`.
 
+## Event timelines
+
+A `taelgar-events` fence generates a chronological **Date**, **Event**, and **File**
+table in Obsidian and on the website.
+
+````markdown
+```taelgar-events
+yearStart: 1546
+yearEnd: 1600
+includeLifecycle: true
+includeTravel: false
+sources:
+  - { type: event }
+  - { type: person, knownTo: dufr }
+```
+````
+
+| Option | Behavior |
+| --- | --- |
+| `yearStart` | Required DR year or `YYYY-MM-DD` date. A year starts on January 1. |
+| `yearEnd` | Defaults to `yearStart`. A year ends on December 31. Bounds are inclusive. |
+| `includeLifecycle` | Add dated starts and ends such as births, deaths, foundings, and destructions. Defaults to `false`. |
+| `includeTravel` | Add dated whereabouts moves, arrivals, visits, and departures. Defaults to `false`. |
+| `heading` | Add an Events heading when `true`. Defaults to `false`. |
+| `show` | `both` (default), `website`, or `obsidian`. |
+| `sources` | List of selectors. Defaults to all eligible source notes. An empty list selects zero notes. |
+| `excludeSources` | List of selectors whose matches are removed from the results. |
+
+A selector is one YAML list item. All its fields must match the same source note.
+A note matches the list when any item matches, and contributes each row once.
+Selectors accept:
+
+| Field | Matches |
+| --- | --- |
+| `folder` | A vault-relative folder and its descendants. |
+| `note` | A specific note name or path. Quote wikilinks. Explicit relative paths resolve from the note containing the block. |
+| `type` | The primary descriptive tag, such as `event`, `person`, `background`, `place`, or `session-note`. |
+| `knownTo` | The source note's authored `knownTo` campaign codes. |
+| `campaign` | The source note's `campaign` field, used by session notes and other campaign records. |
+
+Use `excludeSources: [{ type: person }]` to skip people while keeping other
+source types. A selector matches the note that stores the date. To select rows
+that mention a person, first select the notes where those rows are authored.
+Campaign selectors resolve names and aliases through the campaign registry.
+Missing or empty `knownTo` does not match a campaign.
+
+Authored rows come from frontmatter `DR` and Markdown list items with inline
+`DR::`. Dates retain year, month, or day precision. Use `DR_end` or a date string
+with `to` for a range. The entire range appears once when it overlaps the
+requested window. Double parentheses around an inline field mark uncertainty.
+A leading qualifier such as `fall:` or `morning:` appears in the Date cell
+and affects sorting. Code, ordinary comments, and editorial blocks do not
+contribute dates. Event-tagged notes with a frontmatter date supply one authored
+date range in place of generated lifecycle rows.
+
+Obsidian uses the full authored window, including dated bullets from local
+campaign and date variants. The note containing the block, `Worldbuilding`, and
+underscore-prefixed folders at any depth are skipped. The website also applies
+publication eligibility, source-note availability, and campaign or date block
+visibility. A website reader sees a range or partial date once its latest
+possible date is within the reader's context. `knownTo` filters source notes
+using their current metadata.
+
+The website renders explicitly authored `taelgar-events` fences. Legacy
+`get_EventsTable` calls are omitted along with other DataviewJS fences.
+
 ## Campaign calendar prototype
 
 In the local Taelgarverse 0.7.0 development build, turn on **Settings → Taelgarverse →
@@ -912,8 +978,8 @@ pages for queries and uses its eligible files for link resolution. This excludes
 unpublished notes and Markdown the store could not parse. Current-page chronology
 scans appear as unsupported queries in the materialization report.
 
-Website preparation omits closed DataviewJS blocks and headings emptied by their
-removal. The cleanup report lists each block by file and line. Use `taelgar-index`
+Website preparation removes unsupported fences and headings whose sections
+have no body content. The cleanup report lists each block by file and line. Use `taelgar-index`
 for tables that follow the reader's current context.
 Remaining unsupported DQL and inline expressions show
 warnings or unavailable-content messages. The website does not execute scripts.

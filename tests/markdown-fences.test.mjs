@@ -65,13 +65,63 @@ test('Node DQL materialization preserves quote and list nesting and leaves code 
   assert.equal($('pre code').length,1);
 });
 
-test('Omitting JavaScript preserves list markers, sibling prose and source examples',()=>{
+test('Omitting JavaScript removes empty list items and preserves sibling prose and examples',()=>{
   const source='> - ~~~dataviewjs\n>   await dv.view("_scripts/view/get_CampaignInteractions");\n>   ~~~\n\n- ~~~dataviewjs\n  unknown();\n  ~~~\n\n- Keep this sibling.\n';
   const result=cleanupPublicationNote(parseNote(source));
-  assert.ok(result.note.body.startsWith('> - '));
+  assert.equal(result.note.body.trim(),'- Keep this sibling.');
   assert.match(result.note.body,/- Keep this sibling\./);
   assert.doesNotMatch(result.note.body,/unknown|dataviewjs|dv\.view|taelgar-interactions/);
   assert.deepEqual(result.removedLines,[1,5]);
   const example='    ```dataviewjs\n    unknown();\n    ```\n';
   assert.equal(cleanupPublicationNote(parseNote(example)).note.body,example);
+});
+
+test('publication removes an unsupported block and a heading with no remaining content',()=>{
+  for(const heading of ['# Query only','Query only\n==========']){
+    const note=parseNote(heading+'\n\n```unrecognized\nopaque payload\n```\n');
+    const result=cleanupPublicationNote(note);
+    assert.equal(result.note.source,'');
+    assert.equal(result.removedLines.length,1);
+    assert.equal(result.sectionsRemoved,1);
+  }
+  const frontmatter='---\ntags: [background]\n---\n';
+  const result=cleanupPublicationNote(parseNote(frontmatter+'# Query\n```dataviewjs\nlegacy();\n```\n'));
+  assert.equal(result.note.source,frontmatter);
+  assert.equal(result.note.body,'');
+});
+
+test('cleanup removes an empty DM wrapper around discarded code',()=>{
+  const note=parseNote('# Guide\n\n%%^Campaign:none%%\n\n```dataviewjs\nlegacy();\n```\n\n%%^End%%\n');
+  const result=cleanupPublicationNote(note);
+  assert.equal(result.note.body,'');
+  assert.equal(result.removedLines.length,1);
+  assert.equal(result.sectionsRemoved,1);
+});
+
+test('cleanup removes empty descendants and keeps parent, code examples, and conditional prose',()=>{
+  const source='# Guide\n\n## Empty\n\n%% Comment only. %%\n\n### Empty child\n\n> ```dataviewjs\n> legacy();\n> ```\n\n'+
+    '## Events\n\n```taelgar-events\nyearStart: 1740\n```\n\n'+
+    '## Examples\n\n````markdown\n```unsupported\nquoted only\n```\n````\n\n'+
+    '## Campaign\n\n%%^Campaign:dufr%%\nAuthored prose.\n%%^End%%\n\n# Unrelated empty title\n';
+  const result=cleanupPublicationNote(parseNote(source));
+  assert.equal(result.sectionsRemoved,3);
+  assert.equal(result.removedLines.length,1);
+  assert.match(result.note.body,/# Guide/);
+  assert.match(result.note.body,/## Events\n\n```taelgar-events/);
+  assert.match(result.note.body,/```unsupported\nquoted only/);
+  assert.match(result.note.body,/## Campaign[\s\S]*Authored prose/);
+  assert.doesNotMatch(result.note.body,/# Empty|Unrelated empty title|legacy\(\)/);
+  assert.equal(cleanupPublicationNote(result.note).note.body,result.note.body);
+});
+
+test('a removed fence preserves the boundary between a paragraph and a horizontal rule',()=>{
+  const source='Authored prose.\n```unrecognized\nDiscarded.\n```\n---\n';
+  assert.equal(cleanupPublicationNote(parseNote(source)).note.body,'Authored prose.\n\n---\n');
+});
+
+
+test('cleanup preserves the list marker when prose follows a removed fence in the same item',()=>{
+  const source='- ```dataviewjs\n  legacy();\n  ```\n  Keep the rest of this list item.\n';
+  const {note}=cleanupPublicationNote(parseNote(source));
+  assert.equal(note.body,'- \n  Keep the rest of this list item.\n');
 });

@@ -34,6 +34,11 @@ blocked by the execution environment’s outbound policy. See the
 [bot protection rollout](bot-protection.md#live-edge-rollout--2026-10-30) for
 scope, rule IDs, verification limits, and rollback.
 
+Event timelines use the optional `runtime/events.json` snapshot artifact.
+Publication extracts it from authored notes before Dataview materialization.
+The Worker loads it when a timeline first requests it, then applies the
+reader's date and campaign at render time.
+
 ## The pieces
 
 Development change, not yet deployed: version 2 maps carry validated

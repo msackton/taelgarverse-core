@@ -93,7 +93,7 @@ for navigation, dates, alternative files, and Cloudflare settings.
 Runtime scripts are trusted server code; Markdown body queries are not executed.
 
 Use `npm run dev -- --full` for a prepared local snapshot. Its separate Node
-stages materialize DQL, omit closed DataviewJS blocks, process images, and compile search.
+stages materialize DQL, remove unsupported fences and empty headings, process images, and compile search.
 Generated headers use the vault's authored `taelgar-header` callouts. Original vault content stays intact.
 Internal tools can still select an existing prepared directory with `source_dir`
 while keeping `vault_dir` pointed at the original metadata/session inputs.

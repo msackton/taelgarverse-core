@@ -1,10 +1,12 @@
 import {Plugin,PluginSettingTab,Setting} from 'obsidian';
 import {ObsidianSnapshotService} from './services/snapshots.mjs';
+import {ObsidianEventService} from './services/events.mjs';
 import {ObsidianDateService} from './services/dates.mjs';
 import {installNoteQueryAPI} from './services/note-queries.mjs';
 import {MapsFeature} from './features/maps.mjs';
 import {ImagesFeature} from './features/images.mjs';
 import {HeadersFeature} from './features/headers.mjs';
+import {EventsFeature} from './features/events.mjs';
 import {InteractionsFeature} from './features/interactions.mjs';
 import {RelationshipsFeature} from './features/relationships.mjs';
 import {CalendarFeature} from './features/calendar.mjs';
@@ -49,11 +51,13 @@ export default class Taelgarverse extends Plugin {
     this.addSettingTab(new TaelgarverseSettings(this));
     // Features own their state and cleanup through Obsidian's Component lifecycle.
     this.snapshots=this.addChild(new ObsidianSnapshotService(this.app));
+    this.events=this.addChild(new ObsidianEventService(this.app));
     this.dates=this.addChild(new ObsidianDateService(this.app));
     installNoteQueryAPI(this);
     this.addChild(new MapsFeature(this));
     this.images=this.addChild(new ImagesFeature(this));
     this.headers=this.addChild(new HeadersFeature(this));
+    this.addChild(new EventsFeature(this));
     this.interactions=this.addChild(new InteractionsFeature(this));
     this.calendar=this.addChild(new CalendarFeature(this));
     this.relationships=this.addChild(new RelationshipsFeature(this));

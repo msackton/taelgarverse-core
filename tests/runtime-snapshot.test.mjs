@@ -76,6 +76,10 @@ before(async()=>{
   };
   Object.assign(notes,JSON.parse(fs.readFileSync(new URL('./fixtures/backlinks.json',import.meta.url),'utf8')));
   Object.assign(notes,indexSources(featureIndexNotes),{
+    'Timeline.md':'# Timeline\n\n```taelgar-events\nyearStart: 1730\nyearEnd: 1760\nincludeLifecycle: true\nincludeTravel: true\n```',
+    'History/Chronicle.md':'---\ntags: [background]\n---\n- (DR:: 1730-03-01): **Public record** [[./Witness|witness]].\n- (DR:: 1760): Future record.\n\n%%^Campaign:dufr%%\n- (DR:: 1731-01-01): Frontier record.\n%%^End%%\n\n%%^Campaign:none%%\n- (DR:: 1731-01-01): Private record.\n%%^End%%',
+    'History/Witness.md':'A witness.',
+    'History/Hidden Event.md':'---\nnoPublish: true\nDR: 1731\n---\nUnpublished event.',
     'Index Guide.md':'# Index Guide\n\n```taelgar-index\ntype: whereabouts\nfrom: person\nvia: home\ntarget: Town\n```\n\n```taelgar-index\ntype: whereabouts\nfrom: group\nvia: current\ntarget: Guild\nshow: obsidian\n```',
     'Index Embed.md':'# Index Embed\n\n![[Index Guide]]',
     'Index Table.md':'```taelgar-index\ntype: whereabouts\nfrom: person\nvia: home\ntarget: Realm\nmode: table\n```',
@@ -319,4 +323,32 @@ test('retention validates every compiled dependency before cleanup',async()=>{
     await assert.rejects(prunePublication(storage,search,pointer,{dryRun:true}),/missing/);
     bucket.objects.set(key,value);
   }
+});
+
+test('Worker loads the event artifact only for timelines and isolates reader contexts',async()=>{
+  const bucket=recompiledBucket({noteShardBytes:1}),worker=createWorker({},{log:()=>{}});
+  const plain=await request(worker,bucket,'/api/page?page=Third');
+  assert.equal(plain.status,200);
+  assert.ok(!bucket.calls.some(key=>key.endsWith('/runtime/events.json')));
+  const before=bucket.calls.filter(key=>key.includes('/runtime/notes/')).length;
+  const [publicResponse,privateResponse]=await Promise.all([
+    request(worker,bucket,'/api/page?page=Timeline&date=1750-01-01'),
+    request(worker,bucket,'/api/page?page=Timeline&date=1750-01-01&campaigns=dufr&dm=1'),
+  ]);
+  assert.equal(publicResponse.status,200);assert.equal(privateResponse.status,200);
+  const publicView=(await publicResponse.json()).html,privateView=(await privateResponse.json()).html;
+  assert.match(publicView,/<strong>Public record<\/strong>/);
+  assert.match(publicView,/href="\/page\/history\/witness\?[^"]+">witness<\/a>/);
+  assert.doesNotMatch(publicView,/Frontier record|Private record|Future record|Unpublished event/);
+  assert.match(privateView,/Frontier record/);assert.match(privateView,/Private record/);
+  assert.doesNotMatch(privateView,/Future record|Unpublished event/);
+  assert.equal(bucket.calls.filter(key=>key.endsWith('/runtime/events.json')).length,2,'one artifact load per request without an edge cache');
+  assert.equal(bucket.calls.filter(key=>key.includes('/runtime/notes/')).length-before,2,'each request uses only the timeline note body');
+  const earlier=new Bucket(objects);
+  const key='revisions/'+report.revision+'/runtime.json';
+  const manifest=JSON.parse(earlier.objects.get(key));
+  delete manifest.parts.events;
+  earlier.objects.set(key,JSON.stringify(manifest));
+  const response=await request(createWorker({},{log:()=>{}}),earlier,'/api/page?page=Timeline&date=1750-01-01');
+  assert.match((await response.json()).html,/Timeline data is unavailable/);
 });

@@ -4,6 +4,15 @@ Read [architecture and maintenance](docs/architecture.md) for component ownershi
 required documentation updates, and checks. Preserve unrelated work in this
 checkout and in the neighboring vault repositories.
 
+## Check upstream before implementation
+
+Before making implementation changes, fetch `origin/main` and compare it with
+the local checkout. Check current `main` for the requested behavior in the code,
+tests, and documentation. Implement only the missing work on a base that
+includes current `main`. Preserve existing local changes while updating the
+base. If the remote is unavailable, report that before starting substantial
+implementation from an unverified checkout.
+
 ## Mandatory permission gates
 
 **NEVER change a production Cloudflare environment, push to a remote, or create

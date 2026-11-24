@@ -41,10 +41,11 @@ test('publication preserves header source and Node, R2 and the compiled Worker r
    const remote=await compiled.renderer();
    const entry=remote.store.resolve(name),packed=await remote.store.getNote(entry);
    const original=yaml+header+'\nAuthored prose.\n';
-   assert.equal(packed.body,parseNote(original).body);
+   if(['codeblock','configured'].includes(name))assert.equal(packed.body.trim(),'Authored prose.');
+   else assert.equal(packed.body,parseNote(original).body);
    assert.equal(packed.metadata.headerVersion,'2023.11.25');
    assert.equal(await fs.readFile(path.join(vault,name+'.md'),'utf8'),original);
-   assert.equal(await fs.readFile(path.join(working,name+'.md'),'utf8'),original);
+   assert.equal(await fs.readFile(path.join(working,name+'.md'),'utf8'),yaml+packed.body);
    const actual=await remote.engine.renderAsync(name,'1720-01-01',undefined,false,undefined,e=>remote.store.getNote(e));
    assert.equal(actual.html,local.render(name,'1720-01-01').html);
    const response=await worker.fetch(new Request('https://taelgar.org/api/page?page='+name+'&date=1720-01-01'),{CONTENT:bucket});

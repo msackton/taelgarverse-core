@@ -8,7 +8,7 @@ repository checks out this publisher and runs it on GitHub Actions.
 flowchart LR
     V[Original vault] --> C[Copy working vault]
     C --> D[Evaluate plain Dataview in Node]
-    D --> X[Omit closed DataviewJS blocks]
+    D --> X[Remove unsupported fences and empty headings]
     X --> P[Existing image, search and packaging pipeline]
     P --> N[taelgar.org publication]
 ```
@@ -43,9 +43,9 @@ next publication. Publication runs these stages:
    Markdown pages for query input. Evaluate plain DQL against those pages.
    The retired `excludePublish` field has no effect. Do not execute DataviewJS. Strict
    errors apply no partial replacements; `--no-strict` reports failures and
-   keeps the failed query blocks.
-3. **Markdown cleanup.** Omit closed DataviewJS blocks and remove headings
-   left empty by their omission. Authored native blocks pass through to the renderer.
+   omits failed queries during cleanup.
+3. **Markdown cleanup.** Remove unsupported fences and headings whose sections
+   have no body content. Authored native blocks pass through to the renderer.
 4. **Existing preparation.** Discover images, generate derivatives and maps,
    compile backlinks/search/runtime data, and package the revision as before.
 5. **Publication.** Only a normal, explicitly authorized publish run uploads and
@@ -138,7 +138,7 @@ Use `npm run dev -- --full` for an interactive preview with local Worker storage
 After a successful build, `.cache/publish/materialization-report.json` records
 DQL results, errors, and engine identity. The vault workflow collects the cleanup
 report under its existing filename, `.cache/publish/conversion-report.json`.
-Version 2 lists each omitted DataviewJS block by file and line in the materialized
+Version 2 lists each omitted fence by file and line in the materialized
 Markdown body and counts headings removed. Failed runs retain the working directory for
 inspection. Successful runs remove the temporary copy.
 
@@ -160,12 +160,14 @@ and line number. A new publication is required to replace an existing snapshot.
 
 ## Markdown cleanup
 
-DQL selection and DataviewJS cleanup share Markdown-it fence boundaries,
-including lists and block quotes. The publisher omits closed DataviewJS fences
-and headings emptied by their removal. It preserves enclosing list and quote
-prefixes, surrounding prose, and fenced or indented code examples.
+DQL selection and publication cleanup share Markdown-it fence boundaries.
+After evaluation, the publisher removes unsupported fences, including
+DataviewJS and leftover Dataview. Empty sections are removed, including parent
+headings with only empty subsections. Native blocks, unlabeled code blocks,
+and recognized code examples such as Markdown, JSON, and YAML are preserved.
 
-Use `taelgar-index` for tables that follow the reader's selected date and campaign.
+Use `taelgar-index` and [`taelgar-events`](vault.md#event-timelines) for tables
+that follow the reader's selected date and campaign.
 The website generates [campaign interactions](campaign-interactions.md) from vault records.
 
 The [Dataview comparison harness](../experiments/dataview/README.md) compares

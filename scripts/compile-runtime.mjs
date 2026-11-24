@@ -7,11 +7,12 @@ import {compileHeaderIndexes} from '../src/header-core/snapshot.mjs';
 import {compileSearchMetadata} from '../src/search-metadata.mjs';
 import {RUNTIME_VERSION,runtimeHash as hash,assetPartition} from '../src/runtime-format.mjs';
 import {compileMapSources} from '../src/map-catalogue.mjs';
+import {compileEvents} from './compile-events.mjs';
 
 
 // Only immutable data is compiled here. HTML, generated biographies, Markdown
 // rendering and reader-specific choices remain request-time work.
-export function compileRuntime(index,sourceStore,{noteShardBytes=65536,backlinkShardBytes=32768}={}) {
+export function compileRuntime(index,sourceStore,{noteShardBytes=65536,backlinkShardBytes=32768,eventData}={}) {
   const objects=new Map();
   const add=(file,value)=>{const json=JSON.stringify(value);objects.set(file,json);return {file,sha256:hash(json)};};
   const entries=index.entries.filter(entry=>!entry.generatedImageVariant && !entry.generatedMapTile).map(entry=>entry.note ?
@@ -44,6 +45,8 @@ export function compileRuntime(index,sourceStore,{noteShardBytes=65536,backlinkS
   });
   const search=add('runtime/search-metadata.json',compact);
   const maps=add('runtime/maps.json',compileMapSources(sourceStore));
+  const {version,notes}=eventData ?? compileEvents(sourceStore);
+  const events=add('runtime/events.json',{version,notes});
   const nav=add('runtime/navigation.json',navigation.compile(presets));
   const headers=add('runtime/headers.json',compileHeaderIndexes({pages:entries.filter(entry=>entry.note).map(entry=>({path:entry.id,metadata:entry.note.metadata})),coreMeta:index.coreMeta,registry:index.registry}));
   // IDs are positions in this revision's entry table, never public URL IDs.
@@ -82,6 +85,6 @@ export function compileRuntime(index,sourceStore,{noteShardBytes=65536,backlinkS
   const assetKeys=add('runtime/asset-keys.json',[...new Set(index.entries.filter(entry=>!entry.note).map(entry=>entry.objectKey))].sort());
   const manifest={version:RUNTIME_VERSION,settings:index.settings,sourceVersion:index.sourceVersion,search:index.search,
     pages:store.bySlug.size,warnings:index.warnings,contexts:contexts.compile(),sites:sites.compile().map(([host,{note,...site}])=>[host,site]),
-    parts:{search,navigation:nav,headers,backlinks,render,maps},assets,assetKeys};
+    parts:{search,navigation:nav,headers,backlinks,render,maps,events},assets,assetKeys};
   return {manifest,objects,digest:hash(JSON.stringify({manifest,objects:[...objects].map(([file,json])=>[file,hash(json)])}))};
 }

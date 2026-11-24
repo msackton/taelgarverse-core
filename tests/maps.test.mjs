@@ -62,11 +62,11 @@ test('map measurement preserves authored scale and unit; invalid calibration lea
   }
 });
 
-test('leaflet fences remain code and do not participate in map image preparation',()=>{
+test('retired leaflet fences are omitted from website rendering and map image preparation',()=>{
   const {store,author,entry}=fixture();
   const source='```leaflet\n'+definition+'```';
   const result=render(source,store,author),$=load(result.html);
-  assert.equal($('pre code.language-leaflet').text(),definition);
+  assert.equal($('pre').length,0);
   assert.equal($('.leaflet-map').length,0);assert.deepEqual(result.warnings,[]);
   const native=author.note.body;
   author.note.body=source;

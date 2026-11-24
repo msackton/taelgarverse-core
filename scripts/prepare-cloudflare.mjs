@@ -24,6 +24,7 @@ import {CampaignSites} from '../src/campaign-sites.mjs';
 import {Contexts} from '../src/contexts.mjs';
 import {DerivativeCache} from './derivative-cache.mjs';
 import {compileRuntime} from './compile-runtime.mjs';
+import {compileEvents} from './compile-events.mjs';
 import {withPublicationProgress} from './publication-progress.mjs';
 import {readMapPathFile} from '../src/map-path-files.mjs';
 
@@ -57,10 +58,11 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     new CampaignSites(campaignHomes,Contexts.forWebsite(store,registry,settings));
     return {store,homeSource,registry,indexes,campaignHomes};
   });
+  const eventData=await timed('Compiling authored event sources',()=>compileEvents(store,path.join(output,'event-source-cache.json')));
   const materialization=materialize ? await timed('Materializing Dataview queries',()=>materialize(store)) : undefined;
   const coreMeta=JSON.parse(fs.readFileSync(path.join(settings.vault_dir,'.obsidian/metadata.json'),'utf8'));
-  const cleanup=await timed('Omitting DataviewJS blocks',()=>cleanupPublicationStore(store));
-  log('Omitted '+cleanup.omitted.length+' DataviewJS blocks and '+cleanup.sectionsRemoved+' empty headings.');
+  const cleanup=await timed('Removing unsupported fences and empty headings',()=>cleanupPublicationStore(store));
+  log('Omitted '+cleanup.omitted.length+' unsupported fences and '+cleanup.sectionsRemoved+' empty headings.');
   if(writePreparedNotes)await saveWorkingNotes(store);
   await timed('Preparing map tiles',()=>prepareMaps(store,path.join(ROOT,'.cache/maps'),derivativeCache,{homeSource,campaignHomes}));
   const usages=await timed('Discovering image sizes',()=>collectImageUsages(store,{homeSource,campaignHomes}));
@@ -106,7 +108,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     homeSource,
     campaignHomes,
     search,warnings:[...store.warnings,...backlinks.warnings,...searchManifest.warnings],entries};
-  const compiled=await timed('Compiling runtime data',()=>compileRuntime(base,store));
+  const compiled=await timed('Compiling runtime data',()=>compileRuntime(base,store,{eventData}));
   const revision=compiled.digest, prefix='revisions/'+revision;
   const directory=path.join(output,'revisions',revision);
   const runtimeFile=path.join(directory,'runtime.json');
@@ -134,6 +136,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     notes:entries.filter(e=>e.note).length,assets:entries.filter(e=>!e.note).length,objects:unique.length,
     assetBytes:entries.filter(e=>!e.note).reduce((sum,e)=>sum+e.size,0),pointerFile,headerRevision:headerCoreRevision(),search,searchFile,searchStats:searchManifest.stats,images,
     derivativeManifestFile,derivativeCacheHits:{...derivativeCache.hits},materialization,cleanup,timings,totalMs:Math.round(performance.now()-started),
+    events:{sources:eventData.notes.length,warnings:eventData.warnings},
     interactions:{people:Object.keys(interactions.byTarget).length,warnings:[...bundles.warnings,...interactionWarnings]}};
   writeJSON(path.join(output,'latest.json'),report);
   return report;

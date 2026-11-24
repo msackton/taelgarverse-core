@@ -1,3 +1,5 @@
+import {createEventIndex} from './events.mjs';
+import {collectEventSources} from './event-sources.mjs';
 import {RenderError, escapeHtml, parseDM, pageUrl} from './common.mjs';
 import {buildBacklinkIndex,buildBacklinkCampaigns,linkedFrom} from './backlinks.mjs';
 import {parseNote, availableInContext} from './content-store.mjs';
@@ -18,12 +20,13 @@ import {compileInteractionIndex,campaignInteractions} from './campaign-interacti
 import {interactionSummary,interactionView} from './interaction-view.mjs';
 
 export class RenderEngine {
-  constructor({settings,store,headers,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles,campaignSource}) {
+  constructor({settings,store,headers,navigationSource,homeSource = null,campaignHomes = {},backlinkIndex,prepared,interactionIndex,interactionBundles,campaignSource,loadEvents}) {
     this.settings = settings;
     this.store = store;
     this.store.settings = settings;
     this.headers = headers;
     this.campaignSource = campaignSource;
+    this.loadEvents = loadEvents;
     this.contexts = prepared?.contexts || Contexts.forWebsite(this.store,this.headers.registry,settings);
     this.campaignSites = prepared?.campaignSites || new CampaignSites(campaignHomes,this.contexts);
     this.markdown = createMarkdown();
@@ -95,9 +98,11 @@ export class RenderEngine {
     for (;;) {
       loading.pending.clear();
       loading.pendingCampaigns.clear();
+      loading.pendingEvents=false;
       const result = render(loading);
-      if (!loading.pending.size && !loading.pendingCampaigns.size) return result;
+      if (!loading.pending.size && !loading.pendingCampaigns.size && !loading.pendingEvents) return result;
       await Promise.all([
+        ...(loading.pendingEvents?[this.loadEvents().then(index=>{loading.eventIndex=index;})]:[]),
         ...[...loading.pending.values()].map(async entry=>loading.notes.set(entry.id,await loadNote(entry))),
         ...[...loading.pendingCampaigns].map(async campaign=>{
           try { loading.campaigns.set(campaign,{record:await this.campaignSource.load(campaign)}); }
@@ -132,6 +137,12 @@ export class RenderEngine {
     const warnings = [];
     const noteEmbeds = [], env = {store:this.store,entry,date,context,headers:this.headers,warnings,dmNotes,
       notesMarkdown:this.notesMarkdown,noteEmbeds,noteLoading:embedLoading,campaignSource:this.campaignSource};
+    env.getEvents=()=>{
+      if(!this.loadEvents)return this.eventIndex ??= createEventIndex(collectEventSources(this.store.entries));
+      if(!embedLoading)return null;
+      if(!Object.hasOwn(embedLoading,'eventIndex'))embedLoading.pendingEvents=true;
+      return embedLoading.eventIndex;
+    };
     const rendered = renderMarkdown(this.markdown,body,env);
     if (noteEmbeds.length) rendered.html = expandNoteEmbeds(rendered.html,noteEmbeds,{...env,markdown:this.markdown},embedLoading);
     rendered.html = responsiveImages(rendered.html,this.store,{wide:entry.note?.metadata.layout === 'wide'});

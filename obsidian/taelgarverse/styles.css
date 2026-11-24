@@ -20,7 +20,7 @@
 .taelgar-generated-bio > :last-child,
 .taelgar-generated-bio > :last-child > :is(.callout,blockquote) { margin-block-end:0; }
 
-.markdown-source-view.mod-cm6 .cm-embed-block:has(.taelgar-index-host[hidden]) { display:none; }
+.markdown-source-view.mod-cm6 .cm-embed-block:has(:is(.taelgar-index-host,.taelgar-events-host)[hidden]) { display:none; }
 .taelgar-session-review { padding: 1rem; overflow: auto; }
 .taelgar-session-review table { width: 100%; margin-block: 1rem; border-collapse: collapse; }
 .taelgar-session-review td, .taelgar-session-review th { padding: .4rem; border-bottom: 1px solid var(--background-modifier-border); text-align: left; }
