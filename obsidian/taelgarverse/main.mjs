@@ -1,6 +1,7 @@
 import {Plugin,PluginSettingTab,Setting} from 'obsidian';
 import {ObsidianSnapshotService} from './services/snapshots.mjs';
 import {ObsidianDateService} from './services/dates.mjs';
+import {installNoteQueryAPI} from './services/note-queries.mjs';
 import {MapsFeature} from './features/maps.mjs';
 import {ImagesFeature} from './features/images.mjs';
 import {HeadersFeature} from './features/headers.mjs';
@@ -49,6 +50,7 @@ export default class Taelgarverse extends Plugin {
     // Features own their state and cleanup through Obsidian's Component lifecycle.
     this.snapshots=this.addChild(new ObsidianSnapshotService(this.app));
     this.dates=this.addChild(new ObsidianDateService(this.app));
+    installNoteQueryAPI(this);
     this.addChild(new MapsFeature(this));
     this.images=this.addChild(new ImagesFeature(this));
     this.headers=this.addChild(new HeadersFeature(this));

@@ -76,6 +76,7 @@ export function hydrateHeaderSnapshot(input,rawPages,{resolveLink}={}) {
   return Object.freeze({
     pages,coreMeta:deepFreeze(input.coreMeta),registry:deepFreeze(input.registry),
     campaigns:deepFreeze(input.campaigns),canIndexAffiliations,
+    getPageByPath:path=>byPath.get(path),
     resolve(target) {
       if(resolveLink)return byPath.get(resolveLink(target));
       const candidates=byTarget.get(target.toLowerCase());

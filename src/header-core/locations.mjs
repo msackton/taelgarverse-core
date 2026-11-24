@@ -306,6 +306,12 @@ export class WhereaboutsManager {
         return []
     }
 
+    getOrigin(metadata, normalized = this.getWhereaboutsList(metadata)) {
+        const {dates} = this;
+        const originDate = dates.normalizeDate(metadata.born, false) ?? dates.normalizeDate(metadata.created, false) ?? dates.normalizeDate("0001", false);
+        return this.#filterWhereabouts(normalized, "home", originDate, false, true).at(0);
+    }
+
     getWhereabouts(metadata, targetDate, normalized = this.getWhereaboutsList(metadata)) {
         const {dates} = this;
 
@@ -316,12 +322,11 @@ export class WhereaboutsManager {
         let unknownWhereabout = { location: null }
         let whereaboutResult = { current: unknownWhereabout, home: unknownWhereabout, origin: unknownWhereabout, lastKnown: unknownWhereabout, secondary: unknownWhereabout }
 
-        let originDate = dates.normalizeDate(metadata.born, false) ?? dates.normalizeDate(metadata.created, false) ?? dates.normalizeDate("0001", false)
 
         // home is lexically last valid home //
         whereaboutResult.home = this.#filterWhereabouts(normalized, "home", targetDate, false, true).at(-1) ?? whereaboutResult.home
         // origin is lexically first valid home //
-        whereaboutResult.origin = this.#filterWhereabouts(normalized, "home", originDate, false, true).at(0) ?? whereaboutResult.origin
+        whereaboutResult.origin = this.getOrigin(metadata, normalized) ?? whereaboutResult.origin
         // secondary is the lexically last valid secondary
         whereaboutResult.secondary = this.#filterWhereabouts(normalized, "secondary", targetDate, false, true).at(-1) ?? whereaboutResult.secondary
         // current is lexically last valid location //

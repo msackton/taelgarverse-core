@@ -300,6 +300,46 @@ directories, `node_modules`, `_scripts` and `_sessions`, and skip symlinks;
 `--dir` cannot select an excluded directory or leave the vault. Bulk editing
 previews changes by default and is a separate operation from content publication.
 
+## Obsidian note query API
+
+DataviewJS and Templater can call the read-only note query API when the
+Taelgarverse plugin is loaded. Get a query object once per execution so repeated
+lookups share the plugin's metadata snapshot. Check `apiVersion` before using it
+if the script also runs with an older plugin.
+
+```javascript
+const queries = await globalThis.Taelgarverse.getNoteQueries();
+const origin = queries.getRecordedOrigin(personNotePath);
+const hasMatchingNote = queries.isResolvable(locationReference, sourceNotePath);
+```
+
+- `getRecordedOrigin(notePath)` reads the note's original frontmatter using
+  its vault-relative Markdown path. It returns the recorded home location at
+  birth or creation, or at the beginning of the chronology for an undated
+  subject. The result is a string or `null` if the note or origin is missing.
+  A recorded location can be plain text.
+- `isResolvable(reference, sourcePath)` returns `true` if the reference resolves
+  to a Markdown note and `false` otherwise. Pass a filename, path, alias, or
+  wikilink as a string. The lookup ignores a wikilink's displayed label and
+  heading or block fragment.
+  Obsidian resolves links relative to `sourcePath` first. Taelgarverse then
+  tries its standard note lookup, including vault aliases and the link map.
+  Use an empty source path for a lookup from the vault root.
+
+- `getCampaigns()` returns fresh records with `code`, `name`, and
+  `campaignRoot` from the registered campaigns.
+- `normalizeDR(value, {boundary})` returns a copy of the shared DR date record
+  (including `sort`, `year`, and `display`), or `null` for a missing or
+  unrecognized value. The boundary defaults to `start`. It preserves existing
+  Taelgar date rules for year numbers, quoted year or month strings, and full
+  dates. JavaScript dates and Dataview date objects are converted to ISO dates.
+- `formatNoteText(template, notePath, {date})` expands Taelgarverse display
+  tokens against a vault-relative Markdown path. Omit the date to use the
+  plugin's date selection for that note. A missing note returns `null`.
+
+The methods are synchronous after `getNoteQueries()` resolves. This API is
+available in Obsidian, including when the campaign calendar is disabled.
+
 ## Generated indexes
 
 Use an inline `taelgar-index` block in a note. Both Obsidian and the website evaluate its YAML against metadata at the reader's selected date.
