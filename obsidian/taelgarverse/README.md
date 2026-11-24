@@ -297,7 +297,7 @@ Obsidian image callouts and per-item galleries, as well as HTML figures.
 
 `features/headers.mjs` selects the host's date/link resolution and calls
 `src/header-core/index.mjs`. Node, Worker and the plugin share these maintained
-modules; the vault's legacy CustomJS source and generated reference are separate.
+modules. Historical tests use core's checked-in legacy references.
 Circular relationship chains display a bio error. Render children own refresh
 timers and dispose when notes close.
 

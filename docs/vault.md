@@ -1143,11 +1143,10 @@ The website also uses a few files that are not published as articles:
 | `_sessions/campaign-registry.json` | Campaign IDs and paths to index notes. |
 
 Changes to the two JSON files take effect after publishing content again.
-Header logic is maintained in this repository's `src/header-core/`; changes use
-the website code release path and a separate plugin release. The vault's
-`_scripts/customJS/` still belongs to the legacy materializer and compatibility
-tests, and changes there do not update the new header core. See the
-[release rules](architecture.md#change-and-release-rules).
+Header logic lives in `src/header-core/`. Changes use the website code release
+path and a separate plugin release. Historical comparisons use the
+[checked-in reference fixtures](../tests/README.md#historical-header-comparisons).
+See the [release rules](architecture.md#change-and-release-rules).
 
 
 Regional artwork uses an explicit per-map `details` list of vault-root-relative

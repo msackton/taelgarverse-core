@@ -44,9 +44,8 @@ flowchart LR
     V --> N[Local Node renderer]
 ```
 
-- **`taelgar`** owns Markdown, media, homepage text, menu structure, campaign identity, display metadata, trusted
-  legacy CustomJS rules, and the old static workflow's CLI bridge. Publishing prepares copies;
-  it does not rewrite source notes.
+- **`taelgar`** owns Markdown, media, homepage text, menu structure, campaign identity, display metadata,
+  and the old static workflow's CLI bridge. Publishing works on copies of the source notes.
 - **`taelgarverse-core`** owns rendering, routing, navigation behavior, browser assets, the
   publisher, the Taelgarverse Obsidian plugin source, and the maintained shared
   header core. The deployment job needs this repository and its dependencies;
@@ -117,7 +116,7 @@ flowchart LR
 | `src/events.mjs`, `src/event-sources.mjs`, `src/event-dates.mjs`, `src/website-events.mjs`, `obsidian/taelgarverse/services/events.mjs`, `obsidian/taelgarverse/features/events.mjs`, `scripts/compile-events.mjs` | Extraction, interval queries, and source selectors for [event timelines](vault.md#event-timelines). Obsidian shares per-note reads and invalidates changed inputs. Publication caches authored extraction before Dataview runs, and the Worker loads the revision's event data on demand. |
 | `src/campaign-calendar.mjs`, `src/campaign-calendar-context.mjs`, `src/lunar.mjs`, `src/browser/campaign-calendar.mjs`, `public/calendar.css`, `obsidian/taelgarverse/features/calendar.mjs` | Opt-in campaign-date calendar with DR date/month helpers, lunar phases, and normal Obsidian campaign/custom-date settings. Disabled by default; the component owns its active listeners and date API. A metadata-only adapter reuses website Contexts and exposes the date API for headers, indexes and CustomJS. The DOM view shows campaign dots and daily moon illumination; lunar crossings use the adopted full-moon anchor and exact three-hour ticks. The legacy CustomJS hook is an uncommitted experimental-vault change; no website route exists yet. See [campaign calendar](vault.md#campaign-calendar-prototype). |
 | `src/worker.mjs`, `src/worker-handler.mjs`, `src/runtime-snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
-| `tests/helpers/legacy-headers/` | Original VM and generated CustomJS references for historical, date-boundary, and index comparisons, plus manual fixture builders. |
+| `tests/helpers/legacy-headers/` | VM adapter and checked-in generated reference for historical, date-boundary, and index comparisons. |
 | `tests/helpers/full-header-rendering.mjs` | Assembles complete historical headers around the maintained callout body and reproduces saved-header replacement for fixture comparisons. |
 | `scripts/build-icons.mjs`, `public/icons/`, `src/icons.mjs` | Build the checked-in icon table used by website Markdown. The content publisher fingerprints the generated table. |
 | `scripts/header-core-revision.mjs` | Fingerprint the maintained header core for publication diagnostics. |
@@ -380,7 +379,7 @@ owns the compact list presentation.
 | Renderer, routes, CSS/browser scripts, dependencies, Worker configuration | Merge core changes to `main`; GitHub deploys to Cloudflare after CI passes. |
 | Taelgarverse plugin or shared map code used by it | Test both consumers, bump the plugin's own version, then explicitly release to the BRAT distribution repository. A website deployment does not release the plugin. |
 | Maintained shared header core | Test Node, Worker and Obsidian; use the website code release path and a separate explicit plugin release. Content publication does not deploy header code. |
-| Vault CustomJS header classes | These remain the legacy materializer/reference stack. They do not update the maintained core. Refresh a legacy fixture only as a deliberately reviewed reference change; do not backport the refactor's fixes. |
+| Historical header fixtures | Run the historical comparisons and review any reference changes against the [recorded provenance](../tests/fixtures/legacy-vault/README.md). |
 | Snapshot schema or publication/availability policy | Update producer and consumers together; determine a compatible deployment order and whether existing snapshots must be republished. |
 | Search compiler, visibility rules, or index format | Republish content to compile/stage D1 before activation; retain active plus one previous good generation in R2/D1 and collect orphaned assets/text. See [search publication](search.md). |
 
@@ -392,8 +391,8 @@ from a vault. `npm test -- --live-vault` selects only explicit live-note and
 installed-plugin checks; the ordinary and emulator suites need only core.
 See [test modes and fixtures](../tests/README.md).
 
-The [historical fixture builders](../tests/README.md#historical-header-comparisons)
-are part of test support. Application and plugin builds bundle `src/header-core/`.
+The [historical comparisons](../tests/README.md#historical-header-comparisons)
+use checked-in fixtures. Application and plugin builds bundle `src/header-core/`.
 Run `node scripts/build-icons.mjs` after updating `public/icons/` and commit the
 resulting `src/icons.mjs` alongside the SVGs.
 `public/generated/` is ignored and rebuilt from the pinned browser dependencies.
