@@ -337,7 +337,7 @@ The first hop for `home` is exclusively the subject's recorded home. For `curren
 
 `current` scope evaluates living or existing subjects on the selected date. `historical` evaluates a subject that has since died or been destroyed at its end date. `ever` finds a matching day within its lifetime through the selected date. The current-location column always refers to the reader's date.
 
-All kinds support `name`, `type`, `home`, `currentLocation`, and `origin`. Origin shows the recorded home at birth or creation, using the earliest in-world date if neither is recorded. People also support `info`, `born` and `died`. Other kinds support `created` and `destroyed`, and places additionally support `region` and `population`. People default to `[name, info, currentLocation, home]`, other kinds to `[name, type]`. Places sort by displayed type then name by default. Other kinds sort by name.
+All kinds support `name`, `type`, `home`, `currentLocation`, `origin`, and `status`. Origin shows the recorded home at birth or creation, using the earliest in-world date if neither is recorded. People also support `info`, `born` and `died`. Other kinds support `created` and `destroyed`, and places additionally support `region` and `population`. People default to `[name, info, currentLocation, home]`, other kinds to `[name, type]`. Places sort by displayed type then name by default. Other kinds sort by name.
 
 For top-level regions, query the geographic root directly. The name `Taelgar` matches that location reference without a note of that name. Set `recursive: true` to follow visible intermediate locations to that root.
 
@@ -353,6 +353,22 @@ mode: table
 columns: [name]
 ```
 ````
+
+### Editorial status
+
+Add `status` to `columns` to show one editorial bucket per note. It uses the note's current YAML tags for any selected in-world date. The first matching rule wins:
+
+| Result | Rule |
+| --- | --- |
+| Stub | `status/stub` is present. |
+| AI review | `status/check/ai` is present. |
+| Needs work | `status/review`, `status/wip`, `status/check/errors`, or any unmapped `status/*` tag is present. |
+| Check | `status/check` or one of its subtags applies. The exact AI and lint tags and the errors family follow their own rules. |
+| Updates pending | `status/gameupdate` or a campaign subtag is present. |
+| Lint | `status/check/lint` is the only distinct status tag. |
+| Complete | The note has no `status/*` tags. |
+
+Use `sortBy: [status]` to group rows in this order: Stub, Needs work, Check, Lint, AI review, Updates pending, Complete. Usual visibility rules still apply. For example, the website excludes stub notes during publication.
 
 ### Catalogs
 

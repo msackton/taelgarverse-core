@@ -14,6 +14,28 @@ const day = sort => ({sort,days:sort,isNormalizedDate:true});
 const reference = text => typeof text === 'string' ? text.trim().replace(/^\[\[|\]\]$/g,'').split('|')[0].split('#')[0] : '';
 const hasLocation = record => reference(record?.location) && reference(record.location).toLowerCase() !== 'unknown';
 
+const statusOrder = ['Stub','Needs work','Check','Lint','AI review','Updates pending','Complete'];
+
+function noteStatus(rawTags) {
+  const tags = typeof rawTags === 'string' ? rawTags.split(/[,\s]+/) : Array.isArray(rawTags) ? rawTags : [];
+  const statusTags = new Set(tags.filter(tag => typeof tag === 'string')
+    .map(tag => tag.trim().replace(/^#/, '').toLowerCase())
+    .filter(tag => tag.startsWith('status/')));
+  if (!statusTags.size) return 'Complete';
+  if (statusTags.has('status/stub')) return 'Stub';
+  if (statusTags.has('status/check/ai')) return 'AI review';
+  if (statusTags.size === 1 && statusTags.has('status/check/lint')) return 'Lint';
+
+  let needsCheck = false;
+  for (const tag of statusTags) {
+    if (tag === 'status/check/lint' || tag === 'status/gameupdate' || tag.startsWith('status/gameupdate/')) continue;
+    if (tag === 'status/check/errors' || tag.startsWith('status/check/errors/')) return 'Needs work';
+    if (tag !== 'status/check' && !tag.startsWith('status/check/')) return 'Needs work';
+    needsCheck = true;
+  }
+  return needsCheck ? 'Check' : 'Updates pending';
+}
+
 function validate(options) {
   if (!mapping(options)) throw new Error('Use a YAML mapping for a taelgar-index.');
   for (const key of Object.keys(options)) if (!keys.has(key)) throw new Error('Unknown index option: ' + key);
@@ -223,6 +245,10 @@ export function queryIndex(snapshot, options, {date, sourcePath, resolve, visibl
       if (from === 'person') {
         item.person = formattedParts(format('<name> (<pronouns> <pronunciation>)'),page.path);
         item.info = formattedParts(format('<ancestry> <maintype>'),page.path);
+      }
+      if (fields.has('status')) {
+        item.status = noteStatus(metadata.tags);
+        keys.status = statusOrder.indexOf(item.status);
       }
       if (fields.has('home')) item.home = formattedParts(format('<home:1>'),page.path);
       if (fields.has('origin') && hasLocation(whereabouts(page,at).origin)) {

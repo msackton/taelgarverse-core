@@ -1,4 +1,4 @@
-const common = ['name', 'type', 'currentLocation', 'home', 'origin'];
+const common = ['name', 'type', 'currentLocation', 'home', 'origin', 'status'];
 const people = [...common, 'info', 'born', 'died'];
 const geography = [...common, 'region', 'population', 'created', 'destroyed'];
 
@@ -34,6 +34,6 @@ export function validateIndexTableOptions({type, from, mode, columns, columnHead
 
 export function indexColumnHeading(from, column) {
   if (column === 'name') return from === 'person' ? 'Person' : from === 'place' ? 'Place' : 'Name';
-  return {info:'Info', currentLocation:'Current Location', home:'Home', origin:'Origin', born:'Born', died:'Died',
+  return {info:'Info', currentLocation:'Current Location', home:'Home', origin:'Origin', status:'Status', born:'Born', died:'Died',
     roles:'Roles', joined:'Joined', left:'Left', region:'Region', type:'Type Of', population:'Population', created:'Created', destroyed:'Destroyed'}[column];
 }

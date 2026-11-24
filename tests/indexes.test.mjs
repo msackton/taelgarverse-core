@@ -132,6 +132,44 @@ test('indexes render custom headings as plain text and retain unrenamed column l
   assert.throws(()=>parseIndex('type: catalog\nfrom: place\nwhere: {typeOf: plane}\ncolumnHeadings: {name: Plane}'),/mode: table/);
 });
 
+test('status columns use one editorial bucket with precedence and a stable sort order',()=>{
+  const cases = [
+    ['Z Stub', ['status/stub','status/check/ai','status/cleanup'], 'Stub'],
+    ['U Errors', ['status/check/errors','status/check/name'], 'Needs work'],
+    ['V Lint and cleanup', ['status/check/lint','status/cleanup/text'], 'Needs work'],
+    ['W Review and update', ['status/review','status/gameupdate/dufr'], 'Needs work'],
+    ['X Work in progress', ['status/wip'], 'Needs work'],
+    ['R Check and update', ['status/check/name','status/gameupdate/dufr','status/check/lint'], 'Check'],
+    ['S Generic check', ['status/check'], 'Check'],
+    ['M Lint', ['status/check/lint','#STATUS/CHECK/LINT','place/plane'], 'Lint'],
+    ['J AI review', ['status/check/ai','status/wip','status/check/lint'], 'AI review'],
+    ['F Campaign update', ['status/gameupdate/dufr','status/check/lint'], 'Updates pending'],
+    ['G General update', ['status/gameupdate'], 'Updates pending'],
+    ['A Complete', ['other/tag'], 'Complete'],
+  ];
+  const notes = Object.fromEntries(cases.map(([name,tags])=>[
+    name+'.md', {typeOf:'plane',tags:['place',...tags]},
+  ]));
+  const query = 'type: catalog\nfrom: place\nwhere: {typeOf: plane}\nmode: table\nsortBy: [status]';
+  const options = parseIndex(query);
+  const {runtime}=fixture(notes);
+  const context={date:'1720-01-01'};
+  const result=queryIndex(runtime,options,context);
+  assert.deepEqual(result.items.map(({path,status})=>[path,status]),
+    cases.map(([name,,status])=>[name+'.md',status]));
+  assert.equal(queryIndex(runtime,{...options,sortBy:undefined},context).items[0].status,undefined);
+
+  const source=query+'\ncolumns: [name, status]';
+  const engine=website({
+    ...indexSources(notes),
+    'Status table.md':'```taelgar-index\n'+source+'\n```',
+  });
+  const $=load(engine.render('Status table','1720-01-01','custom').html,{},false);
+  assert.deepEqual($('th').map((_,cell)=>$(cell).text()).get(),['Place','Status']);
+  assert.deepEqual($('tbody td:nth-child(2)').map((_,cell)=>$(cell).text()).get(),
+    cases.map(([, , status])=>status));
+});
+
 test('geography columns can be reordered and sorted by visible or hidden fields',()=>{
   const sources=indexSources({
     'Places/Alpha Region.md':{tags:['place'],typeOf:'region',whereabouts:'Realm'},
