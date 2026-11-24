@@ -39,15 +39,40 @@ mode: list
 List mode groups all direct typed connections (including a person's current or
 last-known place) under their relationship headings. Note names open the linked
 notes; expandable Source sections retain passage text and source-line actions.
-Empty groups are omitted. `mode: diagram` is also accepted explicitly; unknown
-keys or modes produce an error. Both modes fix the source note and depth at 1.
+Empty groups are omitted. Use `mode: diagram` to request the diagram explicitly.
+Both modes fix the source note and depth at 1.
 
 The **Enable relationship explorer** setting controls both the workspace view
 and these blocks. It is off by default. Turning it off closes views, removes the
 ribbon entry, hides the command, stops timers/listeners/reads, and replaces
-embedded diagrams with a short enable-setting message. Turning it back on
-restores diagrams in open notes. The native Markdown processor supports Reading
+embedded blocks with a short enable-setting message. Turning it back on
+restores blocks in open notes. The native Markdown processor supports Reading
 View and rendered code blocks in Live Preview; Source mode keeps the fence text.
+
+### Inline tables
+
+````markdown
+```taelgar-relationship
+mode: table
+types: [person, object]
+columns: [name, info, lastKnown, alive]
+```
+````
+
+The example shows the defaults. The table has one row per directly connected
+note. The `types` filter applies to the other end of the connection. Add `group`
+for organization links and `place` for location links from the graph. A location
+can appear in a person's `lastKnown` column regardless of the row filter.
+
+Table mode counts explicit prose links between people and objects in either
+direction, using the same prose and date rules as person mentions. Reciprocal
+links share one row. `alive` displays Yes or No for people on the active date
+and is empty for the other types.
+
+`columns`, `columnHeadings`, and `sortBy` use the [index table rules](vault.md#generated-indexes).
+Sort keys may be hidden. The default sort is `kind` in the order listed in
+`types`, then name. `sortBy: [type, name]` sorts by displayed main type, such as
+species or `typeOf`, then name.
 
 ## Exploring relationships
 

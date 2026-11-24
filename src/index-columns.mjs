@@ -1,14 +1,16 @@
-const common = ['name', 'type', 'currentLocation', 'home', 'origin', 'status'];
+const common = ['name', 'type', 'currentLocation', 'lastKnown', 'home', 'origin', 'status'];
 const people = [...common, 'info', 'born', 'died'];
 const geography = [...common, 'region', 'population', 'created', 'destroyed'];
+const fieldsFor = from => from === 'person' ? people : from === 'place' ? geography : [...common, 'created', 'destroyed'];
 
 export function indexTableColumns(from, columns) {
   if (columns) return columns;
+  if (Array.isArray(from)) return ['name', 'info', 'lastKnown', 'alive'];
   return from === 'person' ? ['name', 'info', 'currentLocation', 'home'] : ['name', 'type'];
 }
 
 export function validateIndexTableOptions({type, from, mode, columns, columnHeadings, sortBy}) {
-  const base = from === 'person' ? people : from === 'place' ? geography : [...common, 'created', 'destroyed'];
+  const base = Array.isArray(from) ? [...new Set(['kind', 'info', 'alive', ...from.flatMap(fieldsFor)])] : fieldsFor(from);
   const allowed = type === 'affiliation' ? [...base, 'roles', 'joined', 'left'] : base;
   for (const [key, value] of Object.entries({columns, sortBy})) {
     if (value === undefined) continue;
@@ -34,6 +36,7 @@ export function validateIndexTableOptions({type, from, mode, columns, columnHead
 
 export function indexColumnHeading(from, column) {
   if (column === 'name') return from === 'person' ? 'Person' : from === 'place' ? 'Place' : 'Name';
-  return {info:'Info', currentLocation:'Current Location', home:'Home', origin:'Origin', status:'Status', born:'Born', died:'Died',
+  return {info:'Info', kind:'Kind', currentLocation:'Current Location', lastKnown:'Last Known Location', alive:'Alive',
+    home:'Home', origin:'Origin', status:'Status', born:'Born', died:'Died',
     roles:'Roles', joined:'Joined', left:'Left', region:'Region', type:'Type Of', population:'Population', created:'Created', destroyed:'Destroyed'}[column];
 }

@@ -22,9 +22,11 @@ export function indexTable(result,link,options={}) {
   const cell=(item,column)=>{
     if(column==='name')return indexName(item,link);
     const value=item[column];
-    const missing=['region','currentLocation','home','origin'].includes(column) ? 'Unknown' : '—';
+    const missing=['region','currentLocation','lastKnown','home','origin'].includes(column) ? 'Unknown' : '—';
     if(Array.isArray(value))return formattedParts(value,link) || missing;
     if(column==='region' && value)return link(value);
+    if(typeof value==='boolean')return value ? 'Yes' : 'No';
+    if(column==='alive')return '';
     return escapeHtml(value || missing);
   };
   const rows=result.items.map(item=>'<tr>'+columns.map(column=>'<td>'+cell(item,column)+'</td>').join('')+'</tr>').join('');

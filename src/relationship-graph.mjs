@@ -68,7 +68,7 @@ export function proseMentions(source) {
   scan(cursor,text.length);
   return results.filter(item=>item.target);
 }
-export function buildRelationshipGraph(snapshot,{date,resolve,mentions=[],routes=[]}={}) {
+export function buildRelationshipGraph(snapshot,{date,resolve,mentions=[],routes=[],includeObjects=false}={}) {
   validateDate(date);
   const {dates,names,locations,affiliations}=createHeaderContext(snapshot,{date});
   const at=dates.normalizeDate(date),nodes=[],edges=[],warnings=[];
@@ -81,7 +81,7 @@ export function buildRelationshipGraph(snapshot,{date,resolve,mentions=[],routes
   const lives=new Map();
   for(const page of snapshot.pages) {
     const type=getPageType(page.metadata);
-    if(!['person','group','place'].includes(type))continue;
+    if(!['person','group','place'].includes(type)&&!(includeObjects&&type==='object'))continue;
     try {
       const life=dates.getPageDates(page.metadata,at);if(!life.isCreated)continue;
       lives.set(page.path,life);
@@ -144,9 +144,12 @@ export function buildRelationshipGraph(snapshot,{date,resolve,mentions=[],routes
       edge.evidence.push({source:node.id,line:route.line,excerpt:route.excerpt,role:route.role});
   }
   for(const mention of mentions) {
-    if(byId.get(mention.source)?.type!=='person'||mention.date&&dateKey(mention.date)>dateKey(date))continue;
+    const sourceType=byId.get(mention.source)?.type;
+    if(sourceType!=='person'&&!(includeObjects&&sourceType==='object'))continue;
+    if(mention.date&&dateKey(mention.date)>dateKey(date))continue;
     const target=lookup(mention.target,mention.source);
-    if(byId.get(target?.path)?.type!=='person')continue;
+    const targetType=byId.get(target?.path)?.type;
+    if(targetType!=='person'&&!(includeObjects&&sourceType==='person'&&targetType==='object'))continue;
     const edge=add(mention.source,target.path,'mentions');
     if(edge && !edge.evidence.some(e=>e.line===mention.line&&e.date===mention.date&&e.before===mention.before))
       edge.evidence.push({source:mention.source,line:mention.line,excerpt:mention.excerpt,...(mention.date?{date:mention.date}:{}),...(mention.before?{before:mention.before}:{})});

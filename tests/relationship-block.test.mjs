@@ -6,7 +6,12 @@ import {imageDOM} from './helpers/image-dom.mjs';
 test('relationship block defaults to diagram and validates the small configuration surface',()=>{
   assert.deepEqual(parseRelationshipBlock(''),{mode:'diagram'});
   assert.deepEqual(parseRelationshipBlock('mode: list'),{mode:'list'});
+  assert.deepEqual(parseRelationshipBlock('mode: table'),{mode:'table',types:['person','object']});
+  assert.deepEqual(parseRelationshipBlock('mode: table\ntypes: [place, group]\ncolumns: [name, lastKnown]\nsortBy: [kind]'),
+    {mode:'table',types:['place','group'],columns:['name','lastKnown'],sortBy:['kind']});
   for(const source of ['mode: other','depth: 2','[list]','mode: [','mode: list\nmode: diagram'])assert.throws(()=>parseRelationshipBlock(source));
+  for(const source of ['mode: list\ntypes: [person]','mode: table\ntypes: []','mode: table\ntypes: [person, person]',
+    'mode: table\ntypes: [creature]','mode: table\ncolumns: [name, bogus]','mode: table\nsortBy: [name, name]'])assert.throws(()=>parseRelationshipBlock(source));
 });
 test('list groups direct connections, preserves evidence and source links, and filters Worldbuilding',async()=>{
  const h=imageDOM(),root=h.document.createElement('div');h.document.body.append(root);const opened=[];

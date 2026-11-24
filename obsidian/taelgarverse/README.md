@@ -58,8 +58,10 @@ view; it is unchecked by default.
 
 Add an empty `taelgar-relationship` code block to draw the current note and its
 direct connections (depth 1) inline. Add `mode: list` inside the block for
-a compact list grouped by relationship, with source evidence. The same setting controls the whole feature,
-including embedded diagrams, commands, and background reads.
+a compact list grouped by relationship, with source evidence. Use `mode: table`
+for a [configurable table](../../docs/relationship-explorer.md#inline-tables)
+of people and objects. The same setting controls inline blocks, commands, and
+background reads.
 
 The feature is disabled by default and reads notes without changing them.
 See the [explorer guide](../../docs/relationship-explorer.md) for controls,

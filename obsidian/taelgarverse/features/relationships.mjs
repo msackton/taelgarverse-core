@@ -1,5 +1,7 @@
-import {parseRelationshipBlock} from '../../../src/relationship-block.mjs';
+import {parseRelationshipBlock,queryRelationshipTable} from '../../../src/relationship-block.mjs';
 import {mountRelationshipList} from '../../../src/browser/relationship-list.mjs';
+import {indexTable} from '../../../src/index-view.mjs';
+import {escapeHtml} from '../../../src/common.mjs';
 import {isRoutePlace,routeConnections} from '../../../src/place-routes.mjs';
 import {Component,ItemView,Setting,MarkdownRenderChild} from 'obsidian';
 import {buildRelationshipGraph,proseMentions} from '../../../src/relationship-graph.mjs';
@@ -7,8 +9,40 @@ import {mountRelationshipExplorer} from '../../../src/browser/relationship-explo
 import {getPageType} from '../../../src/header-core/metadata.mjs';
 import {DateManager} from '../../../src/header-core/dates.mjs';
 import {drDateString} from '../../../src/campaign-calendar.mjs';
+import {obsidianInternalLink,mountObsidianInternalLinks} from '../services/internal-links.mjs';
 
 export const RELATIONSHIP_VIEW='taelgar-relationship-explorer';
+
+function mountRelationshipTable(element,feature,sourcePath,options) {
+  const {app}=feature;
+  const resolve=(target,source)=>app.metadataCache.getFirstLinkpathDest(target,source);
+  const link=item=>item.path ? obsidianInternalLink(item.path,item.name,'taelgar-index-link') : escapeHtml(item.name);
+  const stopLinks=mountObsidianInternalLinks(element,app,sourcePath,'.taelgar-index-link');
+  let sequence=0,disposed=false;
+
+  async function refresh() {
+    if(disposed)return;
+    const current=++sequence;
+    element.setAttribute('aria-busy','true');
+    try {
+      const {graph,runtime,warnings}=await feature.data(undefined,{sourcePath,types:options.types});
+      if(disposed||current!==sequence)return;
+      const result=queryRelationshipTable(runtime,graph,options,{sourcePath,resolve,warnings});
+      element.innerHTML=indexTable(result,link);
+    } catch(error) {
+      if(!disposed&&current===sequence)element.textContent='Relationships unavailable. '+error.message;
+    } finally {
+      if(!disposed&&current===sequence)element.removeAttribute('aria-busy');
+    }
+  }
+
+  return {ready:refresh(),refresh,dispose(){
+    disposed=true;
+    stopLinks();
+    element.removeAttribute('aria-busy');
+    element.replaceChildren();
+  }};
+}
 
 export class RelationshipView extends ItemView {
   constructor(leaf,feature){super(leaf);this.feature=feature;}
@@ -39,6 +73,10 @@ export class RelationshipBlock extends MarkdownRenderChild {
     if(!this.feature.enabled){this.containerEl.textContent='Enable Relationship explorer in Taelgarverse settings.';return;}
     let options;
     try{options=parseRelationshipBlock(this.source);}catch(error){this.containerEl.textContent=error.message;return;}
+    if(options.mode==='table'){
+      this.explorer=mountRelationshipTable(this.containerEl,this.feature,this.path,options);
+      return this.explorer.ready;
+    }
     const mount=options.mode==='list'?mountRelationshipList:mountRelationshipExplorer;
     this.explorer=mount(this.containerEl,{
       initialRoot:this.path,embedded:true,loadData:()=>this.feature.data(),
@@ -102,7 +140,7 @@ export class RelationshipsFeature extends Component {
     this.bodies.set(file.path,{key,route,pending});
     try{return await pending;}catch(error){if(this.bodies.get(file.path)?.pending===pending)this.bodies.delete(file.path);throw error;}
   }
-  async data(date){
+  async data(date,{sourcePath,types}={}){
     if(!this.enabled||this.disposed)throw new Error('Relationship explorer disabled');
     const snapshot=await this.plugin.snapshots.getSnapshot(),warnings=[],mentions=[],routes=[];
     if(date===undefined){
@@ -110,10 +148,12 @@ export class RelationshipsFeature extends Component {
       if(!selected)throw new Error('No active campaign date');
       date=drDateString(selected.sort-dates.normalizeDate('0001-01-01').sort);
     }
+    const source=sourcePath && snapshot.runtime.pages.find(page=>page.path===sourcePath);
+    const includeObjects=types?.includes('object') || getPageType(source?.metadata)==='object';
     const files=this.app.vault.getMarkdownFiles().flatMap(file=>{
       const metadata=this.app.metadataCache.getFileCache(file)?.frontmatter??{},type=getPageType(metadata);
       const route=isRoutePlace({type,placeType:metadata.typeOf,subtype:metadata.typeOfAlias??metadata.typeOf});
-      return type==='person'||route?[{file,route}]:[];
+      return type==='person'||route||includeObjects&&type==='object'?[{file,route}]:[];
     });
     let index=0;
     await Promise.all(Array.from({length:Math.min(8,files.length)},async()=>{
@@ -124,9 +164,9 @@ export class RelationshipsFeature extends Component {
       }
     }));
     if(!this.enabled||this.disposed)throw new Error('Relationship explorer disabled');
-    const graph=buildRelationshipGraph(snapshot.runtime,{date,mentions,routes,
+    const graph=buildRelationshipGraph(snapshot.runtime,{date,mentions,routes,includeObjects,
       resolve:(target,source)=>this.app.metadataCache.getFirstLinkpathDest(target,source)});
-    return {graph,warnings};
+    return {graph,warnings,runtime:snapshot.runtime};
   }
   async openNote(path,line){
     const file=this.app.vault.getAbstractFileByPath(path);if(!file)return;

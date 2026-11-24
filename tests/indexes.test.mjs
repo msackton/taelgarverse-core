@@ -305,6 +305,28 @@ test('home ignores own secondary, current respects its dates, and lastKnown uses
   assert.equal(has('Visitor','lastKnown','Dock A',undefined,{recursive:false}),false);
 });
 
+test('lastKnown displays current geography without a date and historical geography with the sighting date',()=>{
+  const {runtime}=fixture({
+    'Dock A.md':{tags:['place'],typeOf:'settlement'},
+    'Dock B.md':{tags:['place'],typeOf:'settlement'},
+    'Barge.md':{tags:['object'],whereabouts:[{type:'home',location:'Dock A',end:'1719-12-31'},
+      {type:'home',location:'Dock B',start:'1720-01-01'}]},
+    'Visitor.md':{tags:['person'],testCase:true,whereabouts:[{type:'away',location:'Barge',start:'1719-12-29',end:'1719-12-31'}]},
+  });
+  const options=parseIndex('type: catalog\nfrom: person\nwhere: {testCase: true}\nmode: table\ncolumns: [name, lastKnown, currentLocation]');
+  const query=(date,visible)=>queryIndex(runtime,options,{date,visible}).items[0];
+  const current=query('1719-12-31');
+  assert.deepEqual(current.lastKnown,current.currentLocation);
+  assert.ok(current.lastKnown.some(part=>part.path==='Dock A.md'));
+  assert.ok(current.lastKnown.every(part=>typeof part!=='string'||!part.includes('1719')));
+  const previous=query('1720-01-01');
+  assert.deepEqual(previous.currentLocation,[]);
+  assert.ok(previous.lastKnown.some(part=>part.path==='Dock A.md'));
+  assert.ok(previous.lastKnown.every(part=>part.path!=='Dock B.md'));
+  assert.equal(previous.lastKnown.at(-1),' (December 31st, 1719)');
+  assert.equal(query('1720-01-01',page=>page.path!=='Barge.md').lastKnown,undefined);
+});
+
 test('site renders inline queries and ignores header indexes on places and groups',async()=>{
   const engine=website({
     'Guide.md':'# Guide\n\n```taelgar-index\ntype: whereabouts\nfrom: person\nvia: home\ntarget: Town\nheading: false\n```',

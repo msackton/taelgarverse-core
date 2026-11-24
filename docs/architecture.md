@@ -113,7 +113,7 @@ flowchart LR
 | `obsidian/taelgarverse/services/note-queries.mjs` | Versioned read-only Obsidian script access to origin and note resolution, backed by the plugin snapshot. See [note query API](vault.md#obsidian-note-query-api). |
 | `src/header-rewrite.mjs`, `src/header-tool.mjs`, `scripts/header-tool.mjs`, `obsidian/taelgarverse/header-tool.mjs` | Pure approved-format source rewriting with shared H1 naming/article rules, targeted editor commands, preview-first standalone/bulk tooling, and extraction of the embedded CLI into the installed plugin folder. Build/install keep the Node CLI self-contained without adding a BRAT runtime asset. See [saved header commands](deploy.md#saved-header-commands). |
 | `obsidian/taelgarverse/features/interactions.mjs`, `obsidian/taelgarverse/features/interaction-data.mjs` | Native vault metadata/link adapter, cached recap index, explicit interaction blocks, automatic Reading View footer and host-owned CodeMirror Live Preview widget. Known-to pages get a campaign picker; no note writes or website requests. |
-| `src/indexes.mjs`, `src/index-affiliations.mjs`, `src/index-columns.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/website-indexes.mjs` | Shared inline whereabouts and affiliation queries, metadata filtering, table and card presentation, image resolution, and website visibility. See [generated indexes](vault.md#generated-indexes). |
+| `src/indexes.mjs`, `src/index-affiliations.mjs`, `src/index-columns.mjs`, `src/index-rows.mjs`, `src/index-view.mjs`, `src/index-images.mjs`, `src/website-indexes.mjs` | Inline index queries, metadata filtering, shared table columns and row formatting and sorting, card presentation, image resolution, and website visibility. See [generated indexes](vault.md#generated-indexes). |
 | `src/campaign-calendar.mjs`, `src/campaign-calendar-context.mjs`, `src/lunar.mjs`, `src/browser/campaign-calendar.mjs`, `public/calendar.css`, `obsidian/taelgarverse/features/calendar.mjs` | Opt-in campaign-date calendar with DR date/month helpers, lunar phases, and normal Obsidian campaign/custom-date settings. Disabled by default; the component owns its active listeners and date API. A metadata-only adapter reuses website Contexts and exposes the date API for headers, indexes and CustomJS. The DOM view shows campaign dots and daily moon illumination; lunar crossings use the adopted full-moon anchor and exact three-hour ticks. The legacy CustomJS hook is an uncommitted experimental-vault change; no website route exists yet. See [campaign calendar](vault.md#campaign-calendar-prototype). |
 | `src/worker.mjs`, `src/worker-handler.mjs`, `src/runtime-snapshot.mjs` | Worker adapter, content snapshot loading and shared-core initialization. |
 | `tests/helpers/legacy-headers/` | Original VM and generated CustomJS references for historical, date-boundary, and index comparisons, plus manual fixture builders. |
@@ -362,9 +362,11 @@ for Places; connection depth and per-organization traversal switches control rea
 into the plugin.
 See the [explorer guide](relationship-explorer.md) for authoring, behavior, and
 prototype limitations. The offline preview script uses synthetic data.
-Inline `taelgar-relationship` blocks share the feature lifecycle and graph cache;
-`src/relationship-block.mjs` validates their mode, and
-`src/browser/relationship-list.mjs` owns the compact list presentation.
+Inline `taelgar-relationship` blocks share the feature lifecycle and cached
+prose reads. `src/relationship-block.mjs` validates their options and selects
+rows for the [inline table](relationship-explorer.md#inline-tables), which uses
+the shared index table renderer and row formatter. `src/browser/relationship-list.mjs`
+owns the compact list presentation.
 
 ## Change and release rules
 

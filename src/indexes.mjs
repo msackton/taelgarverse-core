@@ -4,37 +4,12 @@ import {getPageType, pageTypes} from './header-core/metadata.mjs';
 import {TAELGAR_LOCATION} from './header-core/locations.mjs';
 import {matchAffiliation} from './index-affiliations.mjs';
 import {indexTableColumns, validateIndexTableOptions} from './index-columns.mjs';
+import {createIndexRows, hasLocation, indexReference as reference, knownDate as known} from './index-rows.mjs';
 
 const keys = new Set(['type','from','via','affiliationType','target','recursive','scope','where','show','mode','heading','columns','columnHeadings','sortBy']);
 const scalar = value => typeof value === 'string' || typeof value === 'boolean' || Number.isFinite(value);
 const mapping = value => value !== null && typeof value === 'object' && !Array.isArray(value);
-const compare = new Intl.Collator('en', {sensitivity:'base', numeric:true}).compare;
-const known = date => Number.isFinite(date?.sort) && !date.isHiddenDate;
 const day = sort => ({sort,days:sort,isNormalizedDate:true});
-const reference = text => typeof text === 'string' ? text.trim().replace(/^\[\[|\]\]$/g,'').split('|')[0].split('#')[0] : '';
-const hasLocation = record => reference(record?.location) && reference(record.location).toLowerCase() !== 'unknown';
-
-const statusOrder = ['Stub','Needs work','Check','Lint','AI review','Updates pending','Complete'];
-
-function noteStatus(rawTags) {
-  const tags = typeof rawTags === 'string' ? rawTags.split(/[,\s]+/) : Array.isArray(rawTags) ? rawTags : [];
-  const statusTags = new Set(tags.filter(tag => typeof tag === 'string')
-    .map(tag => tag.trim().replace(/^#/, '').toLowerCase())
-    .filter(tag => tag.startsWith('status/')));
-  if (!statusTags.size) return 'Complete';
-  if (statusTags.has('status/stub')) return 'Stub';
-  if (statusTags.has('status/check/ai')) return 'AI review';
-  if (statusTags.size === 1 && statusTags.has('status/check/lint')) return 'Lint';
-
-  let needsCheck = false;
-  for (const tag of statusTags) {
-    if (tag === 'status/check/lint' || tag === 'status/gameupdate' || tag.startsWith('status/gameupdate/')) continue;
-    if (tag === 'status/check/errors' || tag.startsWith('status/check/errors/')) return 'Needs work';
-    if (tag !== 'status/check' && !tag.startsWith('status/check/')) return 'Needs work';
-    needsCheck = true;
-  }
-  return needsCheck ? 'Check' : 'Updates pending';
-}
 
 function validate(options) {
   if (!mapping(options)) throw new Error('Use a YAML mapping for a taelgar-index.');
@@ -208,19 +183,8 @@ export function queryIndex(snapshot, options, {date, sourcePath, resolve, visibl
 
   const fields = new Set([...indexTableColumns(from,columns), ...(sortBy || [])]);
   const filters = Object.entries(where);
-  const items = [], warnings = new Set(), sortKeys = new WeakMap();
-  function formattedParts(text, source) {
-    const parts = [];
-    let end = 0;
-    for (const match of text.matchAll(/\[\[([^\[\]\n]+)\]\]/g)) {
-      if (match.index > end) parts.push(text.slice(end,match.index));
-      const [ref,...alias] = match[1].split('|'), page = lookup(ref,source);
-      parts.push(page ? {path:page.path,name:alias.join('|') || ref} : 'Unknown');
-      end = match.index + match[0].length;
-    }
-    if (end < text.length) parts.push(text.slice(end));
-    return parts;
-  }
+  const rows = createIndexRows({dates,names,templates},at,{fields,lookup,whereabouts});
+  const warnings = new Set();
   for (const page of byType.get(from)) {
     const metadata = page.metadata;
     if (!visible(page) || page.path === target?.path || !filters.every(([key,value]) =>
@@ -238,72 +202,13 @@ export function queryIndex(snapshot, options, {date, sourcePath, resolve, visibl
       if (type === 'whereabouts') matched = matchDate(page,first,until);
       if (type === 'affiliation') matched = affiliation?.date;
       if (!matched) continue;
-      const format = template => templates.formatDisplayString(template,{name:page.name,frontmatter:metadata},at);
-      const item = {path:page.path,name:format('<name:n>'),type:format('<maintype:n>'),
-        imageTarget:metadata.image, pronunciation:metadata.pronunciation};
-      const keys = {};
-      if (from === 'person') {
-        item.person = formattedParts(format('<name> (<pronouns> <pronunciation>)'),page.path);
-        item.info = formattedParts(format('<ancestry> <maintype>'),page.path);
-      }
-      if (fields.has('status')) {
-        item.status = noteStatus(metadata.tags);
-        keys.status = statusOrder.indexOf(item.status);
-      }
-      if (fields.has('home')) item.home = formattedParts(format('<home:1>'),page.path);
-      if (fields.has('origin') && hasLocation(whereabouts(page,at).origin)) {
-        item.origin = formattedParts(format('<origin:1>'),page.path);
-      }
-      if (fields.has('currentLocation')) {
-        const current = whereabouts(page,at).current;
-        item.currentLocation = !ended && hasLocation(current) && lookup(current.location,page.path) ?
-          formattedParts(format('<current:2>'),page.path) : [];
-      }
-      if (fields.has('region')) {
-        const home = whereabouts(page,matched).home, region = lookup(home.location,page.path);
-        if (region) item.region = {path:region.path,name:names.getNameObject(region.path).name || region.name};
-      }
-      if (fields.has('population') && metadata.population != null) {
-        item.population = metadata.population === 0 ? '0' : format('<population>');
-        const number = Number(metadata.population);
-        if (String(metadata.population).trim() && Number.isFinite(number)) keys.population = number;
-      }
-      if (affiliation && fields.has('roles')) item.roles = affiliation.roles.join(' · ');
-      if (affiliation) {
-        for (const [key,value] of [['joined',affiliation.term.startDate], ['left',affiliation.term.explicitEndDate]]) {
-          if (fields.has(key) && known(value) && value.sort <= until.sort) {
-            item[key] = value.display;
-            keys[key] = value.sort;
-          }
-        }
-      }
-      for (const field of ['born','died','created','destroyed']) {
-        if (!fields.has(field)) continue;
-        const value = dates.normalizeDate(metadata[field],field === 'died' || field === 'destroyed');
-        if (known(value) && value.sort <= at.sort) { item[field] = value.display; keys[field] = value.sort; }
-      }
-      sortKeys.set(item,keys);
-      items.push(item);
+      rows.add(page,{life,matched,affiliation});
     } catch (error) {
       if (!(error instanceof HeaderDataError)) throw error;
       warnings.add('Some pages were omitted because their relationship metadata contains a cycle.');
     }
   }
-  function sortValue(item, key) {
-    const value = item[key];
-    if (key === 'population' || Object.hasOwn(sortKeys.get(item),key)) return sortKeys.get(item)[key];
-    if (Array.isArray(value)) return value.map(part => typeof part === 'string' ? part : part.name).join('') || undefined;
-    return value?.name || value || undefined;
-  }
-  items.sort((a,b) => {
-    for (const key of sortBy || (from === 'place' ? ['type'] : [])) {
-      const left = sortValue(a,key), right = sortValue(b,key);
-      const order = left == null || right == null ? Number(left == null)-Number(right == null) :
-        typeof left === 'number' && typeof right === 'number' ? left-right : compare(left,right);
-      if (order) return order;
-    }
-    return compare(a.name,b.name) || a.path.localeCompare(b.path,'en');
-  });
+  const items = rows.sort(sortBy || (from === 'place' ? ['type'] : []));
   const label = {person:'People',place:'Places',object:'Objects',event:'Events',group:'Groups',power:'Powers',ancestry:'Ancestries',creature:'Creatures'}[from];
   return {from,label:(scope === 'historical' ? 'Historical ' : scope === 'ever' ? 'All-time ' : '') + label,
     target:taelgarRoot ? TAELGAR_LOCATION : target && (names.getNameObject(target.path).name || target.name),

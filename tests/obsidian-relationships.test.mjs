@@ -141,3 +141,63 @@ test('registered code block renders mode: list, follows source links, and resume
   assert.ok(element.querySelector('[data-href="People/Bob.md"]'));
  }finally{block.unload();h.dispose();}
 });
+
+test('inline tables share index formatting, filter direct neighbors, and opt in to object prose',async()=>{
+  const h=host(true,{
+    'People/Alice.md':{tags:['person'],affiliations:['Guild'],whereabouts:'Town'},
+    'People/Bob.md':{tags:['person'],died:'1719-12-31',whereabouts:'Town'},
+    'Groups/Guild.md':{tags:['group']},
+    'Objects/Brass Bell.md':{tags:['object'],typeOf:'bell'},
+    'Objects/Silver Key.md':{tags:['object'],typeOf:'key'},
+    'Objects/Unrelated.md':{tags:['object']},
+  });
+  const prose={
+    'People/Alice.md':'Alice met [[Bob]] and found the [[Silver Key]].',
+    'Objects/Brass Bell.md':'[[Alice]] rang the bell.',
+    'Objects/Silver Key.md':'[[Alice]] found the key. It opens the [[Unrelated]].',
+  };
+  const reads=[];
+  h.app.vault.cachedRead=async file=>{reads.push(file.path);return prose[file.path]??'';};
+  h.app.workspace.openLinkText=(...args)=>h.opened.push(args);
+  const dom=imageDOM(),sourcePath='People/Alice.md',blocks=[];
+  async function render(source,path=sourcePath) {
+    const element=dom.document.createElement('div');dom.document.body.append(element);
+    let block;
+    h.plugin.processor(source,element,{sourcePath:path,addChild(child){block=child;blocks.push(child);child.onload();}});
+    await block.explorer.ready;
+    return {element,block};
+  }
+  const links=element=>Array.from(element.querySelectorAll('tbody tr td:last-child a'),node=>node.dataset.href);
+  try {
+    const browsing=await h.feature.data();
+    assert.ok(browsing.graph.nodes.every(node=>node.type!=='object'));
+    assert.ok(reads.every(path=>!path.startsWith('Objects/')));
+
+    const {element,block}=await render('mode: table');
+    const rows=Array.from(element.querySelectorAll('tbody tr'));
+    assert.deepEqual(rows.map(row=>row.querySelector('td a').dataset.href),
+      ['People/Bob.md','Objects/Brass Bell.md','Objects/Silver Key.md']);
+    assert.match(rows[0].children[2].textContent,/Town.*\(December 31st, 1719\)/);
+    assert.equal(rows[0].children[3].textContent,'No');
+    assert.equal(rows[1].children[3].textContent,'');
+    dom.click(rows[0].querySelector('td a'));
+    assert.deepEqual(h.opened[0],['People/Bob.md',sourcePath,false]);
+
+    const selected=await render('mode: table\ntypes: [place, group]\ncolumns: [type, name]\ncolumnHeadings: {name: Connection}\nsortBy: [kind, name]');
+    assert.deepEqual(Array.from(selected.element.querySelectorAll('th'),node=>node.textContent),['Type Of','Connection']);
+    assert.deepEqual(links(selected.element),['Places/Town.md','Groups/Guild.md']);
+    const objectSource=await render('mode: table\ntypes: [person]\ncolumns: [name]','Objects/Silver Key.md');
+    assert.deepEqual(links(objectSource.element),['People/Alice.md']);
+
+    h.globals.customJS={state:{overrideDate:'1719-12-31'}};
+    await block.explorer.refresh();
+    const bob=element.querySelector('tbody tr');
+    assert.match(bob.children[2].textContent,/Town/);
+    assert.doesNotMatch(bob.children[2].textContent,/1719/);
+    assert.equal(bob.children[3].textContent,'Yes');
+    assert.ok((await h.feature.data()).graph.nodes.every(node=>node.type!=='object'));
+  } finally {
+    for(const block of blocks)block.unload();
+    h.dispose();
+  }
+});
