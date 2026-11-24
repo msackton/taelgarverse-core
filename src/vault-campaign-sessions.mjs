@@ -4,6 +4,7 @@ import {parse} from 'yaml';
 import {readVaultSessionBundles} from './vault-session-bundles.mjs';
 import {sessionBundleManifest} from './session-bundles.mjs';
 import {parseSessionRecap,sessionRecapHeader} from './recap-parser.mjs';
+import {stripWebsiteSecrets} from './website-secrets.mjs';
 
 const maxArtifactSize=8*1024*1024;
 
@@ -31,8 +32,8 @@ async function bundleFacts(root,directory,identity) {
   const warnings=[];
   if(files.includes(recapName)) {
     try {
-      const source=await readArtifact(folder,recapName);
       const recapPath=relative+'/'+recapName;
+      const source=stripWebsiteSecrets(await readArtifact(folder,recapName),recapPath);
       const recap=parseSessionRecap(source,recapPath,identity);
       Object.assign(bundle,{recap:sessionRecapHeader(source),recapPath,recapStart:recap.date,recapEnd:recap.end});
     } catch(error) { warnings.push(relative+'/'+recapName+': '+error.message); }

@@ -11,6 +11,7 @@ import {readInteractionBundles} from '../src/session-interactions.mjs';
 import {DerivativeCache} from './derivative-cache.mjs';
 import {withPublicationProgress} from './publication-progress.mjs';
 import {readCampaignHomes} from '../src/website-sources.mjs';
+import {readWebsiteMarkdown} from '../src/website-secrets.mjs';
 import {readFolderExclusions} from '../src/folder-exclusions.mjs';
 import {IMAGE_DEFAULTS, IMAGE_VERSION} from './optimize-images.mjs';
 import {createSearchDatabase,searchBinding} from './search-database.mjs';
@@ -205,7 +206,7 @@ export function buildFingerprint(settings, options, config={}, root=ROOT) {
     const filename=path.join(dataviewDirectory,file);hash.update(existsSync(filename)?readFileSync(filename):'<missing Dataview '+file+'>');
   }
   for (const filename of [settings.nav_source,settings.home_source]) {
-    hash.update(JSON.stringify(filename ? readFileSync(filename,'utf8').replace(/\r\n/g,'\n') : null));
+    hash.update(JSON.stringify(filename ? readWebsiteMarkdown(filename).replace(/\r\n/g,'\n') : null));
   }
 
   // Discover imports again at pre-activation verification so edits made during

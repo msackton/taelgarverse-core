@@ -583,6 +583,11 @@ change with the selected date unless you mark it as described below.
 
 ## Comments and text for particular campaigns or dates
 
+Use a vault `SECRET` block for material that must stay out of website output.
+Publication and local website previews strip raw secret blocks and single-line
+frontmatter values marked `##secret` before rendering or indexing. See
+[website secret filtering](publishing-pipelines.md#website-secret-filtering).
+
 An ordinary Obsidian comment, `%% like this %%`, is hidden by default. With
 **See Behind the Curtain** enabled, it becomes a numbered popup note. Comments
 inside a section hidden for the current campaign or date stay hidden.

@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {createHash} from 'node:crypto';
 import {isInside,targetPath,titleCase} from './config.mjs';
-import {ContentStore,parseNote,ASSET_TYPES,omitFromPublication} from './content-store.mjs';
+import {ContentStore,ASSET_TYPES} from './content-store.mjs';
+import {inspectWebsiteNote} from './website-secrets.mjs';
 import {isPublicationEntry,NO_PUBLISH_MARKER,readFolderExclusions} from './folder-exclusions.mjs';
 import {validateManifest} from './map-core.mjs';
 import {validateMapLayers} from './map-layers.mjs';
@@ -40,13 +41,13 @@ export class Store extends ContentStore {
           catch (error) { entry[mapDetail?'mapDetailError':mapLayers?'mapLayersError':'mapManifestError']=error.message; }
         }
         if (extension === '.md') {
-          try {
-            entry.note = parseNote(new TextDecoder('utf-8', {fatal: true}).decode(fs.readFileSync(filename)));
-          } catch (error) {
-            warnings.push(relative + ': invalid YAML or UTF-8');
-            continue;
-          }
-          if (omitFromPublication(entry.note.metadata)) continue;
+          let source;
+          try { source = new TextDecoder('utf-8',{fatal:true}).decode(fs.readFileSync(filename)); }
+          catch { warnings.push(relative + ': invalid YAML or UTF-8'); continue; }
+          const inspected=inspectWebsiteNote(source,relative);
+          if(inspected.omitted)continue;
+          if(!inspected.note){warnings.push(relative+': invalid YAML or UTF-8');continue;}
+          entry.note=inspected.note;
           entry.name = path.basename(file.name, '.md');
           entry.title = [entry.note.metadata.title ? titleCase(entry.note.metadata.title) : '',
             titleCase(entry.note.metadata.name || entry.name.replace(/-/g, ' '))].filter(Boolean).join(' ');

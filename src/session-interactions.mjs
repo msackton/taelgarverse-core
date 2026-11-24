@@ -6,6 +6,7 @@ import {readMappedSession} from './mapped-sessions.mjs';
 import {readVaultSessionBundles} from './vault-session-bundles.mjs';
 import {registryPath} from './campaign-registry.mjs';
 import {readVaultCampaigns} from './vault-campaigns.mjs';
+import {stripWebsiteSecrets} from './website-secrets.mjs';
 
 export function readInteractionBundles(settings, registry) {
   const bundles = [], warnings = [];
@@ -30,7 +31,7 @@ export function readInteractionBundles(settings, registry) {
         if (!file.endsWith('-interactions.json') || !files.includes(file.replace(/-interactions\.json$/, '-entity-map.json'))) maps.push(key);
         continue;
       }
-      const text = fs.readFileSync(filename, 'utf8');
+      const text = stripWebsiteSecrets(fs.readFileSync(filename,'utf8'),key);
       try {
         recaps.push(parseSessionRecap(text, key, identity));
       } catch (error) {

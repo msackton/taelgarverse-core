@@ -19,6 +19,7 @@ import {prepareMaps} from './build-maps.mjs';
 import {prepareImages} from './build-images.mjs';
 import {collectImageUsages} from './image-usage.mjs';
 import {readCampaignHomes} from '../src/website-sources.mjs';
+import {readWebsiteMarkdown} from '../src/website-secrets.mjs';
 import {CampaignSites} from '../src/campaign-sites.mjs';
 import {Contexts} from '../src/contexts.mjs';
 import {DerivativeCache} from './derivative-cache.mjs';
@@ -50,7 +51,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
     const store=new Store(settings);
     for(const entry of store.entries)if(entry.mapPathError)
       throw new Error(entry.id+': '+entry.mapPathError);
-    const homeSource=settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null;
+    const homeSource=settings.home_source ? readWebsiteMarkdown(settings.home_source) : null;
     const {indexes,registry}=readVaultCampaignRegistry(settings.vault_dir);
     const campaignHomes=readCampaignHomes(settings);
     new CampaignSites(campaignHomes,Contexts.forWebsite(store,registry,settings));
@@ -101,7 +102,7 @@ export async function prepareContent(settings=loadSettings(),output=path.join(RO
   const base={sourceVersion:{commit:sourceVersion.commit,dirty:sourceVersion.dirty},settings:{default_date:settings.default_date,campaigns:settings.campaigns},backlinks,
     registry,interactions,campaignRecords:campaigns.descriptors,
     coreMeta,
-    navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,
+    navigationSource:settings.nav_source ? readWebsiteMarkdown(settings.nav_source) : null,
     homeSource,
     campaignHomes,
     search,warnings:[...store.warnings,...backlinks.warnings,...searchManifest.warnings],entries};

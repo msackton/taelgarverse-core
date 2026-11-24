@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {parseNote} from './content-store.mjs';
+import {stripWebsiteSecrets} from './website-secrets.mjs';
 import {validCampaignHost} from './campaign-sites.mjs';
 
 export function readCampaignHomes(settings) {
@@ -11,12 +12,13 @@ export function readCampaignHomes(settings) {
   if (!fs.existsSync(directory)) return sources;
   for (const file of fs.readdirSync(directory,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name))) {
     if (!file.isFile() || !file.name.endsWith('.md') || ['home.md','navigation.md','AGENTS.md'].includes(file.name)) continue;
-    const source = fs.readFileSync(path.join(directory,file.name),'utf8');
+    const raw = fs.readFileSync(path.join(directory,file.name),'utf8');
     // Other website planning/support files are not publication inputs.
-    const frontmatter = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(source);
+    const frontmatter = /^---[ \t]*\r?\n([\s\S]*?)\r?\n---[ \t]*(?:\r?\n|$)/.exec(raw);
     // Detect the removed context field too, so validation reports a migration
     // error instead of silently dropping an existing campaign homepage.
     if (!frontmatter || !/^(?:context|campaigns)\s*:/m.test(frontmatter[1])) continue;
+    const source = stripWebsiteSecrets(raw,'_website/'+file.name);
     const {metadata} = parseNote(source); // Fail publication on malformed opted-in YAML.
     const explicitHost = Object.hasOwn(metadata,'subdomain');
     const host = explicitHost ? metadata.subdomain : file.name.slice(0,-3);

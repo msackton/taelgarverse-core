@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises';
+import {isUtf8} from 'node:buffer';
 import path from 'node:path';
 import {ROOT,isInside} from '../src/config.mjs';
 import {isPublicationEntry,NO_PUBLISH_MARKER} from '../src/folder-exclusions.mjs';
-import {parseNote,omitFromPublication} from '../src/content-store.mjs';
+import {inspectWebsiteNote} from '../src/website-secrets.mjs';
 import {validateMapPath} from '../src/map-feature-path.mjs';
 import {readMapPathFile} from '../src/map-path-files.mjs';
 
@@ -24,15 +25,22 @@ export async function copyWorkingVault(vault,output,{log=()=>{}}={}) {
       const source=path.join(vault,relative),target=path.join(output,relative);
       if(entry.isDirectory())await walk(relative);
       else if(entry.isFile()) {
+        const stat=await fs.stat(source);
         let metadata;
-        if(/\.md$/i.test(relative)){
-          // Keep unpublished notes out of Dataview's index as well as the package.
-          // Invalid notes still reach Store's existing warning handling.
-          try{metadata=parseNote(await fs.readFile(source,'utf8')).metadata;}catch{}
-          if(metadata && omitFromPublication(metadata))continue;
-        }
-        const stat=await fs.stat(source);await fs.copyFile(source,target);await fs.utimes(target,stat.atime,stat.mtime);
-        if(/\.md$/i.test(relative)){
+        const markdown=/\.md$/i.test(relative);
+        if(markdown){
+          const bytes = await fs.readFile(source);
+          const text = bytes.toString('utf8');
+          const inspected = inspectWebsiteNote(text,relative);
+          if (inspected.omitted) continue;
+          metadata = inspected.note?.metadata;
+          if (inspected.source !== text && !isUtf8(bytes)) {
+            throw new Error(relative+': cannot filter secrets in invalid UTF-8');
+          }
+          await fs.writeFile(target,inspected.source === text ? bytes : inspected.source);
+        }else await fs.copyFile(source,target);
+        await fs.utimes(target,stat.atime,stat.mtime);
+        if(markdown){
           stats.set(relative,{ctime:stat.birthtimeMs,mtime:stat.mtimeMs,size:stat.size});
           // Only explicitly referenced geometry is copied from private folders.
           // Malformed metadata remains the Store/renderer validation boundary.

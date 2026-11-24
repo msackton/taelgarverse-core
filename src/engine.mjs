@@ -9,6 +9,7 @@ import {ROOT} from './config.mjs';
 import {repositoryVersion} from '../scripts/repository-version.mjs';
 import {LocalSearch} from './local-search.mjs';
 import {readCampaignHomes} from './website-sources.mjs';
+import {readWebsiteMarkdown} from './website-secrets.mjs';
 import {readInteractionBundles} from './session-interactions.mjs';
 export {document} from './render-engine.mjs';
 
@@ -24,8 +25,8 @@ export class Engine extends RenderEngine {
       registry,
     });
     super({settings,store,headers,
-      navigationSource:settings.nav_source ? fs.readFileSync(settings.nav_source,'utf8') : null,
-      homeSource:settings.home_source ? fs.readFileSync(settings.home_source,'utf8') : null,
+      navigationSource:settings.nav_source ? readWebsiteMarkdown(settings.nav_source) : null,
+      homeSource:settings.home_source ? readWebsiteMarkdown(settings.home_source) : null,
       campaignHomes:readCampaignHomes(settings),interactionBundles:interactions.bundles,
       campaignSource:readVaultCampaignSource(settings.vault_dir,{indexes,registry})});
     this.releases = {core:repositoryVersion(ROOT),content:repositoryVersion(settings.vault_dir),local:true};

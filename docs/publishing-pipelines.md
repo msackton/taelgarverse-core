@@ -145,6 +145,19 @@ inspection. Successful runs remove the temporary copy.
 Shared header metadata, homepage/navigation and session inputs still come from
 the configured original vault. They are file inputs, not calls to Obsidian.
 
+## Website secret filtering
+
+The publisher removes raw vault secret blocks and frontmatter lines marked
+`##secret` from its working Markdown copy before Dataview reads it. It applies
+the same filtering to website homepages, navigation, and Markdown read from the
+source vault for campaign data. Quick preview also filters notes when reading
+the live vault. The source files and Git secret sidecars stay untouched.
+
+Ordinary Obsidian comments and `Campaign:none` blocks remain available through
+**See Behind the Curtain**. Use a single-line value for secret frontmatter.
+Malformed secret syntax in a publishable article stops the build with a file
+and line number. A new publication is required to replace an existing snapshot.
+
 ## Markdown cleanup
 
 DQL selection and DataviewJS cleanup share Markdown-it fence boundaries,
