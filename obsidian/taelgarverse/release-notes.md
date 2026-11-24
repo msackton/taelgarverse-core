@@ -1,7 +1,7 @@
-Taelgarverse 3.2.0
+Taelgarverse 3.3.0
 
-- DataviewJS and Templater can use the Taelgarverse note query API to read the campaign registry, normalize DR dates, and expand display tokens against a note.
-- The API also reads recorded origins and checks whether location references resolve to Markdown notes.
-- Index tables now support a Status column and sorting by editorial status, including stubs, review flags, lint findings, and pending campaign updates.
+- Add `taelgar-events` blocks for chronological tables from dated notes and inline DR entries. Filter source notes by type, path, or campaign, and optionally include lifecycle and travel events. To switch an existing timeline, replace its old query with a `taelgar-events` block.
+- Add `mode: table` to `taelgar-relationship` blocks. With Relationship explorer enabled, show directly connected notes in a table with configurable columns and sorting. People and objects are included by default.
+- Add the optional `lastKnown` column to generated index tables. It shows the current location when available or the last known location with its date when available.
 
 Requires Obsidian 1.8.0 or newer.
