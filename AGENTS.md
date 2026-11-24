@@ -35,6 +35,17 @@ the human user for that specific action. These are hard requirements.**
   Continue independently authorized local work when possible. Never bypass these
   gates by switching tools or triggering an action indirectly.
 
+## All releases must come from main
+
+**No release of any kind may come from a branch other than `main`. There are
+no exceptions.** Use the `main` branch of the repository that owns the released
+source. Verify that the exact source commit is on remote `main` before creating
+a release tag, dispatching a release workflow, or publishing release artifacts.
+If the reviewed changes are on another branch, land them on `main` with the
+required authorization before starting the release. This rule governs every
+linked release procedure, including instructions that refer to a source branch
+or source ref.
+
 ## Content publication and website deployment
 
 These are separate release paths:
@@ -58,5 +69,9 @@ When asked to prepare, test, or publish a **Taelgarverse Obsidian release**, fol
 actual changes and writes the notes; the helper handles version consistency;
 GitHub builds and publishes. A request to **prepare** ends with a reviewable
 proposal. A request to **publish/release** authorizes the described publication
-steps; do not ask for the same authorization again if it was already given.
+steps, including the push to core `main` needed for the plugin release and the
+website deployment that GitHub Actions triggers from that push. This permission
+covers the release changes and their automated website deployment. Publishing
+vault content or deploying directly still requires separate authorization.
+Do not ask for the same authorization again if it was already given.
 Never interpret an ordinary code commit/push as a request for a plugin release.
